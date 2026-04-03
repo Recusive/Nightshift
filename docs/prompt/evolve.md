@@ -309,9 +309,22 @@ git checkout main && git pull
 Commit types: `feat`, `fix`, `refactor`, `test`, `docs`, `release`.
 Include ALL files in one commit: code + tests + changelog + tracker + handoff + CLAUDE.md.
 
-## STEP 9 — RELEASE CHECK
+## STEP 9 — POST-MERGE HEALTH CHECK
 
-After merging, decide if this warrants a release. Read `docs/ops/OPERATIONS.md` "Release Strategy" section.
+After merging, verify main is healthy:
+```bash
+# Wait for CI on main (check latest run)
+gh run list --branch main --limit 1
+# If status is "completed" + "success": proceed
+# If status is "failure": immediately revert
+bash scripts/rollback.sh <merge-commit>
+```
+
+Do NOT proceed to the next step if CI on main is failing. Fix it first or revert.
+
+## STEP 10 — RELEASE CHECK
+
+After the health check passes, decide if this warrants a release. Read `docs/ops/OPERATIONS.md` "Release Strategy" section.
 
 Ask yourself:
 - Is this a user-facing change? Bug fix? New feature?
@@ -319,7 +332,7 @@ Ask yourself:
 - If yes: cut the release (tag, push tag, `gh release create`)
 - If no: move on. It'll ship with the next release.
 
-## STEP 10 — REPORT
+## STEP 11 — REPORT
 
 ```
 SESSION COMPLETE
