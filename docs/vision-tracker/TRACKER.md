@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-03 by agent session.
+Last updated: 2026-04-03 by agent session (v0.0.2 released, merge_config fix).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,8 +9,8 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              █████████░░░░░░░░░░░  43%
-├── Loop 1 — Hardening Loop                    █████████████░░░░░░░  67%
+NIGHTSHIFT VISION                              █████████░░░░░░░░░░░  45%
+├── Loop 1 — Hardening Loop                    ██████████████░░░░░░  71%
 ├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
@@ -18,7 +18,7 @@ NIGHTSHIFT VISION                              █████████░░
 
 ---
 
-## Loop 1 — Hardening Loop (67%)
+## Loop 1 — Hardening Loop (71%)
 
 The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
 
@@ -43,11 +43,10 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Test writing incentives | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Backend exploration forcing | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Multi-repo support | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
-| Deep merge for config | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Deep merge for config | Done | ████████████████████ 100% |
 | run_command timeout fix | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 
 ### Bugs Found (not yet fixed)
-- `merge_config()` shallow update replaces default blocked paths — security issue
 - `run_command()` timeout race — readline blocks, timeout never fires
 
 ---
