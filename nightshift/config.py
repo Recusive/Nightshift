@@ -52,14 +52,34 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
     )
 
 
+_LIST_FIELDS: set[str] = {"blocked_paths", "blocked_globs"}
+
+
 def merge_config(repo_dir: Path) -> NightshiftConfig:
+    """Merge .nightshift.json with defaults.
+
+    List fields (blocked_paths, blocked_globs) are unioned so user entries
+    extend the defaults rather than replacing them.  Scalar fields are
+    overwritten normally.
+    """
     raw: dict[str, Any] = json.loads(json.dumps(DEFAULT_CONFIG))
     path = repo_dir / ".nightshift.json"
     if path.exists():
         loaded = load_json(path)
         if not isinstance(loaded, dict):
             raise NightshiftError(".nightshift.json must contain a JSON object")
-        raw.update(loaded)
+        for key, value in loaded.items():
+            if key in _LIST_FIELDS and isinstance(value, list):
+                existing = raw.get(key, [])
+                seen: set[str] = set(existing)
+                merged = list(existing)
+                for item in value:
+                    if item not in seen:
+                        merged.append(item)
+                        seen.add(item)
+                raw[key] = merged
+            else:
+                raw[key] = value
     return _build_config(raw)
 
 
