@@ -284,11 +284,11 @@ EOF
 #    Agent reads the diff, checks for bugs, security, conventions, missing tests
 #    Reports PASS or FAIL
 
-# 6. If PASS: merge
-gh pr merge --squash
+# 6. If PASS: merge (always --merge to preserve all commits, --admin since you are sole maintainer)
+gh pr merge --merge --delete-branch --admin
 
 # 7. Clean up
-git checkout main && git pull && git branch -d feat/your-feature-name
+git checkout main && git pull
 ```
 
 Commit types: `feat`, `fix`, `refactor`, `test`, `docs`, `release`.
