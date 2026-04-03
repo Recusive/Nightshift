@@ -105,7 +105,7 @@ def build_state_summary(state: ShiftState) -> str:
     for cycle_entry in cycles:
         verification = cycle_entry.get("verification")
         if verification:
-            for file_path in verification.get("files_touched", []):
+            for file_path in verification["files_touched"]:
                 if file_path:
                     paths_touched.add(file_path.split("/", 1)[0])
 

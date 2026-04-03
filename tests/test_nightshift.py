@@ -961,6 +961,23 @@ class TestBuildStateSummary:
         result = nightshift.build_state_summary(state)
         assert "Running totals" not in result
 
+    def test_cycle_without_verification_key(self):
+        state = self._base_state()
+        state["category_counts"] = {"Security": 1}
+        state["counters"]["fixes"] = 1
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "done",
+                "fixes": [],
+                "logged_issues": [],
+            }
+        ]
+        result = nightshift.build_state_summary(state)
+        assert "1 Security" in result
+        # No paths section since verification is absent
+        assert "Paths already visited" not in result
+
     def test_all_categories_explored_no_unexplored_line(self):
         state = self._base_state()
         state["category_counts"] = {
