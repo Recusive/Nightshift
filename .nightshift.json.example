@@ -1,5 +1,5 @@
 {
-  "agent": "codex",
+  "agent": "codex or claude",
   "hours": 8,
   "cycle_minutes": 30,
   "verify_command": null,

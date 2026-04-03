@@ -1,0 +1,5 @@
+# Pinned dev tools — keep in sync with CI and check.sh
+# Bump these intentionally, not by accident.
+mypy==1.7.1
+ruff==0.15.9
+pytest==8.3.4

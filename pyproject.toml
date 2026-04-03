@@ -1,0 +1,30 @@
+[project]
+name = "nightshift"
+requires-python = ">=3.9"
+dependencies = []
+
+[tool.mypy]
+strict = true
+warn_unreachable = true
+python_version = "3.9"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "RUF", "BLE", "S", "T20", "PT", "C4"]
+ignore = [
+    "E501",  # line length -- enforced by formatter, not linter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S108", "C408"]
+"nightshift/constants.py" = ["T201"]
+"nightshift/cli.py" = ["T201"]
+"nightshift/shell.py" = ["S603", "S607"]  # subprocess with variable args -- this is the orchestrator's job
+"nightshift/cycle.py" = ["S603", "S607"]
+"nightshift/worktree.py" = ["S603", "S607"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

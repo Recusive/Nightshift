@@ -1,0 +1,146 @@
+"""Nightshift -- autonomous overnight codebase improvement agent."""
+
+from nightshift.cli import (
+    build_parser,
+    main,
+    run_nightshift,
+    summarize,
+    verify_cycle_cli,
+)
+from nightshift.config import (
+    infer_install_command,
+    infer_package_manager,
+    infer_verify_command,
+    merge_config,
+    prompt_for_agent,
+    resolve_agent,
+)
+from nightshift.constants import (
+    CATEGORY_ORDER,
+    DATA_VERSION,
+    DEFAULT_CONFIG,
+    SAFE_ARTIFACT_DIRS,
+    SAFE_ARTIFACT_GLOBS,
+    SHIFT_LOG_TEMPLATE,
+    SUPPORTED_AGENTS,
+    now_local,
+    print_status,
+)
+from nightshift.cycle import (
+    blocked_file,
+    build_prompt,
+    command_for_agent,
+    evaluate_baseline,
+    extract_json,
+    parse_cycle_result,
+    recent_hot_files,
+    verify_cycle,
+)
+from nightshift.errors import NightshiftError
+from nightshift.shell import (
+    command_exists,
+    git,
+    run_capture,
+    run_command,
+    run_shell_string,
+)
+from nightshift.state import (
+    append_cycle_state,
+    load_json,
+    read_state,
+    top_path,
+    write_json,
+)
+from nightshift.types import (
+    Baseline,
+    Counters,
+    CycleEntry,
+    CycleResult,
+    CycleVerification,
+    Fix,
+    LoggedIssue,
+    NightshiftConfig,
+    ShiftState,
+)
+from nightshift.worktree import (
+    cleanup_safe_artifacts,
+    discover_base_branch,
+    ensure_shift_log,
+    ensure_shift_log_committed,
+    ensure_worktree,
+    git_changed_files_for_commit,
+    git_name_status_for_commit,
+    install_dependencies_if_needed,
+    revert_cycle,
+    sync_shift_log,
+)
+
+__all__ = [
+    # constants
+    "CATEGORY_ORDER",
+    "DATA_VERSION",
+    "DEFAULT_CONFIG",
+    "SAFE_ARTIFACT_DIRS",
+    "SAFE_ARTIFACT_GLOBS",
+    "SHIFT_LOG_TEMPLATE",
+    "SUPPORTED_AGENTS",
+    # types
+    "Baseline",
+    "Counters",
+    "CycleEntry",
+    "CycleResult",
+    "CycleVerification",
+    "Fix",
+    "LoggedIssue",
+    "NightshiftConfig",
+    # errors
+    "NightshiftError",
+    "ShiftState",
+    # state
+    "append_cycle_state",
+    # cycle
+    "blocked_file",
+    # cli
+    "build_parser",
+    "build_prompt",
+    # worktree
+    "cleanup_safe_artifacts",
+    # shell
+    "command_exists",
+    "command_for_agent",
+    "discover_base_branch",
+    "ensure_shift_log",
+    "ensure_shift_log_committed",
+    "ensure_worktree",
+    "evaluate_baseline",
+    "extract_json",
+    "git",
+    "git_changed_files_for_commit",
+    "git_name_status_for_commit",
+    # config
+    "infer_install_command",
+    "infer_package_manager",
+    "infer_verify_command",
+    "install_dependencies_if_needed",
+    "load_json",
+    "main",
+    "merge_config",
+    "now_local",
+    "parse_cycle_result",
+    "print_status",
+    "prompt_for_agent",
+    "read_state",
+    "recent_hot_files",
+    "resolve_agent",
+    "revert_cycle",
+    "run_capture",
+    "run_command",
+    "run_nightshift",
+    "run_shell_string",
+    "summarize",
+    "sync_shift_log",
+    "top_path",
+    "verify_cycle",
+    "verify_cycle_cli",
+    "write_json",
+]

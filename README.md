@@ -11,7 +11,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
-  <img src="https://img.shields.io/badge/Claude-Compatible-F97316" alt="Claude Code" />
+  <img src="https://img.shields.io/badge/Claude-Supported-F97316" alt="Claude Code" />
   <img src="https://img.shields.io/badge/License-MIT-22C55E" alt="MIT License" />
 </p>
 
@@ -23,12 +23,10 @@ Nightshift is an overnight codebase-hardening runner built by **[Recursive Labs]
 
 The original version relied mostly on prompt discipline. This version adds a real control plane:
 
-- a Python orchestrator (`nightshift.py`)
-- a schema-backed Codex adapter
+- a Python orchestrator (the `nightshift/` package)
+- pluggable agent adapters (Codex and Claude — pick one, both go through the same pipeline)
 - machine-readable shift state (`docs/Nightshift/YYYY-MM-DD.state.json`)
 - runner-enforced guard rails, verification gates, and halt conditions
-
-Codex is now the default unattended agent. Claude remains available through the same runner as a compatibility adapter.
 
 ---
 
@@ -78,11 +76,24 @@ Main repo checkout                 Nightshift worktree
 
 | File | Purpose |
 |------|---------|
-| `nightshift.py` | Orchestrator, policy engine, verifier, state manager |
-| `nightshift.schema.json` | Required final-response schema for Codex cycles |
-| `SKILL.md` | Interactive nightshift skill instructions |
-| `run.sh` | Thin wrapper around `nightshift.py run` |
-| `test.sh` | Thin wrapper around `nightshift.py test` |
+| `nightshift/` | Python package — orchestrator, policy engine, verifier, state manager |
+| `nightshift/types.py` | TypedDicts for all data structures (strict typing) |
+| `nightshift/constants.py` | DATA_VERSION, DEFAULT_CONFIG, SHIFT_LOG_TEMPLATE, etc. |
+| `nightshift/errors.py` | NightshiftError |
+| `nightshift/shell.py` | run_command, run_capture, git, command_exists, run_shell_string |
+| `nightshift/config.py` | merge_config, resolve_agent, infer_package_manager, infer_verify_command |
+| `nightshift/state.py` | read_state, write_json, load_json, append_cycle_state, top_path |
+| `nightshift/worktree.py` | ensure_worktree, ensure_shift_log, sync_shift_log, revert_cycle, cleanup |
+| `nightshift/cycle.py` | build_prompt, command_for_agent, verify_cycle, evaluate_baseline, extract_json |
+| `nightshift/cli.py` | run_nightshift, summarize, verify_cycle_cli, build_parser, main |
+| `nightshift.schema.json` | Required final-response schema for agent cycles |
+| `pyproject.toml` | Project config: mypy strict, ruff lint/format, pytest |
+| `requirements-dev.txt` | Pinned dev tool versions (mypy, ruff, pytest) |
+| `scripts/check.sh` | Local CI — runs all checks (mirrors GitHub Actions) |
+| `.github/workflows/ci.yml` | CI pipeline: lint, typecheck, test, integration, artifact validation |
+| `nightshift/SKILL.md` | Interactive nightshift skill instructions |
+| `scripts/run.sh` | Thin wrapper around `python3 -m nightshift run` |
+| `scripts/test.sh` | Thin wrapper around `python3 -m nightshift test` |
 | `.nightshift.json.example` | Optional per-repo config template |
 
 ---
@@ -92,7 +103,7 @@ Main repo checkout                 Nightshift worktree
 ### One-liner
 
 ```bash
-curl -sL https://raw.githubusercontent.com/Recusive/Nightshift/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/Recusive/Nightshift/main/scripts/install.sh | bash
 ```
 
 This installs Nightshift into both:
@@ -128,7 +139,7 @@ Supported keys:
 
 ```json
 {
-  "agent": "codex",
+  "agent": "codex or claude",
   "hours": 8,
   "cycle_minutes": 30,
   "verify_command": null,
@@ -152,35 +163,33 @@ If `verify_command` is omitted, Nightshift tries to infer one from common repo m
 ### Overnight run
 
 ```bash
-~/.codex/skills/nightshift/run.sh
-~/.codex/skills/nightshift/run.sh 10
-~/.codex/skills/nightshift/run.sh 6 45
+~/.codex/skills/nightshift/scripts/run.sh            # prompts for agent choice
+~/.codex/skills/nightshift/scripts/run.sh --agent codex
+~/.codex/skills/nightshift/scripts/run.sh --agent claude
+~/.codex/skills/nightshift/scripts/run.sh 10          # 10 hours
+~/.codex/skills/nightshift/scripts/run.sh 6 45        # 6 hours, 45 min per cycle
 ```
 
-The default unattended path uses fresh `codex exec` cycles with the shift log plus the state file as cross-cycle memory.
+If no `--agent` flag is passed and `.nightshift.json` doesn't set one, the runner asks which agent to use.
 
 ### Short validation run
 
 ```bash
-~/.codex/skills/nightshift/test.sh
-~/.codex/skills/nightshift/test.sh --cycles 2 --cycle-minutes 5
+~/.codex/skills/nightshift/scripts/test.sh
+~/.codex/skills/nightshift/scripts/test.sh --agent codex --cycles 2 --cycle-minutes 5
 ```
 
 ### Direct orchestrator usage
 
 ```bash
-python3 nightshift.py run
-python3 nightshift.py test
-python3 nightshift.py summarize
+python3 -m nightshift run
+python3 -m nightshift run --agent codex
+python3 -m nightshift run --agent claude
+python3 -m nightshift test
+python3 -m nightshift summarize
 ```
 
-### Claude compatibility
-
-```bash
-python3 nightshift.py run --agent claude
-```
-
-Claude uses the same runner and verification logic, but Codex is the first-class unattended path.
+Both agents go through the same runner, same verification, same policy enforcement. The only difference is the CLI command each adapter constructs.
 
 ---
 
@@ -207,19 +216,17 @@ The shift log is for humans. The state file is for quick auditing:
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.9+
 - Git
-- `codex` CLI for the default unattended path
-- `claude` CLI only if you want the compatibility adapter
+- `codex` CLI or `claude` CLI (whichever agent you choose)
 
 ---
 
 ## Roadmap
 
-- [x] Codex unattended runner
+- [x] Pluggable agent adapters (Codex, Claude)
 - [x] Runner-enforced guard rails
 - [x] Structured cycle outputs and state files
-- [ ] Stronger Claude structured-output compatibility
 - [ ] Smarter repo-type detection for category balancing
 - [ ] Post-cycle diff scoring before accepting a fix
 - [ ] Built-in to Orbit as a native feature

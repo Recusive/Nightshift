@@ -1,0 +1,134 @@
+# Vision Tracker
+
+Last updated: 2026-04-03 by agent session.
+
+This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
+
+---
+
+## Overall Progress
+
+```
+NIGHTSHIFT VISION                              ███████░░░░░░░░░░░░░  35%
+├── Loop 1 — Hardening Loop                    ████████████░░░░░░░░  60%
+├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
+├── Self-Maintaining Repo                      ████░░░░░░░░░░░░░░░░  20%
+└── Meta-Prompt System                         ██████░░░░░░░░░░░░░░  30%
+```
+
+---
+
+## Loop 1 — Hardening Loop (60%)
+
+The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
+
+| Component | Status | Progress |
+|---|---|---|
+| Python orchestrator | Done | ████████████████████ 100% |
+| Codex adapter | Done | ████████████████████ 100% |
+| Claude adapter | Done | ████████████████████ 100% |
+| Worktree isolation | Done | ████████████████████ 100% |
+| Runner-enforced guard rails | Done | ████████████████████ 100% |
+| Machine-readable state | Done | ████████████████████ 100% |
+| Baseline verification | Done | ████████████████████ 100% |
+| Post-cycle verification | Done | ████████████████████ 100% |
+| Shift log generation | Done | ████████████████████ 100% |
+| Category dominance check | Done | ████████████████████ 100% |
+| Path bias detection | Done | ████████████████████ 100% |
+| Hot-file protection | Done | ████████████████████ 100% |
+| Halt conditions | Done | ████████████████████ 100% |
+| Test suite (123 tests) | Done | ████████████████████ 100% |
+| Post-cycle diff scorer | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Cycle-to-cycle state injection | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Test writing incentives | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Backend exploration forcing | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Multi-repo support | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Deep merge for config | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+
+### Bugs Found (not yet fixed)
+- `merge_config()` shallow update replaces default blocked paths — security issue
+- `run_command()` timeout race — readline blocks, timeout never fires
+
+---
+
+## Loop 2 — Feature Builder Loop (0%)
+
+Not started. Vision docs describe the full architecture. No code exists yet.
+
+| Component | Status | Progress |
+|---|---|---|
+| Repo understanding / profiling | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Feature planner | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Task decomposer | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Sub-agent spawner / manager | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Sub-agent coordination | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Integration / merge engine | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| E2E test runner | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Feature CLI (`nightshift build`) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Feature state tracking | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Production-readiness checker | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Feature summary generation | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+
+---
+
+## Self-Maintaining Repo (20%)
+
+The infrastructure that lets the agent manage everything without human intervention.
+
+| Component | Status | Progress |
+|---|---|---|
+| Vision docs | Done | ████████████████████ 100% |
+| Self-improving prompt (evolve.md) | Done | ████████████████████ 100% |
+| Changelog system (per-version) | Done | ████████████████████ 100% |
+| Vision tracker (this file) | Done | ████████████████████ 100% |
+| CLAUDE.md (agent context) | Done | ████████████████████ 100% |
+| CI pipeline (.github/workflows) | Done | ████████████████████ 100% |
+| Local CI (scripts/check.sh) | Done | ████████████████████ 100% |
+| Feedback loop (docs/prompt/feedback/) | Scaffolded | ██░░░░░░░░░░░░░░░░░░ 10% |
+| Auto-release (version bump + gh release) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Auto-changelog update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Auto-tracker update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Auto-CLAUDE.md update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Prompt self-refinement | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+
+---
+
+## Meta-Prompt System (30%)
+
+The reusable prompt and surrounding docs that make the self-improving loop work.
+
+| Component | Status | Progress |
+|---|---|---|
+| evolve.md prompt | Done | ████████████████████ 100% |
+| Vision overview doc | Done | ████████████████████ 100% |
+| Loop 1 deep dive doc | Done | ████████████████████ 100% |
+| Loop 2 deep dive doc | Done | ████████████████████ 100% |
+| Feedback ingestion | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Priority engine (what to build next) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Session history / learning | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+
+---
+
+## How to Read This
+
+**Progress bars**: `█` = done, `░` = not done. 20 chars = 100%.
+
+**Percentages**: Calculated as (done components / total components) per section. Overall is weighted: Loop 1 (40%), Loop 2 (30%), Self-Maintaining (15%), Meta-Prompt (15%).
+
+**"Done" means**: Code exists, tests pass, it works in a real run. Not "planned" or "partially implemented".
+
+---
+
+## Update Instructions (for the agent)
+
+Every session, after you finish building:
+
+1. Read this file
+2. Check each component against the actual code (`nightshift/`, `tests/`, `docs/`)
+3. Update status and progress bars for anything that changed
+4. Recalculate section percentages
+5. Recalculate overall percentage
+6. Update the "Last updated" date at the top
+7. Commit this file alongside your other changes
+
+Do NOT inflate progress. If something is half-done, say "In progress" with an honest percentage. If you broke something, move it back to a lower percentage.

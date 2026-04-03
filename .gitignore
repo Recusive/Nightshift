@@ -1,3 +1,8 @@
 docs/Nightshift/worktree-*/
 docs/Nightshift/*.runner.log
 docs/Nightshift/*.state.json
+**/__pycache__/
+**/*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/

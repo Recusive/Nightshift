@@ -5,11 +5,12 @@ description: >
   systematically discovers and fixes production-readiness issues across the entire stack:
   missing tests, error handling gaps, security vulnerabilities, accessibility problems,
   code quality violations, performance issues, and UI polish. Documents every finding and
-  fix in a detailed shift log. The unattended runner is Codex-first and runner-enforced,
-  with Claude remaining available as a compatibility path. Use this skill whenever the user says "nightshift",
+  fix in a detailed shift log. The unattended runner supports both Codex and Claude as
+  pluggable agent adapters — same pipeline, same verification, you just pick which one.
+  Use this skill whenever the user says "nightshift",
   "run overnight", "overnight engineer", "night shift", "autonomous improvement",
   "improve while I sleep", "background improvement", "make production ready", "run all
-  night", or wants to leave Codex or Claude running to systematically improve the codebase. Also
+  night", or wants to leave an agent running to systematically improve the codebase. Also
   trigger when the user mentions leaving the computer running overnight for code
   improvements, or wants a long-running autonomous session that explores and hardens
   the codebase.
@@ -336,12 +337,11 @@ A single agent session will eventually hit context limits or drift in quality. F
 
 ```bash
 # From your project root:
-~/.codex/skills/nightshift/run.sh           # 8 hours, 30 min cycles (default)
-~/.codex/skills/nightshift/run.sh 10        # 10 hours
-~/.codex/skills/nightshift/run.sh 6 45      # 6 hours, 45 min per cycle
-
-# Claude compatibility path:
-python3 ~/.claude/skills/nightshift/nightshift.py run --agent claude
+~/.codex/skills/nightshift/run.sh                # prompts for agent choice
+~/.codex/skills/nightshift/run.sh --agent codex  # use Codex
+~/.codex/skills/nightshift/run.sh --agent claude # use Claude
+~/.codex/skills/nightshift/run.sh 10             # 10 hours
+~/.codex/skills/nightshift/run.sh 6 45           # 6 hours, 45 min per cycle
 ```
 
 How it works:
