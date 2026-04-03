@@ -21,7 +21,7 @@
 
 ## About
 
-Nightshift is built by the **[Recursive Labs](https://github.com/Recusive)** team as part of the [Orbit](https://github.com/Recusive/Orbit) ecosystem — an AI-native development environment. While Nightshift will ship as a built-in feature in Orbit, it works as a standalone skill with any compatible coding agent today.
+Nightshift is built by the **[Recursive Labs](https://github.com/Recusive)** team as part of the [Orbit](https://github.com/Recusive/Orbit-Release) ecosystem — an AI-native development environment where one agent works across editor, browser, terminal, and docs. While Nightshift will ship as a built-in feature in Orbit, it works as a standalone skill with any compatible coding agent today.
 
 Currently supported: **Claude Code**. Support for OpenAI Codex, GitHub Copilot CLI, and other agents is coming.
 
@@ -200,7 +200,7 @@ git branch -d nightshift/2026-04-01
 ## Built By
 
 <p>
-  <a href="https://github.com/Recusive"><strong>Recursive Labs</strong></a> — the team behind <a href="https://github.com/Recusive/Orbit">Orbit</a>, an AI-native development environment.
+  <a href="https://github.com/Recusive"><strong>Recursive Labs</strong></a> — the team behind <a href="https://github.com/Recusive/Orbit-Release">Orbit</a>, an AI-native development environment where one agent works across editor, browser, terminal, and docs. Nightshift will ship as a built-in feature in Orbit.
 </p>
 
 ## License
