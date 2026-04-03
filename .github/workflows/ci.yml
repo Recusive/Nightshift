@@ -174,7 +174,7 @@ jobs:
           import re, sys
           from pathlib import Path
           content = Path('scripts/install.sh').read_text()
-          files = re.findall(r'^  \"((?:nightshift/)?[A-Za-z_][^\"]*\.(?:py|sh|md|json|example))\"', content, re.MULTILINE)
+          files = re.findall(r'^  \"((?:nightshift/|scripts/)?[A-Za-z_.][^\"]*\.(?:py|sh|md|json|example))\"', content, re.MULTILINE)
           missing = [f for f in files if not Path(f).exists()]
           if missing:
               print('Missing files referenced in scripts/install.sh:', missing)
