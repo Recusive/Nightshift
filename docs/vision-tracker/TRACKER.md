@@ -37,7 +37,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (145 tests) | Done | ████████████████████ 100% |
+| Test suite (146 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Test writing incentives | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

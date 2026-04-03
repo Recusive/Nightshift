@@ -43,6 +43,17 @@ echo "  Stop:   Ctrl+C"
 echo "=================================================="
 echo ""
 
+LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
+
+# Prevent overlapping daemon instances
+exec 200>"$LOCKFILE"
+if ! flock -n 200; then
+    echo "ERROR: Another daemon is already running (lockfile: $LOCKFILE)"
+    echo "Kill the other process or remove the lockfile to proceed."
+    exit 1
+fi
+echo "Lock acquired. PID $$."
+
 while true; do
     CYCLE=$((CYCLE + 1))
     SESSION_ID=$(date +%Y%m%d-%H%M%S)

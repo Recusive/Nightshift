@@ -34,6 +34,7 @@ Your answers determine which sections below are mandatory.
 ## Part 2: Code Quality (ALWAYS)
 
 - [ ] Full CI passes locally: `make check` (includes mypy strict + ruff + pytest + integration)
+- [ ] Doc validator passes: `bash scripts/validate-docs.sh` (catches stale test counts, missing registrations, percentage drift)
 - [ ] If `make check` is unavailable: `make test` + dry-run both agents + `bash -n` scripts
 - [ ] Test coverage for changes: every changed `.py` file in `nightshift/` has corresponding test changes in `tests/`
 - [ ] No junk staged: `git status` shows no `.pyc`, `__pycache__`, `.state.json`, `.runner.log`, `worktree-*/`

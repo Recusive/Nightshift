@@ -325,7 +325,11 @@ The file Claude Code always loads at session start. Contains project description
 | `scripts/run.sh` | Sets PYTHONPATH, runs `python3 -m nightshift run "$@"` |
 | `scripts/test.sh` | Sets PYTHONPATH, runs `python3 -m nightshift test "$@"` |
 | `scripts/install.sh` | Downloads entire package to `~/.codex/skills/nightshift/` and `~/.claude/skills/nightshift/` |
-| `scripts/daemon.sh` | Self-improving loop. Runs the evolve prompt forever in autonomous mode. |
+| `scripts/daemon.sh` | Self-improving loop. Runs the evolve prompt forever in autonomous mode. Uses lockfile to prevent overlapping instances. |
+| `scripts/validate-docs.sh` | Doc consistency validator. Checks test counts, module registration, tracker percentages, path references. Fails if anything drifts. |
+| `scripts/smoke-test.sh` | End-to-end test against a real repo (default: Phractal). Proves the system works, not just unit tests. |
+| `scripts/context-map.sh` | Generates a slim context file with module sizes, function signatures, dependency graph, test counts. Saves tokens. |
+| `scripts/rollback.sh` | Reverts a merged PR cleanly. Creates revert branch + PR. |
 
 ### Daemon (continuous self-improvement)
 

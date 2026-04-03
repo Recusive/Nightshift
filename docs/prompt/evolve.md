@@ -282,9 +282,10 @@ gh pr create --title "[type]: description" --body "$(cat <<'EOF'
 EOF
 )"
 
-# 5. Review with sub-agent (spawn a code-reviewer agent)
-#    Agent reads the diff, checks for bugs, security, conventions, missing tests
-#    Reports PASS or FAIL
+# 5. Review with sub-agent
+#    The reviewer reads .claude/agents/code-reviewer.md for repo-specific rules,
+#    then reads the diff with `gh pr diff <number>`.
+#    Reports PASS or FAIL with specific file:line references.
 
 # 6. If PASS: merge (always --merge to preserve all commits, --admin since you are sole maintainer)
 gh pr merge --merge --delete-branch --admin

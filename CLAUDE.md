@@ -17,7 +17,7 @@ Full vision: `docs/vision/00-overview.md`
 ## Quick Reference
 
 ```bash
-make test        # run 123 tests
+make test        # run tests
 make check       # full CI locally
 make dry-run     # preview cycle prompt
 make clean       # remove runtime artifacts
