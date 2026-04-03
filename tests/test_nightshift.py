@@ -221,9 +221,7 @@ class TestMergeConfig:
             nightshift.merge_config(tmp_path)
 
     def test_blocked_paths_extends_defaults(self, tmp_path):
-        (tmp_path / ".nightshift.json").write_text(
-            json.dumps({"blocked_paths": ["my/custom/"]})
-        )
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"blocked_paths": ["my/custom/"]}))
         config = nightshift.merge_config(tmp_path)
         defaults = nightshift.DEFAULT_CONFIG["blocked_paths"]
         for dp in defaults:
@@ -231,9 +229,7 @@ class TestMergeConfig:
         assert "my/custom/" in config["blocked_paths"]
 
     def test_blocked_globs_extends_defaults(self, tmp_path):
-        (tmp_path / ".nightshift.json").write_text(
-            json.dumps({"blocked_globs": ["*.secret"]})
-        )
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"blocked_globs": ["*.secret"]}))
         config = nightshift.merge_config(tmp_path)
         defaults = nightshift.DEFAULT_CONFIG["blocked_globs"]
         for dg in defaults:
@@ -241,17 +237,13 @@ class TestMergeConfig:
         assert "*.secret" in config["blocked_globs"]
 
     def test_list_merge_deduplicates(self, tmp_path):
-        (tmp_path / ".nightshift.json").write_text(
-            json.dumps({"blocked_paths": [".github/", "my/path/"]})
-        )
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"blocked_paths": [".github/", "my/path/"]}))
         config = nightshift.merge_config(tmp_path)
         assert config["blocked_paths"].count(".github/") == 1
         assert "my/path/" in config["blocked_paths"]
 
     def test_scalar_fields_still_override(self, tmp_path):
-        (tmp_path / ".nightshift.json").write_text(
-            json.dumps({"hours": 12, "blocked_paths": ["extra/"]})
-        )
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"hours": 12, "blocked_paths": ["extra/"]}))
         config = nightshift.merge_config(tmp_path)
         assert config["hours"] == 12
         assert "extra/" in config["blocked_paths"]
@@ -259,9 +251,7 @@ class TestMergeConfig:
 
     def test_does_not_mutate_default_lists(self, tmp_path):
         original = list(nightshift.DEFAULT_CONFIG["blocked_paths"])
-        (tmp_path / ".nightshift.json").write_text(
-            json.dumps({"blocked_paths": ["injected/"]})
-        )
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"blocked_paths": ["injected/"]}))
         nightshift.merge_config(tmp_path)
         assert nightshift.DEFAULT_CONFIG["blocked_paths"] == original
 
