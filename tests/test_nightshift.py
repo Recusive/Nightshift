@@ -1019,25 +1019,25 @@ class TestCleanupSafeArtifacts:
 
 class TestDiffLineScore:
     def test_security_pattern_scores_high(self) -> None:
-        from nightshift.cycle import _diff_line_score
+        from nightshift.scoring import _diff_line_score
 
         diff = "+    sanitize_input(user_data)\n"
         assert _diff_line_score(diff) >= 7
 
     def test_error_handling_pattern(self) -> None:
-        from nightshift.cycle import _diff_line_score
+        from nightshift.scoring import _diff_line_score
 
         diff = "+    try:\n+        do_thing()\n+    except ValueError:\n"
         assert _diff_line_score(diff) >= 5
 
     def test_no_patterns_scores_zero(self) -> None:
-        from nightshift.cycle import _diff_line_score
+        from nightshift.scoring import _diff_line_score
 
         diff = "+    x = 1\n+    y = 2\n"
         assert _diff_line_score(diff) == 0
 
     def test_only_added_lines_scanned(self) -> None:
-        from nightshift.cycle import _diff_line_score
+        from nightshift.scoring import _diff_line_score
 
         diff = "-    sanitize_input(user_data)\n x = 1\n"
         assert _diff_line_score(diff) == 0
@@ -1045,17 +1045,17 @@ class TestDiffLineScore:
 
 class TestHasTestFiles:
     def test_python_test_file(self) -> None:
-        from nightshift.cycle import _has_test_files
+        from nightshift.scoring import _has_test_files
 
         assert _has_test_files(["src/main.py", "tests/test_main.py"])
 
     def test_js_spec_file(self) -> None:
-        from nightshift.cycle import _has_test_files
+        from nightshift.scoring import _has_test_files
 
         assert _has_test_files(["src/app.ts", "src/app.spec.ts"])
 
     def test_no_test_files(self) -> None:
-        from nightshift.cycle import _has_test_files
+        from nightshift.scoring import _has_test_files
 
         assert not _has_test_files(["src/main.py", "src/utils.py"])
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 
 from nightshift.types import NightshiftConfig
 
@@ -52,6 +53,30 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "stop_after_empty_cycles": 2,
     "score_threshold": 3,
 }
+
+# --- Diff scoring data -------------------------------------------------------
+
+SECURITY_PATTERNS: list[tuple[re.Pattern[str], int]] = [
+    (re.compile(r"(sql.?inject|xss|csrf|auth|sanitiz|escap|vulnerab)", re.IGNORECASE), 8),
+    (re.compile(r"(password|secret|token|credential|api.?key)", re.IGNORECASE), 7),
+]
+
+ERROR_HANDLING_PATTERNS: list[tuple[re.Pattern[str], int]] = [
+    (re.compile(r"(try|catch|except|raise|throw|Error|Exception)", re.IGNORECASE), 5),
+    (re.compile(r"(error.?handl|fallback|retry|timeout)", re.IGNORECASE), 5),
+]
+
+CATEGORY_SCORES: dict[str, int] = {
+    "Security": 8,
+    "Error Handling": 6,
+    "Tests": 6,
+    "A11y": 5,
+    "Code Quality": 3,
+    "Performance": 5,
+    "Polish": 2,
+}
+
+# --- Safe artifacts ----------------------------------------------------------
 
 SAFE_ARTIFACT_DIRS = [
     "__pycache__",
