@@ -26,6 +26,7 @@ PACKAGE_FILES=(
   "nightshift/state.py"
   "nightshift/worktree.py"
   "nightshift/cycle.py"
+  "nightshift/scoring.py"
   "nightshift/cli.py"
 )
 

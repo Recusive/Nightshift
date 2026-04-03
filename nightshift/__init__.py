@@ -34,10 +34,10 @@ from nightshift.cycle import (
     extract_json,
     parse_cycle_result,
     recent_hot_files,
-    score_diff,
     verify_cycle,
 )
 from nightshift.errors import NightshiftError
+from nightshift.scoring import score_diff
 from nightshift.shell import (
     command_exists,
     git,
