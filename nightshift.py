@@ -583,6 +583,8 @@ def build_prompt(
         - If you only add logged issues to the shift log, commit that shift-log update so the worktree ends clean.
         - Update the shift log immediately after every fix or logged issue.
         - Every fix entry must include `Impact` and `Verification`.
+        - Do not run the repo's full verification or lint commands yourself. The Nightshift runner already executed baseline verification and will run final verification after your cycle.
+        - If you need extra confidence, only run narrow, file-scoped checks that do not require background IPC servers or long-lived watchers.
         - Do not add dependencies, do not delete files, and do not edit CI/deploy/generated artifacts.
         - Do not invoke Nightshift recursively. Never run `nightshift.py`, `run.sh`, `test.sh`, `codex exec`, or `claude -p` from inside this cycle.
 
