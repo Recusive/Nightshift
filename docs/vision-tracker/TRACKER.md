@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-03 by agent session (v0.0.2 released, merge_config fix, run_command timeout fix).
+Last updated: 2026-04-03 by agent session (cycle-to-cycle state injection).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,8 +9,8 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ██████████░░░░░░░░░░  49%
-├── Loop 1 — Hardening Loop                    ████████████████░░░░  81%
+NIGHTSHIFT VISION                              ██████████░░░░░░░░░░  51%
+├── Loop 1 — Hardening Loop                    █████████████████░░░  86%
 ├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
@@ -18,7 +18,7 @@ NIGHTSHIFT VISION                              ██████████░
 
 ---
 
-## Loop 1 — Hardening Loop (81%)
+## Loop 1 — Hardening Loop (86%)
 
 The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
 
@@ -37,9 +37,9 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (146 tests) | Done | ████████████████████ 100% |
+| Test suite (155 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
-| Cycle-to-cycle state injection | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Backend exploration forcing | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Multi-repo support | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

@@ -822,6 +822,262 @@ class TestCommandForAgent:
             )
 
 
+# --- State Summary -----------------------------------------------------------
+
+
+class TestBuildStateSummary:
+    def _base_state(self):
+        return {
+            "cycles": [],
+            "category_counts": {},
+            "counters": {"fixes": 0, "issues_logged": 0},
+        }
+
+    def test_empty_cycles_returns_empty_string(self):
+        state = self._base_state()
+        result = nightshift.build_state_summary(state)
+        assert result == ""
+
+    def test_single_cycle_with_security_fix(self):
+        state = self._base_state()
+        state["category_counts"] = {"Security": 1}
+        state["counters"]["fixes"] = 1
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "done",
+                "fixes": [{"category": "Security", "files": ["src/api/auth.py"]}],
+                "logged_issues": [],
+                "verification": {
+                    "files_touched": ["src/api/auth.py"],
+                    "dominant_path": "src",
+                    "commits": ["abc1234"],
+                    "violations": [],
+                    "verify_command": None,
+                    "verify_status": "skipped",
+                    "verify_exit_code": None,
+                },
+            }
+        ]
+        result = nightshift.build_state_summary(state)
+        assert "1 Security" in result
+        assert "src" in result
+
+    def test_unexplored_categories_listed(self):
+        state = self._base_state()
+        state["category_counts"] = {"Security": 1, "Tests": 1}
+        state["counters"]["fixes"] = 2
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "done",
+                "fixes": [],
+                "logged_issues": [],
+                "verification": {
+                    "files_touched": [],
+                    "dominant_path": "(none)",
+                    "commits": [],
+                    "violations": [],
+                    "verify_command": None,
+                    "verify_status": "skipped",
+                    "verify_exit_code": None,
+                },
+            }
+        ]
+        result = nightshift.build_state_summary(state)
+        assert "Error Handling" in result
+        assert "A11y" in result
+        assert "Code Quality" in result
+        assert "Performance" in result
+        assert "Polish" in result
+        # Security and Tests are explored, should NOT be in unexplored
+        assert "not yet explored" in result.lower()
+
+    def test_multiple_categories_and_paths(self):
+        state = self._base_state()
+        state["category_counts"] = {"Security": 2, "Error Handling": 1}
+        state["counters"] = {"fixes": 3, "issues_logged": 1}
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "done",
+                "fixes": [],
+                "logged_issues": [],
+                "verification": {
+                    "files_touched": ["src/api/auth.py", "lib/utils.js"],
+                    "dominant_path": "src",
+                    "commits": ["a1"],
+                    "violations": [],
+                    "verify_command": None,
+                    "verify_status": "skipped",
+                    "verify_exit_code": None,
+                },
+            },
+            {
+                "cycle": 2,
+                "status": "done",
+                "fixes": [],
+                "logged_issues": [],
+                "verification": {
+                    "files_touched": ["server/routes.py"],
+                    "dominant_path": "server",
+                    "commits": ["b2"],
+                    "violations": [],
+                    "verify_command": None,
+                    "verify_status": "skipped",
+                    "verify_exit_code": None,
+                },
+            },
+        ]
+        result = nightshift.build_state_summary(state)
+        assert "2 Security" in result
+        assert "1 Error Handling" in result
+        assert "lib" in result
+        assert "server" in result
+        assert "src" in result
+        assert "3 fix(es) committed" in result
+        assert "1 issue(s) logged" in result
+
+    def test_no_running_totals_when_zero(self):
+        state = self._base_state()
+        state["category_counts"] = {"Polish": 1}
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "done",
+                "fixes": [],
+                "logged_issues": [],
+                "verification": {
+                    "files_touched": [],
+                    "dominant_path": "(none)",
+                    "commits": [],
+                    "violations": [],
+                    "verify_command": None,
+                    "verify_status": "skipped",
+                    "verify_exit_code": None,
+                },
+            }
+        ]
+        result = nightshift.build_state_summary(state)
+        assert "Running totals" not in result
+
+    def test_cycle_without_verification_key(self):
+        state = self._base_state()
+        state["category_counts"] = {"Security": 1}
+        state["counters"]["fixes"] = 1
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "done",
+                "fixes": [],
+                "logged_issues": [],
+            }
+        ]
+        result = nightshift.build_state_summary(state)
+        assert "1 Security" in result
+        # No paths section since verification is absent
+        assert "Paths already visited" not in result
+
+    def test_all_categories_explored_no_unexplored_line(self):
+        state = self._base_state()
+        state["category_counts"] = {
+            "Security": 1,
+            "Error Handling": 1,
+            "Tests": 1,
+            "A11y": 1,
+            "Code Quality": 1,
+            "Performance": 1,
+            "Polish": 1,
+        }
+        state["counters"]["fixes"] = 7
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "done",
+                "fixes": [],
+                "logged_issues": [],
+                "verification": {
+                    "files_touched": [],
+                    "dominant_path": "(none)",
+                    "commits": [],
+                    "violations": [],
+                    "verify_command": None,
+                    "verify_status": "skipped",
+                    "verify_exit_code": None,
+                },
+            }
+        ]
+        result = nightshift.build_state_summary(state)
+        assert "not yet explored" not in result.lower()
+
+
+# --- Prompt Building (with state injection) ----------------------------------
+
+
+class TestBuildPromptStateInjection:
+    """Tests that build_prompt includes state summary when cycles exist."""
+
+    def _base_args(self):
+        return dict(
+            cycle=2,
+            is_final=False,
+            config={
+                "agent": "codex",
+                "max_fixes_per_cycle": 3,
+                "max_files_per_fix": 5,
+                "max_files_per_cycle": 12,
+                "max_low_impact_fixes_per_shift": 4,
+            },
+            state={
+                "counters": {"low_impact_fixes": 0, "fixes": 1, "issues_logged": 0},
+                "log_only_mode": False,
+                "recent_cycle_paths": ["src"],
+                "cycles": [
+                    {
+                        "cycle": 1,
+                        "status": "done",
+                        "fixes": [{"category": "Security", "files": ["src/auth.py"]}],
+                        "logged_issues": [],
+                        "verification": {
+                            "files_touched": ["src/auth.py"],
+                            "dominant_path": "src",
+                            "commits": ["abc1234"],
+                            "violations": [],
+                            "verify_command": None,
+                            "verify_status": "skipped",
+                            "verify_exit_code": None,
+                        },
+                    }
+                ],
+                "category_counts": {"Security": 1},
+            },
+            shift_log_relative="docs/Nightshift/2026-04-03.md",
+            blocked_summary="- `.github/`",
+            hot_files=[],
+            prior_path_bias=["src"],
+            test_mode=False,
+        )
+
+    def test_prompt_includes_state_summary(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Prior cycle intelligence" in prompt
+        assert "1 Security" in prompt
+
+    def test_prompt_includes_unexplored_categories(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Error Handling" in prompt
+        assert "Tests" in prompt
+
+    def test_no_state_block_on_first_cycle(self):
+        args = self._base_args()
+        args["cycle"] = 1
+        args["state"]["cycles"] = []
+        args["state"]["category_counts"] = {}
+        args["state"]["counters"]["fixes"] = 0
+        prompt = nightshift.build_prompt(**args)
+        assert "Prior cycle intelligence" not in prompt
+
+
 # --- Prompt Building ---------------------------------------------------------
 
 
@@ -838,9 +1094,11 @@ class TestBuildPrompt:
                 "max_low_impact_fixes_per_shift": 4,
             },
             state={
-                "counters": {"low_impact_fixes": 0},
+                "counters": {"low_impact_fixes": 0, "fixes": 0, "issues_logged": 0},
                 "log_only_mode": False,
                 "recent_cycle_paths": [],
+                "cycles": [],
+                "category_counts": {},
             },
             shift_log_relative="docs/Nightshift/2026-04-03.md",
             blocked_summary="- `.github/`\n- `*.lock`",

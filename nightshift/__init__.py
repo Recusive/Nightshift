@@ -29,6 +29,7 @@ from nightshift.constants import (
 from nightshift.cycle import (
     blocked_file,
     build_prompt,
+    build_state_summary,
     command_for_agent,
     evaluate_baseline,
     extract_json,
@@ -106,6 +107,7 @@ __all__ = [
     # cli
     "build_parser",
     "build_prompt",
+    "build_state_summary",
     # worktree
     "cleanup_safe_artifacts",
     # shell

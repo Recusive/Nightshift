@@ -9,7 +9,7 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
-from nightshift.constants import print_status
+from nightshift.constants import CATEGORY_ORDER, print_status
 from nightshift.errors import NightshiftError
 from nightshift.shell import git, run_shell_string
 from nightshift.state import top_path
@@ -88,6 +88,54 @@ def command_for_agent(
     raise NightshiftError(f"Unsupported agent: {agent}")
 
 
+def build_state_summary(state: ShiftState) -> str:
+    """Build a human-readable summary of prior cycles for injection into the prompt.
+
+    Returns an empty string when no cycles have run yet (cycle 1).
+    """
+    cycles = state["cycles"]
+    if not cycles:
+        return ""
+
+    # Gather category fix counts from state-level aggregation
+    category_counts = state["category_counts"]
+
+    # Gather all top-level paths touched across cycles
+    paths_touched: set[str] = set()
+    for cycle_entry in cycles:
+        verification = cycle_entry.get("verification")
+        if verification:
+            for file_path in verification["files_touched"]:
+                if file_path:
+                    paths_touched.add(file_path.split("/", 1)[0])
+
+    lines: list[str] = []
+
+    # What was fixed, by category
+    if category_counts:
+        fix_parts = [f"{count} {cat}" for cat, count in sorted(category_counts.items())]
+        lines.append(f"Previous cycles fixed: {', '.join(fix_parts)}.")
+
+    # Which categories remain unexplored
+    explored = set(category_counts.keys())
+    unexplored = [cat for cat in CATEGORY_ORDER if cat not in explored]
+    if unexplored:
+        lines.append(f"Categories not yet explored: {', '.join(unexplored)}.")
+
+    # Which paths have been visited
+    if paths_touched:
+        sorted_paths = ", ".join(f"`{p}`" for p in sorted(paths_touched))
+        lines.append(f"Paths already visited: {sorted_paths}. Explore different areas of the codebase.")
+
+    # Running totals
+    total_fixes = state["counters"]["fixes"]
+    total_logged = state["counters"]["issues_logged"]
+    if total_fixes or total_logged:
+        lines.append(f"Running totals: {total_fixes} fix(es) committed, {total_logged} issue(s) logged.")
+
+    return "\n".join(lines)
+
+
 def build_prompt(
     *,
     cycle: int,
@@ -106,6 +154,11 @@ def build_prompt(
     hot_lines = textwrap.indent(hot_files_lines, "        ")
     prior_lines = textwrap.indent(prior_paths, "        ")
     log_only = state["log_only_mode"]
+    state_summary = build_state_summary(state)
+    state_block = ""
+    if state_summary:
+        indented = textwrap.indent(state_summary, "        ")
+        state_block = f"\n        Prior cycle intelligence:\n{indented}\n"
     return textwrap.dedent(
         f"""
         You are Nightshift running inside an isolated git worktree. Do not create a worktree, do not switch branches, and do not touch the user's original checkout.
@@ -119,7 +172,7 @@ def build_prompt(
         - Final cycle: {"yes" if is_final else "no"}
         - Agent: {config["agent"]}
         - Log-only mode: {"yes" if log_only else "no"}
-
+{state_block}
         Hard limits enforced by the runner:
         - At most {config["max_fixes_per_cycle"]} fixes this cycle.
         - At most {config["max_files_per_fix"]} files per fix.
