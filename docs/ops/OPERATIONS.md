@@ -199,12 +199,12 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | `types.py` | TypedDicts for all data structures | `NightshiftConfig`, `ShiftState`, `CycleResult`, `CycleVerification` |
 | `constants.py` | Constants + utilities | `DATA_VERSION`, `DEFAULT_CONFIG`, `SHIFT_LOG_TEMPLATE`, `now_local()`, `print_status()` |
 | `errors.py` | Exception class | `NightshiftError` |
-| `shell.py` | Subprocess execution | `run_command()`, `git()`, `command_exists()`, `run_shell_string()` |
-| `config.py` | Config + agent resolution | `merge_config()`, `resolve_agent()`, `prompt_for_agent()`, `infer_verify_command()` |
-| `state.py` | State I/O + mutation | `read_state()`, `write_json()`, `append_cycle_state()`, `top_path()` |
-| `worktree.py` | Git worktree lifecycle | `ensure_worktree()`, `ensure_shift_log()`, `sync_shift_log()`, `revert_cycle()` |
-| `cycle.py` | Per-cycle logic | `build_prompt()`, `command_for_agent()`, `verify_cycle()`, `evaluate_baseline()`, `extract_json()` |
-| `cli.py` | Entry points + main loop | `run_nightshift()`, `summarize()`, `build_parser()`, `main()` |
+| `shell.py` | Subprocess execution | `run_command()`, `run_capture()`, `git()`, `command_exists()`, `run_shell_string()` |
+| `config.py` | Config + agent resolution | `merge_config()`, `resolve_agent()`, `prompt_for_agent()`, `infer_package_manager()`, `infer_verify_command()` |
+| `state.py` | State I/O + mutation | `load_json()`, `write_json()`, `read_state()`, `append_cycle_state()`, `top_path()` |
+| `worktree.py` | Git worktree lifecycle | `ensure_worktree()`, `ensure_shift_log()`, `sync_shift_log()`, `revert_cycle()`, `cleanup_safe_artifacts()` |
+| `cycle.py` | Per-cycle logic | `build_prompt()`, `command_for_agent()`, `verify_cycle()`, `evaluate_baseline()`, `extract_json()`, `blocked_file()` |
+| `cli.py` | Entry points + main loop | `run_nightshift()`, `summarize()`, `verify_cycle_cli()`, `build_parser()`, `main()` |
 | `__main__.py` | Package entry point | `python3 -m nightshift` |
 | `__init__.py` | Re-exports all public names | Everything above |
 

@@ -9,16 +9,16 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ███████░░░░░░░░░░░░░  35%
-├── Loop 1 — Hardening Loop                    ████████████░░░░░░░░  60%
+NIGHTSHIFT VISION                              █████████░░░░░░░░░░░  43%
+├── Loop 1 — Hardening Loop                    █████████████░░░░░░░  67%
 ├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
-├── Self-Maintaining Repo                      ████░░░░░░░░░░░░░░░░  20%
-└── Meta-Prompt System                         ██████░░░░░░░░░░░░░░  30%
+├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
+└── Meta-Prompt System                         ████████████░░░░░░░░  57%
 ```
 
 ---
 
-## Loop 1 — Hardening Loop (60%)
+## Loop 1 — Hardening Loop (67%)
 
 The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
 
@@ -44,6 +44,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Backend exploration forcing | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Multi-repo support | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Deep merge for config | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| run_command timeout fix | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 
 ### Bugs Found (not yet fixed)
 - `merge_config()` shallow update replaces default blocked paths — security issue
@@ -71,7 +72,7 @@ Not started. Vision docs describe the full architecture. No code exists yet.
 
 ---
 
-## Self-Maintaining Repo (20%)
+## Self-Maintaining Repo (54%)
 
 The infrastructure that lets the agent manage everything without human intervention.
 
@@ -93,7 +94,7 @@ The infrastructure that lets the agent manage everything without human intervent
 
 ---
 
-## Meta-Prompt System (30%)
+## Meta-Prompt System (57%)
 
 The reusable prompt and surrounding docs that make the self-improving loop work.
 

@@ -53,10 +53,12 @@
 - Phractal test target: verify_command returns None for monorepos. Needs `.nightshift.json` with explicit verify_command, or monorepo detection in infer_verify_command().
 
 ## Current State
-- Loop 1: 60% — Core loop works e2e. Missing: diff scorer, state injection, test incentives, backend forcing, multi-repo, config deep merge
-- Loop 2: 0% — Vision docs describe architecture. No code.
-- Self-Maintaining: 20% — Vision docs, changelog, tracker, prompt exist. Auto-update not built.
-- Version: v0.0.2 — Feature-complete for the control plane. Needs commit + push + release.
+- Loop 1: 67% (14/21 components) — Core loop works e2e. Missing: diff scorer, state injection, test incentives, backend forcing, multi-repo, config deep merge, run_command timeout fix
+- Loop 2: 0% (0/11) — Vision docs describe architecture. No code.
+- Self-Maintaining: 54% (7/13) — Vision docs, changelog, tracker, prompt, CI, handoffs, ops guide done. Auto-update not built.
+- Meta-Prompt: 57% (4/7) — Evolve prompt, all 3 vision docs done. Feedback ingestion, priority engine, session history not built.
+- Overall: 43% (weighted)
+- Version: v0.0.2 on main, not tagged. Ready to release.
 
 ## Systems Created This Session
 - `docs/handoffs/` — Short-term memory. Read LATEST.md first every session.

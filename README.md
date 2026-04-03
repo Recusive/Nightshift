@@ -83,7 +83,7 @@ Main repo checkout                 Nightshift worktree
 | `nightshift/shell.py` | run_command, run_capture, git, command_exists, run_shell_string |
 | `nightshift/config.py` | merge_config, resolve_agent, infer_package_manager, infer_verify_command |
 | `nightshift/state.py` | read_state, write_json, load_json, append_cycle_state, top_path |
-| `nightshift/worktree.py` | ensure_worktree, ensure_shift_log, sync_shift_log, revert_cycle, cleanup |
+| `nightshift/worktree.py` | ensure_worktree, ensure_shift_log, sync_shift_log, revert_cycle, cleanup_safe_artifacts |
 | `nightshift/cycle.py` | build_prompt, command_for_agent, verify_cycle, evaluate_baseline, extract_json |
 | `nightshift/cli.py` | run_nightshift, summarize, verify_cycle_cli, build_parser, main |
 | `nightshift.schema.json` | Required final-response schema for agent cycles |

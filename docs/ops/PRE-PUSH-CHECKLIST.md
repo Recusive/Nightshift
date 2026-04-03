@@ -171,6 +171,7 @@ You must paste output as evidence. Checking a box without running the command is
 
 - [ ] Paste the last line of `make check` output (should show "passed" or equivalent)
 - [ ] If `make check` is unavailable: paste `make test` output showing test count
+- [ ] If neither is available (e.g., missing dev deps): paste `python3 -m pytest tests/ -q` output
 
 ## Part 15: Cross-Document Consistency
 
