@@ -337,11 +337,11 @@ A single agent session will eventually hit context limits or drift in quality. F
 
 ```bash
 # From your project root:
-~/.codex/skills/nightshift/run.sh                # prompts for agent choice
-~/.codex/skills/nightshift/run.sh --agent codex  # use Codex
-~/.codex/skills/nightshift/run.sh --agent claude # use Claude
-~/.codex/skills/nightshift/run.sh 10             # 10 hours
-~/.codex/skills/nightshift/run.sh 6 45           # 6 hours, 45 min per cycle
+~/.codex/skills/nightshift/scripts/run.sh                # prompts for agent choice
+~/.codex/skills/nightshift/scripts/run.sh --agent codex  # use Codex
+~/.codex/skills/nightshift/scripts/run.sh --agent claude # use Claude
+~/.codex/skills/nightshift/scripts/run.sh 10             # 10 hours
+~/.codex/skills/nightshift/scripts/run.sh 6 45           # 6 hours, 45 min per cycle
 ```
 
 How it works:
