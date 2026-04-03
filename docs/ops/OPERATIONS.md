@@ -435,9 +435,21 @@ git tag vX.X.X
 git push origin main && git push origin vX.X.X
 
 # 5. Create GitHub release
+#    Release notes MUST include:
+#      a) A highlights/summary section at the top
+#      b) The FULL changelog from docs/changelog/vX.X.X.md below it
+#    The release page must be self-contained — no "see file for details" links.
 gh release create vX.X.X \
   --title "vX.X.X -- Codename" \
-  --notes-file docs/changelog/vX.X.X.md
+  --notes "$(cat <<EOF
+## Highlights
+- [curated summary bullets]
+
+---
+
+$(cat docs/changelog/vX.X.X.md)
+EOF
+)"
 ```
 
 Or: `make release VERSION=X.X.X CODENAME=Name`
