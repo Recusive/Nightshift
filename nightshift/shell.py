@@ -66,7 +66,7 @@ def run_command(
         )
         reader.start()
 
-        # Main thread enforces the timeout — reader thread cannot block us.
+        # Main thread enforces the timeout - reader thread cannot block us.
         deadline = time.monotonic() + timeout_seconds if timeout_seconds else None
         timed_out = False
         while reader.is_alive():
