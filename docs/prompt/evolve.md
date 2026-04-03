@@ -37,7 +37,9 @@ Non-negotiable. Violating any of these means the session failed.
 
 5. **NO HALF-FINISHED WORK.** If the feature is too big, scope it down until you can finish it. A small shipped feature beats a large unshipped one.
 
-6. **YOU OWN THE ENTIRE LIFECYCLE.** After building, you also:
+6. **NOTHING SHIPS UNTIL IT IS PRODUCTION-READY.** Every code change must have tests. Every test must pass. But passing tests is not enough — you must actually verify the behavior works. Call the function with real inputs. Run the CLI command. Simulate the scenario. If you built a diff scorer, run it against a real diff and check the output makes sense. If you are not 100% certain it works, do not push. Iterate: fix, test, verify, repeat. If after 3 honest attempts it still doesn't work, log it as a known issue in the handoff and move to the next priority. Broken code never ships.
+
+7. **YOU OWN THE ENTIRE LIFECYCLE.** After building, you also:
    - Write a handoff (`docs/handoffs/NNNN.md`) and copy it to `LATEST.md`
    - Update `docs/changelog/` (add entries to current version file, or create new version file)
    - Update `docs/vision-tracker/TRACKER.md` (recalculate progress for affected sections)
@@ -47,9 +49,9 @@ Non-negotiable. Violating any of these means the session failed.
    - Push to a branch
    - Cut a GitHub release when a version milestone is reached
 
-7. **THE HANDOFF IS YOUR MEMORY.** You will not remember this session. The handoff is what the next agent reads first. Write it clearly. Carry forward known issues. Drop resolved items. See `docs/handoffs/README.md` for the exact format.
+8. **THE HANDOFF IS YOUR MEMORY.** You will not remember this session. The handoff is what the next agent reads first. Write it clearly. Carry forward known issues. Drop resolved items. See `docs/handoffs/README.md` for the exact format.
 
-8. **COMPACT AT 7.** If there are 7+ numbered handoff files, compact them into `docs/handoffs/weekly/week-YYYY-WNN.md` and delete the originals. Keep only what's still relevant.
+9. **COMPACT AT 7.** If there are 7+ numbered handoff files, compact them into `docs/handoffs/weekly/week-YYYY-WNN.md` and delete the originals. Keep only what's still relevant.
 </rules>
 
 <process>

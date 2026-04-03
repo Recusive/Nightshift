@@ -325,6 +325,24 @@ The file Claude Code always loads at session start. Contains project description
 | `scripts/run.sh` | Sets PYTHONPATH, runs `python3 -m nightshift run "$@"` |
 | `scripts/test.sh` | Sets PYTHONPATH, runs `python3 -m nightshift test "$@"` |
 | `scripts/install.sh` | Downloads entire package to `~/.codex/skills/nightshift/` and `~/.claude/skills/nightshift/` |
+| `scripts/daemon.sh` | Self-improving loop. Runs the evolve prompt forever in autonomous mode. |
+
+### Daemon (continuous self-improvement)
+
+```bash
+./scripts/daemon.sh              # run forever with claude (default)
+./scripts/daemon.sh codex        # run forever with codex
+./scripts/daemon.sh claude 120   # 120s pause between sessions
+```
+
+Each session: reads handoff, picks highest priority, builds, tests, verifies behavior, pushes, creates PR, reviews with sub-agent, merges. Then the next session starts.
+
+Session logs saved to `docs/sessions/`. Stop with Ctrl+C.
+
+The daemon injects an auto-approve prefix that:
+- Skips the human confirmation step (Step 3)
+- Enforces the production-readiness rule: nothing ships unless the agent is 100% certain it works
+- After 3 failed attempts on one item, logs it and moves to the next priority
 
 ### How to update
 - If you add a new Python module, add it to the `PACKAGE_FILES` list in `scripts/install.sh`
