@@ -1,0 +1,3 @@
+docs/Nightshift/worktree-*/
+docs/Nightshift/*.runner.log
+docs/Nightshift/*.state.json
