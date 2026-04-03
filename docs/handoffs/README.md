@@ -18,7 +18,7 @@ The handoff contains ONLY what the next session needs:
 
 ### At the start of every session
 
-The agent reads ONE file: `docs/handoffs/LATEST.md` (symlink to the most recent handoff). That's it. No reading the entire codebase upfront. If the agent needs deeper context on a specific module, it reads that module — but the handoff tells it WHERE to look.
+The agent reads ONE file: `docs/handoffs/LATEST.md` (copy to the most recent handoff). That's it. No reading the entire codebase upfront. If the agent needs deeper context on a specific module, it reads that module — but the handoff tells it WHERE to look.
 
 ### Weekly compaction
 
@@ -31,7 +31,7 @@ The weekly file is ~50 lines max. One paragraph per session. Just enough to reco
 ```
 docs/handoffs/
   README.md          — this file
-  LATEST.md          — always the current handoff (symlink or copy)
+  LATEST.md          — always the current handoff (copy or copy)
   0001.md            — session 1
   0002.md            — session 2
   ...

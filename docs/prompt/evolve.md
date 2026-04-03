@@ -388,4 +388,4 @@ If a feature is bigger than expected, STOP. Tell the human: "This is bigger than
 One feature. Built right. Fully documented. Pushed.
 </important>
 
-Begin by reading the vision docs and codebase. Then present your status report and proposal.
+Begin by reading `docs/handoffs/LATEST.md`. Then present your status report and proposal.

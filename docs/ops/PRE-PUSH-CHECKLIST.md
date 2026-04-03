@@ -23,11 +23,19 @@ Your answers determine which sections below are mandatory.
 
 ---
 
+## Part 1b: Branch Safety (ALWAYS — check this FIRST)
+
+- [ ] NOT on main: `git branch --show-current` must NOT be `main`
+- [ ] Branch has correct prefix: `feat/`, `fix/`, `docs/`, `refactor/`, `release/`
+- [ ] If you are on main: STOP. Create a branch before doing anything else.
+
+---
+
 ## Part 2: Code Quality (ALWAYS)
 
-- [ ] All tests pass: `make test`
-- [ ] Dry-run works for both agents: `python3 -m nightshift run --dry-run --agent codex` AND `--agent claude`
-- [ ] Shell scripts valid: `bash -n scripts/run.sh && bash -n scripts/test.sh && bash -n scripts/install.sh`
+- [ ] Full CI passes locally: `make check` (includes mypy strict + ruff + pytest + integration)
+- [ ] If `make check` is unavailable: `make test` + dry-run both agents + `bash -n` scripts
+- [ ] Test coverage for changes: every changed `.py` file in `nightshift/` has corresponding test changes in `tests/`
 - [ ] No junk staged: `git status` shows no `.pyc`, `__pycache__`, `.state.json`, `.runner.log`, `worktree-*/`
 - [ ] Commit message follows convention: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `release:`
 - [ ] No hardcoded absolute paths in any committed file
@@ -126,6 +134,7 @@ Required when: you added a new Python module, a new script, or any file that use
 - [ ] New module added to `PACKAGE_FILES` in `scripts/install.sh`
 - [ ] New root file added to `ROOT_FILES` in `scripts/install.sh`
 - [ ] New script added to `SCRIPT_FILES` in `scripts/install.sh`
+- [ ] New public functions re-exported from `nightshift/__init__.py`
 
 ---
 

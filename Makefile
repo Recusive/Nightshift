@@ -1,4 +1,4 @@
-.PHONY: test check dry-run lint typecheck validate clean
+.PHONY: test check dry-run lint typecheck validate clean release
 
 # Run the full test suite
 test:
@@ -19,6 +19,22 @@ quick-test:
 # Syntax-check all shell scripts
 validate-sh:
 	bash -n scripts/run.sh && bash -n scripts/test.sh && bash -n scripts/install.sh
+
+# Cut a release: make release VERSION=0.0.3 CODENAME="Intelligence"
+release:
+ifndef VERSION
+	$(error VERSION is required. Usage: make release VERSION=0.0.3 CODENAME="Intelligence")
+endif
+ifndef CODENAME
+	$(error CODENAME is required. Usage: make release VERSION=0.0.3 CODENAME="Intelligence")
+endif
+	@echo "Verifying before release..."
+	$(MAKE) check
+	@echo "Tagging v$(VERSION)..."
+	git tag v$(VERSION)
+	git push origin main && git push origin v$(VERSION)
+	gh release create v$(VERSION) --title "v$(VERSION) -- $(CODENAME)" --notes-file docs/changelog/v$(VERSION).md
+	@echo "Released v$(VERSION) -- $(CODENAME)"
 
 # Remove runtime artifacts
 clean:

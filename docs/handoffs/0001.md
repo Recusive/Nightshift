@@ -49,7 +49,8 @@
 ## Known Issues
 - `merge_config()` shallow update: `.nightshift.json` overrides replace default `blocked_paths` instead of extending. Security bug. Not fixed. Target: v0.0.3.
 - `run_command()` timeout race: `readline()` blocks so timeout never fires on hung process. Not fixed. Target: v0.0.3.
-- NOTHING is committed to main yet. All work from this session is unstaged. First action next session: commit everything, push, tag v0.0.2, release.
+- v0.0.2 is committed to main (commit 2802c51) but NOT tagged or released on GitHub yet. Next session should tag and release.
+- Phractal test target: verify_command returns None for monorepos. Needs `.nightshift.json` with explicit verify_command, or monorepo detection in infer_verify_command().
 
 ## Current State
 - Loop 1: 60% — Core loop works e2e. Missing: diff scorer, state injection, test incentives, backend forcing, multi-repo, config deep merge
@@ -74,10 +75,10 @@
 - Test target: Phractal repo (https://github.com/fazxes/Phractal) cloned for e2e validation.
 
 ## Next Session Should
-1. **Commit and push v0.0.2 to main** — Create a branch, PR, review, merge. All code, tests, docs, everything. Then tag v0.0.2 and `gh release create`.
+1. **Tag and release v0.0.2** — Code is on main. Run `make release VERSION=0.0.2 CODENAME="Control Plane"`. Create v0.0.3.md skeleton.
 2. **Fix `merge_config` shallow update** — Deep-merge list fields. Security bug. This starts v0.0.3.
 3. **Fix `run_command` timeout race** — Thread-based readline with timeout. Reliability bug.
-4. **Test against Phractal** — Clone to /tmp, run `nightshift test --agent claude --cycles 2`. Document results.
+4. **Test against Phractal** — Create a `.nightshift.json` for it with explicit verify_command. Run a test shift. Document results.
 
 ## Where to Look
 - `docs/ops/OPERATIONS.md` — If confused about any system, read this first

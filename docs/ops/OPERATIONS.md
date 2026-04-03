@@ -416,19 +416,30 @@ After merging a PR, ask yourself:
 4. **Did I just finish a planned milestone?** Check the version changelog — are all planned items done? → Release.
 
 ### How to release
+
+Release commits are the ONE exception to the PR rule. They go directly on main because they're purely ceremonial (changelog status change + tag).
+
 ```bash
+# 0. Verify tests pass on the exact commit you're tagging
+make check
+
 # 1. Update changelog: mark current version as "Released", create next version file
 # 2. Update changelog README table
-# 3. Commit: git commit -m "release: vX.X.X -- Codename"
-# 4. Tag: git tag vX.X.X
-# 5. Push: git push origin main && git push origin vX.X.X
-# 6. Create GitHub release:
+# 3. Commit directly on main:
+git add docs/changelog/
+git commit -m "release: vX.X.X -- Codename"
+
+# 4. Tag and push
+git tag vX.X.X
+git push origin main && git push origin vX.X.X
+
+# 5. Create GitHub release
 gh release create vX.X.X \
   --title "vX.X.X -- Codename" \
   --notes-file docs/changelog/vX.X.X.md
 ```
 
-Or just: `make release VERSION=X.X.X` (if we add it to the Makefile — TODO).
+Or: `make release VERSION=X.X.X CODENAME=Name`
 
 ---
 
@@ -566,27 +577,22 @@ make clean         # remove runtime artifacts
 
 ## The Session Workflow
 
-Every session follows this flow. No exceptions.
+Every session follows `docs/prompt/evolve.md` Steps 1-10. In short:
 
 ```
-1. Read docs/handoffs/LATEST.md
-     |
-2. Read docs/ops/OPERATIONS.md if first session or need full context
-     |
-3. Follow docs/prompt/evolve.md:
-   a. Status report (from handoff)
-   b. Decide what to build (priority engine)
-   c. Propose to human --> wait for "go"
-   d. Create feature branch
-   e. Build + test
-   f. Verify (make check)
-   g. Update: handoff --> changelog --> tracker --> CLAUDE.md
-   h. Pre-push checklist (docs/ops/PRE-PUSH-CHECKLIST.md)
-   i. Commit + push branch
-   j. Create PR + sub-agent review
-   k. Merge if review passes
-   l. Report
+Step 1:  Read handoff (LATEST.md) --> status report
+Step 2:  Decide what to build (priority engine)
+Step 3:  Propose to human --> wait for "go"
+Step 4:  Build + write tests
+Step 5:  Verify (make check)
+Step 6:  Update ALL docs (handoff, changelog, tracker, vision, CLAUDE.md, etc.)
+Step 7:  Pre-push checklist (docs/ops/PRE-PUSH-CHECKLIST.md)
+Step 8:  Branch, commit, push, PR, sub-agent review, merge
+Step 9:  Release check (is this a milestone?)
+Step 10: Report
 ```
+
+See `docs/prompt/evolve.md` for the full details of each step. This summary exists for quick reference only — the evolve prompt is authoritative.
 
 ---
 
