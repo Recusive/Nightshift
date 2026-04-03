@@ -551,11 +551,16 @@ make clean
 4. Write a corrected LATEST.md
 
 ### Agent built the wrong thing
-1. Don't panic — it's on a branch, not main
+1. Don't panic -- it's on a branch, not main
 2. Close the PR: `gh pr close <number>`
 3. Delete the branch: `git push origin --delete <branch>`
 4. Write a feedback note in `docs/prompt/feedback/` explaining what went wrong
 5. Next session reads the feedback and adjusts
+
+### Bad PR was already merged
+1. Use the rollback script: `bash scripts/rollback.sh <PR-number>`
+2. It creates a revert branch, revert commit, and new PR automatically
+3. Review and merge the revert PR
 
 ### Merge conflict on PR
 1. Pull main: `git checkout main && git pull`

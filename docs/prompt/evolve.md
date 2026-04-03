@@ -161,9 +161,21 @@ python3 -m pytest tests/ -v
 python3 -m nightshift run --dry-run --agent codex
 python3 -m nightshift run --dry-run --agent claude
 bash -n scripts/run.sh && bash -n scripts/test.sh && bash -n scripts/install.sh
+bash scripts/validate-docs.sh
 ```
 
 All must pass before proceeding.
+
+Optional but recommended for significant changes:
+```
+bash scripts/smoke-test.sh    # end-to-end test against Phractal
+bash scripts/context-map.sh   # regenerate context map for next session
+```
+
+If something went wrong and you need to revert a previous merge:
+```
+bash scripts/rollback.sh <merge-commit-or-PR-number>
+```
 
 ## STEP 6 — UPDATE EVERY DOCUMENT
 

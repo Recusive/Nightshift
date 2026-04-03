@@ -1,6 +1,6 @@
 #!/bin/bash
 # ──────────────────────────────────────────────
-# Nightshift Daemon — Self-Improving Loop
+# Nightshift Daemon -- Self-Improving Loop
 #
 # Runs the evolve prompt in a continuous loop.
 # Each cycle is a fresh Claude session that:
@@ -14,7 +14,7 @@
 # Stop: Ctrl+C or kill the process
 # ──────────────────────────────────────────────
 
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -23,10 +23,30 @@ PAUSE="${2:-60}"
 LOG_DIR="$REPO_DIR/docs/sessions"
 AUTO_PREFIX="$REPO_DIR/docs/prompt/evolve-auto.md"
 EVOLVE_PROMPT="$REPO_DIR/docs/prompt/evolve.md"
+LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
 MAX_TURNS=100
 CYCLE=0
 
 mkdir -p "$LOG_DIR"
+
+# Portable lock (works on macOS + Linux)
+if [ -d "$LOCKFILE" ]; then
+    echo "ERROR: Another daemon may be running (lockdir: $LOCKFILE)"
+    echo "If no other daemon is running, remove it: rmdir $LOCKFILE"
+    exit 1
+fi
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+    echo "ERROR: Could not acquire lock (lockdir: $LOCKFILE)"
+    exit 1
+fi
+echo "Lock acquired. PID $$."
+
+# Cleanup on exit
+cleanup() {
+    rmdir "$LOCKFILE" 2>/dev/null || true
+    echo "Lock released. Daemon stopped."
+}
+trap cleanup EXIT INT TERM
 
 build_prompt() {
     cat "$AUTO_PREFIX"
@@ -43,17 +63,6 @@ echo "  Stop:   Ctrl+C"
 echo "=================================================="
 echo ""
 
-LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
-
-# Prevent overlapping daemon instances
-exec 200>"$LOCKFILE"
-if ! flock -n 200; then
-    echo "ERROR: Another daemon is already running (lockfile: $LOCKFILE)"
-    echo "Kill the other process or remove the lockfile to proceed."
-    exit 1
-fi
-echo "Lock acquired. PID $$."
-
 while true; do
     CYCLE=$((CYCLE + 1))
     SESSION_ID=$(date +%Y%m%d-%H%M%S)
@@ -65,9 +74,11 @@ while true; do
     git checkout main --quiet 2>/dev/null || true
     git pull origin main --quiet 2>/dev/null || true
 
-    # Rebuild prompt each cycle so it picks up any changes from previous sessions
+    # Rebuild prompt each cycle so it picks up changes from previous sessions
     PROMPT=$(build_prompt)
 
+    # Run the agent (set +e so failures don't kill the daemon)
+    set +e
     if [ "$AGENT" = "codex" ]; then
         codex exec \
             --json \
@@ -75,19 +86,20 @@ while true; do
             -s "workspace-write" \
             "$PROMPT" \
             2>&1 | tee "$LOG_FILE"
+        EXIT_CODE=${PIPESTATUS[0]}
     else
         claude -p "$PROMPT" \
             --max-turns "$MAX_TURNS" \
             --verbose \
             2>&1 | tee "$LOG_FILE"
+        EXIT_CODE=${PIPESTATUS[0]}
     fi
-
-    EXIT_CODE=$?
+    set -e
 
     echo ""
     echo "-- Session $CYCLE done (exit: $EXIT_CODE) --- $(date '+%H:%M') --"
 
-    if [ $EXIT_CODE -ne 0 ]; then
+    if [ "$EXIT_CODE" -ne 0 ]; then
         echo "Session failed. Waiting 120s before retry."
         sleep 120
     else

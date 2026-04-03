@@ -129,7 +129,7 @@ echo "-- Handoff vs tracker consistency --"
 if [ -f "$REPO_DIR/docs/handoffs/LATEST.md" ] && [ -f "$REPO_DIR/docs/vision-tracker/TRACKER.md" ]; then
     # Extract Loop 1 percentage from both
     handoff_l1=$(grep -oE 'Loop 1: [0-9]+%' "$REPO_DIR/docs/handoffs/LATEST.md" \
-        | grep -oE '[0-9]+' | head -1 || echo "")
+        | grep -oE '[0-9]+%' | head -1 | tr -d '%' || echo "")
     tracker_l1=$(grep "Loop 1" "$REPO_DIR/docs/vision-tracker/TRACKER.md" \
         | grep -oE '[0-9]+%' | head -1 | tr -d '%' || echo "")
     if [ -n "$handoff_l1" ] && [ -n "$tracker_l1" ]; then

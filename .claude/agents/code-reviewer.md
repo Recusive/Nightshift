@@ -34,8 +34,21 @@ You are reviewing a PR in the Nightshift repo. You know this codebase intimately
 - If the PR adds files, is CLAUDE.md structure tree updated?
 - Does the handoff exist and is LATEST.md a copy of it?
 
+### Shell/Script correctness
+- Heredocs properly quoted? Variable expansion safe?
+- `set -e` / `pipefail` won't kill error-handling logic?
+- Commands portable across macOS and Linux?
+
+### Ops consistency
+- If manual steps in OPERATIONS.md changed, does the corresponding `make` target or script match?
+- If a new script was added, is it documented in the OPERATIONS.md scripts table?
+
+### Docs-only fast path
+- If the PR touches ONLY `.md` files and no `.py`, `.sh`, `.json`, or `.toml`: skip Structure, Registration, Types, Tests, and Safety checks. Only check Docs, Shell (if `.sh` changed), and Ops consistency.
+
 ## How to review
 
 1. Read the PR diff: `gh pr diff <number>`
-2. Check each item above
-3. Report: **PASS** (merge it) or **FAIL** (list what needs fixing with specific file:line references)
+2. Determine if this is a docs-only PR (fast path) or a code PR (full checks)
+3. Check each applicable item above
+4. Report: **PASS** (merge it) or **FAIL** (list what needs fixing with specific file:line references)
