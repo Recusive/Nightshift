@@ -963,11 +963,12 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             message_path=message_path,
         )
         print_status(" ".join(shlex.quote(part) for part in cmd))
+        timeout_seconds = max(300, cycle_minutes * 60 + (240 if test_mode else 180))
         exit_code, raw_output = run_command(
             cmd,
             cwd=worktree_dir,
             log_path=runner_log,
-            timeout_seconds=max(60, cycle_minutes * 60 + 30),
+            timeout_seconds=timeout_seconds,
         )
 
         if exit_code != 0:
