@@ -102,6 +102,64 @@ class TestPrintStatus:
         assert capsys.readouterr().out == "hello\n"
 
 
+# --- run_command -------------------------------------------------------------
+
+
+class TestRunCommand:
+    def test_captures_output(self, tmp_path: Path) -> None:
+        exit_code, output = nightshift.run_command(
+            ["python3", "-c", "print('hello')"],
+            cwd=tmp_path,
+        )
+        assert exit_code == 0
+        assert "hello" in output
+
+    def test_returns_exit_code(self, tmp_path: Path) -> None:
+        exit_code, _ = nightshift.run_command(
+            ["python3", "-c", "raise SystemExit(42)"],
+            cwd=tmp_path,
+        )
+        assert exit_code == 42
+
+    def test_writes_to_log_file(self, tmp_path: Path) -> None:
+        log = tmp_path / "test.log"
+        nightshift.run_command(
+            ["python3", "-c", "print('logged')"],
+            cwd=tmp_path,
+            log_path=log,
+        )
+        assert "logged" in log.read_text()
+
+    def test_timeout_kills_hung_process(self, tmp_path: Path) -> None:
+        exit_code, output = nightshift.run_command(
+            ["python3", "-c", "import time; time.sleep(60)"],
+            cwd=tmp_path,
+            timeout_seconds=2,
+        )
+        assert "timeout" in output.lower()
+        assert exit_code != 0
+
+    def test_timeout_captures_partial_output(self, tmp_path: Path) -> None:
+        script = "import sys, time; print('before', flush=True); time.sleep(60)"
+        _, output = nightshift.run_command(
+            ["python3", "-c", script],
+            cwd=tmp_path,
+            timeout_seconds=2,
+        )
+        assert "before" in output
+        assert "timeout" in output.lower()
+
+    def test_no_timeout_completes_normally(self, tmp_path: Path) -> None:
+        exit_code, output = nightshift.run_command(
+            ["python3", "-c", "print('fast')"],
+            cwd=tmp_path,
+            timeout_seconds=30,
+        )
+        assert exit_code == 0
+        assert "fast" in output
+        assert "timeout" not in output.lower()
+
+
 # --- JSON Utilities ----------------------------------------------------------
 
 

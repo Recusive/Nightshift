@@ -2,13 +2,34 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import shlex
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
+from typing import IO
 
 from nightshift.errors import NightshiftError
+
+
+def _reader_thread(
+    stdout: IO[str],
+    lines: list[str],
+    log_handle: IO[str] | None,
+) -> None:
+    """Read lines from subprocess stdout until EOF.  Runs in a daemon thread."""
+    try:
+        for line in iter(stdout.readline, ""):
+            if not line:
+                break
+            sys.stdout.write(line)
+            lines.append(line)
+            if log_handle is not None:
+                log_handle.write(line)
+                log_handle.flush()
+    except (OSError, ValueError):
+        pass
 
 
 def run_command(
@@ -30,52 +51,51 @@ def run_command(
         bufsize=1,
     )
     lines: list[str] = []
-    log_handle = None
-    process_start = dt.datetime.now().timestamp()
+    log_handle: IO[str] | None = None
     try:
         if log_path is not None:
             log_path.parent.mkdir(parents=True, exist_ok=True)
             log_handle = log_path.open("a", encoding="utf-8")
         if process.stdout is None:
             raise NightshiftError("subprocess stdout is unexpectedly None")
-        while True:
+
+        reader = threading.Thread(
+            target=_reader_thread,
+            args=(process.stdout, lines, log_handle),
+            daemon=True,
+        )
+        reader.start()
+
+        # Main thread enforces the timeout — reader thread cannot block us.
+        deadline = time.monotonic() + timeout_seconds if timeout_seconds else None
+        timed_out = False
+        while reader.is_alive():
+            remaining = None
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    timed_out = True
+                    break
+            reader.join(timeout=min(remaining, 1.0) if remaining is not None else 1.0)
+
+        if timed_out:
+            timeout_message = (
+                f"\n[nightshift] Agent cycle hit timeout after {timeout_seconds} seconds. "
+                "Terminating the agent process.\n"
+            )
+            sys.stdout.write(timeout_message)
+            lines.append(timeout_message)
+            if log_handle is not None:
+                log_handle.write(timeout_message)
+                log_handle.flush()
+            process.terminate()
             try:
-                line = process.stdout.readline()
-            except (OSError, ValueError):
-                line = ""
-            if line:
-                sys.stdout.write(line)
-                lines.append(line)
-                if log_handle is not None:
-                    log_handle.write(line)
-                    log_handle.flush()
-            elif process.poll() is not None:
-                break
-            if timeout_seconds is not None:
-                try:
-                    process.wait(timeout=0.1)
-                    break
-                except subprocess.TimeoutExpired:
-                    pass
-                runtime = dt.datetime.now().timestamp() - process_start
-                if runtime > timeout_seconds:
-                    timeout_message = (
-                        f"\n[nightshift] Agent cycle hit timeout after {timeout_seconds} seconds. "
-                        "Terminating the agent process.\n"
-                    )
-                    sys.stdout.write(timeout_message)
-                    lines.append(timeout_message)
-                    if log_handle is not None:
-                        log_handle.write(timeout_message)
-                        log_handle.flush()
-                    process.terminate()
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait()
-                    break
-        process.wait()
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        else:
+            process.wait()
     finally:
         if log_handle is not None:
             log_handle.close()
