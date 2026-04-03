@@ -50,6 +50,7 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "max_low_impact_fixes_per_shift": 4,
     "stop_after_failed_verifications": 2,
     "stop_after_empty_cycles": 2,
+    "score_threshold": 3,
 }
 
 SAFE_ARTIFACT_DIRS = [

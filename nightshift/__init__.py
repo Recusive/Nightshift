@@ -34,6 +34,7 @@ from nightshift.cycle import (
     extract_json,
     parse_cycle_result,
     recent_hot_files,
+    score_diff,
     verify_cycle,
 )
 from nightshift.errors import NightshiftError
@@ -57,6 +58,7 @@ from nightshift.types import (
     CycleEntry,
     CycleResult,
     CycleVerification,
+    DiffScore,
     Fix,
     LoggedIssue,
     NightshiftConfig,
@@ -90,6 +92,7 @@ __all__ = [
     "CycleEntry",
     "CycleResult",
     "CycleVerification",
+    "DiffScore",
     "Fix",
     "LoggedIssue",
     "NightshiftConfig",
@@ -137,6 +140,7 @@ __all__ = [
     "run_command",
     "run_nightshift",
     "run_shell_string",
+    "score_diff",
     "summarize",
     "sync_shift_log",
     "top_path",

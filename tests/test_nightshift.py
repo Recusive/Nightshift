@@ -52,6 +52,7 @@ class TestConstants:
             "max_low_impact_fixes_per_shift",
             "stop_after_failed_verifications",
             "stop_after_empty_cycles",
+            "score_threshold",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -1011,6 +1012,149 @@ class TestCleanupSafeArtifacts:
         normal.touch()
         nightshift.cleanup_safe_artifacts(tmp_path)
         assert normal.exists()
+
+
+# --- Diff Scorer -------------------------------------------------------------
+
+
+class TestDiffLineScore:
+    def test_security_pattern_scores_high(self) -> None:
+        from nightshift.cycle import _diff_line_score
+
+        diff = "+    sanitize_input(user_data)\n"
+        assert _diff_line_score(diff) >= 7
+
+    def test_error_handling_pattern(self) -> None:
+        from nightshift.cycle import _diff_line_score
+
+        diff = "+    try:\n+        do_thing()\n+    except ValueError:\n"
+        assert _diff_line_score(diff) >= 5
+
+    def test_no_patterns_scores_zero(self) -> None:
+        from nightshift.cycle import _diff_line_score
+
+        diff = "+    x = 1\n+    y = 2\n"
+        assert _diff_line_score(diff) == 0
+
+    def test_only_added_lines_scanned(self) -> None:
+        from nightshift.cycle import _diff_line_score
+
+        diff = "-    sanitize_input(user_data)\n x = 1\n"
+        assert _diff_line_score(diff) == 0
+
+
+class TestHasTestFiles:
+    def test_python_test_file(self) -> None:
+        from nightshift.cycle import _has_test_files
+
+        assert _has_test_files(["src/main.py", "tests/test_main.py"])
+
+    def test_js_spec_file(self) -> None:
+        from nightshift.cycle import _has_test_files
+
+        assert _has_test_files(["src/app.ts", "src/app.spec.ts"])
+
+    def test_no_test_files(self) -> None:
+        from nightshift.cycle import _has_test_files
+
+        assert not _has_test_files(["src/main.py", "src/utils.py"])
+
+
+class TestScoreDiff:
+    def test_security_fix_scores_high(self, tmp_path: Path) -> None:
+        # Set up a git repo with a security-related commit
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True, check=True)
+        (tmp_path / "dummy.txt").write_text("initial")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True, check=True)
+        pre_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        (tmp_path / "auth.py").write_text("sanitize_input(user_data)\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix auth"], cwd=tmp_path, capture_output=True, check=True)
+
+        result = nightshift.score_diff(
+            worktree_dir=tmp_path,
+            pre_head=pre_head,
+            cycle_result=nightshift.CycleResult(
+                status="done",
+                fixes=[{"title": "fix auth", "category": "Security", "impact": "high", "files": ["auth.py"]}],
+                logged_issues=[],
+            ),
+            files_touched=["auth.py"],
+        )
+        assert result["score"] >= 8
+
+    def test_trivial_fix_scores_low(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True, check=True)
+        (tmp_path / "dummy.txt").write_text("initial")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True, check=True)
+        pre_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        (tmp_path / "style.css").write_text("body { color: red; }\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "polish"], cwd=tmp_path, capture_output=True, check=True)
+
+        result = nightshift.score_diff(
+            worktree_dir=tmp_path,
+            pre_head=pre_head,
+            cycle_result=nightshift.CycleResult(
+                status="done",
+                fixes=[{"title": "color fix", "category": "Polish", "impact": "low", "files": ["style.css"]}],
+                logged_issues=[],
+            ),
+            files_touched=["style.css"],
+        )
+        assert result["score"] <= 3
+
+    def test_test_bonus_applied(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True, check=True)
+        (tmp_path / "dummy.txt").write_text("initial")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True, check=True)
+        pre_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        (tmp_path / "test_auth.py").write_text("def test_login(): pass\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "add test"], cwd=tmp_path, capture_output=True, check=True)
+
+        result = nightshift.score_diff(
+            worktree_dir=tmp_path,
+            pre_head=pre_head,
+            cycle_result=None,
+            files_touched=["test_auth.py"],
+        )
+        assert result["test_bonus"] is True
+
+    def test_no_cycle_result_still_works(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True, check=True)
+        (tmp_path / "dummy.txt").write_text("initial")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True, check=True)
+        pre_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+        result = nightshift.score_diff(
+            worktree_dir=tmp_path,
+            pre_head=pre_head,
+            cycle_result=None,
+            files_touched=[],
+        )
+        assert isinstance(result["score"], int)
+        assert 1 <= result["score"] <= 10
 
 
 # --- Discover Base Branch ----------------------------------------------------

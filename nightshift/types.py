@@ -20,6 +20,16 @@ class NightshiftConfig(TypedDict):
     max_low_impact_fixes_per_shift: int
     stop_after_failed_verifications: int
     stop_after_empty_cycles: int
+    score_threshold: int
+
+
+class DiffScore(TypedDict):
+    """Result from scoring a cycle's diff for production impact."""
+
+    score: int
+    reason: str
+    category_bonus: bool
+    test_bonus: bool
 
 
 class Counters(TypedDict):

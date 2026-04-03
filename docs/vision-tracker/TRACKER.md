@@ -9,8 +9,8 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ██████████░░░░░░░░░░  47%
-├── Loop 1 — Hardening Loop                    ███████████████░░░░░  76%
+NIGHTSHIFT VISION                              ██████████░░░░░░░░░░  49%
+├── Loop 1 — Hardening Loop                    ████████████████░░░░  81%
 ├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
@@ -18,7 +18,7 @@ NIGHTSHIFT VISION                              ██████████░
 
 ---
 
-## Loop 1 — Hardening Loop (76%)
+## Loop 1 — Hardening Loop (81%)
 
 The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
 
@@ -37,8 +37,8 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (123 tests) | Done | ████████████████████ 100% |
-| Post-cycle diff scorer | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Test suite (145 tests) | Done | ████████████████████ 100% |
+| Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Test writing incentives | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Backend exploration forcing | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
