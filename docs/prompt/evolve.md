@@ -348,33 +348,31 @@ A good session flow:
 2. Proposes: "Post-cycle diff scorer — scores changes 1-10, rejects low-value cycles."
 3. Human: "go"
 4. Agent reads `nightshift/cycle.py` (where the handoff said to look). Builds score_diff(), adds 14 tests, runs full suite (137 passing).
-5. Agent updates:
+5. Runs `make check` — all green.
+6. Agent updates:
    - docs/handoffs/0002.md — new handoff with what was built, carries forward merge_config bug
    - docs/handoffs/LATEST.md — copy of 0002.md
-   - docs/changelog/v0.0.2.md — adds entry under "Added"
-   - docs/vision-tracker/TRACKER.md — marks "Post-cycle diff scorer" as Done, Loop 1: 60% → 65%
+   - docs/changelog/v0.0.3.md — adds entry under "Added"
+   - docs/vision-tracker/TRACKER.md — marks "Post-cycle diff scorer" as Done, Loop 1: 60% -> 65%
    - CLAUDE.md — no structural changes needed
-6. Commits: "feat: add post-cycle diff scorer with configurable min_diff_score"
-7. Pushes to branch.
-8. Reports: built, tested, documented, next session should build cycle-to-cycle state injection.
+7. Runs pre-push checklist (docs/ops/PRE-PUSH-CHECKLIST.md). Outputs results. All pass.
+8. Creates branch `feat/diff-scorer`, commits, pushes, creates PR, sub-agent reviews, merges.
+9. Release check: not a milestone (v0.0.3 has other items pending).
+10. Reports: built, tested, documented, next session should build cycle-to-cycle state injection.
 </example>
 
 <example>
 A session where version is ready:
 
-1. Agent reads all docs. Loop 1 improvements are all done. No bugs. Tests pass.
-2. Proposes: "Cut v0.0.2 release — all planned features complete."
+1. Agent reads LATEST.md. Loop 1 improvements are all done. No bugs. Tests pass.
+2. Proposes: "Cut v0.0.2 release -- all planned features complete."
 3. Human: "go"
-4. Agent:
-   - Updates docs/changelog/v0.0.2.md status to "Released"
-   - Creates docs/changelog/v0.0.3.md skeleton
-   - Updates changelog README table
-   - Updates tracker
-   - Commits: "release: v0.0.2 — Control Plane"
-   - Tags: git tag v0.0.2
-   - Pushes tag and branch
-   - Creates GitHub release via gh CLI
-5. Reports: v0.0.2 released, v0.0.3 cycle begins, recommends starting Loop 2 scaffolding.
+4. Agent runs `make check` -- all green.
+5. Agent updates docs: changelog v0.0.2.md status to "Released", creates v0.0.3.md skeleton, updates README table, updates tracker, writes handoff.
+6. Runs pre-push checklist. All pass.
+7. Commits directly on main (release exception): "release: v0.0.2 -- Control Plane"
+8. Runs: `make release VERSION=0.0.2 CODENAME="Control Plane"`
+9. Reports: v0.0.2 released, v0.0.3 cycle begins, recommends starting Loop 2 scaffolding.
 </example>
 </examples>
 

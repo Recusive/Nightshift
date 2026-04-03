@@ -43,4 +43,4 @@ Beta period (`0.x.x`): breaking changes can happen in any release.
 | Version | Date | Codename | Status | Highlights |
 |---------|------|----------|--------|------------|
 | [v0.0.1](v0.0.1.md) | 2026-04-03 | Initial Beta | Released | SKILL.md, bash runners, Claude Code only |
-| [v0.0.2](v0.0.2.md) | 2026-04-03 | Control Plane | In progress | Python orchestrator, pluggable agents, 123 tests, guard rails |
+| [v0.0.2](v0.0.2.md) | 2026-04-03 | Control Plane | Merged, ready to tag | Python orchestrator, pluggable agents, 123 tests, guard rails |

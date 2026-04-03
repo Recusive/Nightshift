@@ -165,7 +165,20 @@ After merging your PR, evaluate:
 
 ---
 
-## Part 14: Final Sanity Check
+## Part 14: Proof of Work
+
+You must paste output as evidence. Checking a box without running the command is a failure.
+
+- [ ] Paste the last line of `make check` output (should show "passed" or equivalent)
+- [ ] If `make check` is unavailable: paste `make test` output showing test count
+
+## Part 15: Cross-Document Consistency
+
+- [ ] Handoff "Current State" percentages match `docs/vision-tracker/TRACKER.md` exactly
+- [ ] Handoff version matches changelog current version
+- [ ] Handoff "Known Issues" is a subset of (or equal to) the previous handoff's issues minus what you fixed
+
+## Part 16: Final Sanity Check
 
 - [ ] `git diff --staged --stat` — does the list of changed files make sense? Nothing extra? Nothing missing?
 - [ ] Read your own handoff one more time — would a brand new agent understand exactly where things stand?
@@ -177,11 +190,13 @@ After merging your PR, evaluate:
 
 At the end of your session, before `git push`:
 
-1. Answer Part 1 (what type of change)
+1. Answer Part 1 + 1b (change type + branch safety)
 2. Go through Parts 2-5 (mandatory for all sessions)
 3. Go through Parts 6-12 (only the ones that apply based on Part 1)
-4. Go through Part 13 (after merging)
-5. Go through Part 14 (final sanity)
+4. Part 13 (after merging — release check)
+5. Part 14 (proof of work — paste command output)
+6. Part 15 (cross-document consistency)
+7. Part 16 (final sanity)
 
 Output your results in the session so there's a visible record:
 
@@ -191,6 +206,7 @@ PRE-PUSH CHECKLIST — [date]
 
 Change type: [feat / fix / refactor / docs]
 
+Part 1b — Branch:              [branch name] (not main)
 Part 2 — Code Quality:         ALL PASS
 Part 3 — Handoff:              Handoff #NNNN written, LATEST updated
 Part 4 — Changelog:            Entry added to vX.X.X.md
@@ -203,7 +219,9 @@ Part 10 — Config/Schema:       [Updated / No changes needed]
 Part 11 — Install Script:      [Updated / No changes needed]
 Part 12 — Evolve Prompt:       [Updated / No changes needed]
 Part 13 — Release:             [vX.X.X released / Not a milestone]
-Part 14 — Sanity:              PASS
+Part 14 — Proof:               make check output: [paste last line]
+Part 15 — Consistency:         Handoff matches tracker: YES
+Part 16 — Sanity:              PASS
 
 READY TO PUSH.
 ```

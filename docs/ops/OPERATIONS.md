@@ -2,7 +2,7 @@
 
 You are an AI agent starting a session in the Nightshift repo. This document is your map. It explains every system, every folder, every file, and exactly how to use, update, and maintain each one.
 
-CLAUDE.md told you to read this. Do not skip any section. After reading, go to `docs/handoffs/LATEST.md` to see what happened last and what to do next.
+You should have already read `docs/handoffs/LATEST.md` before this file. If you haven't, read it first — it's shorter and tells you what to do next. This document is the full reference for every system in the repo.
 
 ---
 
@@ -169,7 +169,7 @@ The prompt the human pastes at the start of each session. It tells you (the agen
 ### Files
 | File | Purpose |
 |------|---------|
-| `evolve.md` | The prompt itself. 8 steps: awareness → decide → propose → build → verify → update → commit → report |
+| `evolve.md` | The prompt itself. 10 steps: awareness → decide → propose → build → verify → update docs → pre-push checklist → branch/PR/merge → release check → report |
 | `feedback/README.md` | Guide for the human on how to write feedback |
 | `feedback/YYYY-MM-DD.md` | Human feedback files (if any) |
 
