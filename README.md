@@ -6,14 +6,12 @@
 
 <p align="center">
   <strong>Your overnight engineer. Autonomous. Thorough. Ready by morning.</strong><br/>
-  Run it before bed. Wake up to a shift log of production-ready fixes, a clean git branch, and a codebase that's stronger than when you left it.
+  Run it before bed. Wake up to a reviewed worktree, a shift log, and a machine-readable record of what the agent actually did.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Recusive/Nightshift/releases/latest"><img src="https://img.shields.io/github/v/release/Recusive/Nightshift?label=Release&color=6366f1" alt="Release" /></a>
-  <img src="https://img.shields.io/badge/Claude_Code-Supported-F97316?logo=anthropic&logoColor=white" alt="Claude Code" />
-  <img src="https://img.shields.io/badge/Codex-Coming_Soon-6B7280" alt="Codex" />
-  <img src="https://img.shields.io/badge/Copilot_CLI-Coming_Soon-6B7280" alt="Copilot CLI" />
+  <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
+  <img src="https://img.shields.io/badge/Claude-Compatible-F97316" alt="Claude Code" />
   <img src="https://img.shields.io/badge/License-MIT-22C55E" alt="MIT License" />
 </p>
 
@@ -21,56 +19,71 @@
 
 ## About
 
-Nightshift is built by the **[Recursive Labs](https://github.com/Recusive)** team as part of the [Orbit](https://github.com/Recusive/Orbit-Release) ecosystem — an AI-native development environment where one agent works across editor, browser, terminal, and docs. While Nightshift will ship as a built-in feature in Orbit, it works as a standalone skill with any compatible coding agent today.
+Nightshift is an overnight codebase-hardening runner built by **[Recursive Labs](https://github.com/Recusive)** as part of the [Orbit](https://github.com/Recusive/Orbit-Release) ecosystem.
 
-Currently supported: **Claude Code**. Support for OpenAI Codex, GitHub Copilot CLI, and other agents is coming.
+The original version relied mostly on prompt discipline. This version adds a real control plane:
+
+- a Python orchestrator (`nightshift.py`)
+- a schema-backed Codex adapter
+- machine-readable shift state (`docs/Nightshift/YYYY-MM-DD.state.json`)
+- runner-enforced guard rails, verification gates, and halt conditions
+
+Codex is now the default unattended agent. Claude remains available through the same runner as a compatibility adapter.
 
 ---
 
 ## What It Does
 
-Nightshift acts like a senior engineer on the night shift. It systematically explores your entire codebase — frontend, backend, infrastructure — finds production-readiness issues, fixes the small ones, and logs the big ones for you to review in the morning.
+Nightshift runs in an isolated git worktree and repeatedly asks an agent to:
 
-<details>
-<summary><b>What it fixes</b></summary>
+1. read the current repo instructions and shift log
+2. find a small production-readiness improvement
+3. fix it or log it
+4. verify it
+5. record it
 
-- **Security** — hardcoded secrets, injection vectors, unsafe eval, path traversal
-- **Error handling** — unhandled errors, missing boundaries, crash paths, silent failures
-- **Tests** — critical paths without coverage, happy-path-only test files
-- **Accessibility** — missing aria-labels, keyboard navigation, focus management
-- **Code quality** — type safety violations, dead code, convention drift
-- **Performance** — memory leaks, unnecessary re-renders, missing lazy loading
-- **Polish** — loading states, error messages, empty states, responsive edge cases
+The runner enforces the difference between a productive overnight shift and 8 hours of churn.
 
-</details>
+### Runner-enforced guard rails
 
-<details>
-<summary><b>What it leaves for you</b></summary>
+- Max `3` fixes per cycle
+- Max `5` files per fix
+- Max `12` files touched per cycle
+- Max `4` low-impact fixes per shift
+- Blocked edits for CI/deploy/infra/generated files and lockfiles
+- Hot-file protection via recent git activity
+- Halt after repeated failed verification or empty cycles
+- Worktree must end clean after every accepted cycle
+- Each fix commit must include the shift log update
 
-- Anything touching >5 files or requiring architecture changes
-- Decisions that need product/design input
-- Code that's actively being worked on (checks git blame)
-- Build configs, CI/CD, deployment scripts
-- Compiled artifacts and sidecars that need manual rebuilds
+### Output artifacts
 
-</details>
-
-Everything is documented in a detailed shift log at `docs/Nightshift/YYYY-MM-DD.md`.
+- `docs/Nightshift/YYYY-MM-DD.md` — human-readable shift log
+- `docs/Nightshift/YYYY-MM-DD.state.json` — machine-readable cycle state
+- `docs/Nightshift/YYYY-MM-DD.runner.log` — raw runner output
+- `nightshift/YYYY-MM-DD` — isolated review branch
 
 ---
 
-## How It Works
+## Architecture
 
 ```
-Your repo (untouched)              Worktree (isolated copy)
-├── your uncommitted changes       ├── nightshift/2026-04-01 branch
-├── your current branch            ├── all fixes happen here
-└── completely safe                └── shift log updated after each fix
+Main repo checkout                 Nightshift worktree
+├── untouched                      ├── agent edits happen here
+├── no branch switching            ├── isolated nightshift/YYYY-MM-DD branch
+└── receives copied logs           └── verification happens after each cycle
 ```
 
-Nightshift runs in a **git worktree** — a fully isolated copy of your repo. Your working directory, uncommitted changes, and current branch are never touched.
+### Key files
 
-For overnight runs, the runner spawns **fresh Claude sessions** in 30-minute cycles. Each cycle reads the shift log from the previous cycle and picks up where it left off. No context window limits. Runs for 8-10+ hours.
+| File | Purpose |
+|------|---------|
+| `nightshift.py` | Orchestrator, policy engine, verifier, state manager |
+| `nightshift.schema.json` | Required final-response schema for Codex cycles |
+| `SKILL.md` | Interactive nightshift skill instructions |
+| `run.sh` | Thin wrapper around `nightshift.py run` |
+| `test.sh` | Thin wrapper around `nightshift.py test` |
+| `.nightshift.json.example` | Optional per-repo config template |
 
 ---
 
@@ -82,126 +95,136 @@ For overnight runs, the runner spawns **fresh Claude sessions** in 30-minute cyc
 curl -sL https://raw.githubusercontent.com/Recusive/Nightshift/main/install.sh | bash
 ```
 
-### Manual
+This installs Nightshift into both:
+
+- `~/.codex/skills/nightshift`
+- `~/.claude/skills/nightshift`
+
+### Repo setup
+
+Add runtime artifacts to `.gitignore`:
 
 ```bash
-mkdir -p ~/.claude/skills/nightshift
-curl -sL https://github.com/Recusive/Nightshift/raw/main/SKILL.md -o ~/.claude/skills/nightshift/SKILL.md
-curl -sL https://github.com/Recusive/Nightshift/raw/main/run.sh -o ~/.claude/skills/nightshift/run.sh
-chmod +x ~/.claude/skills/nightshift/run.sh
+cat <<'EOF' >> .gitignore
+docs/Nightshift/worktree-*/
+docs/Nightshift/*.runner.log
+docs/Nightshift/*.state.json
+EOF
 ```
 
-Then add to your project's `.gitignore`:
+Optional: copy the config template into the repo root:
 
 ```bash
-echo 'docs/Nightshift/worktree-*/' >> .gitignore
+cp ~/.codex/skills/nightshift/.nightshift.json.example .nightshift.json
 ```
+
+---
+
+## Config
+
+Nightshift looks for `.nightshift.json` in the repo root.
+
+Supported keys:
+
+```json
+{
+  "agent": "codex",
+  "hours": 8,
+  "cycle_minutes": 30,
+  "verify_command": null,
+  "blocked_paths": [".github/", "infra/", "deploy/"],
+  "blocked_globs": ["*.lock", "package-lock.json"],
+  "max_fixes_per_cycle": 3,
+  "max_files_per_fix": 5,
+  "max_files_per_cycle": 12,
+  "max_low_impact_fixes_per_shift": 4,
+  "stop_after_failed_verifications": 2,
+  "stop_after_empty_cycles": 2
+}
+```
+
+If `verify_command` is omitted, Nightshift tries to infer one from common repo manifests such as `package.json`, `Cargo.toml`, `go.mod`, and `pyproject.toml`.
 
 ---
 
 ## Usage
 
-### Interactive
-
-```
-/nightshift
-```
-> In any Claude Code session. The agent sets up a worktree and starts the discovery-fix-document loop.
-
-### Overnight
+### Overnight run
 
 ```bash
-~/.claude/skills/nightshift/run.sh          # 8 hours (default)
-~/.claude/skills/nightshift/run.sh 10       # 10 hours
-~/.claude/skills/nightshift/run.sh 6 45     # 6 hours, 45 min per cycle
+~/.codex/skills/nightshift/run.sh
+~/.codex/skills/nightshift/run.sh 10
+~/.codex/skills/nightshift/run.sh 6 45
 ```
-> Run from your project root before bed. Each cycle is a fresh Claude session.
 
-### Test Run
+The default unattended path uses fresh `codex exec` cycles with the shift log plus the state file as cross-cycle memory.
+
+### Short validation run
 
 ```bash
-# Copy to your project
-cp test.sh scripts/nightshift-test.sh
-chmod +x scripts/nightshift-test.sh
-
-# 4 short cycles (~30 min total)
-./scripts/nightshift-test.sh
+~/.codex/skills/nightshift/test.sh
+~/.codex/skills/nightshift/test.sh --cycles 2 --cycle-minutes 5
 ```
+
+### Direct orchestrator usage
+
+```bash
+python3 nightshift.py run
+python3 nightshift.py test
+python3 nightshift.py summarize
+```
+
+### Claude compatibility
+
+```bash
+python3 nightshift.py run --agent claude
+```
+
+Claude uses the same runner and verification logic, but Codex is the first-class unattended path.
 
 ---
 
-## What You Get in the Morning
-
-### Shift Log
-
-`docs/Nightshift/YYYY-MM-DD.md` — the first thing you read:
-
-- **Summary** — what was explored, most impactful fixes, what needs attention
-- **Fixes** — every fix with what was found, why it matters, and what was changed
-- **Logged issues** — things too big to fix autonomously, with suggested approaches
-- **Recommendations** — patterns noticed, areas needing deeper work
-
-### Git Branch
-
-`nightshift/YYYY-MM-DD` — clean, atomic, ready to merge:
-
-- One commit per fix
-- Category-tagged commit messages
-- All tests passing
-
-### Review & Merge
+## Morning Review
 
 ```bash
-# See what it did
-cat docs/Nightshift/2026-04-01.md
-git log nightshift/2026-04-01 --oneline
-
-# Cherry-pick individual fixes
-git cherry-pick <commit-hash>
-
-# Or merge everything
-git merge nightshift/2026-04-01
-
-# Clean up
-git worktree remove docs/Nightshift/worktree-2026-04-01
-git branch -d nightshift/2026-04-01
+cat docs/Nightshift/2026-04-02.md
+cat docs/Nightshift/2026-04-02.state.json
+git log nightshift/2026-04-02 --oneline
+git merge nightshift/2026-04-02
+git worktree remove docs/Nightshift/worktree-2026-04-02
+git branch -d nightshift/2026-04-02
 ```
 
----
+The shift log is for humans. The state file is for quick auditing:
 
-## Files
-
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | The skill — discovery strategies, gotchas, safety rails, shift log template |
-| `run.sh` | Overnight runner — multi-cycle, fresh sessions, worktree isolation |
-| `test.sh` | Test runner — 4 short cycles for validation |
-| `install.sh` | One-liner installer |
+- how many cycles ran
+- which categories were touched
+- which files changed
+- whether verification passed
+- why the run stopped
 
 ---
 
 ## Requirements
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
+- Python 3.10+
 - Git
+- `codex` CLI for the default unattended path
+- `claude` CLI only if you want the compatibility adapter
 
 ---
 
 ## Roadmap
 
-- [ ] OpenAI Codex support
-- [ ] GitHub Copilot CLI support
+- [x] Codex unattended runner
+- [x] Runner-enforced guard rails
+- [x] Structured cycle outputs and state files
+- [ ] Stronger Claude structured-output compatibility
+- [ ] Smarter repo-type detection for category balancing
+- [ ] Post-cycle diff scoring before accepting a fix
 - [ ] Built-in to Orbit as a native feature
-- [ ] Test generation as a primary fix category
-- [ ] Deeper backend/Rust exploration strategies
 
 ---
-
-## Built By
-
-<p>
-  <a href="https://github.com/Recusive"><strong>Recursive Labs</strong></a> — the team behind <a href="https://github.com/Recusive/Orbit-Release">Orbit</a>, an AI-native development environment where one agent works across editor, browser, terminal, and docs. Nightshift will ship as a built-in feature in Orbit.
-</p>
 
 ## License
 

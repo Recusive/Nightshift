@@ -5,10 +5,11 @@ description: >
   systematically discovers and fixes production-readiness issues across the entire stack:
   missing tests, error handling gaps, security vulnerabilities, accessibility problems,
   code quality violations, performance issues, and UI polish. Documents every finding and
-  fix in a detailed shift log. Use this skill whenever the user says "nightshift",
+  fix in a detailed shift log. The unattended runner is Codex-first and runner-enforced,
+  with Claude remaining available as a compatibility path. Use this skill whenever the user says "nightshift",
   "run overnight", "overnight engineer", "night shift", "autonomous improvement",
   "improve while I sleep", "background improvement", "make production ready", "run all
-  night", or wants to leave Claude running to systematically improve the codebase. Also
+  night", or wants to leave Codex or Claude running to systematically improve the codebase. Also
   trigger when the user mentions leaving the computer running overnight for code
   improvements, or wants a long-running autonomous session that explores and hardens
   the codebase.
@@ -213,6 +214,7 @@ When you log an issue for the day team, include enough context that they can act
 These are hard rules. No exceptions, no judgment calls.
 
 - **Never touch the user's main working directory.** All work happens in the nightshift worktree. Never stash, checkout, or modify the original repo checkout.
+- **Respect runner-enforced limits.** The unattended runner may reject your cycle if you exceed per-fix, per-cycle, low-impact, or blocked-path limits.
 - **Never force push.** Work on your branch, commit normally.
 - **Never modify core architecture.** State management patterns, routing, database schemas, API contracts — those are day-shift decisions.
 - **Never delete files** unless they're clearly orphaned (not imported anywhere, not in any config). Verify first.
@@ -258,8 +260,10 @@ Create at `docs/Nightshift/YYYY-MM-DD.md`. Update it **after every fix and every
 
 ### 1. Brief title (cycle 1)
 - **Category**: Error Handling | Tests | Security | A11y | Code Quality | Performance | Polish
+- **Impact**: high | medium | low
 - **Files**: `path/to/file.ts`
 - **Commit**: `abcdef1`
+- **Verification**: `npm test`
 - **What I found**: Description of the issue
 - **Why it matters**: Production impact if left unfixed
 - **What I did**: The exact change made
@@ -328,21 +332,25 @@ The day team reads the shift log first thing. Make it worth their time.
 
 ## Running Overnight (8-10 hours)
 
-A single Claude session will eventually hit context limits. For long overnight runs, use the runner script that ships with this skill. It runs nightshift in **fresh 30-minute cycles** inside a git worktree, so your main working directory is never touched.
+A single agent session will eventually hit context limits or drift in quality. For long overnight runs, use the runner script that ships with this skill. It runs nightshift in **fresh cycles** inside a git worktree, so your main working directory is never touched.
 
 ```bash
 # From your project root:
-~/.claude/skills/nightshift/run.sh          # 8 hours, 30 min cycles (default)
-~/.claude/skills/nightshift/run.sh 10       # 10 hours
-~/.claude/skills/nightshift/run.sh 6 45     # 6 hours, 45 min per cycle
+~/.codex/skills/nightshift/run.sh           # 8 hours, 30 min cycles (default)
+~/.codex/skills/nightshift/run.sh 10        # 10 hours
+~/.codex/skills/nightshift/run.sh 6 45      # 6 hours, 45 min per cycle
+
+# Claude compatibility path:
+python3 ~/.claude/skills/nightshift/nightshift.py run --agent claude
 ```
 
 How it works:
 - Creates a **git worktree** at `docs/Nightshift/worktree-YYYY-MM-DD/`
-- Each cycle is a **fresh Claude session** run inside the worktree
-- The shift log (`docs/Nightshift/YYYY-MM-DD.md`) is the shared memory between cycles
+- Each cycle is a **fresh agent session** run inside the worktree
+- The shift log (`docs/Nightshift/YYYY-MM-DD.md`) plus the runner state file (`docs/Nightshift/YYYY-MM-DD.state.json`) are the shared memory between cycles
 - Each cycle reads the log, sees what's done, and picks different files/strategies
 - The final cycle writes the Summary and Recommendations sections
 - If a cycle fails, it retries after 30 seconds
-- A runner log is saved inside the worktree
+- A runner log is saved alongside the shift artifacts
+- The runner enforces blocked paths, file-count caps, low-impact caps, clean-worktree requirements, and halt conditions
 - **Your main repo is completely untouched** — no stashing, no branch switching

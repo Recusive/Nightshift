@@ -1,0 +1,30 @@
+{
+  "agent": "codex",
+  "hours": 8,
+  "cycle_minutes": 30,
+  "verify_command": null,
+  "blocked_paths": [
+    ".github/",
+    "deploy/",
+    "deployment/",
+    "infra/",
+    "k8s/",
+    "ops/",
+    "terraform/",
+    "vendor/"
+  ],
+  "blocked_globs": [
+    "*.lock",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lockb",
+    "Cargo.lock"
+  ],
+  "max_fixes_per_cycle": 3,
+  "max_files_per_fix": 5,
+  "max_files_per_cycle": 12,
+  "max_low_impact_fixes_per_shift": 4,
+  "stop_after_failed_verifications": 2,
+  "stop_after_empty_cycles": 2
+}
