@@ -5,6 +5,7 @@
 Built on 2026-04-01 in a single session. The idea: an autonomous agent that runs while you sleep, systematically improving your codebase overnight. Like having a senior engineer on the night shift who reads through the whole codebase, fixes what they can, and leaves detailed notes about what they found.
 
 The user wanted something that:
+
 - Runs for 8-10 hours unattended
 - Finds and fixes production-readiness issues across the full stack
 - Logs anything too big to fix autonomously
@@ -25,6 +26,7 @@ The user wanted something that:
 **Problem:** A single Claude Code session hits context limits after ~30-60 minutes of active work. An 8-hour shift needs to survive context compression.
 
 **Solution:** The `run.sh` script runs a bash `while` loop that spawns fresh `claude -p` sessions. Each session:
+
 1. Reads the shift log from the previous cycle to know what's been done
 2. Picks different files and strategies
 3. Makes 3-5 fixes, updating the shift log after each one
@@ -46,6 +48,7 @@ The shift log (`docs/Nightshift/YYYY-MM-DD.md`) is the most important output. De
 ### Fix Entry Format
 
 Each fix documents three things:
+
 - **What I found** â€” the specific issue (file, line, what's wrong)
 - **Why it matters** â€” the production impact if left unfixed
 - **What I did** â€” the exact change made
@@ -71,6 +74,7 @@ Across 3 test runs on the Orbit codebase (Tauri + React), the agent never touche
 In run 2, the agent made 12 commits but only cycle 1 updated the shift log. Cycles 2-4 hit the turn limit before getting to log updates.
 
 **Fixes applied:**
+
 1. Increased `--max-turns` from 30 to 45 for test runs (50 for overnight)
 2. Changed the Fix Workflow to bundle the log update with the fix commit
 3. Made the runner prompts explicitly say "After EACH fix, immediately update the shift log"
@@ -84,18 +88,21 @@ The Summary paragraph was written by cycle 1 and never updated by later cycles â
 ## Test Runs
 
 ### Run 1 (Worktree Agent Test)
+
 - **Method:** Single subagent in Claude Code worktree
 - **Duration:** ~10 minutes
 - **Result:** 4 fixes (all a11y), 2 logged issues
 - **Takeaway:** Skill works, but no variety
 
 ### Run 2 (First Multi-Cycle)
+
 - **Method:** `nightshift-test.sh` with 4 cycles, `--max-turns 30`
 - **Duration:** ~24 minutes
 - **Result:** 12 fixes, but shift log only updated by cycle 1
 - **Takeaway:** Need more turns, bundled log commits, stronger prompts
 
 ### Run 3 (Improved Skill + Gotchas)
+
 - **Method:** `nightshift-test.sh` with 4 cycles, `--max-turns 45`
 - **Duration:** ~33 minutes
 - **Result:** 12 fixes across 25 files (4 error handling, 5 a11y, 3 code quality), Summary properly rewritten, shift log fully updated
@@ -104,6 +111,7 @@ The Summary paragraph was written by cycle 1 and never updated by later cycles â
 ## Current State (v0.0.1)
 
 ### What works well
+
 - Worktree isolation â€” user's working directory untouched
 - Multi-cycle overnight runner with fresh sessions
 - Shift log with what/why/how for every fix
@@ -112,6 +120,7 @@ The Summary paragraph was written by cycle 1 and never updated by later cycles â
 - Final cycle rewrites Summary
 
 ### Known limitations
+
 - Claude Code only (Codex, Copilot CLI planned)
 - Still gravitates toward frontend over backend
 - No test writing in most runs
@@ -119,9 +128,11 @@ The Summary paragraph was written by cycle 1 and never updated by later cycles â
 - `bun install` in worktree adds ~5s startup overhead per run
 
 ### Roadmap
+
 - OpenAI Codex support
 - GitHub Copilot CLI support
 - Built-in to Orbit as a native feature
 - Test generation as a primary fix category
 - Deeper backend exploration strategies
 - Plugin packaging for Claude Code marketplace
+
