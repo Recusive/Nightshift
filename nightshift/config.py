@@ -49,6 +49,7 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         max_low_impact_fixes_per_shift=_require_int(raw, "max_low_impact_fixes_per_shift"),
         stop_after_failed_verifications=_require_int(raw, "stop_after_failed_verifications"),
         stop_after_empty_cycles=_require_int(raw, "stop_after_empty_cycles"),
+        score_threshold=_require_int(raw, "score_threshold"),
     )
 
 

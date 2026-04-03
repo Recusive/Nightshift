@@ -19,6 +19,7 @@ from nightshift.cycle import (
     extract_json,
     parse_cycle_result,
     recent_hot_files,
+    score_diff,
     verify_cycle,
 )
 from nightshift.errors import NightshiftError
@@ -214,6 +215,32 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             )
             if state["counters"]["failed_verifications"] >= int(config["stop_after_failed_verifications"]):
                 state["halt_reason"] = "Failed verification threshold reached."
+            write_json(state_path, state)
+            continue
+
+        # Score the diff before accepting.
+        diff_score = score_diff(
+            worktree_dir=worktree_dir,
+            pre_head=pre_head,
+            cycle_result=cycle_result,
+            files_touched=verification["files_touched"],
+        )
+        threshold = int(config["score_threshold"])
+        print_status(f"Diff score: {diff_score['score']}/10 ({diff_score['reason']})")
+        if diff_score["score"] < threshold and verification["files_touched"]:
+            print_status(
+                f"Score {diff_score['score']} is below threshold {threshold}. "
+                "Reverting cycle -- agent should try harder."
+            )
+            revert_cycle(worktree_dir, pre_head)
+            state["cycles"].append(
+                {
+                    "cycle": cycle_number,
+                    "status": "low-score",
+                    "cycle_result": cycle_result,
+                    "verification": verification,
+                }
+            )
             write_json(state_path, state)
             continue
 

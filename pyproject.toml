@@ -19,7 +19,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S108", "C408"]
+"tests/*" = ["S101", "S108", "C408", "S603", "S607"]
 "nightshift/constants.py" = ["T201"]
 "nightshift/cli.py" = ["T201"]
 "nightshift/shell.py" = ["S603", "S607"]  # subprocess with variable args -- this is the orchestrator's job
