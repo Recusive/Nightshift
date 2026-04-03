@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-03 by agent session (v0.0.2 released, merge_config fix).
+Last updated: 2026-04-03 by agent session (v0.0.2 released, merge_config fix, run_command timeout fix).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,8 +9,8 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              █████████░░░░░░░░░░░  45%
-├── Loop 1 — Hardening Loop                    ██████████████░░░░░░  71%
+NIGHTSHIFT VISION                              ██████████░░░░░░░░░░  47%
+├── Loop 1 — Hardening Loop                    ███████████████░░░░░  76%
 ├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
@@ -18,7 +18,7 @@ NIGHTSHIFT VISION                              █████████░░
 
 ---
 
-## Loop 1 — Hardening Loop (71%)
+## Loop 1 — Hardening Loop (76%)
 
 The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
 
@@ -44,10 +44,10 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Backend exploration forcing | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Multi-repo support | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Deep merge for config | Done | ████████████████████ 100% |
-| run_command timeout fix | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| run_command timeout fix | Done | ████████████████████ 100% |
 
 ### Bugs Found (not yet fixed)
-- `run_command()` timeout race — readline blocks, timeout never fires
+- None
 
 ---
 
