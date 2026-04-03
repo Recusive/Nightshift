@@ -56,9 +56,6 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     base_branch = discover_base_branch(repo_dir)
     verify_command = infer_verify_command(repo_dir, config)
 
-    if not command_exists(agent):
-        raise NightshiftError(f"`{agent}` is not installed or not on PATH.")
-
     state = read_state(
         state_path,
         today=today,
@@ -94,6 +91,9 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     if args.dry_run:
         print(prompt)
         return 0
+
+    if not command_exists(agent):
+        raise NightshiftError(f"`{agent}` is not installed or not on PATH.")
 
     docs_dir.mkdir(parents=True, exist_ok=True)
     ensure_worktree(repo_dir, worktree_dir, branch)
