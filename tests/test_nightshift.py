@@ -2221,7 +2221,7 @@ class TestShiftLogVerificationTolerance:
         """Create a git repo with one initial commit and return (worktree, pre_head)."""
         repo = tmp_path / "repo"
         repo.mkdir()
-        subprocess.run(["git", "init", "--initial-branch=main"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
         subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
         subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
         shift_log = repo / "docs" / "Nightshift"
