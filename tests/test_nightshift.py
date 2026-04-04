@@ -837,7 +837,9 @@ class TestValidateRepoCheckout:
         (repo / "README.md").write_text("hello\n", encoding="utf-8")
         subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
-        subprocess.run(["git", "worktree", "add", str(linked), "-b", "feature/test"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(
+            ["git", "worktree", "add", str(linked), "-b", "feature/test"], cwd=repo, capture_output=True, check=True
+        )
 
         nightshift.validate_repo_checkout(linked)
 
@@ -1415,13 +1417,13 @@ class TestExpectedCycleCommits:
         result = nightshift.expected_cycle_commits(
             {"status": "completed", "fixes": [{"title": "a"}, {"title": "b"}], "logged_issues": []}
         )
-        assert result == 2
+        assert result == (2, 3)
 
     def test_logged_issues_batch_into_one_commit(self) -> None:
         result = nightshift.expected_cycle_commits(
             {"status": "log_only", "fixes": [], "logged_issues": [{"title": "a"}, {"title": "b"}]}
         )
-        assert result == 1
+        assert result == (1, 2)
 
     def test_fixes_plus_logged_issues_add_one_extra_commit(self) -> None:
         result = nightshift.expected_cycle_commits(
@@ -1431,10 +1433,14 @@ class TestExpectedCycleCommits:
                 "logged_issues": [{"title": "issue"}],
             }
         )
-        assert result == 2
+        assert result == (2, 3)
 
     def test_missing_result_returns_none(self) -> None:
         assert nightshift.expected_cycle_commits(None) is None
+
+    def test_no_fixes_no_issues_returns_zero_range(self) -> None:
+        result = nightshift.expected_cycle_commits({"status": "completed", "fixes": [], "logged_issues": []})
+        assert result == (0, 1)
 
 
 # --- CLI Parser --------------------------------------------------------------
@@ -2203,6 +2209,161 @@ class TestDiscoverBaseBranch:
     def test_invalid_repo_raises_clear_error(self, tmp_path: Path) -> None:
         with pytest.raises(nightshift.NightshiftError, match="not a valid git checkout"):
             nightshift.discover_base_branch(tmp_path)
+
+
+# --- Shift Log Verification Tolerance ----------------------------------------
+
+
+class TestShiftLogVerificationTolerance:
+    """Tests that verify_cycle accepts shift-log updates in separate commits."""
+
+    def _setup_repo(self, tmp_path: Path) -> tuple[Path, str]:
+        """Create a git repo with one initial commit and return (worktree, pre_head)."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        shift_log = repo / "docs" / "Nightshift"
+        shift_log.mkdir(parents=True)
+        (shift_log / "2026-04-03.md").write_text("# Shift log\n")
+        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+        result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True)
+        return repo, result.stdout.strip()
+
+    def _base_config(self) -> dict:
+        return {
+            "agent": "codex",
+            "max_fixes_per_cycle": 3,
+            "max_files_per_fix": 5,
+            "max_files_per_cycle": 12,
+            "max_low_impact_fixes_per_shift": 4,
+            "blocked_paths": [".github/"],
+            "blocked_globs": ["*.lock"],
+        }
+
+    def _base_state(self) -> dict:
+        return {
+            "verify_command": None,
+            "log_only_mode": False,
+            "counters": {"low_impact_fixes": 0, "fixes": 0, "issues_logged": 0},
+            "recent_cycle_paths": [],
+            "category_counts": {},
+        }
+
+    def test_separate_shift_log_commit_accepted(self, tmp_path: Path) -> None:
+        """Agent commits fix first, then shift log separately -- should pass."""
+        repo, pre_head = self._setup_repo(tmp_path)
+        shift_log_rel = "docs/Nightshift/2026-04-03.md"
+        # Commit 1: fix only (no shift log)
+        (repo / "src").mkdir()
+        (repo / "src" / "auth.py").write_text("# fixed\n")
+        subprocess.run(["git", "add", "src/auth.py"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix: auth"], cwd=repo, capture_output=True, check=True)
+        # Commit 2: shift log only
+        (repo / shift_log_rel).write_text("# Updated shift log\n## Fix 1\n")
+        subprocess.run(["git", "add", shift_log_rel], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "docs: update shift log"], cwd=repo, capture_output=True, check=True)
+
+        valid, verification = nightshift.verify_cycle(
+            worktree_dir=repo,
+            shift_log_relative=shift_log_rel,
+            pre_head=pre_head,
+            cycle_result={
+                "status": "completed",
+                "fixes": [{"title": "auth fix", "files": ["src/auth.py"]}],
+                "logged_issues": [],
+            },
+            config=self._base_config(),
+            state=self._base_state(),
+            runner_log=tmp_path / "runner.log",
+        )
+        assert valid, f"Expected valid but got violations: {verification['violations']}"
+
+    def test_co_committed_shift_log_still_accepted(self, tmp_path: Path) -> None:
+        """Agent commits fix and shift log together -- should still pass."""
+        repo, pre_head = self._setup_repo(tmp_path)
+        shift_log_rel = "docs/Nightshift/2026-04-03.md"
+        (repo / "src").mkdir()
+        (repo / "src" / "auth.py").write_text("# fixed\n")
+        (repo / shift_log_rel).write_text("# Updated shift log\n")
+        subprocess.run(["git", "add", "src/auth.py", shift_log_rel], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix: auth + log"], cwd=repo, capture_output=True, check=True)
+
+        valid, verification = nightshift.verify_cycle(
+            worktree_dir=repo,
+            shift_log_relative=shift_log_rel,
+            pre_head=pre_head,
+            cycle_result={
+                "status": "completed",
+                "fixes": [{"title": "auth fix", "files": ["src/auth.py"]}],
+                "logged_issues": [],
+            },
+            config=self._base_config(),
+            state=self._base_state(),
+            runner_log=tmp_path / "runner.log",
+        )
+        assert valid, f"Expected valid but got violations: {verification['violations']}"
+
+    def test_no_shift_log_commit_rejected(self, tmp_path: Path) -> None:
+        """Agent commits fix but never updates shift log -- should fail."""
+        repo, pre_head = self._setup_repo(tmp_path)
+        shift_log_rel = "docs/Nightshift/2026-04-03.md"
+        (repo / "src").mkdir()
+        (repo / "src" / "auth.py").write_text("# fixed\n")
+        subprocess.run(["git", "add", "src/auth.py"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix: auth"], cwd=repo, capture_output=True, check=True)
+
+        valid, verification = nightshift.verify_cycle(
+            worktree_dir=repo,
+            shift_log_relative=shift_log_rel,
+            pre_head=pre_head,
+            cycle_result={
+                "status": "completed",
+                "fixes": [{"title": "auth fix", "files": ["src/auth.py"]}],
+                "logged_issues": [],
+            },
+            config=self._base_config(),
+            state=self._base_state(),
+            runner_log=tmp_path / "runner.log",
+        )
+        assert not valid
+        assert any("shift log" in v.lower() for v in verification["violations"])
+
+    def test_shift_log_only_commit_not_counted_as_fix(self, tmp_path: Path) -> None:
+        """Shift-log-only commit should not count toward max_fixes_per_cycle."""
+        repo, pre_head = self._setup_repo(tmp_path)
+        shift_log_rel = "docs/Nightshift/2026-04-03.md"
+        config = self._base_config()
+        config["max_fixes_per_cycle"] = 1
+        # Commit 1: fix
+        (repo / "src").mkdir()
+        (repo / "src" / "auth.py").write_text("# fixed\n")
+        subprocess.run(["git", "add", "src/auth.py"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix: auth"], cwd=repo, capture_output=True, check=True)
+        # Commit 2: shift log only (should not count as fix)
+        (repo / shift_log_rel).write_text("# Updated shift log\n")
+        subprocess.run(["git", "add", shift_log_rel], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "docs: shift log"], cwd=repo, capture_output=True, check=True)
+
+        _valid, verification = nightshift.verify_cycle(
+            worktree_dir=repo,
+            shift_log_relative=shift_log_rel,
+            pre_head=pre_head,
+            cycle_result={
+                "status": "completed",
+                "fixes": [{"title": "auth fix", "files": ["src/auth.py"]}],
+                "logged_issues": [],
+            },
+            config=config,
+            state=self._base_state(),
+            runner_log=tmp_path / "runner.log",
+        )
+        # 2 commits total but only 1 fix commit -- should be within limit
+        assert not any("max_fixes_per_cycle" in v for v in verification["violations"]), (
+            f"Shift-log-only commit wrongly counted as fix: {verification['violations']}"
+        )
 
 
 # --- Dry Run Integration ----------------------------------------------------

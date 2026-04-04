@@ -94,7 +94,6 @@ from nightshift.worktree import (
 )
 
 __all__ = [
-    # constants
     "BACKEND_DIR_NAMES",
     "BACKEND_EXTENSIONS",
     "CATEGORY_ORDER",
@@ -108,7 +107,6 @@ __all__ = [
     "SAFE_ARTIFACT_GLOBS",
     "SHIFT_LOG_TEMPLATE",
     "SUPPORTED_AGENTS",
-    # types
     "Baseline",
     "Counters",
     "CycleEntry",
@@ -118,23 +116,17 @@ __all__ = [
     "Fix",
     "LoggedIssue",
     "NightshiftConfig",
-    # errors
     "NightshiftError",
     "ShiftState",
-    # state
     "append_cycle_state",
-    # cycle
     "blocked_file",
     "build_backend_escalation",
-    # cli
     "build_parser",
     "build_prompt",
     "build_state_summary",
     "build_test_escalation",
     "classify_repo_dirs",
-    # worktree
     "cleanup_safe_artifacts",
-    # shell
     "command_exists",
     "command_for_agent",
     "discover_base_branch",
@@ -146,11 +138,10 @@ __all__ = [
     "extract_json",
     "forbidden_cycle_commands",
     "forbidden_reported_commands",
-    "high_signal_focus_paths",
     "git",
     "git_changed_files_for_commit",
     "git_name_status_for_commit",
-    # config
+    "high_signal_focus_paths",
     "infer_install_command",
     "infer_package_manager",
     "infer_verify_command",
