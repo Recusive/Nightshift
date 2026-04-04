@@ -1077,6 +1077,33 @@ class TestForbiddenCycleCommands:
         assert result == ["npm run lint"]
 
 
+class TestExpectedCycleCommits:
+    def test_fixes_require_one_commit_each(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {"status": "completed", "fixes": [{"title": "a"}, {"title": "b"}], "logged_issues": []}
+        )
+        assert result == 2
+
+    def test_logged_issues_batch_into_one_commit(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {"status": "log_only", "fixes": [], "logged_issues": [{"title": "a"}, {"title": "b"}]}
+        )
+        assert result == 1
+
+    def test_fixes_plus_logged_issues_add_one_extra_commit(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {
+                "status": "completed",
+                "fixes": [{"title": "a"}],
+                "logged_issues": [{"title": "issue"}],
+            }
+        )
+        assert result == 2
+
+    def test_missing_result_returns_none(self) -> None:
+        assert nightshift.expected_cycle_commits(None) is None
+
+
 # --- CLI Parser --------------------------------------------------------------
 
 

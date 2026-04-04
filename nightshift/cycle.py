@@ -261,6 +261,14 @@ def forbidden_cycle_commands(raw_output: str) -> list[str]:
     return seen
 
 
+def expected_cycle_commits(cycle_result: CycleResult | None) -> int | None:
+    if cycle_result is None:
+        return None
+    fixes = cycle_result.get("fixes", [])
+    logged_issues = cycle_result.get("logged_issues", [])
+    return len(fixes) + (1 if logged_issues else 0)
+
+
 def evaluate_baseline(
     *,
     worktree_dir: Path,
@@ -345,6 +353,11 @@ def verify_cycle(
     if cycle_result is None and config["agent"] == "codex":
         violations.append("Agent cycle did not produce a structured JSON result.")
     if cycle_result is not None:
+        expected_commits = expected_cycle_commits(cycle_result)
+        if expected_commits is not None and len(commits) != expected_commits:
+            violations.append(
+                f"Cycle created {len(commits)} commits but structured output implies {expected_commits}."
+            )
         for fix in cycle_result.get("fixes", []):
             if len(set(fix.get("files", []))) > int(config["max_files_per_fix"]):
                 violations.append(
