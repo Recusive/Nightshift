@@ -38,18 +38,39 @@ Four daemons, one runs at a time (shared lockfile). Full guide: `docs/ops/DAEMON
 - **Strategist** (`make strategist`): runs once, reviews big picture, produces report for human
 
 ```bash
-# Start in tmux (recommended)
-tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+# Start any daemon in tmux (recommended — survives terminal disconnect)
+tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"          # builder
+tmux new-session -d -s nightshift "bash scripts/daemon-review.sh claude 60"   # reviewer
+tmux new-session -d -s nightshift "bash scripts/daemon-overseer.sh claude 60" # overseer
+tmux new-session -d -s nightshift "bash scripts/daemon-strategist.sh"         # strategist (runs once)
 
-# Monitor
+# Monitor (works for any daemon)
 tmux capture-pane -t nightshift -p -S -15   # daemon wrapper output
-cat docs/sessions/index.md                   # session history
+cat docs/sessions/index.md                   # builder session history
+cat docs/sessions/index-review.md            # reviewer session history
+cat docs/sessions/index-overseer.md          # overseer audit history
 gh pr list --state all --limit 5             # recent PRs
+
+# Read the live stream-json log (see what the agent is doing right now)
+LATEST_LOG=$(ls docs/sessions/*.log | tail -1)
+cat "$LATEST_LOG" | python3 -c "
+import json, sys
+for line in sys.stdin:
+    try:
+        e = json.loads(line.strip())
+        if e.get('type') == 'assistant':
+            for b in e['message']['content']:
+                if b.get('type') == 'tool_use': print(f\"{b['name']}: {str(b.get('input',{}))[:80]}\")
+                elif b.get('type') == 'text' and len(b.get('text','')) > 15: print(f\"MSG: {b['text'][:120]}\")
+    except: pass
+"
 
 # Stop
 tmux send-keys -t nightshift C-c            # graceful (after current session)
 tmux kill-session -t nightshift             # immediate
 ```
+
+Full daemon operations guide with troubleshooting: `docs/ops/DAEMON.md`
 
 ## Git Workflow
 
