@@ -1245,6 +1245,10 @@ class TestDiscoverBaseBranch:
             return
         assert len(result) > 0
 
+    def test_invalid_repo_raises_clear_error(self, tmp_path: Path) -> None:
+        with pytest.raises(nightshift.NightshiftError, match="not a valid git checkout"):
+            nightshift.discover_base_branch(tmp_path)
+
 
 # --- Dry Run Integration ----------------------------------------------------
 

@@ -123,6 +123,7 @@ def ensure_shift_log_committed(worktree_dir: Path, shift_log_relative: str) -> N
 
 
 def discover_base_branch(repo_dir: Path) -> str:
+    validate_repo_checkout(repo_dir)
     try:
         origin_head = git(repo_dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
         return origin_head.rsplit("/", 1)[-1]
