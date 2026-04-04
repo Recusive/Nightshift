@@ -17,6 +17,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib-agent.sh"
 AGENT="${1:-claude}"
 LOG_DIR="$REPO_DIR/docs/sessions"
 STRATEGIST_PROMPT="$REPO_DIR/docs/prompt/strategist.md"
@@ -41,20 +42,7 @@ git pull origin main --quiet 2>/dev/null || true
 
 PROMPT=$(cat "$STRATEGIST_PROMPT")
 
-if [ "$AGENT" = "codex" ]; then
-    codex exec \
-        --json \
-        -c 'approval_policy="never"' \
-        -s "workspace-write" \
-        "$PROMPT" \
-        2>&1 | tee "$LOG_FILE"
-else
-    # Interactive -- not -p, so the human can respond to recommendations
-    claude -p "$PROMPT" \
-        --max-turns "$MAX_TURNS" \
-        --verbose \
-        2>&1 | tee "$LOG_FILE"
-fi
+run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
 
 echo ""
 echo "=================================================="

@@ -15,6 +15,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/lib-agent.sh"
 AGENT="${1:-claude}"
 PAUSE="${2:-60}"
 MAX_SESSIONS="${3:-0}"
@@ -123,27 +124,7 @@ ${PROMPT}"
     fi
 
     # --- Run the agent ---
-    # Use stream-json for line-by-line event output so tee flushes in real-time.
-    # Each line is a JSON event (tool calls, messages, results) that can be
-    # monitored by reading the log file while the session is running.
-    set +e
-    if [ "$AGENT" = "codex" ]; then
-        codex exec \
-            --json \
-            -c 'approval_policy="never"' \
-            -s "workspace-write" \
-            "$PROMPT" \
-            2>&1 | tee "$LOG_FILE"
-        EXIT_CODE=${PIPESTATUS[0]}
-    else
-        claude -p "$PROMPT" \
-            --max-turns "$MAX_TURNS" \
-            --output-format stream-json \
-            --verbose \
-            2>&1 | tee "$LOG_FILE"
-        EXIT_CODE=${PIPESTATUS[0]}
-    fi
-    set -e
+    run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
 
     END_TIME=$(date +%s)
     DURATION=$(( END_TIME - START_TIME ))
