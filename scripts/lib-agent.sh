@@ -29,12 +29,14 @@ run_agent() {
     case "$agent" in
         codex)
             # Codex non-interactive mode
-            # --full-auto: no approval needed, workspace write access
+            # --full-auto: no approval needed
+            # --sandbox danger-full-access: full filesystem + git access (no sandbox restrictions)
             # --json: JSONL stream to stdout
-            # --model: configurable (default o3)
+            # --model: configurable (default gpt-5.4)
             # -c reasoning_effort: thinking level
             codex exec \
                 --full-auto \
+                --sandbox danger-full-access \
                 --json \
                 --model "$CODEX_MODEL" \
                 -c "reasoning_effort=\"$CODEX_THINKING\"" \
