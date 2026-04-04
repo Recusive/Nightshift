@@ -150,7 +150,10 @@ Supported keys:
   "max_files_per_cycle": 12,
   "max_low_impact_fixes_per_shift": 4,
   "stop_after_failed_verifications": 2,
-  "stop_after_empty_cycles": 2
+  "stop_after_empty_cycles": 2,
+  "score_threshold": 3,
+  "test_incentive_cycle": 3,
+  "backend_forcing_cycle": 3
 }
 ```
 
@@ -227,8 +230,13 @@ The shift log is for humans. The state file is for quick auditing:
 - [x] Pluggable agent adapters (Codex, Claude)
 - [x] Runner-enforced guard rails
 - [x] Structured cycle outputs and state files
-- [ ] Smarter repo-type detection for category balancing
-- [ ] Post-cycle diff scoring before accepting a fix
+- [x] Post-cycle diff scoring before accepting a fix
+- [x] Cycle-to-cycle state injection
+- [x] Test writing incentives
+- [x] Backend exploration forcing
+- [x] Validated against real monorepo (Phractal)
+- [ ] Smarter category balancing
+- [ ] Loop 2: Feature Builder (plan, decompose, build, test)
 - [ ] Built-in to Orbit as a native feature
 
 ---

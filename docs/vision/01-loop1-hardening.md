@@ -72,7 +72,7 @@ These are ordered by impact. Build them in this order unless you have a strong r
 
 **Where it goes**: Extend `build_prompt()` in `cycle.py` to read from the state dict and generate this summary.
 
-### 3. Test Writing Incentives
+### 3. Test Writing Incentives (DONE)
 
 **Problem**: Agents rarely write tests despite it being priority #3. They prefer quick single-file fixes.
 
@@ -83,7 +83,9 @@ These are ordered by impact. Build them in this order unless you have a strong r
 
 **Where it goes**: Counter in `state.py`, prompt logic in `cycle.py`.
 
-### 4. Backend Exploration Forcing
+**Implemented**: `_is_test_file()` in `state.py`, `build_test_escalation()` in `cycle.py`, test bonus +2 in `scoring.py`. Config: `test_incentive_cycle` (default 3).
+
+### 4. Backend Exploration Forcing (DONE)
 
 **Problem**: In full-stack repos, agents gravitate toward React components.
 
@@ -93,6 +95,8 @@ These are ordered by impact. Build them in this order unless you have a strong r
 - Use the existing path bias detection but make it directional (not just "don't repeat", but "go here instead")
 
 **Where it goes**: New function in `cycle.py` that analyzes repo structure, feeds into `build_prompt()`.
+
+**Implemented**: `classify_repo_dirs()` classifies top-level dirs via name matching + extension sampling. `build_backend_escalation()` injects a "Backend exploration directive" after `backend_forcing_cycle` (default 3) consecutive frontend-only cycles. Classification data in `constants.py` (`FRONTEND_DIR_NAMES`, `BACKEND_DIR_NAMES`, `FRONTEND_EXTENSIONS`, `BACKEND_EXTENSIONS`).
 
 ### 5. Multi-Repo Support
 

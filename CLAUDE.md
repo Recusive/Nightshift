@@ -8,6 +8,8 @@
 
 Do NOT start building until you have read the handoff.
 
+4. **Read `docs/learnings/`** — Hard-won knowledge from previous sessions. Gotchas, patterns, failures. Read all files. These prevent you from repeating mistakes.
+
 ## What This Is
 
 Nightshift is an autonomous engineering system. The `nightshift/` package spawns headless agent cycles (Codex or Claude) in an isolated git worktree, enforces guard rails, verifies each cycle, and tracks state. You pick an agent and the same pipeline runs.
@@ -17,7 +19,7 @@ Full vision: `docs/vision/00-overview.md`
 ## Quick Reference
 
 ```bash
-make test        # run 123 tests
+make test        # run tests
 make check       # full CI locally
 make dry-run     # preview cycle prompt
 make clean       # remove runtime artifacts

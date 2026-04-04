@@ -56,24 +56,48 @@ Non-negotiable. Violating any of these means the session failed.
 
 <process>
 
+## STEP 0 — EVALUATE PREVIOUS SESSION (if applicable)
+
+Before doing anything else, check if the previous session left work that needs evaluating. Read `docs/handoffs/LATEST.md`. If it says "evaluate me" or "pending evaluation", you must evaluate before building.
+
+**How to evaluate:**
+1. Clone the test target: `git clone --depth 1 https://github.com/fazxes/Phractal.git /tmp/nightshift-eval`
+2. Create `.nightshift.json` if needed (check `docs/evaluations/README.md` for the standard config)
+3. Run: `PYTHONPATH=$(pwd) python3 -m nightshift test --agent claude --cycles 2 --cycle-minutes 5` from the clone
+4. Read the shift log, state file, and runner log
+5. Score across 10 dimensions (see `docs/evaluations/README.md` for the scorecard)
+6. Write evaluation report: `docs/evaluations/NNNN.md` (next sequential number)
+7. For any dimension scoring below 6/10: create a task in `docs/tasks/` (read `docs/tasks/GUIDE.md` for format)
+8. Clean up the clone
+
+You are evaluating code YOU DID NOT WRITE. Be honest. The previous session's agent is not you — grade it objectively.
+
+If the eval score is below 40/100, note it as critical in the handoff. If above 60/100, proceed normally.
+
+**Skip this step if:** the handoff does not mention evaluation, this is the first session ever, or the test target is unreachable. Note "eval skipped" in your status report.
+
+---
+
 ## STEP 1 — SITUATIONAL AWARENESS
 
 Read the handoff first. Go deeper only if needed.
 
 **Always read:**
 1. `docs/handoffs/LATEST.md` — what happened last, what's broken, what to build next
+2. `docs/tasks/` — scan for `status: pending` files to find your next task
+3. `docs/learnings/` — all files. Hard-won knowledge from previous sessions. Gotchas, patterns, failures. These prevent you from repeating mistakes.
 
 **Read if this is the first session ever (no LATEST.md exists):**
-2. `docs/vision/00-overview.md` — the north star
-3. `docs/vision/01-loop1-hardening.md` — Loop 1 roadmap
-4. `docs/vision/02-loop2-feature-builder.md` — Loop 2 design
-5. `docs/vision-tracker/TRACKER.md` — progress scoreboard
+3. `docs/vision/00-overview.md` — the north star
+4. `docs/vision/01-loop1-hardening.md` — Loop 1 roadmap
+5. `docs/vision/02-loop2-feature-builder.md` — Loop 2 design
+6. `docs/vision-tracker/TRACKER.md` — progress scoreboard
 
 **Read if the handoff points you there or you need deeper context:**
-6. `docs/prompt/feedback/` — human feedback (if any exist)
-7. Specific `nightshift/*.py` modules relevant to your task
-8. `CLAUDE.md` — if you're changing project structure
-9. `git log --oneline -10` — if you need more history
+7. `docs/prompt/feedback/` — human feedback (if any exist)
+8. Specific `nightshift/*.py` modules relevant to your task
+9. `CLAUDE.md` — if you're changing project structure
+10. `git log --oneline -10` — if you need more history
 
 Then output your status report:
 
@@ -104,17 +128,25 @@ Open feedback: [from docs/prompt/feedback/ or "none"]
 
 ## STEP 2 — DECIDE WHAT TO BUILD
 
-Based on the status report, pick ONE feature using this priority:
+Check the task queue first, then fall back to the priority engine.
 
+**Task queue** (`docs/tasks/`):
+1. Read all `.md` files in `docs/tasks/` (skip README.md)
+2. Filter to `status: pending`
+3. If any have `priority: urgent`, pick those first
+4. Otherwise pick the lowest-numbered pending task
+5. That's your task. Set it to `status: in-progress` before building.
+
+**If no pending tasks**, fall back to this priority:
 ```
 Priority 1: Bugs in existing features (fix what's broken first)
-Priority 2: Loop 1 improvements (diff scorer → state injection → test incentives → backend forcing)
-Priority 3: Self-maintaining infrastructure (auto-changelog, auto-tracker, auto-release)
-Priority 4: Loop 2 scaffolding (planner → decomposer → sub-agent manager)
-Priority 5: Multi-repo support, polish, optimization
+Priority 2: Loop 1 improvements from vision tracker (Not started components)
+Priority 3: Self-maintaining infrastructure
+Priority 4: Loop 2 scaffolding
+Priority 5: Polish, optimization
 ```
 
-If there's human feedback in `docs/prompt/feedback/`, that overrides the priority list.
+**If there's human feedback** in `docs/prompt/feedback/`, that overrides both the task queue and the priority list.
 
 ## STEP 3 — PROPOSE
 
@@ -161,9 +193,21 @@ python3 -m pytest tests/ -v
 python3 -m nightshift run --dry-run --agent codex
 python3 -m nightshift run --dry-run --agent claude
 bash -n scripts/run.sh && bash -n scripts/test.sh && bash -n scripts/install.sh
+bash scripts/validate-docs.sh
 ```
 
 All must pass before proceeding.
+
+Optional but recommended for significant changes:
+```
+bash scripts/smoke-test.sh    # end-to-end test against Phractal
+bash scripts/context-map.sh   # regenerate context map for next session
+```
+
+If something went wrong and you need to revert a previous merge:
+```
+bash scripts/rollback.sh <merge-commit-or-PR-number>
+```
 
 ## STEP 6 — UPDATE EVERY DOCUMENT
 
@@ -171,13 +215,17 @@ This is not optional. This is not "if you have time." This is the job. Code with
 
 Go through each item below. For each one, either update it or confirm it doesn't need updating. Do not skip any.
 
-### 6a. Handoff (ALWAYS)
-Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact format in `docs/handoffs/README.md`. Include: what you built, decisions made, known issues (carry forward unresolved ones from previous handoff), current state with percentages, what next session should build, and which files to look at. Copy to `docs/handoffs/LATEST.md`. If 7+ numbered files exist, compact into weekly.
+### 6a. Tasks (ALWAYS)
+If you worked from a task file: mark it `status: done` with `completed` date.
+Then create follow-up tasks for what comes next. Read `docs/tasks/GUIDE.md` for the format. The queue should never be empty — you always leave work for the next session based on what you learned, the vision tracker, or the roadmap.
 
-### 6b. Changelog (ALWAYS except docs-only changes)
+### 6b. Handoff (ALWAYS)
+Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact format in `docs/handoffs/README.md`. Include: what you built, decisions made, known issues (carry forward unresolved ones from previous handoff), current state with percentages. The "Next Session Should" section references task numbers from `docs/tasks/`. Copy to `docs/handoffs/LATEST.md`. If 7+ numbered files exist, compact into weekly.
+
+### 6c. Changelog (ALWAYS except docs-only changes)
 Read `docs/changelog/README.md` to find the current version file. Add your changes under the correct section (Added/Changed/Fixed/Removed/Internal). Tag each entry. Describe WHAT and WHY.
 
-### 6c. Vision Tracker (ALWAYS except docs-only changes)
+### 6d. Vision Tracker (ALWAYS except docs-only changes)
 Read `docs/vision-tracker/TRACKER.md`. For every component you affected:
 - Update status (Not started / In progress / Done)
 - Update progress bar
@@ -185,30 +233,39 @@ Read `docs/vision-tracker/TRACKER.md`. For every component you affected:
 - Recalculate overall percentage (weighted: Loop1 40%, Loop2 30%, Self 15%, Meta 15%)
 - Update "Last updated" date
 
-### 6d. Vision Docs (IF you completed a roadmap item or made a design decision)
+### 6e. Vision Docs (IF you completed a roadmap item or made a design decision)
 - `docs/vision/01-loop1-hardening.md` — mark completed items
 - `docs/vision/02-loop2-feature-builder.md` — answer resolved open questions
 - `docs/vision/00-overview.md` — update success criteria if relevant
 
-### 6e. CLAUDE.md (IF you changed project structure, conventions, or added systems)
+### 6f. CLAUDE.md (IF you changed project structure, conventions, or added systems)
 Update the project structure tree, add new conventions, document new systems.
 
-### 6f. README.md (IF you made a user-facing change)
+### 6g. README.md (IF you made a user-facing change)
 Update feature descriptions, usage examples, requirements, roadmap.
 
-### 6g. Operations Guide (IF you added a new system or changed a workflow)
+### 6h. Operations Guide (IF you added a new system or changed a workflow)
 Update `docs/ops/OPERATIONS.md` with new system description. Update quick-reference table.
 
-### 6h. Config files (IF you added config options)
+### 6i. Config files (IF you added config options)
 Update `.nightshift.json.example`, `nightshift.schema.json`, `DEFAULT_CONFIG` in constants.py.
 
-### 6i. Install Script (IF you added files that ship to users)
+### 6j. Install Script (IF you added files that ship to users)
 Update `PACKAGE_FILES`, `ROOT_FILES`, or `SCRIPT_FILES` in `scripts/install.sh`.
 
-### 6j. Evolve Prompt (IF you learned something future sessions need)
+### 6k. Evolve Prompt (IF you learned something future sessions need)
 Update this file with new knowledge, gotchas, or procedural changes.
 
-### 6k. Version Assessment
+### 6l. Learnings (ALWAYS)
+Write at least one learning to `docs/learnings/YYYY-MM-DD-topic.md`. Ask yourself:
+- Did anything surprise you? (gotcha)
+- Did you waste turns on something avoidable? (failure)
+- Did you discover a pattern that saved time? (optimization)
+- Did a tool or approach work unexpectedly well? (pattern)
+
+See `docs/learnings/README.md` for format. One learning per file, under 30 lines. Be specific — "mypy is strict" is useless. "mypy rejects .get() on required TypedDict fields" is useful.
+
+### 6m. Version Assessment
 Check `docs/ops/OPERATIONS.md` version milestones:
 - Are all items for the current version done?
 - If yes: prepare for release (tag, changelog status, new version file)
@@ -282,9 +339,10 @@ gh pr create --title "[type]: description" --body "$(cat <<'EOF'
 EOF
 )"
 
-# 5. Review with sub-agent (spawn a code-reviewer agent)
-#    Agent reads the diff, checks for bugs, security, conventions, missing tests
-#    Reports PASS or FAIL
+# 5. Review with sub-agent
+#    The reviewer reads .claude/agents/code-reviewer.md for repo-specific rules,
+#    then reads the diff with `gh pr diff <number>`.
+#    Reports PASS or FAIL with specific file:line references.
 
 # 6. If PASS: merge (always --merge to preserve all commits, --admin since you are sole maintainer)
 gh pr merge --merge --delete-branch --admin
@@ -296,9 +354,33 @@ git checkout main && git pull
 Commit types: `feat`, `fix`, `refactor`, `test`, `docs`, `release`.
 Include ALL files in one commit: code + tests + changelog + tracker + handoff + CLAUDE.md.
 
-## STEP 9 — RELEASE CHECK
+## STEP 9 — POST-MERGE HEALTH CHECK
 
-After merging, decide if this warrants a release. Read `docs/ops/OPERATIONS.md` "Release Strategy" section.
+After merging, verify main is healthy:
+```bash
+# Wait for CI on main (check latest run)
+gh run list --branch main --limit 1
+# If status is "completed" + "success": proceed
+# If status is "failure": immediately revert
+bash scripts/rollback.sh <merge-commit>
+```
+
+Do NOT proceed to the next step if CI on main is failing. Fix it first or revert.
+
+## STEP 10 — HANDOFF WITH EVALUATION FLAG
+
+In your handoff, add this line so the NEXT session knows to evaluate your work:
+
+```
+## Evaluate
+Run evaluation against Phractal for the changes merged this session.
+```
+
+This triggers Step 0 in the next session. A different agent will score your work objectively.
+
+## STEP 11 — RELEASE CHECK
+
+After the health check passes, decide if this warrants a release. Read `docs/ops/OPERATIONS.md` "Release Strategy" section.
 
 Ask yourself:
 - Is this a user-facing change? Bug fix? New feature?
@@ -306,7 +388,7 @@ Ask yourself:
 - If yes: cut the release (tag, push tag, `gh release create`)
 - If no: move on. It'll ship with the next release.
 
-## STEP 10 — REPORT
+## STEP 12 — REPORT
 
 ```
 SESSION COMPLETE

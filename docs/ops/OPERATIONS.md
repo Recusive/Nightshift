@@ -36,6 +36,66 @@ Nightshift/
 
 ---
 
+## System -1: Evaluations (`docs/evaluations/`)
+
+### What it is
+Self-scoring. After every merge, the agent runs Nightshift against Phractal and scores itself across 10 dimensions. Failures become tasks.
+
+### Files
+| File | Purpose |
+|------|---------|
+| `README.md` | Scorecard (10 dimensions), report format, threshold rules |
+| `NNNN.md` | Individual evaluation reports (sequential numbers) |
+
+### How it works (cross-session, not self-grading)
+1. Session N merges a PR, writes handoff with "Evaluate" flag
+2. Session N+1 starts, reads the handoff, sees the evaluation flag
+3. Session N+1 runs Step 0: clones Phractal, runs 2-cycle test shift
+4. Session N+1 reads shift log + state + runner log (from the test shift, not from session N)
+5. Scores 10 dimensions (startup, discovery, fix quality, shift log, state file, verification, guard rails, clean state, breadth, usefulness)
+6. Writes report to `docs/evaluations/NNNN.md`
+7. Any dimension below 6/10 becomes a task in `docs/tasks/`
+8. Session N+1 then proceeds to its own build task
+
+The agent that evaluates is NOT the agent that built the feature. This prevents grading your own homework.
+
+### How to update
+- When you add a new evaluation dimension: update the scorecard in `README.md`
+- When you improve scoring criteria: update the dimension descriptions
+- The score should trend upward over time as fixes land
+
+---
+
+## System 0: Task Queue (`docs/tasks/`)
+
+### What it is
+The work queue. Numbered task files. The agent picks up the lowest-numbered `pending` task. Humans add tasks by creating the next numbered file.
+
+### Files
+| File | Purpose |
+|------|---------|
+| `README.md` | Format spec, status values, rules |
+| `NNNN.md` | Individual task files (0001.md, 0002.md, ...) |
+
+### How to use (human)
+1. Check latest number: `ls docs/tasks/*.md | tail -1`
+2. Create next file with `status: pending` in frontmatter
+3. Done. The agent picks it up.
+
+### How to use (agent)
+1. Read all `.md` files in `docs/tasks/` (skip README.md)
+2. Filter to `status: pending`, sort by number
+3. Pick the lowest-numbered pending task (urgent priority first)
+4. Set `status: in-progress` when starting, `status: done` when finished
+5. If no pending tasks, fall back to the priority engine in `evolve.md`
+
+### How to update
+- When you finish a task: set `status: done`, add `completed: YYYY-MM-DD`
+- Never delete task files — done tasks are history
+- If a task is too big: mark it done with a note, create follow-up tasks
+
+---
+
 ## System 1: Handoffs (`docs/handoffs/`)
 
 ### What it is
@@ -325,7 +385,11 @@ The file Claude Code always loads at session start. Contains project description
 | `scripts/run.sh` | Sets PYTHONPATH, runs `python3 -m nightshift run "$@"` |
 | `scripts/test.sh` | Sets PYTHONPATH, runs `python3 -m nightshift test "$@"` |
 | `scripts/install.sh` | Downloads entire package to `~/.codex/skills/nightshift/` and `~/.claude/skills/nightshift/` |
-| `scripts/daemon.sh` | Self-improving loop. Runs the evolve prompt forever in autonomous mode. |
+| `scripts/daemon.sh` | Self-improving loop. Runs the evolve prompt forever in autonomous mode. Uses lockfile to prevent overlapping instances. |
+| `scripts/validate-docs.sh` | Doc consistency validator. Checks test counts, module registration, tracker percentages, path references. Fails if anything drifts. |
+| `scripts/smoke-test.sh` | End-to-end test against a real repo (default: Phractal). Proves the system works, not just unit tests. |
+| `scripts/context-map.sh` | Generates a slim context file with module sizes, function signatures, dependency graph, test counts. Saves tokens. |
+| `scripts/rollback.sh` | Reverts a merged PR cleanly. Creates revert branch + PR. |
 
 ### Daemon (continuous self-improvement)
 
@@ -489,17 +553,20 @@ What defines each version. Use this to know when a release is ready.
 - [ ] Commit and push to main
 - [ ] Tag and release on GitHub
 
-### v0.0.3 — Intelligence (next)
-- [ ] Fix `merge_config` shallow update (security bug)
-- [ ] Fix `run_command` timeout race (reliability bug)
-- [ ] Post-cycle diff scorer
-- [ ] Cycle-to-cycle state injection
-- [ ] Validated against Phractal test target
+### v0.0.3 — Intelligence (released)
+- [x] Fix `merge_config` shallow update (security bug)
+- [x] Fix `run_command` timeout race (reliability bug)
+- [x] Post-cycle diff scorer
+- [x] Cycle-to-cycle state injection
+- [x] Test writing incentives (bonus, originally v0.0.4)
+- [x] Backend exploration forcing (bonus, originally v0.0.4)
+- [x] Validated against Phractal test target
 
-### v0.0.4 — Agent Quality
-- [ ] Test writing incentives
-- [ ] Backend exploration forcing
+### v0.0.4 — Agent Quality (next)
+- [x] Test writing incentives (shipped in v0.0.3)
+- [x] Backend exploration forcing (shipped in v0.0.3)
 - [ ] Smarter category balancing
+- [ ] Fix shift-log-in-commit verification for codex
 
 ### v0.0.5 — Loop 2 Scaffold
 - [ ] Feature planner module
@@ -547,11 +614,16 @@ make clean
 4. Write a corrected LATEST.md
 
 ### Agent built the wrong thing
-1. Don't panic — it's on a branch, not main
+1. Don't panic -- it's on a branch, not main
 2. Close the PR: `gh pr close <number>`
 3. Delete the branch: `git push origin --delete <branch>`
 4. Write a feedback note in `docs/prompt/feedback/` explaining what went wrong
 5. Next session reads the feedback and adjusts
+
+### Bad PR was already merged
+1. Use the rollback script: `bash scripts/rollback.sh <PR-number>`
+2. It creates a revert branch, revert commit, and new PR automatically
+3. Review and merge the revert PR
 
 ### Merge conflict on PR
 1. Pull main: `git checkout main && git pull`
@@ -619,8 +691,10 @@ Step 5:  Verify (make check)
 Step 6:  Update ALL docs (handoff, changelog, tracker, vision, CLAUDE.md, etc.)
 Step 7:  Pre-push checklist (docs/ops/PRE-PUSH-CHECKLIST.md)
 Step 8:  Branch, commit, push, PR, sub-agent review, merge
-Step 9:  Release check (is this a milestone?)
-Step 10: Report
+Step 9:  Post-merge health check (CI on main)
+Step 10: Flag handoff for evaluation (next session scores your work)
+Step 11: Release check (is this a milestone?)
+Step 12: Report
 ```
 
 See `docs/prompt/evolve.md` for the full details of each step. This summary exists for quick reference only — the evolve prompt is authoritative.

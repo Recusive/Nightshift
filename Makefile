@@ -1,4 +1,4 @@
-.PHONY: test check dry-run lint typecheck validate clean release
+.PHONY: test check dry-run lint typecheck validate clean release daemon
 
 # Run the full test suite
 test:
@@ -35,6 +35,10 @@ endif
 	git push origin main && git push origin v$(VERSION)
 	gh release create v$(VERSION) --title "v$(VERSION) -- $(CODENAME)" --notes-file docs/changelog/v$(VERSION).md
 	@echo "Released v$(VERSION) -- $(CODENAME)"
+
+# Run the self-improving daemon (loops forever, Ctrl+C to stop)
+daemon:
+	bash scripts/daemon.sh
 
 # Remove runtime artifacts
 clean:

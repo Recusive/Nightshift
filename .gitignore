@@ -1,6 +1,9 @@
 docs/Nightshift/worktree-*/
 docs/Nightshift/*.runner.log
 docs/Nightshift/*.state.json
+docs/sessions/
+docs/context-map.md
+.nightshift-daemon.lock
 **/__pycache__/
 **/*.pyc
 .mypy_cache/

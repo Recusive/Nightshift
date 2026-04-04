@@ -13,6 +13,7 @@ from nightshift.config import infer_verify_command, merge_config, resolve_agent
 from nightshift.constants import now_local, print_status
 from nightshift.cycle import (
     _as_cycle_result,
+    build_backend_escalation,
     build_prompt,
     command_for_agent,
     evaluate_baseline,
@@ -80,6 +81,12 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     dry_run_cycle = len(state["cycles"]) + 1
     dry_run_final = total_cycles is not None and dry_run_cycle == total_cycles
     dry_run_hot_files = recent_hot_files(repo_dir)
+    backend_esc = build_backend_escalation(
+        cycle=dry_run_cycle,
+        config=config,
+        state=state,
+        repo_dir=repo_dir,
+    )
     prompt = build_prompt(
         cycle=dry_run_cycle,
         is_final=dry_run_final,
@@ -91,6 +98,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         prior_path_bias=state["recent_cycle_paths"],
         focus_hints=high_signal_focus_paths(repo_dir, dry_run_hot_files),
         test_mode=test_mode,
+        backend_escalation=backend_esc,
     )
     if args.dry_run:
         print(prompt)
@@ -145,6 +153,12 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         print_status(f"-- Cycle {cycle_number} --- {now_local().strftime('%H:%M')} --")
 
         cycle_hot_files = recent_hot_files(repo_dir)
+        backend_esc = build_backend_escalation(
+            cycle=cycle_number,
+            config=config,
+            state=state,
+            repo_dir=repo_dir,
+        )
         prompt = build_prompt(
             cycle=cycle_number,
             is_final=is_final,
@@ -156,6 +170,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             prior_path_bias=state["recent_cycle_paths"],
             focus_hints=high_signal_focus_paths(repo_dir, cycle_hot_files),
             test_mode=test_mode,
+            backend_escalation=backend_esc,
         )
 
         message_path = docs_dir / f"{today}.cycle-{cycle_number}.json"

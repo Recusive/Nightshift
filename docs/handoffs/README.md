@@ -69,9 +69,13 @@ Every handoff follows this exact structure. No exceptions. Keep it tight — the
 - Self-Maintaining: XX% — [one line status]
 - Version: vX.X.X — [X of Y features done]
 
+## Evaluate
+Run evaluation against Phractal for the changes merged this session.
+(Include this section after every session that merges code changes. Omit for docs-only sessions.)
+
 ## Next Session Should
-1. [Highest priority — what to build and why]
-2. [Second priority — if time permits]
+Tasks: #NNNN, #NNNN (reference docs/tasks/ files by number)
+Fallback: [if no pending tasks, what to do]
 
 ## Where to Look
 - [module/file]: [why the next agent might need to read this]

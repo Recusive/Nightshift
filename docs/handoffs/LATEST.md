@@ -1,40 +1,40 @@
-# Handoff #0003
+# Handoff #0007
 **Date**: 2026-04-03
-**Version**: v0.0.3 in progress
-**Session duration**: ~45m
+**Version**: v0.0.3 released, v0.0.4 in progress
+**Session duration**: ~20m
 
 ## What I Built
-- **v0.0.2 tagged and released** on GitHub with full release notes
-- **merge_config() deep merge** — list fields union with defaults (security fix)
-- **run_command() timeout fix** — reader thread + main-thread deadline replaces blocking readline
-- **discover_base_branch CI fix** — skips length assertion in detached HEAD (CI PRs)
-- **Docs: merge + release conventions** — always `--merge --admin`, release notes include full changelog
-- Files: `nightshift/shell.py`, `nightshift/config.py`, `tests/test_nightshift.py`, `docs/ops/OPERATIONS.md`, `docs/prompt/evolve.md`, `docs/changelog/v0.0.3.md`
-- Tests: +11 new (5 merge_config + 6 run_command), 134 total passing
+- **v0.0.3 release** -- Assessed readiness, validated against Phractal, cut the release.
+  - Ran 2-cycle test shift against Phractal (FastAPI + Next.js monorepo) with codex agent
+  - System works end-to-end: worktree creation, baseline verification, agent spawning, issue discovery, state tracking, shift log generation, post-cycle verification, guard rails
+  - Agent found a real security issue (pickle deserialization) and made a real fix (noopener/noreferrer)
+  - Both cycles rejected due to agent not including shift log in commits -- system correctly detected and halted
+  - Created .nightshift.json for Phractal with `compileall` verify command
+- Files changed: task files (0004, 0006), OPERATIONS.md, changelog (v0.0.3, v0.0.4, README), tracker, README, handoff, learnings
+- Tests: 189 total passing (no new tests -- release session)
 
 ## Decisions Made
-- `_reader_thread` is a daemon thread so it dies with the process if timeout fires
-- Main thread polls `reader.join(timeout=1.0)` to check deadline without busy-waiting
-- Always use `--merge` (never `--squash`) + `--admin` for PRs
-- Release notes must include highlights + full changelog (self-contained)
+- Released v0.0.3 with test incentives and backend forcing included (originally v0.0.4 scope) since they were already built and tested
+- Codex shift-log-in-commit verification failures are an agent quality issue, not a system bug -- created task #0009
 
 ## Known Issues
-- Phractal test target: `verify_command` returns None for monorepos. Needs `.nightshift.json` with explicit `verify_command`.
+- Codex does not reliably include shift log updates in fix commits, causing verification failures (task #0009)
 
 ## Current State
-- Loop 1: 76% (16/21 components) — both bugs fixed. Missing: diff scorer, state injection, test incentives, backend forcing, multi-repo
-- Loop 2: 0% (0/11) — vision docs only
-- Self-Maintaining: 54% (7/13) — no change
-- Meta-Prompt: 57% (4/7) — no change
-- Overall: 47% (weighted)
-- Version: v0.0.2 released, v0.0.3 in progress (2 of 2 bugs fixed)
+- Loop 1: 95% (20/21) -- missing: multi-repo only
+- Loop 2: 0% (0/11) -- vision docs only
+- Self-Maintaining: 54% (7/13) -- no change
+- Meta-Prompt: 57% (4/7) -- no change
+- Overall: 54% (weighted)
+- Version: v0.0.3 released, v0.0.4 in progress
 
 ## Next Session Should
-1. **Build post-cycle diff scorer** — Score changes 1-10, reject low-value cycles. This is the next Loop 1 intelligence improvement. See `docs/vision/01-loop1-hardening.md`.
-2. **Build cycle-to-cycle state injection** — Pass context from previous cycles so the agent doesn't repeat work.
-3. **Test against Phractal** — Create `.nightshift.json` for it, run a real shift.
+Tasks: #0009, #0010, #0011
+1. **Task #0009** -- Fix shift-log-in-commit verification for codex (agent quality)
+2. **Task #0010** -- Smarter category balancing (v0.0.4 feature)
+3. **Task #0011** -- Scaffold Loop 2 feature planner (v0.0.5)
 
 ## Where to Look
-- `nightshift/cycle.py:verify_cycle()` — where diff scorer would plug in
-- `nightshift/cycle.py:build_prompt()` — where state injection would go
-- `docs/vision/01-loop1-hardening.md` — full roadmap for Loop 1 improvements
+- `nightshift/cycle.py:verify_cycle()` -- if investigating shift-log verification issue
+- `nightshift/SKILL.md` -- the prompt that agents receive; may need strengthening for shift log instructions
+- `docs/vision/02-loop2-feature-builder.md` -- if starting Loop 2 scaffolding

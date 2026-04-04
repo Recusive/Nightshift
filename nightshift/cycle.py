@@ -9,7 +9,17 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
-from nightshift.constants import FORBIDDEN_CYCLE_COMMANDS, HIGH_SIGNAL_PATH_CANDIDATES, print_status
+from nightshift.constants import (
+    BACKEND_DIR_NAMES,
+    BACKEND_EXTENSIONS,
+    CATEGORY_ORDER,
+    CLASSIFY_SKIP_DIRS,
+    FORBIDDEN_CYCLE_COMMANDS,
+    FRONTEND_DIR_NAMES,
+    FRONTEND_EXTENSIONS,
+    HIGH_SIGNAL_PATH_CANDIDATES,
+    print_status,
+)
 from nightshift.errors import NightshiftError
 from nightshift.shell import git, run_shell_string
 from nightshift.state import top_path
@@ -88,6 +98,182 @@ def command_for_agent(
     raise NightshiftError(f"Unsupported agent: {agent}")
 
 
+def build_test_escalation(
+    *,
+    cycle: int,
+    config: NightshiftConfig,
+    state: ShiftState,
+) -> str:
+    """Return a test-writing escalation message if the agent has not written tests.
+
+    Returns an empty string when tests have been written or the cycle threshold
+    has not been reached.
+    """
+    threshold = int(config.get("test_incentive_cycle", 3))
+    if cycle < threshold:
+        return ""
+    if state["counters"]["tests_written"] > 0:
+        return ""
+    return (
+        "You have not written any tests in this shift so far. "
+        "Your next fix MUST include a test file. "
+        "Writing tests is priority #3 (after Security and Error Handling). "
+        "If you cannot find a security or error-handling issue, write a test."
+    )
+
+
+def _classify_dir(dir_path: Path) -> str:
+    """Classify a single directory as 'frontend', 'backend', or 'unknown'.
+
+    Uses the directory name first. If ambiguous, samples file extensions
+    one level deep to break the tie.
+    """
+    name = dir_path.name.lower()
+    if name in FRONTEND_DIR_NAMES:
+        return "frontend"
+    if name in BACKEND_DIR_NAMES:
+        return "backend"
+    # Ambiguous name (e.g. "src", "app") -- sample extensions
+    frontend_count = 0
+    backend_count = 0
+    try:
+        for child in dir_path.iterdir():
+            if not child.is_file():
+                continue
+            ext = child.suffix.lower()
+            if ext in FRONTEND_EXTENSIONS:
+                frontend_count += 1
+            elif ext in BACKEND_EXTENSIONS:
+                backend_count += 1
+    except OSError:
+        return "unknown"
+    if frontend_count == 0 and backend_count == 0:
+        return "unknown"
+    if frontend_count > backend_count:
+        return "frontend"
+    if backend_count > frontend_count:
+        return "backend"
+    return "unknown"
+
+
+def classify_repo_dirs(repo_dir: Path) -> tuple[list[str], list[str]]:
+    """Classify top-level directories as frontend or backend.
+
+    Returns (frontend_dirs, backend_dirs). Directories that cannot be
+    classified are excluded from both lists. Hidden directories and
+    common non-code directories are skipped.
+    """
+    frontend: list[str] = []
+    backend: list[str] = []
+    try:
+        entries = sorted(repo_dir.iterdir())
+    except OSError:
+        return ([], [])
+    for entry in entries:
+        if not entry.is_dir():
+            continue
+        name = entry.name
+        if name.startswith(".") or name in CLASSIFY_SKIP_DIRS:
+            continue
+        classification = _classify_dir(entry)
+        if classification == "frontend":
+            frontend.append(name)
+        elif classification == "backend":
+            backend.append(name)
+    return (frontend, backend)
+
+
+def build_backend_escalation(
+    *,
+    cycle: int,
+    config: NightshiftConfig,
+    state: ShiftState,
+    repo_dir: Path,
+) -> str:
+    """Return a backend-exploration directive if recent cycles are frontend-heavy.
+
+    Returns an empty string when:
+    - The cycle threshold has not been reached
+    - Backend dirs have already been visited
+    - The repo has no identifiable backend directories
+    - Recent cycles are not all frontend-classified
+    """
+    threshold = int(config.get("backend_forcing_cycle", 3))
+    if cycle < threshold:
+        return ""
+    recent = state["recent_cycle_paths"]
+    if len(recent) < threshold:
+        return ""
+    frontend_dirs, backend_dirs = classify_repo_dirs(repo_dir)
+    if not backend_dirs:
+        return ""
+    frontend_set = set(frontend_dirs)
+    backend_set = set(backend_dirs)
+    # Check recent paths, filtering out "(none)" from empty/log-only cycles
+    real_paths = [p for p in recent if p != "(none)"]
+    if len(real_paths) < threshold:
+        return ""
+    window = real_paths[-threshold:]
+    all_frontend = all(p in frontend_set for p in window)
+    any_backend = any(p in backend_set for p in window)
+    if any_backend or not all_frontend:
+        return ""
+    dirs_list = ", ".join(f"`{d}`" for d in backend_dirs[:5])
+    return (
+        f"The last {threshold} cycles all targeted frontend code. "
+        f"The backend has not been explored. "
+        f"Focus this cycle on backend directories: {dirs_list}."
+    )
+
+
+def build_state_summary(state: ShiftState) -> str:
+    """Build a human-readable summary of prior cycles for injection into the prompt.
+
+    Returns an empty string when no cycles have run yet (cycle 1).
+    """
+    cycles = state["cycles"]
+    if not cycles:
+        return ""
+
+    # Gather category fix counts from state-level aggregation
+    category_counts = state["category_counts"]
+
+    # Gather all top-level paths touched across cycles
+    paths_touched: set[str] = set()
+    for cycle_entry in cycles:
+        verification = cycle_entry.get("verification")
+        if verification:
+            for file_path in verification["files_touched"]:
+                if file_path:
+                    paths_touched.add(file_path.split("/", 1)[0])
+
+    lines: list[str] = []
+
+    # What was fixed, by category
+    if category_counts:
+        fix_parts = [f"{count} {cat}" for cat, count in sorted(category_counts.items())]
+        lines.append(f"Previous cycles fixed: {', '.join(fix_parts)}.")
+
+    # Which categories remain unexplored
+    explored = set(category_counts.keys())
+    unexplored = [cat for cat in CATEGORY_ORDER if cat not in explored]
+    if unexplored:
+        lines.append(f"Categories not yet explored: {', '.join(unexplored)}.")
+
+    # Which paths have been visited
+    if paths_touched:
+        sorted_paths = ", ".join(f"`{p}`" for p in sorted(paths_touched))
+        lines.append(f"Paths already visited: {sorted_paths}. Explore different areas of the codebase.")
+
+    # Running totals
+    total_fixes = state["counters"]["fixes"]
+    total_logged = state["counters"]["issues_logged"]
+    if total_fixes or total_logged:
+        lines.append(f"Running totals: {total_fixes} fix(es) committed, {total_logged} issue(s) logged.")
+
+    return "\n".join(lines)
+
+
 def build_prompt(
     *,
     cycle: int,
@@ -100,6 +286,7 @@ def build_prompt(
     prior_path_bias: list[str],
     focus_hints: list[str],
     test_mode: bool,
+    backend_escalation: str = "",
 ) -> str:
     hot_files_lines = "\n".join(f"- `{entry}`" for entry in hot_files[:10]) or "- None"
     prior_paths = "\n".join(f"- `{entry}`" for entry in prior_path_bias[-2:]) or "- None"
@@ -109,6 +296,20 @@ def build_prompt(
     prior_lines = textwrap.indent(prior_paths, "        ")
     focus_block = textwrap.indent(focus_lines, "        ")
     log_only = state["log_only_mode"]
+    state_summary = build_state_summary(state)
+    state_block = ""
+    if state_summary:
+        indented = textwrap.indent(state_summary, "        ")
+        state_block = f"\n        Prior cycle intelligence:\n{indented}\n"
+    test_escalation = build_test_escalation(cycle=cycle, config=config, state=state)
+    test_block = ""
+    if test_escalation:
+        indented_test = textwrap.indent(test_escalation, "        ")
+        test_block = f"\n        Test writing directive:\n{indented_test}\n"
+    backend_block = ""
+    if backend_escalation:
+        indented_backend = textwrap.indent(backend_escalation, "        ")
+        backend_block = f"\n        Backend exploration directive:\n{indented_backend}\n"
     return textwrap.dedent(
         f"""
         You are Nightshift running inside an isolated git worktree. Do not create a worktree, do not switch branches, and do not touch the user's original checkout.
@@ -122,7 +323,7 @@ def build_prompt(
         - Final cycle: {"yes" if is_final else "no"}
         - Agent: {config["agent"]}
         - Log-only mode: {"yes" if log_only else "no"}
-
+{state_block}{test_block}{backend_block}
         Hard limits enforced by the runner:
         - At most {config["max_fixes_per_cycle"]} fixes this cycle.
         - At most {config["max_files_per_fix"]} files per fix.

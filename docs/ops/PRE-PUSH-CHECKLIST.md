@@ -34,11 +34,20 @@ Your answers determine which sections below are mandatory.
 ## Part 2: Code Quality (ALWAYS)
 
 - [ ] Full CI passes locally: `make check` (includes mypy strict + ruff + pytest + integration)
+- [ ] Doc validator passes: `bash scripts/validate-docs.sh` (catches stale test counts, missing registrations, percentage drift)
 - [ ] If `make check` is unavailable: `make test` + dry-run both agents + `bash -n` scripts
 - [ ] Test coverage for changes: every changed `.py` file in `nightshift/` has corresponding test changes in `tests/`
 - [ ] No junk staged: `git status` shows no `.pyc`, `__pycache__`, `.state.json`, `.runner.log`, `worktree-*/`
 - [ ] Commit message follows convention: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `release:`
 - [ ] No hardcoded absolute paths in any committed file
+
+---
+
+## Part 2b: Task Status (IF working from a task)
+
+- [ ] Task file set to `status: done` with `completed: YYYY-MM-DD`
+- [ ] If task was too big and you only did part of it: mark done, create follow-up task(s)
+- [ ] Handoff references the next pending task numbers
 
 ---
 
