@@ -5,7 +5,17 @@
 #
 # Supports: claude, codex
 # Both produce JSONL output for log parsing.
+#
+# Model config via environment variables:
+#   NIGHTSHIFT_CLAUDE_MODEL   (default: opus)
+#   NIGHTSHIFT_CODEX_MODEL    (default: o3)
+#   NIGHTSHIFT_CODEX_THINKING (default: extra_high)
 # ──────────────────────────────────────────────
+
+# Configurable models -- override via environment
+CLAUDE_MODEL="${NIGHTSHIFT_CLAUDE_MODEL:-opus}"
+CODEX_MODEL="${NIGHTSHIFT_CODEX_MODEL:-gpt-5.4}"
+CODEX_THINKING="${NIGHTSHIFT_CODEX_THINKING:-extra_high}"
 
 # run_agent AGENT PROMPT LOG_FILE MAX_TURNS
 # Sets EXIT_CODE as a side effect.
@@ -20,10 +30,14 @@ run_agent() {
         codex)
             # Codex non-interactive mode
             # --full-auto: no approval needed, workspace write access
-            # --json: JSONL stream to stdout (same as claude stream-json)
+            # --json: JSONL stream to stdout
+            # --model: configurable (default o3)
+            # -c reasoning_effort: thinking level
             codex exec \
                 --full-auto \
                 --json \
+                --model "$CODEX_MODEL" \
+                -c "reasoning_effort=\"$CODEX_THINKING\"" \
                 "$prompt" \
                 2>&1 | tee "$log_file"
             EXIT_CODE=${PIPESTATUS[0]}
@@ -33,8 +47,10 @@ run_agent() {
             # -p: non-interactive (print mode)
             # --output-format stream-json: JSONL stream
             # --max-turns: session turn limit
+            # --model: configurable (default opus)
             claude -p "$prompt" \
                 --max-turns "$max_turns" \
+                --model "$CLAUDE_MODEL" \
                 --output-format stream-json \
                 --verbose \
                 2>&1 | tee "$log_file"
