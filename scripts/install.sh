@@ -29,6 +29,7 @@ PACKAGE_FILES=(
   "nightshift/scoring.py"
   "nightshift/multi.py"
   "nightshift/profiler.py"
+  "nightshift/planner.py"
   "nightshift/cli.py"
 )
 
