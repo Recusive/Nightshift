@@ -53,7 +53,14 @@ done
 # --- Check 3: Test count matches across docs ---
 echo ""
 echo "-- Test count consistency --"
-ACTUAL_TESTS=$(grep -c "def test_" "$REPO_DIR/tests/test_nightshift.py" 2>/dev/null || echo "0")
+ACTUAL_TESTS=$(grep -c "^    def test_\|^class Test" "$REPO_DIR/tests/test_nightshift.py" 2>/dev/null | head -1 || echo "0")
+# Use pytest --collect-only for accurate count if available
+if command -v python3 >/dev/null 2>&1; then
+    PYTEST_COUNT=$(python3 -m pytest "$REPO_DIR/tests/" --collect-only -q 2>/dev/null | tail -1 | grep -oE '^[0-9]+' || echo "")
+    if [ -n "$PYTEST_COUNT" ]; then
+        ACTUAL_TESTS="$PYTEST_COUNT"
+    fi
+fi
 echo "  Actual test count: $ACTUAL_TESTS"
 
 for doc in \
