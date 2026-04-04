@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from nightshift.constants import (
+    PLAN_MAX_FILES_PER_TASK,
     PLAN_MAX_TASKS,
     PLAN_MAX_TOTAL_FILES,
     PLAN_PROMPT_TEMPLATE,
@@ -45,7 +46,7 @@ def build_plan_prompt(profile: RepoProfile, feature_description: str) -> str:
         is_monorepo="yes" if profile["has_monorepo_markers"] else "no",
         total_files=profile["total_files"],
         feature_description=feature_description,
-        max_files_hint=5,
+        max_files_hint=PLAN_MAX_FILES_PER_TASK,
         max_tasks=PLAN_MAX_TASKS,
     )
 

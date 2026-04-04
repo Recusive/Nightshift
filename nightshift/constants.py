@@ -323,6 +323,9 @@ PLAN_MAX_TASKS = 10
 # Maximum estimated files across all tasks before suggesting phasing.
 PLAN_MAX_TOTAL_FILES = 50
 
+# Recommended max files per individual task (guidance for the agent prompt).
+PLAN_MAX_FILES_PER_TASK = 5
+
 PLAN_PROMPT_TEMPLATE = """You are a senior software architect planning a feature for an existing codebase.
 
 ## Repository Profile
