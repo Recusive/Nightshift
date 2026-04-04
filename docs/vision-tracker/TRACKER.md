@@ -9,9 +9,9 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ████████████████░░░░  79%
+NIGHTSHIFT VISION                              ███████████████░░░░░  76%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
-├── Loop 2 — Feature Builder Loop              ██████████████░░░░░░  73%
+├── Loop 2 — Feature Builder Loop              █████████████░░░░░░░  63%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
 ```
@@ -37,7 +37,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (510 tests) | Done | ████████████████████ 100% |
+| Test suite (496 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -52,7 +52,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 
 ---
 
-## Loop 2 — Feature Builder Loop (73%)
+## Loop 2 — Feature Builder Loop (63%)
 
 Repo profiling, feature planning, task decomposition, sub-agent spawning, wave integration, and the build orchestrator are complete. Sub-agent coordination, E2E test runner, production-readiness checker, and feature summary generation remain.
 

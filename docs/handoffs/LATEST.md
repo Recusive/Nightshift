@@ -1,43 +1,49 @@
 # Handoff #0016
 **Date**: 2026-04-04
-**Version**: v0.0.6 complete
-**Session duration**: ~45m (Codex daemon sessions 1-6, manual fixup)
+**Version**: v0.0.6 in progress
+**Session duration**: ~2h (6 Codex daemon sessions; code rescued manually)
 
 ## What I Built
 - **Feature build orchestrator** (task #0023): new `nightshift/feature.py` with the full Loop 2 pipeline: profile -> plan -> decompose -> spawn waves -> integrate -> final verify. Persists `FeatureState` to disk for crash recovery. CLI: `nightshift build "description"`, `--status`, `--resume`, `--yes`.
-- **Feature state types**: `FeatureState`, `FeatureWaveState`, `FinalVerificationResult` in `types.py`.
-- **CLI wiring**: `build` subcommand in `cli.py` with all flags.
-- Files created: `nightshift/feature.py`, `tests/test_feature_build.py`
-- Files modified: `nightshift/__init__.py`, `nightshift/cli.py`, `nightshift/config.py`, `nightshift/constants.py`, `nightshift/types.py`, `nightshift/state.py`, `scripts/install.sh`
-- Tests: +14 new (feature build), 510 total passing
+- Files created: `nightshift/feature.py` (546 lines), `tests/test_feature_build.py` (14 tests)
+- Files modified: `__init__.py`, `cli.py`, `config.py`, `constants.py`, `types.py`, `state.py`, `install.sh`
+- Tests: +14 new, 496 total passing
+
+## What Happened (important context)
+Codex daemon ran 6 sessions. Every session successfully built task #0023 (code, tests, all checks green) but could NOT commit because Codex's sandbox blocks `.git/` writes (index.lock, refs/heads/*.lock). Between sessions, daemon.sh runs `git reset --hard origin/main && git clean -fd`, which wiped all uncommitted work. Sessions 1-5 were completely lost. Session 6's code was manually rescued from the working tree before the daemon could wipe it, then committed by a human.
+
+The Codex agent config was changed from `--full-auto --sandbox danger-full-access` to `--dangerously-bypass-approvals-and-sandbox` in `scripts/lib-agent.sh`. This has NOT been tested yet -- the next daemon run will be the first test of whether this flag actually grants `.git/` write access.
 
 ## Decisions Made
-- Codex daemon `danger-full-access` sandbox still blocks `.git/` writes -- manual commit required after each Codex session. This is a Codex platform limitation, not a config issue.
-- Feature module named `feature.py` (not `builder.py` as in earlier sessions) -- Codex session 4 chose this name.
-- Mypy fix: widened `write_json` signature to accept `FeatureState` alongside `ShiftState`.
+- Feature module named `feature.py` (Codex session 4 chose this over earlier sessions' `builder.py` + `feature_state.py` split)
+- Two mypy fixes applied manually after rescue: widened `write_json` signature for `FeatureState`, added None guard on `final_verification` indexing
 
 ## Known Issues
-- Codex cannot commit/push/PR from daemon sessions -- `.git/index.lock` and `.git/refs/heads/*.lock` writes blocked
+- Codex `.git/` sandbox issue may or may not be fixed by `--dangerously-bypass-approvals-and-sandbox` -- needs testing
 - Task #0012 (Phractal re-validation) still pending
 - Task #0018 (enhanced profiler) still pending
+- v0.0.6 milestone: all code items done, but release not yet tagged
 
 ## Current State
 - Loop 1: 100% (22/22)
-- Loop 2: 73% (8/11) -- feature CLI + state tracking now done
+- Loop 2: 63% (7/11) -- feature CLI + state tracking done, 4 items remain
 - Self-Maintaining: 54% (7/13)
 - Meta-Prompt: 57% (4/7)
-- Overall: 79% (weighted)
-- Version: v0.0.6 complete
+- Overall: 76% (weighted)
+- Version: v0.0.6 in progress
+- Test count: 496
 
 ## Next Session Should
 Tasks: #0020, #0018, #0012
-1. **Task #0020** -- Add agent integration to `nightshift plan` CLI command
-2. **Task #0018** -- Enhance profiler with deeper dependency analysis
-3. **Task #0012** -- Re-validate against Phractal (requires agent CLI)
-4. Consider v0.0.6 release (all milestones complete)
+1. **First priority**: Verify the agent can actually `git add`, `git commit`, `git push`, and create PRs. If git operations still fail, stop and report -- do not waste sessions building code that cannot be committed.
+2. **Task #0020** -- Add agent integration to `nightshift plan` CLI command
+3. **Task #0018** -- Enhance profiler with deeper dependency analysis
+4. **Task #0012** -- Re-validate against Phractal (requires agent CLI)
+5. Consider v0.0.6 release (all code milestones complete)
 
 ## Where to Look
-- `nightshift/feature.py` -- the new orchestrator module
+- `nightshift/feature.py` -- the rescued orchestrator module
 - `nightshift/types.py` -- FeatureState, FeatureWaveState, FinalVerificationResult
-- `tests/test_feature_build.py` -- new test file for the orchestrator
+- `tests/test_feature_build.py` -- orchestrator tests
+- `scripts/lib-agent.sh` -- the updated Codex invocation flag
 - `docs/vision/02-loop2-feature-builder.md` -- full Loop 2 spec
