@@ -398,28 +398,25 @@ The file Claude Code always loads at session start. Contains project description
 | `scripts/run.sh` | Sets PYTHONPATH, runs `python3 -m nightshift run "$@"` |
 | `scripts/test.sh` | Sets PYTHONPATH, runs `python3 -m nightshift test "$@"` |
 | `scripts/install.sh` | Downloads entire package to `~/.codex/skills/nightshift/` and `~/.claude/skills/nightshift/` |
-| `scripts/daemon.sh` | Self-improving loop. Runs the evolve prompt forever in autonomous mode. Uses lockfile to prevent overlapping instances. |
+| `scripts/daemon.sh` | Builder daemon. Loops forever, picks up tasks, ships features. |
+| `scripts/daemon-review.sh` | Reviewer daemon. Loops forever, reviews code file by file, fixes quality. |
+| `scripts/daemon-strategist.sh` | Strategist. Runs once, reviews big picture, advises human. |
 | `scripts/validate-docs.sh` | Doc consistency validator. Checks test counts, module registration, tracker percentages, path references. Fails if anything drifts. |
 | `scripts/smoke-test.sh` | End-to-end test against a real repo (default: Phractal). Proves the system works, not just unit tests. |
 | `scripts/context-map.sh` | Generates a slim context file with module sizes, function signatures, dependency graph, test counts. Saves tokens. |
 | `scripts/rollback.sh` | Reverts a merged PR cleanly. Creates revert branch + PR. |
 
-### Daemon (continuous self-improvement)
+### Three Daemons
 
 ```bash
-./scripts/daemon.sh              # run forever with claude (default)
-./scripts/daemon.sh codex        # run forever with codex
-./scripts/daemon.sh claude 120   # 120s pause between sessions
+make daemon       # Builder: loops, picks up tasks, ships features
+make review       # Reviewer: loops, reviews code file by file, fixes quality
+make strategist   # Strategist: runs once, reviews big picture, advises human
 ```
 
-Each session: reads handoff, picks highest priority, builds, tests, verifies behavior, pushes, creates PR, reviews with sub-agent, merges. Then the next session starts.
+All run via tmux in production. See `docs/ops/DAEMON.md` for the complete operations guide: starting, monitoring, stopping, troubleshooting, and the recommended daily workflow.
 
-Session logs saved to `docs/sessions/`. Stop with Ctrl+C.
-
-The daemon injects an auto-approve prefix that:
-- Skips the human confirmation step (Step 3)
-- Enforces the production-readiness rule: nothing ships unless the agent is 100% certain it works
-- After 3 failed attempts on one item, logs it and moves to the next priority
+Only one daemon runs at a time (shared lockfile).
 
 ### How to update
 - If you add a new Python module, add it to the `PACKAGE_FILES` list in `scripts/install.sh`

@@ -1,22 +1,44 @@
 # Daemon Operations Guide
 
-How to run, monitor, and manage the Nightshift self-improving daemon. This is the complete reference for operating the autonomous loop.
+How to run, monitor, and manage the three Nightshift daemons. This is the complete reference for operating the autonomous system.
 
 ---
 
-## What the Daemon Does
+## The Three Daemons
 
-The daemon (`scripts/daemon.sh`) runs an infinite loop of autonomous Claude sessions. Each session:
+Nightshift has three daemons, each with a different role:
 
-1. Pulls latest main
-2. Checks for open PRs from previous sessions (recovers partial work)
-3. Spawns `claude -p` with the evolve prompt + autonomous override
-4. The agent reads the handoff, picks the highest priority task, builds it, tests it, reviews it, documents it, pushes a PR, merges it
-5. Writes a handoff for the next session
-6. Logs everything to `docs/sessions/`
-7. Pauses, then starts the next session
+| Daemon | Script | Prompt | Loops? | Purpose |
+|--------|--------|--------|--------|---------|
+| **Builder** | `scripts/daemon.sh` | `evolve-auto.md` + `evolve.md` | Yes, forever | Picks up tasks, builds features, ships code |
+| **Reviewer** | `scripts/daemon-review.sh` | `review.md` | Yes, forever | Reviews code file by file, fixes quality issues |
+| **Strategist** | `scripts/daemon-strategist.sh` | `strategist.md` | No, runs once | Reviews the big picture, advises human on what to change |
 
-Each session is a fresh Claude instance with no memory of previous sessions. The handoff system is the memory.
+All three share a lockfile (`.nightshift-daemon.lock`) so **only one can run at a time**. They'd conflict on git otherwise.
+
+### Quick start
+
+```bash
+make daemon       # Builder — loops, ships features
+make review       # Reviewer — loops, fixes code quality
+make strategist   # Strategist — runs once, produces a report
+```
+
+### Typical workflow
+
+1. Run `make daemon` overnight — it builds features from the task queue
+2. In the morning, run `make strategist` — it reviews what happened and recommends changes
+3. You approve recommendations, they become tasks
+4. Run `make review` to harden what was built
+5. Run `make daemon` again to continue building
+
+Or run the builder during the day, the reviewer overnight.
+
+---
+
+## Builder Daemon (`scripts/daemon.sh`)
+
+The primary daemon. Picks up tasks, builds features, tests, PRs, merges. Each session:
 
 ---
 
@@ -376,3 +398,124 @@ If you see 0-byte log files, the daemon may be using an old version without `--o
 ```
 --output-format stream-json --verbose
 ```
+
+---
+
+## Reviewer Daemon (`scripts/daemon-review.sh`)
+
+Loops forever like the builder, but with a different mission: code quality.
+
+### What it does each session
+
+1. Picks ONE file from `nightshift/` that hasn't been reviewed recently
+2. Reads every function in that file
+3. Fixes: dead code, weak typing, missing error handling, unclear naming, untested paths
+4. Commits all fixes for that file, creates PR, sub-agent review, merges
+5. Logs the review to `docs/reviews/YYYY-MM-DD-module.md`
+
+### Running it
+
+```bash
+# Foreground
+./scripts/daemon-review.sh              # claude, 60s pause, unlimited
+./scripts/daemon-review.sh claude 60 5  # stop after 5 sessions
+
+# tmux (recommended)
+tmux new-session -d -s nightshift-review "bash scripts/daemon-review.sh claude 60"
+
+# make
+make review
+```
+
+### Session index
+
+Separate index: `docs/sessions/index-review.md`
+
+### Key differences from the builder
+
+- Does NOT read the task queue
+- Does NOT read the evolve prompt
+- Reviews ONE file per session (not a feature)
+- 200 max turns (smaller scope = fewer turns needed)
+- Uses `docs/reviews/` to track what's been reviewed
+
+---
+
+## Strategist Daemon (`scripts/daemon-strategist.sh`)
+
+Runs ONCE. Not a loop. Produces a strategy report for the human.
+
+### What it does
+
+1. Reads git log, merged PRs, handoffs, evaluations, learnings, session indices
+2. Analyzes: what's working, what's failing, what's missing
+3. Writes 3-5 concrete recommendations with evidence
+4. Saves report to `docs/strategy/YYYY-MM-DD.md`
+5. Presents to the human for decisions
+
+### Running it
+
+```bash
+./scripts/daemon-strategist.sh          # claude
+./scripts/daemon-strategist.sh codex    # codex
+
+# make
+make strategist
+```
+
+### What happens after
+
+You read the report. For each recommendation:
+- "Yes" — create a task in `docs/tasks/` (the strategist can do this for you)
+- "No" — explain why, strategist notes the feedback
+- "Later" — skip it, it'll come up in the next review
+
+The builder daemon picks up the resulting tasks.
+
+---
+
+## Running All Three (workflow)
+
+You can only run one daemon at a time (shared lockfile). Here's the recommended pattern:
+
+### Daily cycle
+
+```
+Morning:   make strategist         → read report, approve tasks
+Day:       make daemon             → builder ships features
+Evening:   Ctrl+C the builder
+           make review             → reviewer hardens code overnight
+Next day:  Ctrl+C the reviewer
+           make strategist         → check on overnight work
+           ... repeat
+```
+
+### Weekend / unattended
+
+```bash
+# Friday evening: start the builder with a session limit
+tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60 20"
+
+# It runs 20 sessions, stops. Monday: run strategist to see what happened.
+make strategist
+```
+
+---
+
+## Files Reference
+
+| File | Purpose |
+|------|---------|
+| `scripts/daemon.sh` | Builder daemon |
+| `scripts/daemon-review.sh` | Reviewer daemon |
+| `scripts/daemon-strategist.sh` | Strategist (single run) |
+| `docs/prompt/evolve.md` | Builder session prompt |
+| `docs/prompt/evolve-auto.md` | Autonomous override for builder |
+| `docs/prompt/review.md` | Reviewer session prompt |
+| `docs/prompt/strategist.md` | Strategist session prompt |
+| `docs/sessions/*.log` | Session logs (all daemons) |
+| `docs/sessions/index.md` | Builder session index |
+| `docs/sessions/index-review.md` | Reviewer session index |
+| `docs/reviews/*.md` | Code review logs |
+| `docs/strategy/*.md` | Strategy reports |
+| `.nightshift-daemon.lock` | Shared lock (prevents concurrent daemons) |

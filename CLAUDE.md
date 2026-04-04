@@ -23,12 +23,17 @@ make test        # run tests
 make check       # full CI locally
 make dry-run     # preview cycle prompt
 make clean       # remove runtime artifacts
-make daemon      # run the self-improving daemon (see docs/ops/DAEMON.md)
+make daemon      # builder daemon (loops, ships features)
+make review      # reviewer daemon (loops, fixes code quality)
+make strategist  # strategist (runs once, advises human)
 ```
 
-## Daemon
+## Daemons
 
-The daemon runs autonomous sessions in a loop. Full guide: `docs/ops/DAEMON.md`
+Three daemons, one runs at a time (shared lockfile). Full guide: `docs/ops/DAEMON.md`
+- **Builder** (`make daemon`): picks up tasks, builds features, PRs, merges
+- **Reviewer** (`make review`): reviews code file by file, fixes quality
+- **Strategist** (`make strategist`): runs once, reviews big picture, produces report for human
 
 ```bash
 # Start in tmux (recommended)
