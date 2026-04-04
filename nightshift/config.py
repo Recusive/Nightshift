@@ -140,7 +140,9 @@ def infer_install_command(repo_dir: Path) -> list[str] | None:
         return ["pnpm", "install", "--frozen-lockfile"]
     if package_manager == "yarn":
         return ["yarn", "install", "--frozen-lockfile"]
-    return ["npm", "install"]
+    if (repo_dir / "package-lock.json").exists():
+        return ["npm", "ci"]
+    return ["npm", "install", "--package-lock=false"]
 
 
 def infer_verify_command(repo_dir: Path, config: NightshiftConfig) -> str | None:

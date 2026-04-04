@@ -353,7 +353,13 @@ class TestInferInstallCommand:
     def test_npm(self, tmp_path):
         (tmp_path / "package.json").touch()
         result = nightshift.infer_install_command(tmp_path)
-        assert result == ["npm", "install"]
+        assert result == ["npm", "install", "--package-lock=false"]
+
+    def test_npm_with_lockfile_uses_ci(self, tmp_path):
+        (tmp_path / "package.json").touch()
+        (tmp_path / "package-lock.json").touch()
+        result = nightshift.infer_install_command(tmp_path)
+        assert result == ["npm", "ci"]
 
     def test_bun(self, tmp_path):
         (tmp_path / "package.json").touch()
