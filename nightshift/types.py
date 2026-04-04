@@ -65,9 +65,14 @@ class LoggedIssue(TypedDict, total=False):
 class CycleResult(TypedDict, total=False):
     """Structured JSON returned by the agent at end of cycle."""
 
+    cycle: int
     status: str
     fixes: list[Fix]
     logged_issues: list[LoggedIssue]
+    categories: list[str]
+    files_touched: list[str]
+    tests_run: list[str]
+    notes: str
 
 
 class CycleVerification(TypedDict):

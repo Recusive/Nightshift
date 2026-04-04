@@ -203,12 +203,22 @@ def blocked_file(path: str, config: NightshiftConfig) -> str | None:
 def _as_cycle_result(data: dict[str, Any]) -> CycleResult:
     """Construct a CycleResult from a raw JSON dict, field by field."""
     result = CycleResult()
+    if "cycle" in data and isinstance(data["cycle"], int):
+        result["cycle"] = data["cycle"]
     if "status" in data:
         result["status"] = str(data["status"])
     fixes = data.get("fixes")
     result["fixes"] = fixes if isinstance(fixes, list) else []
     logged = data.get("logged_issues")
     result["logged_issues"] = logged if isinstance(logged, list) else []
+    categories = data.get("categories")
+    result["categories"] = categories if isinstance(categories, list) else []
+    touched = data.get("files_touched")
+    result["files_touched"] = touched if isinstance(touched, list) else []
+    tests_run = data.get("tests_run")
+    result["tests_run"] = tests_run if isinstance(tests_run, list) else []
+    if "notes" in data:
+        result["notes"] = str(data["notes"])
     return result
 
 
@@ -258,6 +268,17 @@ def forbidden_cycle_commands(raw_output: str) -> list[str]:
         shell_command = _extract_shell_command(command)
         if shell_command in FORBIDDEN_CYCLE_COMMANDS and shell_command not in seen:
             seen.append(shell_command)
+    return seen
+
+
+def forbidden_reported_commands(cycle_result: CycleResult | None) -> list[str]:
+    if cycle_result is None:
+        return []
+    seen: list[str] = []
+    for entry in cycle_result.get("tests_run", []):
+        for command in FORBIDDEN_CYCLE_COMMANDS:
+            if entry.startswith(command) and command not in seen:
+                seen.append(command)
     return seen
 
 
@@ -349,6 +370,10 @@ def verify_cycle(
 
     for command in forbidden_cycle_commands(agent_output):
         violations.append(f"Agent ran forbidden repo-wide command during cycle: `{command}`")
+    for command in forbidden_reported_commands(cycle_result):
+        message = f"Agent reported forbidden repo-wide command during cycle: `{command}`"
+        if message not in violations:
+            violations.append(message)
 
     if cycle_result is None and config["agent"] == "codex":
         violations.append("Agent cycle did not produce a structured JSON result.")

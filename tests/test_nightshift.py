@@ -1011,6 +1011,30 @@ class TestParseCycleResult:
         )
         assert result is None
 
+    def test_preserves_schema_fields_used_for_verification(self, tmp_path: Path) -> None:
+        msg = tmp_path / "msg.json"
+        msg.write_text(
+            json.dumps(
+                {
+                    "cycle": 1,
+                    "status": "completed",
+                    "fixes": [],
+                    "logged_issues": [],
+                    "categories": ["Error Handling"],
+                    "files_touched": ["src/lib/auth/session.ts"],
+                    "tests_run": ["npm run lint"],
+                    "notes": "done",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = nightshift.parse_cycle_result(agent="codex", message_path=msg, raw_output="")
+        assert result is not None
+        assert result["cycle"] == 1
+        assert result["tests_run"] == ["npm run lint"]
+        assert result["notes"] == "done"
+
 
 class TestForbiddenCycleCommands:
     def test_detects_repo_wide_npm_commands_from_codex_jsonl(self) -> None:
@@ -1075,6 +1099,23 @@ class TestForbiddenCycleCommands:
 
         result = nightshift.forbidden_cycle_commands(raw_output)
         assert result == ["npm run lint"]
+
+
+class TestForbiddenReportedCommands:
+    def test_detects_forbidden_commands_from_structured_tests_run(self) -> None:
+        result = nightshift.forbidden_reported_commands(
+            {
+                "status": "completed",
+                "fixes": [],
+                "logged_issues": [],
+                "tests_run": [
+                    "npm run lint",
+                    "npm run test (failed in sandbox: tsx IPC pipe EPERM)",
+                    "npx eslint src/lib/auth/session.ts",
+                ],
+            }
+        )
+        assert result == ["npm run lint", "npm run test"]
 
 
 class TestExpectedCycleCommits:
