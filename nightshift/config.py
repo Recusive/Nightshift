@@ -52,6 +52,7 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         score_threshold=_require_int(raw, "score_threshold"),
         test_incentive_cycle=_require_int(raw, "test_incentive_cycle"),
         backend_forcing_cycle=_require_int(raw, "backend_forcing_cycle"),
+        category_balancing_cycle=_require_int(raw, "category_balancing_cycle"),
     )
 
 

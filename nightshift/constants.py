@@ -54,6 +54,7 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "score_threshold": 3,
     "test_incentive_cycle": 3,
     "backend_forcing_cycle": 3,
+    "category_balancing_cycle": 3,
 }
 
 # --- Diff scoring data -------------------------------------------------------

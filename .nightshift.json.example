@@ -29,5 +29,6 @@
   "stop_after_empty_cycles": 2,
   "score_threshold": 3,
   "test_incentive_cycle": 3,
-  "backend_forcing_cycle": 3
+  "backend_forcing_cycle": 3,
+  "category_balancing_cycle": 3
 }
