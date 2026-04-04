@@ -553,17 +553,20 @@ What defines each version. Use this to know when a release is ready.
 - [ ] Commit and push to main
 - [ ] Tag and release on GitHub
 
-### v0.0.3 — Intelligence (next)
-- [ ] Fix `merge_config` shallow update (security bug)
-- [ ] Fix `run_command` timeout race (reliability bug)
-- [ ] Post-cycle diff scorer
-- [ ] Cycle-to-cycle state injection
-- [ ] Validated against Phractal test target
+### v0.0.3 — Intelligence (released)
+- [x] Fix `merge_config` shallow update (security bug)
+- [x] Fix `run_command` timeout race (reliability bug)
+- [x] Post-cycle diff scorer
+- [x] Cycle-to-cycle state injection
+- [x] Test writing incentives (bonus, originally v0.0.4)
+- [x] Backend exploration forcing (bonus, originally v0.0.4)
+- [x] Validated against Phractal test target
 
-### v0.0.4 — Agent Quality
-- [ ] Test writing incentives
-- [ ] Backend exploration forcing
+### v0.0.4 — Agent Quality (next)
+- [x] Test writing incentives (shipped in v0.0.3)
+- [x] Backend exploration forcing (shipped in v0.0.3)
 - [ ] Smarter category balancing
+- [ ] Fix shift-log-in-commit verification for codex
 
 ### v0.0.5 — Loop 2 Scaffold
 - [ ] Feature planner module

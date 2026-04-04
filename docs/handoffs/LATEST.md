@@ -1,41 +1,40 @@
-# Handoff #0006
+# Handoff #0007
 **Date**: 2026-04-03
-**Version**: v0.0.3 in progress
-**Session duration**: ~25m
+**Version**: v0.0.3 released, v0.0.4 in progress
+**Session duration**: ~20m
 
 ## What I Built
-- **Backend exploration forcing** -- Three-part system to steer agents away from frontend-heavy exploration in full-stack repos:
-  1. `classify_repo_dirs()` in `cycle.py` scans top-level directories and classifies them as frontend or backend using dir name matching (e.g., `components` = frontend, `server` = backend) with extension-sampling fallback for ambiguous dirs like `src/`
-  2. `build_backend_escalation()` in `cycle.py` checks if the last N cycles (configurable via `backend_forcing_cycle`, default 3) all touched frontend-classified dirs. If so, returns a directive naming specific backend dirs found in the repo.
-  3. The directive is injected into the agent prompt as "Backend exploration directive" block, alongside existing test escalation and state summary blocks.
-- Classification data (`FRONTEND_DIR_NAMES`, `BACKEND_DIR_NAMES`, `FRONTEND_EXTENSIONS`, `BACKEND_EXTENSIONS`) lives in `constants.py`
-- New config option: `backend_forcing_cycle` (default 3) controls the threshold
-- Files: `nightshift/constants.py`, `nightshift/types.py`, `nightshift/cycle.py`, `nightshift/cli.py`, `nightshift/config.py`, `nightshift/__init__.py`, `tests/test_nightshift.py`, `.nightshift.json.example`
-- Tests: +19 new (9 classification, 7 escalation logic, 3 prompt integration), 189 total passing
+- **v0.0.3 release** -- Assessed readiness, validated against Phractal, cut the release.
+  - Ran 2-cycle test shift against Phractal (FastAPI + Next.js monorepo) with codex agent
+  - System works end-to-end: worktree creation, baseline verification, agent spawning, issue discovery, state tracking, shift log generation, post-cycle verification, guard rails
+  - Agent found a real security issue (pickle deserialization) and made a real fix (noopener/noreferrer)
+  - Both cycles rejected due to agent not including shift log in commits -- system correctly detected and halted
+  - Created .nightshift.json for Phractal with `compileall` verify command
+- Files changed: task files (0004, 0006), OPERATIONS.md, changelog (v0.0.3, v0.0.4, README), tracker, README, handoff, learnings
+- Tests: 189 total passing (no new tests -- release session)
 
 ## Decisions Made
-- Classification uses dir names as primary signal, file extensions as fallback for ambiguous dirs (like `src/`). This avoids deep filesystem scanning while handling common repo layouts.
-- `build_backend_escalation` takes `repo_dir` (not worktree) to avoid issues in dry-run path where worktree may not exist yet.
-- `backend_escalation` is passed to `build_prompt` as a keyword arg with `""` default, so all existing callers (including 15+ test calls) continue working without modification.
-- The escalation window checks only the last N paths (where N = threshold), not all history.
+- Released v0.0.3 with test incentives and backend forcing included (originally v0.0.4 scope) since they were already built and tested
+- Codex shift-log-in-commit verification failures are an agent quality issue, not a system bug -- created task #0009
 
 ## Known Issues
-- Phractal test target: `verify_command` returns None for monorepos. Needs `.nightshift.json` with explicit `verify_command`.
+- Codex does not reliably include shift log updates in fix commits, causing verification failures (task #0009)
 
 ## Current State
-- Loop 1: 95% (20/21 components) -- backend forcing done. Missing: multi-repo only
+- Loop 1: 95% (20/21) -- missing: multi-repo only
 - Loop 2: 0% (0/11) -- vision docs only
 - Self-Maintaining: 54% (7/13) -- no change
 - Meta-Prompt: 57% (4/7) -- no change
 - Overall: 54% (weighted)
-- Version: v0.0.3 in progress (diff scorer + state injection + test incentives + backend forcing done)
+- Version: v0.0.3 released, v0.0.4 in progress
 
 ## Next Session Should
-1. **Assess v0.0.3 readiness** -- All planned v0.0.3 intelligence features are done. Check version milestones in `docs/ops/OPERATIONS.md` and decide whether to cut the release or add multi-repo to v0.0.3.
-2. **Test against Phractal** -- Create `.nightshift.json` for it, run a real shift.
-3. **Start Loop 2 scaffolding** -- If v0.0.3 is released, begin the Feature Builder loop.
+Tasks: #0009, #0010, #0011
+1. **Task #0009** -- Fix shift-log-in-commit verification for codex (agent quality)
+2. **Task #0010** -- Smarter category balancing (v0.0.4 feature)
+3. **Task #0011** -- Scaffold Loop 2 feature planner (v0.0.5)
 
 ## Where to Look
-- `docs/ops/OPERATIONS.md` -- version milestones for v0.0.3 release decision
-- `nightshift/cycle.py:classify_repo_dirs()` -- if classification needs refinement after real-world testing
+- `nightshift/cycle.py:verify_cycle()` -- if investigating shift-log verification issue
+- `nightshift/SKILL.md` -- the prompt that agents receive; may need strengthening for shift log instructions
 - `docs/vision/02-loop2-feature-builder.md` -- if starting Loop 2 scaffolding
