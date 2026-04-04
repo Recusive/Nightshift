@@ -239,3 +239,28 @@ class WaveResult(TypedDict):
     completed: list[TaskCompletion]
     failed: list[TaskCompletion]
     total_tasks: int
+
+
+# --- Loop 2: Integrator types ------------------------------------------------
+
+
+class FixAttempt(TypedDict):
+    """Record of one attempt to fix a failing test after wave integration."""
+
+    task_id: int
+    test_output: str
+    fix_agent_notes: str
+    tests_passed: bool
+
+
+class IntegrationResult(TypedDict):
+    """Outcome of integrating one wave's sub-agent work into the repo."""
+
+    wave: int
+    status: str  # "passed" | "failed" | "no_test_runner"
+    tests_run: bool
+    test_exit_code: int
+    test_output: str
+    files_staged: list[str]
+    fix_attempts: list[FixAttempt]
+    failure_diagnosis: str
