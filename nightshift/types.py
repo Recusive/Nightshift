@@ -190,3 +190,28 @@ class FeaturePlan(TypedDict):
     architecture: ArchitectureDoc
     tasks: list[PlanTask]
     test_plan: TestPlan
+
+
+# --- Loop 2: Task Decomposer types ------------------------------------------
+
+
+class WorkOrder(TypedDict):
+    """A single sub-agent work order -- everything an agent needs to execute one task."""
+
+    task_id: int
+    wave: int
+    title: str
+    prompt: str
+    acceptance_criteria: list[str]
+    estimated_files: int
+    depends_on: list[int]
+    schema_path: str
+
+
+class DecomposerResult(TypedDict):
+    """Output of decompose_plan() -- work orders grouped by execution wave."""
+
+    feature: str
+    total_waves: int
+    total_tasks: int
+    waves: list[list[WorkOrder]]

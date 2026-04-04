@@ -3954,3 +3954,564 @@ class TestPlanFeatureCLI:
         )
         with pytest.raises(nightshift.NightshiftError, match="Could not parse"):
             args.func(args)
+
+
+# ---------------------------------------------------------------------------
+# Task Decomposer
+# ---------------------------------------------------------------------------
+
+
+def _make_feature_plan(**overrides: object) -> nightshift.FeaturePlan:
+    """Build a minimal typed FeaturePlan for decomposer tests."""
+    defaults: dict[str, object] = {
+        "feature": "Add dark mode",
+        "architecture": nightshift.ArchitectureDoc(
+            overview="Add a dark mode toggle to the settings page.",
+            tech_choices=["Use CSS variables for theming"],
+            data_model_changes=[],
+            api_changes=[],
+            frontend_changes=["Add ThemeToggle component"],
+            integration_points=["Settings page"],
+        ),
+        "tasks": [
+            nightshift.PlanTask(
+                id=1,
+                title="Create theme provider",
+                description="Set up CSS variables and theme context",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["Theme toggles between light and dark"],
+                estimated_files=3,
+            ),
+            nightshift.PlanTask(
+                id=2,
+                title="Add toggle UI",
+                description="Add toggle switch to settings page",
+                depends_on=[1],
+                parallel=False,
+                acceptance_criteria=["Toggle renders and changes theme"],
+                estimated_files=2,
+            ),
+        ],
+        "test_plan": nightshift.TestPlan(
+            unit_tests=["Theme provider returns correct CSS vars"],
+            integration_tests=["Toggle switches theme for all components"],
+            e2e_tests=["User can toggle dark mode from settings"],
+            edge_cases=["System preference detection"],
+        ),
+    }
+    defaults.update(overrides)
+    return nightshift.FeaturePlan(**defaults)  # type: ignore[arg-type]
+
+
+class TestBuildWorkOrderPrompt:
+    def test_includes_primary_language(self) -> None:
+        profile = _make_profile(primary_language="TypeScript")
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "TypeScript" in prompt
+
+    def test_includes_feature_name(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan(feature="Build auth system")
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "Build auth system" in prompt
+
+    def test_includes_task_title(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "Create theme provider" in prompt
+
+    def test_includes_task_description(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "Set up CSS variables and theme context" in prompt
+
+    def test_includes_acceptance_criteria(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "Theme toggles between light and dark" in prompt
+
+    def test_includes_architecture_overview(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "dark mode toggle to the settings page" in prompt
+
+    def test_includes_frameworks(self) -> None:
+        profile = _make_profile(frameworks=[nightshift.FrameworkInfo(name="React", version="18.0")])
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "React (18.0)" in prompt
+
+    def test_framework_without_version(self) -> None:
+        profile = _make_profile(frameworks=[nightshift.FrameworkInfo(name="Express", version="")])
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "Express" in prompt
+
+    def test_no_frameworks(self) -> None:
+        profile = _make_profile(frameworks=[])
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "none detected" in prompt
+
+    def test_includes_test_runner(self) -> None:
+        profile = _make_profile(test_runner="jest")
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "jest" in prompt
+
+    def test_no_test_runner(self) -> None:
+        profile = _make_profile(test_runner=None)
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "none detected" in prompt
+
+    def test_includes_package_manager(self) -> None:
+        profile = _make_profile(package_manager="pnpm")
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "pnpm" in prompt
+
+    def test_no_package_manager(self) -> None:
+        profile = _make_profile(package_manager=None)
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "none detected" in prompt
+
+    def test_includes_instruction_files(self) -> None:
+        profile = _make_profile(instruction_files=["CLAUDE.md", "AGENTS.md"])
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "CLAUDE.md" in prompt
+        assert "AGENTS.md" in prompt
+
+    def test_no_instruction_files(self) -> None:
+        profile = _make_profile(instruction_files=[])
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "none" in prompt
+
+    def test_includes_estimated_files(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "3" in prompt
+
+    def test_includes_task_id(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "Task 1" in prompt
+
+    def test_no_deps_shows_no_dependencies(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]  # task 1 has no deps
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "no dependencies" in prompt
+
+    def test_with_deps_shows_dependency_context(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][1]  # task 2 depends on task 1
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "depends on" in prompt.lower()
+        assert "Create theme provider" in prompt
+
+    def test_includes_json_output_schema(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert '"task_id"' in prompt
+        assert '"status"' in prompt
+        assert '"done"' in prompt
+        assert '"blocked"' in prompt
+
+    def test_json_examples_have_single_braces(self) -> None:
+        """Verify JSON examples use { } not {{ }} (brace escaping correctness)."""
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        # The prompt should contain valid JSON examples with single braces
+        assert "{\n" in prompt
+        assert "}" in prompt
+        # Double braces would mean the .format() escaping is wrong
+        assert "{{\n" not in prompt
+
+    def test_multiple_acceptance_criteria(self) -> None:
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="Multi-criteria task",
+                description="Has many criteria",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["Criterion A", "Criterion B", "Criterion C"],
+                estimated_files=2,
+            ),
+        ]
+        plan = _make_feature_plan(tasks=tasks)
+        profile = _make_profile()
+        prompt = nightshift.build_work_order_prompt(tasks[0], plan, profile)
+        assert "1. Criterion A" in prompt
+        assert "2. Criterion B" in prompt
+        assert "3. Criterion C" in prompt
+
+
+class TestDecomposePlan:
+    def test_basic_two_task_plan(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["feature"] == "Add dark mode"
+        assert result["total_waves"] == 2
+        assert result["total_tasks"] == 2
+        assert len(result["waves"]) == 2
+
+    def test_wave_1_contains_independent_task(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        wave1 = result["waves"][0]
+        assert len(wave1) == 1
+        assert wave1[0]["task_id"] == 1
+
+    def test_wave_2_contains_dependent_task(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        wave2 = result["waves"][1]
+        assert len(wave2) == 1
+        assert wave2[0]["task_id"] == 2
+
+    def test_work_order_has_prompt(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        order = result["waves"][0][0]
+        assert len(order["prompt"]) > 100
+
+    def test_work_order_has_schema_path(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        order = result["waves"][0][0]
+        assert order["schema_path"] == "schemas/task.schema.json"
+
+    def test_work_order_has_acceptance_criteria(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        order = result["waves"][0][0]
+        assert order["acceptance_criteria"] == ["Theme toggles between light and dark"]
+
+    def test_work_order_has_estimated_files(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        order = result["waves"][0][0]
+        assert order["estimated_files"] == 3
+
+    def test_work_order_has_wave_number(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["waves"][0][0]["wave"] == 1
+        assert result["waves"][1][0]["wave"] == 2
+
+    def test_work_order_has_depends_on(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["waves"][0][0]["depends_on"] == []
+        assert result["waves"][1][0]["depends_on"] == [1]
+
+    def test_work_order_has_title(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["waves"][0][0]["title"] == "Create theme provider"
+        assert result["waves"][1][0]["title"] == "Add toggle UI"
+
+    def test_parallel_tasks_in_same_wave(self) -> None:
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="Task A",
+                description="First parallel task",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["A works"],
+                estimated_files=2,
+            ),
+            nightshift.PlanTask(
+                id=2,
+                title="Task B",
+                description="Second parallel task",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["B works"],
+                estimated_files=3,
+            ),
+            nightshift.PlanTask(
+                id=3,
+                title="Task C",
+                description="Depends on both",
+                depends_on=[1, 2],
+                parallel=False,
+                acceptance_criteria=["C works"],
+                estimated_files=1,
+            ),
+        ]
+        plan = _make_feature_plan(tasks=tasks)
+        profile = _make_profile()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["total_waves"] == 2
+        assert len(result["waves"][0]) == 2
+        assert len(result["waves"][1]) == 1
+        wave1_ids = [o["task_id"] for o in result["waves"][0]]
+        assert wave1_ids == [1, 2]
+
+    def test_three_wave_chain(self) -> None:
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="Foundation",
+                description="Build foundation",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["Foundation done"],
+                estimated_files=2,
+            ),
+            nightshift.PlanTask(
+                id=2,
+                title="Middle",
+                description="Build on foundation",
+                depends_on=[1],
+                parallel=False,
+                acceptance_criteria=["Middle done"],
+                estimated_files=2,
+            ),
+            nightshift.PlanTask(
+                id=3,
+                title="Final",
+                description="Build on middle",
+                depends_on=[2],
+                parallel=False,
+                acceptance_criteria=["Final done"],
+                estimated_files=1,
+            ),
+        ]
+        plan = _make_feature_plan(tasks=tasks)
+        profile = _make_profile()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["total_waves"] == 3
+        assert result["waves"][0][0]["task_id"] == 1
+        assert result["waves"][1][0]["task_id"] == 2
+        assert result["waves"][2][0]["task_id"] == 3
+
+    def test_single_task_plan(self) -> None:
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="Only task",
+                description="The one and only",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["It works"],
+                estimated_files=1,
+            ),
+        ]
+        plan = _make_feature_plan(tasks=tasks)
+        profile = _make_profile()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["total_waves"] == 1
+        assert result["total_tasks"] == 1
+        assert len(result["waves"]) == 1
+        assert len(result["waves"][0]) == 1
+
+    def test_circular_deps_raises(self) -> None:
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="A",
+                description="depends on B",
+                depends_on=[2],
+                parallel=False,
+                acceptance_criteria=["A done"],
+                estimated_files=1,
+            ),
+            nightshift.PlanTask(
+                id=2,
+                title="B",
+                description="depends on A",
+                depends_on=[1],
+                parallel=False,
+                acceptance_criteria=["B done"],
+                estimated_files=1,
+            ),
+        ]
+        plan = _make_feature_plan(tasks=tasks)
+        profile = _make_profile()
+        with pytest.raises(ValueError, match="circular"):
+            nightshift.decompose_plan(plan, profile)
+
+    def test_empty_tasks_returns_empty_waves(self) -> None:
+        plan = _make_feature_plan(tasks=[])
+        profile = _make_profile()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["total_waves"] == 0
+        assert result["total_tasks"] == 0
+        assert result["waves"] == []
+
+    def test_prompts_contain_repo_context(self) -> None:
+        profile = _make_profile(
+            primary_language="Go",
+            test_runner="go test",
+            package_manager="go mod",
+        )
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        prompt = result["waves"][0][0]["prompt"]
+        assert "Go" in prompt
+        assert "go test" in prompt
+        assert "go mod" in prompt
+
+    def test_preserves_acceptance_criteria_order(self) -> None:
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="Ordered",
+                description="Has ordered criteria",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["First", "Second", "Third"],
+                estimated_files=1,
+            ),
+        ]
+        plan = _make_feature_plan(tasks=tasks)
+        profile = _make_profile()
+        result = nightshift.decompose_plan(plan, profile)
+        assert result["waves"][0][0]["acceptance_criteria"] == ["First", "Second", "Third"]
+
+
+class TestFormatWorkOrders:
+    def test_includes_feature_name(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "Add dark mode" in output
+
+    def test_includes_wave_headers(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "## Wave 1" in output
+        assert "## Wave 2" in output
+
+    def test_includes_task_titles(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "Create theme provider" in output
+        assert "Add toggle UI" in output
+
+    def test_includes_estimated_files(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "Estimated files: 3" in output
+        assert "Estimated files: 2" in output
+
+    def test_includes_schema_path(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "schemas/task.schema.json" in output
+
+    def test_includes_acceptance_criteria(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "Theme toggles between light and dark" in output
+        assert "Toggle renders and changes theme" in output
+
+    def test_includes_dependency_info(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "after: 1" in output
+
+    def test_includes_total_counts(self) -> None:
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "Total waves: 2" in output
+        assert "Total tasks: 2" in output
+
+    def test_includes_parallel_count(self) -> None:
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="A",
+                description="a",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["done"],
+                estimated_files=1,
+            ),
+            nightshift.PlanTask(
+                id=2,
+                title="B",
+                description="b",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["done"],
+                estimated_files=1,
+            ),
+        ]
+        plan = _make_feature_plan(tasks=tasks)
+        profile = _make_profile()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "2 task(s)" in output
+
+    def test_empty_result(self) -> None:
+        plan = _make_feature_plan(tasks=[])
+        profile = _make_profile()
+        result = nightshift.decompose_plan(plan, profile)
+        output = nightshift.format_work_orders(result)
+        assert "Total waves: 0" in output
+        assert "Total tasks: 0" in output

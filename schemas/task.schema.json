@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TaskCompletion",
+  "description": "Structured output schema for sub-agent task completion. Agents return this JSON after executing a work order.",
+  "type": "object",
+  "required": ["task_id", "status", "files_created", "files_modified", "tests_written", "tests_passed", "notes"],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The task ID from the work order"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["done", "blocked"],
+      "description": "Whether the task was completed or is blocked"
+    },
+    "files_created": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths of files created by this task"
+    },
+    "files_modified": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths of existing files modified by this task"
+    },
+    "tests_written": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Descriptions of tests written"
+    },
+    "tests_passed": {
+      "type": "boolean",
+      "description": "Whether all tests passed after implementation"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Context for the orchestrator (blocking reason if blocked, summary if done)"
+    }
+  }
+}
