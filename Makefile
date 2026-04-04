@@ -36,9 +36,13 @@ endif
 	gh release create v$(VERSION) --title "v$(VERSION) -- $(CODENAME)" --notes-file docs/changelog/v$(VERSION).md
 	@echo "Released v$(VERSION) -- $(CODENAME)"
 
-# Run the self-improving daemon (loops forever, Ctrl+C to stop)
+# Run the feature-building daemon (loops forever, Ctrl+C to stop)
 daemon:
 	bash scripts/daemon.sh
+
+# Run the code quality review daemon (loops forever, Ctrl+C to stop)
+review:
+	bash scripts/daemon-review.sh
 
 # Remove runtime artifacts
 clean:
