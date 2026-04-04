@@ -76,6 +76,24 @@ CATEGORY_SCORES: dict[str, int] = {
     "Polish": 2,
 }
 
+FORBIDDEN_CYCLE_COMMANDS = [
+    "npm test",
+    "npm run test",
+    "npm run lint",
+    "npm run build",
+    "pnpm test",
+    "pnpm run test",
+    "pnpm run lint",
+    "pnpm run build",
+    "yarn test",
+    "yarn lint",
+    "yarn build",
+    "bun test",
+    "bun run test",
+    "bun run lint",
+    "bun run build",
+]
+
 # --- Safe artifacts ----------------------------------------------------------
 
 SAFE_ARTIFACT_DIRS = [

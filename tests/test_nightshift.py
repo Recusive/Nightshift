@@ -1012,6 +1012,71 @@ class TestParseCycleResult:
         assert result is None
 
 
+class TestForbiddenCycleCommands:
+    def test_detects_repo_wide_npm_commands_from_codex_jsonl(self) -> None:
+        raw_output = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "item.started",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run lint'",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run build'",
+                        },
+                    }
+                ),
+            ]
+        )
+
+        result = nightshift.forbidden_cycle_commands(raw_output)
+        assert result == ["npm run lint", "npm run build"]
+
+    def test_ignores_non_forbidden_and_duplicates(self) -> None:
+        raw_output = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "item.started",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run lint'",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run lint'",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.started",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm test -- src/lib/auth/parse-social-url.test.ts'",
+                        },
+                    }
+                ),
+            ]
+        )
+
+        result = nightshift.forbidden_cycle_commands(raw_output)
+        assert result == ["npm run lint"]
+
+
 # --- CLI Parser --------------------------------------------------------------
 
 

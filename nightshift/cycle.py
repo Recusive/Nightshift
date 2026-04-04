@@ -9,7 +9,7 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
-from nightshift.constants import print_status
+from nightshift.constants import FORBIDDEN_CYCLE_COMMANDS, print_status
 from nightshift.errors import NightshiftError
 from nightshift.shell import git, run_shell_string
 from nightshift.state import top_path
@@ -228,6 +228,39 @@ def parse_cycle_result(
     return _as_cycle_result(result)
 
 
+def _extract_shell_command(command: str) -> str:
+    shell_match = re.search(r"-lc\s+['\"](?P<body>.+?)['\"]$", command)
+    if shell_match:
+        return shell_match.group("body").strip()
+    return command.strip()
+
+
+def forbidden_cycle_commands(raw_output: str) -> list[str]:
+    seen: list[str] = []
+    for line in raw_output.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        item = payload.get("item")
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") != "command_execution":
+            continue
+        command = item.get("command")
+        if not isinstance(command, str):
+            continue
+        shell_command = _extract_shell_command(command)
+        if shell_command in FORBIDDEN_CYCLE_COMMANDS and shell_command not in seen:
+            seen.append(shell_command)
+    return seen
+
+
 def evaluate_baseline(
     *,
     worktree_dir: Path,
@@ -270,6 +303,7 @@ def verify_cycle(
     config: NightshiftConfig,
     state: ShiftState,
     runner_log: Path,
+    agent_output: str = "",
 ) -> tuple[bool, CycleVerification]:
     verify_command = state["verify_command"]
     commit_output = git(worktree_dir, "rev-list", "--reverse", f"{pre_head}..HEAD", check=False)
@@ -304,6 +338,9 @@ def verify_cycle(
 
     if state["log_only_mode"] and non_log_files:
         violations.append("Log-only mode is active, but code files were modified.")
+
+    for command in forbidden_cycle_commands(agent_output):
+        violations.append(f"Agent ran forbidden repo-wide command during cycle: `{command}`")
 
     if cycle_result is None and config["agent"] == "codex":
         violations.append("Agent cycle did not produce a structured JSON result.")

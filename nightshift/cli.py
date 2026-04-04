@@ -200,6 +200,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             config=config,
             state=state,
             runner_log=runner_log,
+            agent_output=raw_output,
         )
 
         if not valid:
