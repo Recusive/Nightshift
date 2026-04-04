@@ -414,19 +414,10 @@ def build_prompt(
 
 def high_signal_focus_paths(repo_dir: Path, hot_files: list[str]) -> list[str]:
     hot_prefixes = {entry for entry in hot_files if entry}
-    suggestions: list[str] = []
-    for candidate in HIGH_SIGNAL_PATH_CANDIDATES:
-        if any(candidate == hot or candidate.startswith(f"{hot}/") for hot in hot_prefixes):
-            continue
-        if not (repo_dir / candidate).exists():
-            continue
-        suggestions.append(candidate)
-        if len(suggestions) >= 5:
-            break
-    if suggestions:
-        return suggestions
-    fallback = [candidate for candidate in HIGH_SIGNAL_PATH_CANDIDATES if (repo_dir / candidate).exists()]
-    return fallback[:5]
+    existing = [c for c in HIGH_SIGNAL_PATH_CANDIDATES if (repo_dir / c).exists()]
+    filtered = [c for c in existing if not any(c == hot or c.startswith(f"{hot}/") for hot in hot_prefixes)]
+    candidates = filtered[:5] if filtered else existing[:5]
+    return candidates
 
 
 def recent_hot_files(repo_dir: Path) -> list[str]:
@@ -510,7 +501,21 @@ def parse_cycle_result(
 
 
 def _extract_shell_command(command: str) -> str:
-    shell_match = re.search(r"-lc\s+['\"](?P<body>.+?)['\"]$", command)
+    """Extract the inner command from common shell wrappers.
+
+    Handles patterns like:
+    - /bin/zsh -lc 'npm run lint'
+    - bash -c "npm test"
+    - sh -c 'npm run build'
+    - raw commands without a wrapper
+    """
+    shell_match = re.search(
+        r"(?:/(?:usr/)?(?:bin/)?)?"
+        r"(?:bash|sh|zsh|dash)\s+"
+        r"(?:-\w+\s+)*"
+        r"['\"](?P<body>.+?)['\"]$",
+        command,
+    )
     if shell_match:
         return shell_match.group("body").strip()
     return command.strip()
