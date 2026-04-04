@@ -189,7 +189,7 @@ For every fix:
    - **Why it matters**: the production impact if left unfixed
    - **What you did**: the exact change you made
    - **Update the stats** (fixes committed, files touched counts)
-8. **Commit the fix AND the shift log together** — one commit that includes both the code change and the log entry. This ensures the shift log is always in sync with the work.
+8. **Commit the fix AND the shift log together** — one commit that includes both the code change and the log entry. Stage both before committing: `git add <fix-files> <shift-log>`. If you cannot include the shift log in a fix commit, make a separate commit for the shift log update immediately after — but co-committing is strongly preferred.
 
 The shift log is the most important artifact of a nightshift. If the session ends unexpectedly, the log is what the day team reads. Every fix must be documented before moving on — never batch log updates or leave them for later.
 
@@ -313,7 +313,7 @@ Create at `docs/Nightshift/YYYY-MM-DD.md`. Update it **after every fix and every
   Fix: wrapped component tree in ErrorBoundary with fallback UI
   ```
 - **Don't push** unless the user has previously told you to push. Keep the branch local.
-- **Every commit includes the shift log update.** The fix and its log entry ship together — never leave the log out of date.
+- **Every cycle must include a shift log update.** Ideally, stage the shift log alongside your fix files so they ship in the same commit. If that is not possible, make a separate shift-log-only commit immediately after the fix commit. The runner requires at least one commit per cycle to include the shift log.
 
 ## Wrapping Up
 

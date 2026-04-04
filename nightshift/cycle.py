@@ -339,7 +339,8 @@ def build_prompt(
         Required behavior:
         - If a fix would exceed the limits, log the issue instead of editing.
         - If baseline verification is failing, do not make code changes; update the shift log with logged issues only.
-        - One commit per accepted fix. Each fix commit must include the shift log update.
+        - One commit per accepted fix. Stage the shift log alongside your fix files so both ship in the same commit: `git add <fix-files> {shift_log_relative} && git commit`. If co-committing is not possible, make a separate shift-log-only commit immediately after.
+        - At least one commit in this cycle must include the shift log. The runner rejects cycles with no shift log commit.
         - If you only add logged issues to the shift log, commit that shift-log update so the worktree ends clean.
         - Update the shift log immediately after every fix or logged issue.
         - Every fix entry must include `Impact` and `Verification`.
@@ -505,12 +506,19 @@ def forbidden_reported_commands(cycle_result: CycleResult | None) -> list[str]:
     return seen
 
 
-def expected_cycle_commits(cycle_result: CycleResult | None) -> int | None:
+def expected_cycle_commits(cycle_result: CycleResult | None) -> tuple[int, int] | None:
+    """Return (min_commits, max_commits) expected for the cycle.
+
+    Agents may commit fixes and shift-log updates together or separately.
+    The minimum assumes co-committed shift-log updates; the maximum adds
+    one extra commit for a separate shift-log-only commit.
+    """
     if cycle_result is None:
         return None
     fixes = cycle_result.get("fixes", [])
     logged_issues = cycle_result.get("logged_issues", [])
-    return len(fixes) + (1 if logged_issues else 0)
+    base = len(fixes) + (1 if logged_issues else 0)
+    return (base, base + 1)
 
 
 def evaluate_baseline(
@@ -562,11 +570,16 @@ def verify_cycle(
     commits = [entry for entry in commit_output.splitlines() if entry.strip()]
     union_files: list[str] = []
     violations: list[str] = []
+    shift_log_seen = False
+    fix_commits = 0
     for commit in commits:
         commit_files = git_changed_files_for_commit(worktree_dir, commit)
         name_status = git_name_status_for_commit(worktree_dir, commit)
-        if shift_log_relative not in commit_files:
-            violations.append(f"Commit {commit[:7]} does not include the shift log update.")
+        if shift_log_relative in commit_files:
+            shift_log_seen = True
+        has_non_log_files = any(f != shift_log_relative for f in commit_files)
+        if has_non_log_files:
+            fix_commits += 1
         for line in name_status:
             if line.startswith("D\t"):
                 deleted_file = line.split("\t", 1)[1]
@@ -576,12 +589,14 @@ def verify_cycle(
             if reason:
                 violations.append(f"Blocked file touched: {file_path} ({reason})")
         union_files.extend(commit_files)
+    if commits and not shift_log_seen:
+        violations.append("No commit in this cycle includes the shift log update.")
     unique_files = sorted(set(union_files))
     non_log_files = [entry for entry in unique_files if entry != shift_log_relative]
 
-    if len(commits) > int(config["max_fixes_per_cycle"]):
+    if fix_commits > int(config["max_fixes_per_cycle"]):
         violations.append(
-            f"Cycle created {len(commits)} commits, exceeding max_fixes_per_cycle={config['max_fixes_per_cycle']}."
+            f"Cycle created {fix_commits} fix commits, exceeding max_fixes_per_cycle={config['max_fixes_per_cycle']}."
         )
     if len(non_log_files) > int(config["max_files_per_cycle"]):
         violations.append(
@@ -601,11 +616,13 @@ def verify_cycle(
     if cycle_result is None and config["agent"] == "codex":
         violations.append("Agent cycle did not produce a structured JSON result.")
     if cycle_result is not None:
-        expected_commits = expected_cycle_commits(cycle_result)
-        if expected_commits is not None and len(commits) != expected_commits:
-            violations.append(
-                f"Cycle created {len(commits)} commits but structured output implies {expected_commits}."
-            )
+        expected_range = expected_cycle_commits(cycle_result)
+        if expected_range is not None:
+            min_commits, max_commits = expected_range
+            if len(commits) < min_commits or len(commits) > max_commits:
+                violations.append(
+                    f"Cycle created {len(commits)} commits but structured output implies {min_commits}-{max_commits}."
+                )
         for fix in cycle_result.get("fixes", []):
             if len(set(fix.get("files", []))) > int(config["max_files_per_fix"]):
                 violations.append(
