@@ -125,3 +125,24 @@ class RepoShiftResult(TypedDict):
     fixes: int
     issues_logged: int
     halt_reason: str
+
+
+class FrameworkInfo(TypedDict):
+    """A detected framework in the target repo."""
+
+    name: str
+    version: str
+
+
+class RepoProfile(TypedDict):
+    """Comprehensive profile of a target repository for Loop 2 sub-agents."""
+
+    languages: dict[str, int]
+    primary_language: str
+    frameworks: list[FrameworkInfo]
+    package_manager: str | None
+    test_runner: str | None
+    instruction_files: list[str]
+    top_level_dirs: list[str]
+    has_monorepo_markers: bool
+    total_files: int

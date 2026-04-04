@@ -57,6 +57,7 @@ from nightshift.multi import (
     run_multi_shift,
     validate_repos,
 )
+from nightshift.profiler import profile_repo
 from nightshift.scoring import score_diff
 from nightshift.shell import (
     command_exists,
@@ -80,8 +81,10 @@ from nightshift.types import (
     CycleVerification,
     DiffScore,
     Fix,
+    FrameworkInfo,
     LoggedIssue,
     NightshiftConfig,
+    RepoProfile,
     RepoShiftResult,
     ShiftState,
 )
@@ -121,9 +124,11 @@ __all__ = [
     "CycleVerification",
     "DiffScore",
     "Fix",
+    "FrameworkInfo",
     "LoggedIssue",
     "NightshiftConfig",
     "NightshiftError",
+    "RepoProfile",
     "RepoShiftResult",
     "ShiftState",
     "append_cycle_state",
@@ -162,6 +167,7 @@ __all__ = [
     "now_local",
     "parse_cycle_result",
     "print_status",
+    "profile_repo",
     "prompt_for_agent",
     "read_state",
     "recent_hot_files",

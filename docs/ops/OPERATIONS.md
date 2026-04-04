@@ -564,13 +564,17 @@ What defines each version. Use this to know when a release is ready.
 - [x] Backend exploration forcing (bonus, originally v0.0.4)
 - [x] Validated against Phractal test target
 
-### v0.0.4 — Agent Quality (next)
+### v0.0.4 — Agent Quality (released)
 - [x] Test writing incentives (shipped in v0.0.3)
 - [x] Backend exploration forcing (shipped in v0.0.3)
-- [ ] Smarter category balancing
-- [ ] Fix shift-log-in-commit verification for codex
+- [x] Smarter category balancing
+- [x] Fix shift-log-in-commit verification for codex
 
-### v0.0.5 — Loop 2 Scaffold
+### v0.0.5 — Multi-Repo (released)
+- [x] Multi-repo support (`nightshift multi` subcommand)
+
+### v0.0.6 — Loop 2 Foundation
+- [x] Repo profiling module (`nightshift/profiler.py`)
 - [ ] Feature planner module
 - [ ] Task decomposer module
 - [ ] `nightshift build` CLI command (even if basic)
