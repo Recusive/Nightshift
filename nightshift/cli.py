@@ -14,6 +14,7 @@ from nightshift.constants import now_local, print_status
 from nightshift.cycle import (
     _as_cycle_result,
     build_backend_escalation,
+    build_category_balancing,
     build_prompt,
     command_for_agent,
     evaluate_baseline,
@@ -87,6 +88,11 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         state=state,
         repo_dir=repo_dir,
     )
+    category_esc = build_category_balancing(
+        cycle=dry_run_cycle,
+        config=config,
+        state=state,
+    )
     prompt = build_prompt(
         cycle=dry_run_cycle,
         is_final=dry_run_final,
@@ -99,6 +105,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         focus_hints=high_signal_focus_paths(repo_dir, dry_run_hot_files),
         test_mode=test_mode,
         backend_escalation=backend_esc,
+        category_balancing=category_esc,
     )
     if args.dry_run:
         print(prompt)
@@ -159,6 +166,11 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             state=state,
             repo_dir=repo_dir,
         )
+        category_esc = build_category_balancing(
+            cycle=cycle_number,
+            config=config,
+            state=state,
+        )
         prompt = build_prompt(
             cycle=cycle_number,
             is_final=is_final,
@@ -171,6 +183,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             focus_hints=high_signal_focus_paths(repo_dir, cycle_hot_files),
             test_mode=test_mode,
             backend_escalation=backend_esc,
+            category_balancing=category_esc,
         )
 
         message_path = docs_dir / f"{today}.cycle-{cycle_number}.json"
