@@ -25,6 +25,7 @@ from nightshift.cycle import (
     verify_cycle,
 )
 from nightshift.errors import NightshiftError
+from nightshift.feature import build_feature
 from nightshift.multi import run_multi_shift
 from nightshift.planner import build_plan_prompt, format_plan, parse_plan, scope_check
 from nightshift.profiler import profile_repo
@@ -389,6 +390,44 @@ def plan_feature(args: argparse.Namespace) -> int:
     return 0
 
 
+def build_feature_cli(args: argparse.Namespace) -> int:
+    """Run or inspect the Loop 2 feature builder."""
+    repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
+
+    if args.status:
+        if args.feature:
+            raise NightshiftError("Do not pass a feature description with --status.")
+        return build_feature(
+            repo_dir=repo_dir,
+            feature_description=None,
+            agent=None,
+            yes=False,
+            resume=False,
+            status_only=True,
+        )
+
+    if args.resume and args.feature:
+        raise NightshiftError("Do not pass a feature description with --resume.")
+    if not args.resume and not args.feature:
+        raise NightshiftError("Feature description is required unless using --resume or --status.")
+
+    resolved_agent: str | None = None
+    if args.agent is not None:
+        resolved_agent = args.agent
+    elif not args.resume:
+        config = merge_config(repo_dir)
+        resolved_agent = resolve_agent(config, None)
+
+    return build_feature(
+        repo_dir=repo_dir,
+        feature_description=args.feature,
+        agent=resolved_agent,
+        yes=args.yes,
+        resume=args.resume,
+        status_only=False,
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Nightshift orchestrator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -426,6 +465,13 @@ def build_parser() -> argparse.ArgumentParser:
     plan_parser.add_argument("--dry-run", action="store_true", help="Print the planning prompt and exit")
     plan_parser.add_argument("--result-file", help="Parse a plan from agent output file")
     plan_parser.set_defaults(func=plan_feature)
+
+    build_parser_cmd = subparsers.add_parser("build", parents=[common], help="Build a feature end-to-end")
+    build_parser_cmd.add_argument("feature", nargs="?", help="Natural language feature description")
+    build_parser_cmd.add_argument("--resume", action="store_true", help="Resume the current feature build")
+    build_parser_cmd.add_argument("--status", action="store_true", help="Show current feature build status")
+    build_parser_cmd.add_argument("--yes", action="store_true", help="Skip the confirmation prompt")
+    build_parser_cmd.set_defaults(func=build_feature_cli)
 
     multi_parser = subparsers.add_parser("multi", parents=[common], help="Run shifts on multiple repos")
     multi_parser.add_argument("repos", nargs="+", help="Repository paths to process")

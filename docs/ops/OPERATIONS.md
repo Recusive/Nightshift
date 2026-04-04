@@ -589,7 +589,7 @@ What defines each version. Use this to know when a release is ready.
 - [x] Task decomposer module (`nightshift/decomposer.py`)
 - [x] Sub-agent spawner module (`nightshift/subagent.py`)
 - [x] Wave integrator module (`nightshift/integrator.py`)
-- [ ] `nightshift build` CLI command (even if basic)
+- [x] `nightshift build` CLI command (`nightshift/feature.py` -- build/status/resume)
 
 ### v1.0.0 — Production
 - [ ] Loop 1 runs reliably overnight on real repos

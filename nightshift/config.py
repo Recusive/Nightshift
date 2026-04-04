@@ -170,3 +170,36 @@ def infer_verify_command(repo_dir: Path, config: NightshiftConfig) -> str | None
     if (repo_dir / "pyproject.toml").exists() or (repo_dir / "pytest.ini").exists():
         return "python3 -m pytest"
     return None
+
+
+def infer_lint_command(repo_dir: Path) -> str | None:
+    package_json = repo_dir / "package.json"
+    if package_json.exists():
+        try:
+            payload = json.loads(package_json.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            payload = {}
+        scripts = payload.get("scripts", {}) if isinstance(payload, dict) else {}
+        package_manager = infer_package_manager(repo_dir) or "npm"
+        if "lint:ci" in scripts:
+            return f"{package_manager} run lint:ci"
+        if "lint" in scripts:
+            return f"{package_manager} run lint"
+
+    pyproject = repo_dir / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            content = pyproject.read_text(encoding="utf-8")
+        except OSError:
+            content = ""
+        if "[tool.ruff" in content:
+            return "python3 -m ruff check ."
+
+    for config_name in ("ruff.toml", ".ruff.toml"):
+        if (repo_dir / config_name).exists():
+            return "python3 -m ruff check ."
+
+    if (repo_dir / "Cargo.toml").exists():
+        return "cargo clippy -- -D warnings"
+
+    return None

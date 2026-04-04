@@ -15,6 +15,10 @@ ROOT_FILES=(
   "nightshift.schema.json"
   ".nightshift.json.example"
 )
+SCHEMA_FILES=(
+  "schemas/feature.schema.json"
+  "schemas/task.schema.json"
+)
 PACKAGE_FILES=(
   "nightshift/__init__.py"
   "nightshift/__main__.py"
@@ -33,17 +37,21 @@ PACKAGE_FILES=(
   "nightshift/decomposer.py"
   "nightshift/subagent.py"
   "nightshift/integrator.py"
+  "nightshift/feature.py"
   "nightshift/cli.py"
 )
 
 install_into() {
   local target="$1"
-  mkdir -p "$target/nightshift" "$target/scripts"
+  mkdir -p "$target/nightshift" "$target/scripts" "$target/schemas"
 
   for file in "${SCRIPT_FILES[@]}"; do
     curl -sfL "$REPO/$file" -o "$target/$file"
   done
   for file in "${ROOT_FILES[@]}"; do
+    curl -sfL "$REPO/$file" -o "$target/$file"
+  done
+  for file in "${SCHEMA_FILES[@]}"; do
     curl -sfL "$REPO/$file" -o "$target/$file"
   done
   for file in "${PACKAGE_FILES[@]}"; do

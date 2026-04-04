@@ -326,6 +326,9 @@ PLAN_MAX_TOTAL_FILES = 50
 # Recommended max files per individual task (guidance for the agent prompt).
 PLAN_MAX_FILES_PER_TASK = 5
 
+# JSON schema path for feature planning output.
+FEATURE_SCHEMA_PATH = "schemas/feature.schema.json"
+
 PLAN_PROMPT_TEMPLATE = """You are a senior software architect planning a feature for an existing codebase.
 
 ## Repository Profile
@@ -486,6 +489,12 @@ INTEGRATOR_MAX_FIX_ATTEMPTS = 3
 
 # Timeout for running the test suite during integration (seconds).
 INTEGRATOR_TEST_TIMEOUT = 300
+
+# --- Feature build orchestration ---------------------------------------------
+
+FEATURE_STATE_PATH = "docs/Nightshift/feature-build.state.json"
+FEATURE_LOG_DIR = "docs/Nightshift/feature-build"
+FEATURE_VERIFY_TIMEOUT = 600
 
 PROFILER_SKIP_DIRS: set[str] = {
     "node_modules",
