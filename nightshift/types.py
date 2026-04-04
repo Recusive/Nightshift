@@ -22,6 +22,7 @@ class NightshiftConfig(TypedDict):
     stop_after_empty_cycles: int
     score_threshold: int
     test_incentive_cycle: int
+    backend_forcing_cycle: int
 
 
 class DiffScore(TypedDict):

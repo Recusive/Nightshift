@@ -53,6 +53,7 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "stop_after_empty_cycles": 2,
     "score_threshold": 3,
     "test_incentive_cycle": 3,
+    "backend_forcing_cycle": 3,
 }
 
 # --- Diff scoring data -------------------------------------------------------
@@ -75,6 +76,66 @@ CATEGORY_SCORES: dict[str, int] = {
     "Code Quality": 3,
     "Performance": 5,
     "Polish": 2,
+}
+
+# --- Backend exploration forcing data ----------------------------------------
+
+FRONTEND_DIR_NAMES: set[str] = {
+    "components",
+    "pages",
+    "views",
+    "styles",
+    "css",
+    "scss",
+    "public",
+    "static",
+    "assets",
+    "templates",
+    "layouts",
+    "hooks",
+    "contexts",
+    "providers",
+    "theme",
+    "client",
+    "frontend",
+    "web",
+    "ui",
+}
+
+BACKEND_DIR_NAMES: set[str] = {
+    "server",
+    "api",
+    "backend",
+    "routes",
+    "controllers",
+    "models",
+    "middleware",
+    "services",
+    "handlers",
+    "db",
+    "database",
+    "migrations",
+    "resolvers",
+    "graphql",
+    "lib",
+    "pkg",
+    "internal",
+    "cmd",
+}
+
+FRONTEND_EXTENSIONS: set[str] = {".tsx", ".jsx", ".vue", ".svelte", ".css", ".scss", ".less"}
+BACKEND_EXTENSIONS: set[str] = {".py", ".go", ".rs", ".java", ".rb", ".php", ".ex", ".exs"}
+
+CLASSIFY_SKIP_DIRS: set[str] = {
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "coverage",
+    ".svn",
 }
 
 # --- Safe artifacts ----------------------------------------------------------

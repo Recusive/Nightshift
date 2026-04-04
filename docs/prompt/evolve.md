@@ -192,13 +192,17 @@ This is not optional. This is not "if you have time." This is the job. Code with
 
 Go through each item below. For each one, either update it or confirm it doesn't need updating. Do not skip any.
 
-### 6a. Handoff (ALWAYS)
-Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact format in `docs/handoffs/README.md`. Include: what you built, decisions made, known issues (carry forward unresolved ones from previous handoff), current state with percentages, what next session should build, and which files to look at. Copy to `docs/handoffs/LATEST.md`. If 7+ numbered files exist, compact into weekly.
+### 6a. Tasks (ALWAYS)
+If you worked from a task file: mark it `status: done` with `completed` date.
+Then create follow-up tasks for what comes next. Read `docs/tasks/GUIDE.md` for the format. The queue should never be empty — you always leave work for the next session based on what you learned, the vision tracker, or the roadmap.
 
-### 6b. Changelog (ALWAYS except docs-only changes)
+### 6b. Handoff (ALWAYS)
+Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact format in `docs/handoffs/README.md`. Include: what you built, decisions made, known issues (carry forward unresolved ones from previous handoff), current state with percentages. The "Next Session Should" section references task numbers from `docs/tasks/`. Copy to `docs/handoffs/LATEST.md`. If 7+ numbered files exist, compact into weekly.
+
+### 6c. Changelog (ALWAYS except docs-only changes)
 Read `docs/changelog/README.md` to find the current version file. Add your changes under the correct section (Added/Changed/Fixed/Removed/Internal). Tag each entry. Describe WHAT and WHY.
 
-### 6c. Vision Tracker (ALWAYS except docs-only changes)
+### 6d. Vision Tracker (ALWAYS except docs-only changes)
 Read `docs/vision-tracker/TRACKER.md`. For every component you affected:
 - Update status (Not started / In progress / Done)
 - Update progress bar
@@ -206,30 +210,30 @@ Read `docs/vision-tracker/TRACKER.md`. For every component you affected:
 - Recalculate overall percentage (weighted: Loop1 40%, Loop2 30%, Self 15%, Meta 15%)
 - Update "Last updated" date
 
-### 6d. Vision Docs (IF you completed a roadmap item or made a design decision)
+### 6e. Vision Docs (IF you completed a roadmap item or made a design decision)
 - `docs/vision/01-loop1-hardening.md` — mark completed items
 - `docs/vision/02-loop2-feature-builder.md` — answer resolved open questions
 - `docs/vision/00-overview.md` — update success criteria if relevant
 
-### 6e. CLAUDE.md (IF you changed project structure, conventions, or added systems)
+### 6f. CLAUDE.md (IF you changed project structure, conventions, or added systems)
 Update the project structure tree, add new conventions, document new systems.
 
-### 6f. README.md (IF you made a user-facing change)
+### 6g. README.md (IF you made a user-facing change)
 Update feature descriptions, usage examples, requirements, roadmap.
 
-### 6g. Operations Guide (IF you added a new system or changed a workflow)
+### 6h. Operations Guide (IF you added a new system or changed a workflow)
 Update `docs/ops/OPERATIONS.md` with new system description. Update quick-reference table.
 
-### 6h. Config files (IF you added config options)
+### 6i. Config files (IF you added config options)
 Update `.nightshift.json.example`, `nightshift.schema.json`, `DEFAULT_CONFIG` in constants.py.
 
-### 6i. Install Script (IF you added files that ship to users)
+### 6j. Install Script (IF you added files that ship to users)
 Update `PACKAGE_FILES`, `ROOT_FILES`, or `SCRIPT_FILES` in `scripts/install.sh`.
 
-### 6j. Evolve Prompt (IF you learned something future sessions need)
+### 6k. Evolve Prompt (IF you learned something future sessions need)
 Update this file with new knowledge, gotchas, or procedural changes.
 
-### 6k. Version Assessment
+### 6l. Version Assessment
 Check `docs/ops/OPERATIONS.md` version milestones:
 - Are all items for the current version done?
 - If yes: prepare for release (tag, changelog status, new version file)

@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-03 by agent session (test writing incentives).
+Last updated: 2026-04-03 by agent session (backend exploration forcing).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,8 +9,8 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ██████████░░░░░░░░░░  52%
-├── Loop 1 — Hardening Loop                    ██████████████████░░  90%
+NIGHTSHIFT VISION                              ███████████░░░░░░░░░  54%
+├── Loop 1 — Hardening Loop                    ███████████████████░  95%
 ├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
@@ -18,7 +18,7 @@ NIGHTSHIFT VISION                              ██████████░
 
 ---
 
-## Loop 1 — Hardening Loop (90%)
+## Loop 1 — Hardening Loop (95%)
 
 The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
 
@@ -37,11 +37,11 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (171 tests) | Done | ████████████████████ 100% |
+| Test suite (190 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
-| Backend exploration forcing | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Backend exploration forcing | Done | ████████████████████ 100% |
 | Multi-repo support | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Deep merge for config | Done | ████████████████████ 100% |
 | run_command timeout fix | Done | ████████████████████ 100% |
