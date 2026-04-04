@@ -30,6 +30,8 @@ from nightshift.constants import (
     SAFE_ARTIFACT_DIRS,
     SAFE_ARTIFACT_GLOBS,
     SHIFT_LOG_TEMPLATE,
+    SUBAGENT_DEFAULT_TIMEOUT,
+    SUBAGENT_MAX_TURNS,
     SUPPORTED_AGENTS,
     now_local,
     print_status,
@@ -88,6 +90,11 @@ from nightshift.state import (
     top_path,
     write_json,
 )
+from nightshift.subagent import (
+    format_wave_result,
+    spawn_task,
+    spawn_wave,
+)
 from nightshift.types import (
     ArchitectureDoc,
     Baseline,
@@ -106,7 +113,9 @@ from nightshift.types import (
     RepoProfile,
     RepoShiftResult,
     ShiftState,
+    TaskCompletion,
     TestPlan,
+    WaveResult,
     WorkOrder,
 )
 from nightshift.worktree import (
@@ -138,6 +147,8 @@ __all__ = [
     "SAFE_ARTIFACT_DIRS",
     "SAFE_ARTIFACT_GLOBS",
     "SHIFT_LOG_TEMPLATE",
+    "SUBAGENT_DEFAULT_TIMEOUT",
+    "SUBAGENT_MAX_TURNS",
     "SUPPORTED_AGENTS",
     "ArchitectureDoc",
     "Baseline",
@@ -157,7 +168,9 @@ __all__ = [
     "RepoProfile",
     "RepoShiftResult",
     "ShiftState",
+    "TaskCompletion",
     "TestPlan",
+    "WaveResult",
     "WorkOrder",
     "append_cycle_state",
     "blocked_file",
@@ -186,6 +199,7 @@ __all__ = [
     "forbidden_reported_commands",
     "format_multi_summary",
     "format_plan",
+    "format_wave_result",
     "format_work_orders",
     "git",
     "git_changed_files_for_commit",
@@ -216,6 +230,8 @@ __all__ = [
     "run_shell_string",
     "scope_check",
     "score_diff",
+    "spawn_task",
+    "spawn_wave",
     "summarize",
     "sync_shift_log",
     "top_path",

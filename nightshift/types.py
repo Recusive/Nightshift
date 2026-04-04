@@ -215,3 +215,27 @@ class DecomposerResult(TypedDict):
     total_waves: int
     total_tasks: int
     waves: list[list[WorkOrder]]
+
+
+# --- Loop 2: Sub-agent spawner types -----------------------------------------
+
+
+class TaskCompletion(TypedDict):
+    """Parsed result from a sub-agent executing a work order."""
+
+    task_id: int
+    status: str  # "done" | "blocked"
+    files_created: list[str]
+    files_modified: list[str]
+    tests_written: list[str]
+    tests_passed: bool
+    notes: str
+
+
+class WaveResult(TypedDict):
+    """Outcome of spawning all sub-agents for one execution wave."""
+
+    wave: int
+    completed: list[TaskCompletion]
+    failed: list[TaskCompletion]
+    total_tasks: int
