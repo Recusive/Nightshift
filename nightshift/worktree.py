@@ -43,7 +43,17 @@ def validate_worktree(worktree_dir: Path) -> None:
         raise NightshiftError(f"Broken git worktree at {worktree_dir}: git did not confirm a worktree.")
 
 
+def validate_repo_checkout(repo_dir: Path) -> None:
+    try:
+        inside = git(repo_dir, "rev-parse", "--is-inside-work-tree")
+    except NightshiftError as error:
+        raise NightshiftError(f"Target repo is not a valid git checkout: {repo_dir}") from error
+    if inside.strip() != "true":
+        raise NightshiftError(f"Target repo is not a valid git checkout: {repo_dir}")
+
+
 def ensure_worktree(repo_dir: Path, worktree_dir: Path, branch: str) -> None:
+    validate_repo_checkout(repo_dir)
     git(repo_dir, "worktree", "prune", check=False)
     if worktree_dir.exists():
         print_status(f"Resuming existing worktree at: {worktree_dir}")

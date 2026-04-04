@@ -75,6 +75,7 @@ from nightshift.worktree import (
     install_dependencies_if_needed,
     revert_cycle,
     sync_shift_log,
+    validate_repo_checkout,
     validate_worktree,
 )
 
@@ -145,6 +146,7 @@ __all__ = [
     "summarize",
     "sync_shift_log",
     "top_path",
+    "validate_repo_checkout",
     "validate_worktree",
     "verify_cycle",
     "verify_cycle_cli",

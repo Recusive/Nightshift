@@ -787,6 +787,41 @@ class TestValidateWorktree:
             nightshift.validate_worktree(worktree)
 
 
+class TestValidateRepoCheckout:
+    def test_accepts_primary_repo(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+
+        nightshift.validate_repo_checkout(repo)
+
+    def test_accepts_linked_worktree_repo(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        linked = tmp_path / "linked"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "worktree", "add", str(linked), "-b", "feature/test"], cwd=repo, capture_output=True, check=True)
+
+        nightshift.validate_repo_checkout(linked)
+
+    def test_rejects_non_git_dir(self, tmp_path: Path) -> None:
+        repo = tmp_path / "not-a-git"
+        repo.mkdir()
+
+        with pytest.raises(nightshift.NightshiftError, match="not a valid git checkout"):
+            nightshift.validate_repo_checkout(repo)
+
+
 class TestEnsureWorktree:
     def test_recreates_broken_existing_worktree(self, tmp_path: Path) -> None:
         repo = tmp_path / "repo"
