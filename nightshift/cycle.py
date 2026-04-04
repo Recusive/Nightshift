@@ -14,8 +14,10 @@ from nightshift.constants import (
     BACKEND_EXTENSIONS,
     CATEGORY_ORDER,
     CLASSIFY_SKIP_DIRS,
+    FORBIDDEN_CYCLE_COMMANDS,
     FRONTEND_DIR_NAMES,
     FRONTEND_EXTENSIONS,
+    HIGH_SIGNAL_PATH_CANDIDATES,
     print_status,
 )
 from nightshift.errors import NightshiftError
@@ -282,14 +284,17 @@ def build_prompt(
     blocked_summary: str,
     hot_files: list[str],
     prior_path_bias: list[str],
+    focus_hints: list[str],
     test_mode: bool,
     backend_escalation: str = "",
 ) -> str:
     hot_files_lines = "\n".join(f"- `{entry}`" for entry in hot_files[:10]) or "- None"
     prior_paths = "\n".join(f"- `{entry}`" for entry in prior_path_bias[-2:]) or "- None"
+    focus_lines = "\n".join(f"- `{entry}`" for entry in focus_hints[:5]) or "- None"
     blocked_lines = textwrap.indent(blocked_summary, "        ")
     hot_lines = textwrap.indent(hot_files_lines, "        ")
     prior_lines = textwrap.indent(prior_paths, "        ")
+    focus_block = textwrap.indent(focus_lines, "        ")
     log_only = state["log_only_mode"]
     state_summary = build_state_summary(state)
     state_block = ""
@@ -340,20 +345,40 @@ def build_prompt(
         - Every fix entry must include `Impact` and `Verification`.
         - Do not run the repo's full verification or lint commands yourself. The Nightshift runner already executed baseline verification and will run final verification after your cycle.
         - If you need extra confidence, only run narrow, file-scoped checks that do not require background IPC servers or long-lived watchers.
+        - Avoid package-manager test commands like `npm test`, `pnpm test`, `yarn test`, or `bun test` inside the cycle unless they are clearly file-scoped and sandbox-safe. Many JavaScript test runners spawn IPC servers and will fail under sandboxing even when the runner's own verification succeeds.
         - Do not add dependencies, do not delete files, and do not edit CI/deploy/generated artifacts.
         - Do not invoke Nightshift recursively. Never run `nightshift.py`, `run.sh`, `test.sh`, `codex exec`, or `claude -p` from inside this cycle.
 
         Category mix guidance:
         - Prefer breadth across Security, Error Handling, Tests, A11y, Code Quality, Performance, and Polish.
         - If you find repetitive low-value cleanup, fix a small representative sample and log the broader pattern.
+        - Prefer high-signal, low-blast-radius helpers before broad UI sweeps when these areas exist:
+{focus_block}
 
-        {"This is a short validation run. Finish quickly. Prefer exactly one small fix or one logged issue. If nothing clearly safe is found within a few minutes, log one issue and stop." if test_mode else ""}
+        {"This is a short validation run. Finish quickly. Prefer exactly one small fix or one logged issue. Prefer a 1-2 file fix in auth/session/http/parser/api helper code before choosing log-only. If nothing clearly safe is found within a few minutes, log one issue and stop." if test_mode else ""}
 
         {"Final cycle instructions: wrap up the Summary and Recommendations sections, make sure commit hashes are correct, and run the full verification command one last time." if is_final else "Do not rewrite the final Summary yet unless there is less than one cycle left."}
 
         End your work with a single JSON object and nothing else. The JSON must satisfy the provided schema exactly.
         """
     ).strip()
+
+
+def high_signal_focus_paths(repo_dir: Path, hot_files: list[str]) -> list[str]:
+    hot_prefixes = {entry for entry in hot_files if entry}
+    suggestions: list[str] = []
+    for candidate in HIGH_SIGNAL_PATH_CANDIDATES:
+        if any(candidate == hot or candidate.startswith(f"{hot}/") for hot in hot_prefixes):
+            continue
+        if not (repo_dir / candidate).exists():
+            continue
+        suggestions.append(candidate)
+        if len(suggestions) >= 5:
+            break
+    if suggestions:
+        return suggestions
+    fallback = [candidate for candidate in HIGH_SIGNAL_PATH_CANDIDATES if (repo_dir / candidate).exists()]
+    return fallback[:5]
 
 
 def recent_hot_files(repo_dir: Path) -> list[str]:
@@ -401,12 +426,22 @@ def blocked_file(path: str, config: NightshiftConfig) -> str | None:
 def _as_cycle_result(data: dict[str, Any]) -> CycleResult:
     """Construct a CycleResult from a raw JSON dict, field by field."""
     result = CycleResult()
+    if "cycle" in data and isinstance(data["cycle"], int):
+        result["cycle"] = data["cycle"]
     if "status" in data:
         result["status"] = str(data["status"])
     fixes = data.get("fixes")
     result["fixes"] = fixes if isinstance(fixes, list) else []
     logged = data.get("logged_issues")
     result["logged_issues"] = logged if isinstance(logged, list) else []
+    categories = data.get("categories")
+    result["categories"] = categories if isinstance(categories, list) else []
+    touched = data.get("files_touched")
+    result["files_touched"] = touched if isinstance(touched, list) else []
+    tests_run = data.get("tests_run")
+    result["tests_run"] = tests_run if isinstance(tests_run, list) else []
+    if "notes" in data:
+        result["notes"] = str(data["notes"])
     return result
 
 
@@ -424,6 +459,58 @@ def parse_cycle_result(
     if result is None:
         return None
     return _as_cycle_result(result)
+
+
+def _extract_shell_command(command: str) -> str:
+    shell_match = re.search(r"-lc\s+['\"](?P<body>.+?)['\"]$", command)
+    if shell_match:
+        return shell_match.group("body").strip()
+    return command.strip()
+
+
+def forbidden_cycle_commands(raw_output: str) -> list[str]:
+    seen: list[str] = []
+    for line in raw_output.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        item = payload.get("item")
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") != "command_execution":
+            continue
+        command = item.get("command")
+        if not isinstance(command, str):
+            continue
+        shell_command = _extract_shell_command(command)
+        if shell_command in FORBIDDEN_CYCLE_COMMANDS and shell_command not in seen:
+            seen.append(shell_command)
+    return seen
+
+
+def forbidden_reported_commands(cycle_result: CycleResult | None) -> list[str]:
+    if cycle_result is None:
+        return []
+    seen: list[str] = []
+    for entry in cycle_result.get("tests_run", []):
+        for command in FORBIDDEN_CYCLE_COMMANDS:
+            if entry.startswith(command) and command not in seen:
+                seen.append(command)
+    return seen
+
+
+def expected_cycle_commits(cycle_result: CycleResult | None) -> int | None:
+    if cycle_result is None:
+        return None
+    fixes = cycle_result.get("fixes", [])
+    logged_issues = cycle_result.get("logged_issues", [])
+    return len(fixes) + (1 if logged_issues else 0)
 
 
 def evaluate_baseline(
@@ -468,6 +555,7 @@ def verify_cycle(
     config: NightshiftConfig,
     state: ShiftState,
     runner_log: Path,
+    agent_output: str = "",
 ) -> tuple[bool, CycleVerification]:
     verify_command = state["verify_command"]
     commit_output = git(worktree_dir, "rev-list", "--reverse", f"{pre_head}..HEAD", check=False)
@@ -503,9 +591,21 @@ def verify_cycle(
     if state["log_only_mode"] and non_log_files:
         violations.append("Log-only mode is active, but code files were modified.")
 
+    for command in forbidden_cycle_commands(agent_output):
+        violations.append(f"Agent ran forbidden repo-wide command during cycle: `{command}`")
+    for command in forbidden_reported_commands(cycle_result):
+        message = f"Agent reported forbidden repo-wide command during cycle: `{command}`"
+        if message not in violations:
+            violations.append(message)
+
     if cycle_result is None and config["agent"] == "codex":
         violations.append("Agent cycle did not produce a structured JSON result.")
     if cycle_result is not None:
+        expected_commits = expected_cycle_commits(cycle_result)
+        if expected_commits is not None and len(commits) != expected_commits:
+            violations.append(
+                f"Cycle created {len(commits)} commits but structured output implies {expected_commits}."
+            )
         for fix in cycle_result.get("fixes", []):
             if len(set(fix.get("files", []))) > int(config["max_files_per_fix"]):
                 violations.append(

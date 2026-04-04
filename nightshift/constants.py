@@ -78,6 +78,41 @@ CATEGORY_SCORES: dict[str, int] = {
     "Polish": 2,
 }
 
+FORBIDDEN_CYCLE_COMMANDS = [
+    "npm test",
+    "npm run test",
+    "npm run lint",
+    "npm run build",
+    "pnpm test",
+    "pnpm run test",
+    "pnpm run lint",
+    "pnpm run build",
+    "yarn test",
+    "yarn lint",
+    "yarn build",
+    "bun test",
+    "bun run test",
+    "bun run lint",
+    "bun run build",
+]
+
+HIGH_SIGNAL_PATH_CANDIDATES = [
+    "src/lib/auth",
+    "src/lib/http.ts",
+    "src/app/api",
+    "src/lib/db/queries",
+    "src/lib/analytics",
+    "src/lib/contracts",
+    "lib/auth",
+    "lib/http.ts",
+    "app/api",
+    "server",
+    "api",
+    "backend",
+    "src/server",
+    "src/api",
+]
+
 # --- Backend exploration forcing data ----------------------------------------
 
 FRONTEND_DIR_NAMES: set[str] = {

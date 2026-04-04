@@ -355,7 +355,13 @@ class TestInferInstallCommand:
     def test_npm(self, tmp_path):
         (tmp_path / "package.json").touch()
         result = nightshift.infer_install_command(tmp_path)
-        assert result == ["npm", "install"]
+        assert result == ["npm", "install", "--package-lock=false"]
+
+    def test_npm_with_lockfile_uses_ci(self, tmp_path):
+        (tmp_path / "package.json").touch()
+        (tmp_path / "package-lock.json").touch()
+        result = nightshift.infer_install_command(tmp_path)
+        assert result == ["npm", "ci"]
 
     def test_bun(self, tmp_path):
         (tmp_path / "package.json").touch()
@@ -733,6 +739,24 @@ class TestRecentHotFiles:
         assert result == []
 
 
+class TestHighSignalFocusPaths:
+    def test_prefers_existing_high_signal_paths(self, tmp_path: Path) -> None:
+        (tmp_path / "src" / "lib" / "auth").mkdir(parents=True)
+        (tmp_path / "src" / "app" / "api").mkdir(parents=True)
+        (tmp_path / "src" / "lib" / "http.ts").write_text("", encoding="utf-8")
+
+        result = nightshift.high_signal_focus_paths(tmp_path, [])
+        assert result[:3] == ["src/lib/auth", "src/lib/http.ts", "src/app/api"]
+
+    def test_skips_hot_prefixes_when_possible(self, tmp_path: Path) -> None:
+        (tmp_path / "src" / "lib" / "auth").mkdir(parents=True)
+        (tmp_path / "src" / "app" / "api").mkdir(parents=True)
+
+        result = nightshift.high_signal_focus_paths(tmp_path, ["src/lib/auth"])
+        assert "src/lib/auth" not in result
+        assert "src/app/api" in result
+
+
 # --- Shift Log ---------------------------------------------------------------
 
 
@@ -777,6 +801,81 @@ class TestSyncShiftLog:
         repo = tmp_path / "repo"
         nightshift.sync_shift_log(worktree, repo, "docs/Nightshift/log.md")
         assert not (repo / "docs" / "Nightshift" / "log.md").exists()
+
+
+class TestValidateWorktree:
+    def test_reports_missing_gitdir_from_git_file(self, tmp_path: Path) -> None:
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+        missing = tmp_path / "missing-gitdir"
+        (worktree / ".git").write_text(f"gitdir: {missing}\n", encoding="utf-8")
+
+        with pytest.raises(nightshift.NightshiftError, match="missing gitdir"):
+            nightshift.validate_worktree(worktree)
+
+
+class TestValidateRepoCheckout:
+    def test_accepts_primary_repo(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+
+        nightshift.validate_repo_checkout(repo)
+
+    def test_accepts_linked_worktree_repo(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        linked = tmp_path / "linked"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "worktree", "add", str(linked), "-b", "feature/test"], cwd=repo, capture_output=True, check=True)
+
+        nightshift.validate_repo_checkout(linked)
+
+    def test_rejects_non_git_dir(self, tmp_path: Path) -> None:
+        repo = tmp_path / "not-a-git"
+        repo.mkdir()
+
+        with pytest.raises(nightshift.NightshiftError, match="not a valid git checkout"):
+            nightshift.validate_repo_checkout(repo)
+
+
+class TestEnsureWorktree:
+    def test_recreates_broken_existing_worktree(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+
+        worktree = repo / "docs" / "Nightshift" / "worktree-2026-04-03"
+        worktree.mkdir(parents=True)
+        (worktree / ".git").write_text(f"gitdir: {tmp_path / 'broken-gitdir'}\n", encoding="utf-8")
+        (worktree / "broken.txt").write_text("stale\n", encoding="utf-8")
+
+        nightshift.ensure_worktree(repo, worktree, "nightshift/2026-04-03")
+
+        status = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=worktree,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert status.stdout.strip() == "true"
+        assert not (worktree / "broken.txt").exists()
 
 
 # --- Command Construction ----------------------------------------------------
@@ -1058,6 +1157,7 @@ class TestBuildPromptStateInjection:
             blocked_summary="- `.github/`",
             hot_files=[],
             prior_path_bias=["src"],
+            focus_hints=[],
             test_mode=False,
         )
 
@@ -1107,6 +1207,7 @@ class TestBuildPrompt:
             blocked_summary="- `.github/`\n- `*.lock`",
             hot_files=["src/hot.ts"],
             prior_path_bias=[],
+            focus_hints=["src/lib/auth", "src/lib/http.ts"],
             test_mode=False,
         )
 
@@ -1157,6 +1258,15 @@ class TestBuildPrompt:
         prompt = nightshift.build_prompt(**args)
         assert "2" in prompt  # 4 - 2 = 2 remaining
 
+    def test_warns_about_package_manager_test_commands(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Avoid package-manager test commands like `npm test`" in prompt
+
+    def test_includes_high_signal_focus_hints(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Prefer high-signal, low-blast-radius helpers" in prompt
+        assert "`src/lib/auth`" in prompt
+
 
 # --- Parse Cycle Result ------------------------------------------------------
 
@@ -1192,6 +1302,139 @@ class TestParseCycleResult:
             raw_output="no json here",
         )
         assert result is None
+
+    def test_preserves_schema_fields_used_for_verification(self, tmp_path: Path) -> None:
+        msg = tmp_path / "msg.json"
+        msg.write_text(
+            json.dumps(
+                {
+                    "cycle": 1,
+                    "status": "completed",
+                    "fixes": [],
+                    "logged_issues": [],
+                    "categories": ["Error Handling"],
+                    "files_touched": ["src/lib/auth/session.ts"],
+                    "tests_run": ["npm run lint"],
+                    "notes": "done",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = nightshift.parse_cycle_result(agent="codex", message_path=msg, raw_output="")
+        assert result is not None
+        assert result["cycle"] == 1
+        assert result["tests_run"] == ["npm run lint"]
+        assert result["notes"] == "done"
+
+
+class TestForbiddenCycleCommands:
+    def test_detects_repo_wide_npm_commands_from_codex_jsonl(self) -> None:
+        raw_output = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "item.started",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run lint'",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run build'",
+                        },
+                    }
+                ),
+            ]
+        )
+
+        result = nightshift.forbidden_cycle_commands(raw_output)
+        assert result == ["npm run lint", "npm run build"]
+
+    def test_ignores_non_forbidden_and_duplicates(self) -> None:
+        raw_output = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "item.started",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run lint'",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm run lint'",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.started",
+                        "item": {
+                            "type": "command_execution",
+                            "command": "/bin/zsh -lc 'npm test -- src/lib/auth/parse-social-url.test.ts'",
+                        },
+                    }
+                ),
+            ]
+        )
+
+        result = nightshift.forbidden_cycle_commands(raw_output)
+        assert result == ["npm run lint"]
+
+
+class TestForbiddenReportedCommands:
+    def test_detects_forbidden_commands_from_structured_tests_run(self) -> None:
+        result = nightshift.forbidden_reported_commands(
+            {
+                "status": "completed",
+                "fixes": [],
+                "logged_issues": [],
+                "tests_run": [
+                    "npm run lint",
+                    "npm run test (failed in sandbox: tsx IPC pipe EPERM)",
+                    "npx eslint src/lib/auth/session.ts",
+                ],
+            }
+        )
+        assert result == ["npm run lint", "npm run test"]
+
+
+class TestExpectedCycleCommits:
+    def test_fixes_require_one_commit_each(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {"status": "completed", "fixes": [{"title": "a"}, {"title": "b"}], "logged_issues": []}
+        )
+        assert result == 2
+
+    def test_logged_issues_batch_into_one_commit(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {"status": "log_only", "fixes": [], "logged_issues": [{"title": "a"}, {"title": "b"}]}
+        )
+        assert result == 1
+
+    def test_fixes_plus_logged_issues_add_one_extra_commit(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {
+                "status": "completed",
+                "fixes": [{"title": "a"}],
+                "logged_issues": [{"title": "issue"}],
+            }
+        )
+        assert result == 2
+
+    def test_missing_result_returns_none(self) -> None:
+        assert nightshift.expected_cycle_commits(None) is None
 
 
 # --- CLI Parser --------------------------------------------------------------
@@ -1681,6 +1924,7 @@ class TestBuildPromptTestEscalation:
             blocked_summary="- `.github/`",
             hot_files=[],
             prior_path_bias=["src"],
+            focus_hints=[],
             test_mode=False,
         )
 
@@ -1920,6 +2164,7 @@ class TestBuildPromptBackendEscalation:
             blocked_summary="- `.github/`",
             hot_files=[],
             prior_path_bias=["components"],
+            focus_hints=[],
             test_mode=False,
             backend_escalation=backend_escalation,
         )
@@ -1954,6 +2199,10 @@ class TestDiscoverBaseBranch:
         if os.environ.get("CI"):
             return
         assert len(result) > 0
+
+    def test_invalid_repo_raises_clear_error(self, tmp_path: Path) -> None:
+        with pytest.raises(nightshift.NightshiftError, match="not a valid git checkout"):
+            nightshift.discover_base_branch(tmp_path)
 
 
 # --- Dry Run Integration ----------------------------------------------------
