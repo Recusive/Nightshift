@@ -55,7 +55,7 @@ def score_diff(
     Scoring factors:
     1. Category of fixes (from cycle_result) - higher-priority categories score higher
     2. Diff content analysis - security/error patterns in added lines boost the score
-    3. Test bonus - writing tests adds +1
+    3. Test bonus - writing tests adds +2
     4. Category breadth bonus - multiple categories in one cycle adds +1
     """
     base = 1  # minimum score for any accepted cycle
