@@ -5341,16 +5341,14 @@ class TestStageFiles:
 
 class TestRunTestSuite:
     def test_returns_zero_on_success(self, tmp_path: Path) -> None:
-        with patch("nightshift.integrator.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
+        with patch("nightshift.integrator.run_test_command", return_value=(0, "ok")):
             code, output = nightshift.run_test_suite(tmp_path, "echo test")
 
         assert code == 0
         assert "ok" in output
 
     def test_returns_nonzero_on_failure(self, tmp_path: Path) -> None:
-        with patch("nightshift.integrator.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=1, stdout="FAIL", stderr="error")
+        with patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL error")):
             code, output = nightshift.run_test_suite(tmp_path, "test")
 
         assert code == 1
@@ -5362,8 +5360,7 @@ class TestRunTestSuite:
         assert output == ""
 
     def test_timeout_returns_failure(self, tmp_path: Path) -> None:
-        with patch("nightshift.integrator.subprocess.run") as mock_run:
-            mock_run.side_effect = subprocess.TimeoutExpired(cmd="test", timeout=10)
+        with patch("nightshift.integrator.run_test_command", return_value=(1, "Command timed out after 10 seconds")):
             code, output = nightshift.run_test_suite(tmp_path, "test", timeout=10)
 
         assert code == 1
@@ -5428,8 +5425,10 @@ class TestIntegrateWave:
         (tmp_path / "src" / "new.py").write_text("x = 1")
         log_dir = tmp_path / "logs"
 
-        with patch("nightshift.integrator.git"), patch("nightshift.integrator.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="3 passed", stderr="")
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(0, "3 passed")),
+        ):
             result = nightshift.integrate_wave(
                 wr,
                 repo_dir=tmp_path,
@@ -5473,14 +5472,9 @@ class TestIntegrateWave:
         (tmp_path / "src" / "broken.py").write_text("x = 1")
         log_dir = tmp_path / "logs"
 
-        # Tests always fail, mentioning src/broken.py
-        fail_result = subprocess.CompletedProcess(
-            args=[], returncode=1, stdout="FAIL src/broken.py broken.py", stderr=""
-        )
-
         with (
             patch("nightshift.integrator.git"),
-            patch("nightshift.integrator.subprocess.run", return_value=fail_result),
+            patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL src/broken.py broken.py")),
             patch("nightshift.integrator.spawn_task", return_value=_make_task_completion()),
         ):
             result = nightshift.integrate_wave(
@@ -5510,17 +5504,16 @@ class TestIntegrateWave:
         # First test run fails, second succeeds (after fix)
         call_count = 0
 
-        def mock_subprocess_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        def mock_test_run(*args: object, **kwargs: object) -> tuple[int, str]:
             nonlocal call_count
             call_count += 1
             if call_count <= 2:
-                # First call is initial test, second is after first fix attempt
-                return subprocess.CompletedProcess(args=[], returncode=1, stdout="FAIL fixable.py", stderr="")
-            return subprocess.CompletedProcess(args=[], returncode=0, stdout="3 passed", stderr="")
+                return (1, "FAIL fixable.py")
+            return (0, "3 passed")
 
         with (
             patch("nightshift.integrator.git"),
-            patch("nightshift.integrator.subprocess.run", side_effect=mock_subprocess_run),
+            patch("nightshift.integrator.run_test_command", side_effect=mock_test_run),
             patch("nightshift.integrator.spawn_task", return_value=_make_task_completion()),
         ):
             result = nightshift.integrate_wave(
@@ -5543,12 +5536,9 @@ class TestIntegrateWave:
         (tmp_path / "src" / "x.py").write_text("x = 1")
         log_dir = tmp_path / "logs"
 
-        # Test output doesn't mention any files from the wave
-        fail_result = subprocess.CompletedProcess(args=[], returncode=1, stdout="FAIL unrelated_test", stderr="")
-
         with (
             patch("nightshift.integrator.git"),
-            patch("nightshift.integrator.subprocess.run", return_value=fail_result),
+            patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL unrelated_test")),
         ):
             result = nightshift.integrate_wave(
                 wr,
@@ -5568,8 +5558,10 @@ class TestIntegrateWave:
         wr = _make_wave_result()
         log_dir = tmp_path / "logs"
 
-        with patch("nightshift.integrator.git"), patch("nightshift.integrator.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(0, "ok")),
+        ):
             result = nightshift.integrate_wave(
                 wr,
                 repo_dir=tmp_path,
@@ -5590,8 +5582,10 @@ class TestIntegrateWave:
         (tmp_path / "exists.py").write_text("x = 1")
         log_dir = tmp_path / "logs"
 
-        with patch("nightshift.integrator.git"), patch("nightshift.integrator.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(0, "ok")),
+        ):
             result = nightshift.integrate_wave(
                 wr,
                 repo_dir=tmp_path,
@@ -5610,8 +5604,6 @@ class TestIntegrateWave:
         (tmp_path / "src" / "f.py").write_text("x = 1")
         log_dir = tmp_path / "logs"
 
-        fail_result = subprocess.CompletedProcess(args=[], returncode=1, stdout="FAIL src/f.py f.py", stderr="")
-
         spawn_count = 0
 
         def counting_spawn(*args: object, **kwargs: object) -> nightshift.TaskCompletion:
@@ -5621,7 +5613,7 @@ class TestIntegrateWave:
 
         with (
             patch("nightshift.integrator.git"),
-            patch("nightshift.integrator.subprocess.run", return_value=fail_result),
+            patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL src/f.py f.py")),
             patch("nightshift.integrator.spawn_task", side_effect=counting_spawn),
         ):
             nightshift.integrate_wave(

@@ -92,6 +92,7 @@ from nightshift.shell import (
     run_capture,
     run_command,
     run_shell_string,
+    run_test_command,
 )
 from nightshift.state import (
     append_cycle_state,
@@ -248,6 +249,7 @@ __all__ = [
     "run_multi_shift",
     "run_nightshift",
     "run_shell_string",
+    "run_test_command",
     "run_test_suite",
     "scope_check",
     "score_diff",

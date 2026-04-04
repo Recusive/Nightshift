@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 from nightshift.constants import (
@@ -10,7 +9,7 @@ from nightshift.constants import (
     INTEGRATOR_TEST_TIMEOUT,
     print_status,
 )
-from nightshift.shell import git
+from nightshift.shell import git, run_test_command
 from nightshift.subagent import spawn_task
 from nightshift.types import (
     FixAttempt,
@@ -64,18 +63,7 @@ def run_test_suite(
     if test_command is None:
         return 0, ""
 
-    try:
-        result = subprocess.run(
-            ["bash", "-lc", test_command],
-            cwd=str(repo_dir),
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=timeout,
-        )
-        return result.returncode, result.stdout + result.stderr
-    except subprocess.TimeoutExpired:
-        return 1, f"Test suite timed out after {timeout} seconds"
+    return run_test_command(test_command, cwd=repo_dir, timeout=timeout)
 
 
 def diagnose_failure(
@@ -247,7 +235,7 @@ def integrate_wave(
             agent=agent,
             repo_dir=repo_dir,
             log_dir=log_dir,
-            timeout_seconds=INTEGRATOR_TEST_TIMEOUT,
+            timeout_seconds=test_timeout,
         )
 
         fix_notes = ""

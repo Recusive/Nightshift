@@ -50,7 +50,7 @@ These are enforced by CI. Non-negotiable.
 **Linting (ruff):**
 - Rule sets: `E`, `W`, `F`, `I`, `UP`, `B`, `SIM`, `RUF`, `BLE`, `S`, `T20`, `PT`, `C4`
 - Zero `# noqa` in source (one exception in tests for `sys.path.insert`)
-- `S603`/`S607` suppressed only in `shell.py`, `cycle.py`, `worktree.py`, `integrator.py` via per-file-ignores
+- `S603`/`S607` suppressed only in `shell.py`, `cycle.py`, `worktree.py` via per-file-ignores
 - `T201` suppressed only in `constants.py` and `cli.py`
 
 **ASCII-only source:**
