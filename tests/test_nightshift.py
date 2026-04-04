@@ -54,6 +54,7 @@ class TestConstants:
             "stop_after_empty_cycles",
             "score_threshold",
             "test_incentive_cycle",
+            "backend_forcing_cycle",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -1695,6 +1696,250 @@ class TestBuildPromptTestEscalation:
     def test_no_escalation_when_tests_written(self):
         prompt = nightshift.build_prompt(**self._base_args(cycle=4, tests_written=2))
         assert "Test writing directive" not in prompt
+
+
+# --- Classify Repo Dirs ------------------------------------------------------
+
+
+class TestClassifyRepoDirs:
+    """Tests for classify_repo_dirs() directory classification."""
+
+    def test_frontend_dir_by_name(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "pages").mkdir()
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert "components" in frontend
+        assert "pages" in frontend
+        assert backend == []
+
+    def test_backend_dir_by_name(self, tmp_path):
+        (tmp_path / "server").mkdir()
+        (tmp_path / "api").mkdir()
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert frontend == []
+        assert "server" in backend
+        assert "api" in backend
+
+    def test_mixed_repo(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "server").mkdir()
+        (tmp_path / "lib").mkdir()
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert frontend == ["components"]
+        assert "server" in backend
+        assert "lib" in backend
+
+    def test_ambiguous_dir_classified_by_extensions(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "App.tsx").write_text("export default App")
+        (src / "index.jsx").write_text("render()")
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert "src" in frontend
+        assert backend == []
+
+    def test_ambiguous_dir_backend_extensions(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "main.py").write_text("if __name__")
+        (src / "server.go").write_text("package main")
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert frontend == []
+        assert "src" in backend
+
+    def test_hidden_dirs_skipped(self, tmp_path):
+        (tmp_path / ".git").mkdir()
+        (tmp_path / ".config").mkdir()
+        (tmp_path / "server").mkdir()
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert frontend == []
+        assert backend == ["server"]
+
+    def test_node_modules_skipped(self, tmp_path):
+        (tmp_path / "node_modules").mkdir()
+        (tmp_path / "components").mkdir()
+        frontend, _backend = nightshift.classify_repo_dirs(tmp_path)
+        assert frontend == ["components"]
+
+    def test_empty_repo(self, tmp_path):
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert frontend == []
+        assert backend == []
+
+    def test_unclassifiable_dirs_excluded(self, tmp_path):
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "README.md").write_text("# Docs")
+        frontend, backend = nightshift.classify_repo_dirs(tmp_path)
+        assert frontend == []
+        assert backend == []
+
+
+# --- Backend Escalation Logic ------------------------------------------------
+
+
+class TestBuildBackendEscalation:
+    """Tests for build_backend_escalation() logic."""
+
+    def _base_config(self, threshold=3):
+        return {"backend_forcing_cycle": threshold}
+
+    def _base_state(self, recent_paths=None):
+        return {
+            "recent_cycle_paths": recent_paths or [],
+            "counters": {"fixes": 0, "issues_logged": 0, "tests_written": 0},
+            "cycles": [],
+            "category_counts": {},
+        }
+
+    def test_no_escalation_before_threshold(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "server").mkdir()
+        result = nightshift.build_backend_escalation(
+            cycle=2,
+            config=self._base_config(threshold=3),
+            state=self._base_state(recent_paths=["components", "components"]),
+            repo_dir=tmp_path,
+        )
+        assert result == ""
+
+    def test_escalation_after_frontend_only_cycles(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "pages").mkdir()
+        (tmp_path / "server").mkdir()
+        (tmp_path / "api").mkdir()
+        result = nightshift.build_backend_escalation(
+            cycle=4,
+            config=self._base_config(threshold=3),
+            state=self._base_state(recent_paths=["components", "pages", "components"]),
+            repo_dir=tmp_path,
+        )
+        assert "backend" in result.lower()
+        assert "`server`" in result or "`api`" in result
+
+    def test_no_escalation_when_backend_visited(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "server").mkdir()
+        result = nightshift.build_backend_escalation(
+            cycle=4,
+            config=self._base_config(threshold=3),
+            state=self._base_state(recent_paths=["components", "server", "components"]),
+            repo_dir=tmp_path,
+        )
+        assert result == ""
+
+    def test_no_escalation_when_no_backend_dirs(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "pages").mkdir()
+        result = nightshift.build_backend_escalation(
+            cycle=4,
+            config=self._base_config(threshold=3),
+            state=self._base_state(recent_paths=["components", "pages", "components"]),
+            repo_dir=tmp_path,
+        )
+        assert result == ""
+
+    def test_no_escalation_when_not_enough_history(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "server").mkdir()
+        result = nightshift.build_backend_escalation(
+            cycle=4,
+            config=self._base_config(threshold=3),
+            state=self._base_state(recent_paths=["components"]),
+            repo_dir=tmp_path,
+        )
+        assert result == ""
+
+    def test_custom_threshold(self, tmp_path):
+        (tmp_path / "pages").mkdir()
+        (tmp_path / "server").mkdir()
+        result = nightshift.build_backend_escalation(
+            cycle=2,
+            config=self._base_config(threshold=2),
+            state=self._base_state(recent_paths=["pages", "pages"]),
+            repo_dir=tmp_path,
+        )
+        assert "backend" in result.lower()
+
+    def test_names_specific_dirs(self, tmp_path):
+        (tmp_path / "components").mkdir()
+        (tmp_path / "api").mkdir()
+        (tmp_path / "models").mkdir()
+        result = nightshift.build_backend_escalation(
+            cycle=4,
+            config=self._base_config(threshold=3),
+            state=self._base_state(recent_paths=["components", "components", "components"]),
+            repo_dir=tmp_path,
+        )
+        assert "`api`" in result
+        assert "`models`" in result
+
+
+# --- Backend Escalation in build_prompt --------------------------------------
+
+
+class TestBuildPromptBackendEscalation:
+    """Tests that build_prompt includes backend escalation when provided."""
+
+    def _base_args(self, backend_escalation=""):
+        return dict(
+            cycle=4,
+            is_final=False,
+            config={
+                "agent": "codex",
+                "max_fixes_per_cycle": 3,
+                "max_files_per_fix": 5,
+                "max_files_per_cycle": 12,
+                "max_low_impact_fixes_per_shift": 4,
+                "test_incentive_cycle": 3,
+            },
+            state={
+                "counters": {"low_impact_fixes": 0, "fixes": 3, "issues_logged": 0, "tests_written": 0},
+                "log_only_mode": False,
+                "recent_cycle_paths": ["components"],
+                "cycles": [
+                    {
+                        "cycle": 1,
+                        "status": "done",
+                        "fixes": [],
+                        "logged_issues": [],
+                        "verification": {
+                            "files_touched": ["components/Button.tsx"],
+                            "dominant_path": "components",
+                            "commits": ["abc1234"],
+                            "violations": [],
+                            "verify_command": None,
+                            "verify_status": "skipped",
+                            "verify_exit_code": None,
+                        },
+                    }
+                ],
+                "category_counts": {"Code Quality": 1},
+            },
+            shift_log_relative="docs/Nightshift/2026-04-03.md",
+            blocked_summary="- `.github/`",
+            hot_files=[],
+            prior_path_bias=["components"],
+            test_mode=False,
+            backend_escalation=backend_escalation,
+        )
+
+    def test_backend_block_included_when_escalation_provided(self):
+        msg = "The last 3 cycles all targeted frontend code. Focus on backend: `server`, `api`."
+        prompt = nightshift.build_prompt(**self._base_args(backend_escalation=msg))
+        assert "Backend exploration directive" in prompt
+        assert "server" in prompt
+
+    def test_no_backend_block_when_empty(self):
+        prompt = nightshift.build_prompt(**self._base_args(backend_escalation=""))
+        assert "Backend exploration directive" not in prompt
+
+    def test_backend_block_coexists_with_test_escalation(self):
+        args = self._base_args(backend_escalation="Focus on backend dirs: `server`.")
+        args["state"]["counters"]["tests_written"] = 0
+        prompt = nightshift.build_prompt(**args)
+        assert "Backend exploration directive" in prompt
+        assert "Test writing directive" in prompt
 
 
 # --- Discover Base Branch ----------------------------------------------------

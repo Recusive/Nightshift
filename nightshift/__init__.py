@@ -16,9 +16,13 @@ from nightshift.config import (
     resolve_agent,
 )
 from nightshift.constants import (
+    BACKEND_DIR_NAMES,
+    BACKEND_EXTENSIONS,
     CATEGORY_ORDER,
     DATA_VERSION,
     DEFAULT_CONFIG,
+    FRONTEND_DIR_NAMES,
+    FRONTEND_EXTENSIONS,
     SAFE_ARTIFACT_DIRS,
     SAFE_ARTIFACT_GLOBS,
     SHIFT_LOG_TEMPLATE,
@@ -28,9 +32,11 @@ from nightshift.constants import (
 )
 from nightshift.cycle import (
     blocked_file,
+    build_backend_escalation,
     build_prompt,
     build_state_summary,
     build_test_escalation,
+    classify_repo_dirs,
     command_for_agent,
     evaluate_baseline,
     extract_json,
@@ -81,9 +87,13 @@ from nightshift.worktree import (
 
 __all__ = [
     # constants
+    "BACKEND_DIR_NAMES",
+    "BACKEND_EXTENSIONS",
     "CATEGORY_ORDER",
     "DATA_VERSION",
     "DEFAULT_CONFIG",
+    "FRONTEND_DIR_NAMES",
+    "FRONTEND_EXTENSIONS",
     "SAFE_ARTIFACT_DIRS",
     "SAFE_ARTIFACT_GLOBS",
     "SHIFT_LOG_TEMPLATE",
@@ -106,10 +116,12 @@ __all__ = [
     # cycle
     "blocked_file",
     # cli
+    "build_backend_escalation",
     "build_parser",
     "build_prompt",
     "build_state_summary",
     "build_test_escalation",
+    "classify_repo_dirs",
     # worktree
     "cleanup_safe_artifacts",
     # shell

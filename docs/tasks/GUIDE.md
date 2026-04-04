@@ -1,18 +1,29 @@
-# How to Write a Task
+# How to Create Tasks
 
-Read this when you need to create a task file — either because the human asked you to add one, or because you're splitting a large task into follow-ups.
+This is the shared task queue. Both the agent and the human create tasks here. In practice, the agent creates most tasks — after finishing one task, it creates follow-ups for what comes next. The human drops in tasks occasionally when they want something specific built.
 
-## Step 1: Find the next number
+## Check the queue
+
+```bash
+for f in docs/tasks/0*.md; do
+  num=$(basename "$f" .md)
+  st=$(grep "^status:" "$f" | head -1 | sed 's/status: //')
+  title=$(grep "^# " "$f" | head -1 | sed 's/# //')
+  printf "  %s  %-12s  %s\n" "$num" "[$st]" "$title"
+done
+```
+
+## Find the next number
 
 ```bash
 ls docs/tasks/[0-9]*.md | tail -1
 ```
 
-Take that number, add 1, zero-pad to 4 digits. If the last file is `0007.md`, yours is `0008.md`.
+Add 1, zero-pad to 4 digits.
 
-## Step 2: Create the file
+## Create the file
 
-Path: `docs/tasks/NNNN.md`
+`docs/tasks/NNNN.md`:
 
 ```markdown
 ---
@@ -23,100 +34,76 @@ created: YYYY-MM-DD
 completed:
 ---
 
-# Short title (what to build, not how)
+# Short title
 
-Description of what the human wants. Include enough context that an agent
-reading this in a future session — with no memory of this conversation —
-knows exactly what to build.
+What to build and why.
 
 ## Acceptance Criteria
 - [ ] Criterion 1
 - [ ] Criterion 2
 ```
 
-## Step 3: Set the right fields
+## Fields
 
-**status** — always `pending` for new tasks.
+**status**: `pending` | `in-progress` | `done` | `blocked`
 
-**priority:**
-| Value | When to use |
-|-------|------------|
-| `urgent` | Human said "do this NOW" or "before anything else." Gets picked up before all other pending tasks regardless of number. |
-| `normal` | Default. Picked up in number order. |
-| `low` | Nice-to-have. Only picked up when no normal/urgent tasks are pending. |
+**priority**: `urgent` (jumps queue) | `normal` (number order) | `low` (only if nothing else pending)
 
-**target** — which version this belongs to. Check `docs/ops/OPERATIONS.md` version milestones to find the right one. If unsure, use the current in-progress version.
+**target**: version from `docs/ops/OPERATIONS.md` milestones. Current in-progress if unsure.
 
-**created** — today's date.
+## When the agent finishes a task
 
-**completed** — leave blank. The agent fills this when done.
+The agent does TWO things:
+1. Marks the current task `done` with `completed` date
+2. Creates the NEXT task(s) based on what it learned — the vision tracker, the roadmap, or what it discovered while building
 
-## Step 4: Write the description
+This is how the queue stays alive. The agent always leaves work for the next session.
 
-Good task descriptions answer: **what** to build and **why** it matters. The agent figures out **how** by reading the code.
+Example flow:
+```
+Session reads 0004 (Phractal test) -> builds it -> marks done
+  -> creates 0009 (fix monorepo detection based on what it learned)
+  -> creates 0010 (run second Phractal shift with fixes)
+  -> handoff says "Tasks: #0006, #0009, #0010"
+```
 
-**Good:**
+## When the human adds a task
+
+Same process, simpler. Create the file, set `pending`. That's it. If it should jump the queue, set `priority: urgent`.
+
+## Writing good descriptions
+
+The agent has full repo context — it reads CLAUDE.md, vision docs, and code. You just need to say WHAT, not HOW.
+
+**Brief is fine if vision docs have the detail:**
+```
+# Build backend exploration forcing
+
+See docs/vision/01-loop1-hardening.md item #4 for full spec.
+```
+
+**More detail when it's a new idea not in the vision docs:**
 ```
 # Add session timeout to the daemon
 
-The daemon runs forever with no timeout per session. If a session hangs
-(agent stuck in a loop, waiting for input that never comes), it blocks
-the entire daemon. Add a --session-timeout flag (default: 30 minutes)
-that kills the session if it exceeds the limit.
+If a session hangs, it blocks the daemon forever. Add a --session-timeout
+flag (default: 30 min) that kills hung sessions.
+
+## Acceptance Criteria
+- [ ] Flag works
+- [ ] Killed sessions log "timeout" in the session index
 ```
-
-**Bad:**
-```
-# Fix the timeout thing
-
-Make it work better.
-```
-
-**Acceptance criteria** are optional but strongly recommended. They tell the agent when the task is DONE — not "I think it works" but "these specific things are true."
-
-## Step 5: Where to put it relative to other tasks
-
-The agent picks the **lowest-numbered pending task** (unless something is `urgent`). So:
-
-- If your task should happen NEXT: give it a number right after the last done task.
-- If your task should happen AFTER existing pending tasks: give it the next number after the last file.
-- If your task should jump the queue: set `priority: urgent`.
-
-Example:
-```
-0001.md  status: done
-0002.md  status: done
-0003.md  status: done
-0004.md  status: pending   ← agent picks this up next
-0005.md  status: pending
-0006.md  status: pending
-0007.md  status: pending
-```
-
-If you want something done before 0004, you have two options:
-1. Set your new task to `priority: urgent` (it jumps ahead of all normal tasks)
-2. Renumber — but this is messy, so prefer option 1
-
-## Step 6: What happens after you create it
-
-Nothing else. The file exists, that's it. The next daemon cycle (or manual session):
-1. Reads `docs/tasks/`
-2. Finds your file as the lowest pending
-3. Sets it to `in-progress`
-4. Builds it
-5. Sets it to `done`
-6. Writes a handoff pointing to the next pending tasks
 
 ## Special cases
 
-**Task is too big for one session:**
-The agent marks it `done` with a note in the description ("Completed phase 1, see follow-up tasks"), then creates new task files for the remaining phases.
+**Task too big**: Mark done with a note, create follow-up tasks.
 
-**Task is blocked:**
-Set `status: blocked`. Add a note at the top of the description saying what it's blocked on. The agent skips blocked tasks and picks the next pending one.
+**Task blocked**: Set `status: blocked`, note what it's waiting on. Agent skips to next pending.
 
-**Task turns out to be unnecessary:**
-Set `status: done` with a note: "Skipped — no longer needed because X." Don't delete the file.
+**Task unnecessary**: Set `status: done` with note "Skipped — reason."
 
-**Human wants to cancel a task:**
-Set `status: done` with a note: "Cancelled by human." Don't delete the file.
+**Task cancelled**: Set `status: done` with note "Cancelled."
+
+**Work done without a task**: Create a retroactive task with `status: done`. Keeps history complete.
+
+**Never delete task files.** They are the project history.
