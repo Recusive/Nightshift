@@ -182,6 +182,15 @@ If no `--agent` flag is passed and `.nightshift.json` doesn't set one, the runne
 ~/.codex/skills/nightshift/scripts/test.sh --agent codex --cycles 2 --cycle-minutes 5
 ```
 
+### Multi-repo run
+
+```bash
+python3 -m nightshift multi /path/to/repo1 /path/to/repo2 --agent codex
+python3 -m nightshift multi /path/to/repo1 /path/to/repo2 --agent codex --test --cycles 2
+```
+
+Runs a full hardening shift on each repo sequentially. Validates all repos upfront, prints an aggregate summary at the end.
+
 ### Direct orchestrator usage
 
 ```bash
@@ -189,6 +198,7 @@ python3 -m nightshift run
 python3 -m nightshift run --agent codex
 python3 -m nightshift run --agent claude
 python3 -m nightshift test
+python3 -m nightshift multi /path/to/repo1 /path/to/repo2 --agent codex
 python3 -m nightshift summarize
 ```
 

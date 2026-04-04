@@ -98,13 +98,15 @@ These are ordered by impact. Build them in this order unless you have a strong r
 
 **Implemented**: `classify_repo_dirs()` classifies top-level dirs via name matching + extension sampling. `build_backend_escalation()` injects a "Backend exploration directive" after `backend_forcing_cycle` (default 3) consecutive frontend-only cycles. Classification data in `constants.py` (`FRONTEND_DIR_NAMES`, `BACKEND_DIR_NAMES`, `FRONTEND_EXTENSIONS`, `BACKEND_EXTENSIONS`).
 
-### 5. Multi-Repo Support
+### 5. Multi-Repo Support (DONE)
 
 **Problem**: Currently runs on one repo at a time.
 
 **Solution**: Accept a list of repo paths. Create worktrees in each. Cycle between repos (not just cycles within one repo). Shared state tracks which repos got attention.
 
 **Where it goes**: New `multi` subcommand in `cli.py`, state extension in `state.py`.
+
+**Implemented**: `nightshift/multi.py` with `run_multi_shift()`, `validate_repos()`, `format_multi_summary()`. New `multi` CLI subcommand accepts multiple repo paths, runs sequential shifts, prints aggregate summary. `RepoShiftResult` TypedDict tracks per-repo outcomes. Future enhancement: interleaved cycles across repos.
 
 ### 6. Deep Merge for Config
 

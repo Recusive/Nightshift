@@ -52,6 +52,11 @@ from nightshift.cycle import (
     verify_cycle,
 )
 from nightshift.errors import NightshiftError
+from nightshift.multi import (
+    format_multi_summary,
+    run_multi_shift,
+    validate_repos,
+)
 from nightshift.scoring import score_diff
 from nightshift.shell import (
     command_exists,
@@ -77,6 +82,7 @@ from nightshift.types import (
     Fix,
     LoggedIssue,
     NightshiftConfig,
+    RepoShiftResult,
     ShiftState,
 )
 from nightshift.worktree import (
@@ -118,6 +124,7 @@ __all__ = [
     "LoggedIssue",
     "NightshiftConfig",
     "NightshiftError",
+    "RepoShiftResult",
     "ShiftState",
     "append_cycle_state",
     "blocked_file",
@@ -140,6 +147,7 @@ __all__ = [
     "extract_json",
     "forbidden_cycle_commands",
     "forbidden_reported_commands",
+    "format_multi_summary",
     "git",
     "git_changed_files_for_commit",
     "git_name_status_for_commit",
@@ -161,6 +169,7 @@ __all__ = [
     "revert_cycle",
     "run_capture",
     "run_command",
+    "run_multi_shift",
     "run_nightshift",
     "run_shell_string",
     "score_diff",
@@ -168,6 +177,7 @@ __all__ = [
     "sync_shift_log",
     "top_path",
     "validate_repo_checkout",
+    "validate_repos",
     "validate_worktree",
     "verify_cycle",
     "verify_cycle_cli",
