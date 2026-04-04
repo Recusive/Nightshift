@@ -35,6 +35,7 @@ from nightshift.constants import (
 from nightshift.cycle import (
     blocked_file,
     build_backend_escalation,
+    build_category_balancing,
     build_prompt,
     build_state_summary,
     build_test_escalation,
@@ -121,6 +122,7 @@ __all__ = [
     "append_cycle_state",
     "blocked_file",
     "build_backend_escalation",
+    "build_category_balancing",
     "build_parser",
     "build_prompt",
     "build_state_summary",

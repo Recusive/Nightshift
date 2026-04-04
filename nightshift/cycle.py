@@ -122,6 +122,48 @@ def build_test_escalation(
     )
 
 
+def build_category_balancing(
+    *,
+    cycle: int,
+    config: NightshiftConfig,
+    state: ShiftState,
+) -> str:
+    """Return a category-balancing directive if fix categories are lopsided.
+
+    Steers the agent toward the highest-priority unexplored category
+    from CATEGORY_ORDER. Returns an empty string when balancing is not
+    needed or the cycle threshold has not been reached.
+    """
+    threshold = config["category_balancing_cycle"]
+    if cycle < threshold:
+        return ""
+
+    category_counts = state["category_counts"]
+    total_fixes = state["counters"]["fixes"]
+
+    # Need at least 2 fixes before we can detect imbalance
+    if total_fixes < 2:
+        return ""
+
+    # Find categories from CATEGORY_ORDER with zero fixes
+    explored = set(category_counts.keys())
+    unexplored = [cat for cat in CATEGORY_ORDER if cat not in explored]
+
+    if not unexplored:
+        return ""
+
+    target = unexplored[0]
+    parts = [
+        f"Category imbalance detected: {len(unexplored)} of {len(CATEGORY_ORDER)} categories have no fixes yet.",
+        f"Focus this cycle on {target} issues.",
+    ]
+    others = unexplored[1:3]
+    if others:
+        parts.append(f"Also underrepresented: {', '.join(others)}.")
+
+    return " ".join(parts)
+
+
 def _classify_dir(dir_path: Path) -> str:
     """Classify a single directory as 'frontend', 'backend', or 'unknown'.
 
@@ -287,6 +329,7 @@ def build_prompt(
     focus_hints: list[str],
     test_mode: bool,
     backend_escalation: str = "",
+    category_balancing: str = "",
 ) -> str:
     hot_files_lines = "\n".join(f"- `{entry}`" for entry in hot_files[:10]) or "- None"
     prior_paths = "\n".join(f"- `{entry}`" for entry in prior_path_bias[-2:]) or "- None"
@@ -310,6 +353,10 @@ def build_prompt(
     if backend_escalation:
         indented_backend = textwrap.indent(backend_escalation, "        ")
         backend_block = f"\n        Backend exploration directive:\n{indented_backend}\n"
+    category_block = ""
+    if category_balancing:
+        indented_category = textwrap.indent(category_balancing, "        ")
+        category_block = f"\n        Category balancing directive:\n{indented_category}\n"
     return textwrap.dedent(
         f"""
         You are Nightshift running inside an isolated git worktree. Do not create a worktree, do not switch branches, and do not touch the user's original checkout.
@@ -323,7 +370,7 @@ def build_prompt(
         - Final cycle: {"yes" if is_final else "no"}
         - Agent: {config["agent"]}
         - Log-only mode: {"yes" if log_only else "no"}
-{state_block}{test_block}{backend_block}
+{state_block}{test_block}{backend_block}{category_block}
         Hard limits enforced by the runner:
         - At most {config["max_fixes_per_cycle"]} fixes this cycle.
         - At most {config["max_files_per_fix"]} files per fix.

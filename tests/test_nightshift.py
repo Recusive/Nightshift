@@ -55,6 +55,7 @@ class TestConstants:
             "score_threshold",
             "test_incentive_cycle",
             "backend_forcing_cycle",
+            "category_balancing_cycle",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -2189,6 +2190,175 @@ class TestBuildPromptBackendEscalation:
         args = self._base_args(backend_escalation="Focus on backend dirs: `server`.")
         args["state"]["counters"]["tests_written"] = 0
         prompt = nightshift.build_prompt(**args)
+        assert "Backend exploration directive" in prompt
+        assert "Test writing directive" in prompt
+
+
+# --- Category Balancing Logic ------------------------------------------------
+
+
+class TestBuildCategoryBalancing:
+    """Tests for build_category_balancing() steering directive."""
+
+    def _base_config(self, threshold=3):
+        return {"category_balancing_cycle": threshold}
+
+    def _base_state(self, category_counts=None, fixes=0):
+        return {
+            "category_counts": category_counts or {},
+            "counters": {"fixes": fixes},
+        }
+
+    def test_no_balancing_before_threshold(self):
+        result = nightshift.build_category_balancing(
+            cycle=2,
+            config=self._base_config(),
+            state=self._base_state(category_counts={"Security": 2}, fixes=2),
+        )
+        assert result == ""
+
+    def test_no_balancing_with_fewer_than_two_fixes(self):
+        result = nightshift.build_category_balancing(
+            cycle=4,
+            config=self._base_config(),
+            state=self._base_state(category_counts={"Security": 1}, fixes=1),
+        )
+        assert result == ""
+
+    def test_balancing_at_threshold_with_imbalance(self):
+        result = nightshift.build_category_balancing(
+            cycle=3,
+            config=self._base_config(),
+            state=self._base_state(category_counts={"Security": 2}, fixes=2),
+        )
+        assert "Category imbalance" in result
+        assert "Error Handling" in result  # highest-priority unexplored
+
+    def test_targets_highest_priority_unexplored(self):
+        # Security explored, Error Handling should be next
+        result = nightshift.build_category_balancing(
+            cycle=4,
+            config=self._base_config(),
+            state=self._base_state(
+                category_counts={"Security": 1, "Tests": 1},
+                fixes=2,
+            ),
+        )
+        assert "Focus this cycle on Error Handling" in result
+
+    def test_no_balancing_when_all_categories_explored(self):
+        all_cats = dict.fromkeys(nightshift.CATEGORY_ORDER, 1)
+        result = nightshift.build_category_balancing(
+            cycle=5,
+            config=self._base_config(),
+            state=self._base_state(category_counts=all_cats, fixes=7),
+        )
+        assert result == ""
+
+    def test_mentions_additional_underrepresented(self):
+        result = nightshift.build_category_balancing(
+            cycle=4,
+            config=self._base_config(),
+            state=self._base_state(category_counts={"Security": 3}, fixes=3),
+        )
+        assert "Also underrepresented" in result
+        assert "Error Handling" in result
+        assert "Tests" in result
+
+    def test_custom_threshold(self):
+        config = self._base_config(threshold=5)
+        result = nightshift.build_category_balancing(
+            cycle=4,
+            config=config,
+            state=self._base_state(category_counts={"Security": 2}, fixes=2),
+        )
+        assert result == ""
+        result = nightshift.build_category_balancing(
+            cycle=5,
+            config=config,
+            state=self._base_state(category_counts={"Security": 2}, fixes=2),
+        )
+        assert "Category imbalance" in result
+
+    def test_counts_unexplored_correctly(self):
+        result = nightshift.build_category_balancing(
+            cycle=3,
+            config=self._base_config(),
+            state=self._base_state(
+                category_counts={"Security": 1, "Error Handling": 1, "Tests": 1},
+                fixes=3,
+            ),
+        )
+        # 4 unexplored: A11y, Code Quality, Performance, Polish
+        assert "4 of 7" in result
+        assert "Focus this cycle on A11y" in result
+
+
+# --- Category Balancing in build_prompt --------------------------------------
+
+
+class TestBuildPromptCategoryBalancing:
+    """Tests that build_prompt includes category balancing when provided."""
+
+    def _base_args(self, category_balancing=""):
+        return dict(
+            cycle=4,
+            is_final=False,
+            config={
+                "agent": "codex",
+                "max_fixes_per_cycle": 3,
+                "max_files_per_fix": 5,
+                "max_files_per_cycle": 12,
+                "max_low_impact_fixes_per_shift": 4,
+                "test_incentive_cycle": 3,
+            },
+            state={
+                "counters": {"low_impact_fixes": 0, "fixes": 3, "issues_logged": 0, "tests_written": 0},
+                "log_only_mode": False,
+                "recent_cycle_paths": ["src"],
+                "cycles": [
+                    {
+                        "cycle": 1,
+                        "status": "done",
+                        "fixes": [],
+                        "logged_issues": [],
+                        "verification": {
+                            "files_touched": ["src/auth.py"],
+                            "dominant_path": "src",
+                            "commits": ["abc1234"],
+                            "violations": [],
+                            "verify_command": None,
+                            "verify_status": "skipped",
+                            "verify_exit_code": None,
+                        },
+                    }
+                ],
+                "category_counts": {"Security": 2},
+            },
+            shift_log_relative="docs/Nightshift/2026-04-03.md",
+            blocked_summary="- `.github/`",
+            hot_files=[],
+            prior_path_bias=["src"],
+            focus_hints=[],
+            test_mode=False,
+            category_balancing=category_balancing,
+        )
+
+    def test_category_block_included_when_balancing_provided(self):
+        msg = "Category imbalance detected: 6 of 7 categories have no fixes yet. Focus this cycle on Error Handling issues."
+        prompt = nightshift.build_prompt(**self._base_args(category_balancing=msg))
+        assert "Category balancing directive" in prompt
+        assert "Error Handling" in prompt
+
+    def test_no_category_block_when_empty(self):
+        prompt = nightshift.build_prompt(**self._base_args(category_balancing=""))
+        assert "Category balancing directive" not in prompt
+
+    def test_category_block_coexists_with_other_escalations(self):
+        args = self._base_args(category_balancing="Focus on A11y issues.")
+        args["backend_escalation"] = "Focus on backend dirs."
+        prompt = nightshift.build_prompt(**args)
+        assert "Category balancing directive" in prompt
         assert "Backend exploration directive" in prompt
         assert "Test writing directive" in prompt
 
