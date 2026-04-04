@@ -13,7 +13,7 @@
 # ──────────────────────────────────────────────
 
 # Configurable models -- override via environment
-CLAUDE_MODEL="${NIGHTSHIFT_CLAUDE_MODEL:-opus}"
+CLAUDE_MODEL="${NIGHTSHIFT_CLAUDE_MODEL:-claude-opus-4-6}"
 CODEX_MODEL="${NIGHTSHIFT_CODEX_MODEL:-gpt-5.4}"
 CODEX_THINKING="${NIGHTSHIFT_CODEX_THINKING:-extra_high}"
 
@@ -51,6 +51,7 @@ run_agent() {
             claude -p "$prompt" \
                 --max-turns "$max_turns" \
                 --model "$CLAUDE_MODEL" \
+                --effort max \
                 --output-format stream-json \
                 --verbose \
                 2>&1 | tee "$log_file"
