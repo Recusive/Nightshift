@@ -1395,6 +1395,32 @@ class TestForbiddenCycleCommands:
         result = nightshift.forbidden_cycle_commands(raw_output)
         assert result == ["npm run lint"]
 
+    def test_detects_bash_c_wrapper(self) -> None:
+        raw_output = json.dumps(
+            {
+                "type": "item.started",
+                "item": {
+                    "type": "command_execution",
+                    "command": 'bash -c "npm run build"',
+                },
+            }
+        )
+        result = nightshift.forbidden_cycle_commands(raw_output)
+        assert result == ["npm run build"]
+
+    def test_detects_sh_c_wrapper(self) -> None:
+        raw_output = json.dumps(
+            {
+                "type": "item.started",
+                "item": {
+                    "type": "command_execution",
+                    "command": "sh -c 'npm test'",
+                },
+            }
+        )
+        result = nightshift.forbidden_cycle_commands(raw_output)
+        assert result == ["npm test"]
+
 
 class TestForbiddenReportedCommands:
     def test_detects_forbidden_commands_from_structured_tests_run(self) -> None:

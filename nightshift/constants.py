@@ -98,6 +98,7 @@ FORBIDDEN_CYCLE_COMMANDS = [
 ]
 
 HIGH_SIGNAL_PATH_CANDIDATES = [
+    # JS/TS
     "src/lib/auth",
     "src/lib/http.ts",
     "src/app/api",
@@ -107,6 +108,22 @@ HIGH_SIGNAL_PATH_CANDIDATES = [
     "lib/auth",
     "lib/http.ts",
     "app/api",
+    # Python
+    "app/models",
+    "app/auth",
+    "app/api",
+    "src/auth",
+    "src/api",
+    # Go
+    "internal/auth",
+    "internal/api",
+    "pkg/api",
+    "cmd",
+    # Rust
+    "src/main.rs",
+    "src/lib.rs",
+    "src/api",
+    # Generic
     "server",
     "api",
     "backend",
