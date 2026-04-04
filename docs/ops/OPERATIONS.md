@@ -400,17 +400,19 @@ The file Claude Code always loads at session start. Contains project description
 | `scripts/install.sh` | Downloads entire package to `~/.codex/skills/nightshift/` and `~/.claude/skills/nightshift/` |
 | `scripts/daemon.sh` | Builder daemon. Loops forever, picks up tasks, ships features. |
 | `scripts/daemon-review.sh` | Reviewer daemon. Loops forever, reviews code file by file, fixes quality. |
+| `scripts/daemon-overseer.sh` | Overseer daemon. Loops forever, audits task queue, fixes priorities, cleans duplicates, catches direction problems. |
 | `scripts/daemon-strategist.sh` | Strategist. Runs once, reviews big picture, advises human. |
 | `scripts/validate-docs.sh` | Doc consistency validator. Checks test counts, module registration, tracker percentages, path references. Fails if anything drifts. |
 | `scripts/smoke-test.sh` | End-to-end test against a real repo (default: Phractal). Proves the system works, not just unit tests. |
 | `scripts/context-map.sh` | Generates a slim context file with module sizes, function signatures, dependency graph, test counts. Saves tokens. |
 | `scripts/rollback.sh` | Reverts a merged PR cleanly. Creates revert branch + PR. |
 
-### Three Daemons
+### Four Daemons
 
 ```bash
 make daemon       # Builder: loops, picks up tasks, ships features
 make review       # Reviewer: loops, reviews code file by file, fixes quality
+make overseer     # Overseer: loops, audits tasks, fixes priorities, cleans duplicates
 make strategist   # Strategist: runs once, reviews big picture, advises human
 ```
 

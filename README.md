@@ -99,9 +99,13 @@ Main repo checkout                 Nightshift worktree
 
 | File | Purpose |
 |------|---------|
-| `scripts/daemon.sh` | Self-improving daemon (see [Daemon](#daemon)) |
+| `scripts/daemon.sh` | Builder daemon — loops, builds features, ships code |
+| `scripts/daemon-review.sh` | Reviewer daemon — loops, reviews code quality |
+| `scripts/daemon-overseer.sh` | Overseer daemon — loops, audits tasks, fixes priorities |
+| `scripts/daemon-strategist.sh` | Strategist — runs once, big picture review for human |
 | `docs/prompt/evolve.md` | 11-step session lifecycle prompt |
 | `docs/prompt/evolve-auto.md` | Autonomous mode override |
+| `docs/prompt/overseer.md` | Overseer audit process |
 | `docs/handoffs/` | Session-to-session memory |
 | `docs/learnings/` | Cross-session knowledge (gotchas, patterns) |
 | `docs/evaluations/` | Self-evaluation reports (scored against real repos) |
@@ -251,10 +255,19 @@ The shift log is for humans. The state file is for quick auditing:
 
 ## Daemon
 
-Nightshift can run itself autonomously in a loop, building features, fixing bugs, and shipping releases with zero human intervention.
+Nightshift has four daemons that run autonomously (one at a time, shared lockfile):
 
 ```bash
-# Start the self-improving daemon in tmux
+make daemon       # Builder — loops, builds features, ships code
+make review       # Reviewer — loops, reviews code quality file by file
+make overseer     # Overseer — loops, audits task queue, fixes priorities
+make strategist   # Strategist — runs once, big picture review for human
+```
+
+Run in tmux for production use:
+
+```bash
+# Start
 tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
 
 # Monitor

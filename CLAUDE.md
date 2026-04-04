@@ -25,14 +25,16 @@ make dry-run     # preview cycle prompt
 make clean       # remove runtime artifacts
 make daemon      # builder daemon (loops, ships features)
 make review      # reviewer daemon (loops, fixes code quality)
+make overseer    # overseer daemon (loops, audits tasks, fixes priorities)
 make strategist  # strategist (runs once, advises human)
 ```
 
 ## Daemons
 
-Three daemons, one runs at a time (shared lockfile). Full guide: `docs/ops/DAEMON.md`
+Four daemons, one runs at a time (shared lockfile). Full guide: `docs/ops/DAEMON.md`
 - **Builder** (`make daemon`): picks up tasks, builds features, PRs, merges
 - **Reviewer** (`make review`): reviews code file by file, fixes quality
+- **Overseer** (`make overseer`): audits task queue, fixes priorities, cleans duplicates, catches direction problems
 - **Strategist** (`make strategist`): runs once, reviews big picture, produces report for human
 
 ```bash

@@ -1,38 +1,40 @@
 # Daemon Operations Guide
 
-How to run, monitor, and manage the three Nightshift daemons. This is the complete reference for operating the autonomous system.
+How to run, monitor, and manage the four Nightshift daemons. This is the complete reference for operating the autonomous system.
 
 ---
 
-## The Three Daemons
+## The Four Daemons
 
-Nightshift has three daemons, each with a different role:
+Nightshift has four daemons, each with a different role:
 
 | Daemon | Script | Prompt | Loops? | Purpose |
 |--------|--------|--------|--------|---------|
 | **Builder** | `scripts/daemon.sh` | `evolve-auto.md` + `evolve.md` | Yes, forever | Picks up tasks, builds features, ships code |
 | **Reviewer** | `scripts/daemon-review.sh` | `review.md` | Yes, forever | Reviews code file by file, fixes quality issues |
+| **Overseer** | `scripts/daemon-overseer.sh` | `overseer.md` | Yes, forever | Audits task queue, fixes priorities, cleans duplicates, catches direction problems |
 | **Strategist** | `scripts/daemon-strategist.sh` | `strategist.md` | No, runs once | Reviews the big picture, advises human on what to change |
 
-All three share a lockfile (`.nightshift-daemon.lock`) so **only one can run at a time**. They'd conflict on git otherwise.
+All four share a lockfile (`.nightshift-daemon.lock`) so **only one can run at a time**. They'd conflict on git otherwise.
 
 ### Quick start
 
 ```bash
 make daemon       # Builder — loops, ships features
 make review       # Reviewer — loops, fixes code quality
+make overseer     # Overseer — loops, audits and fixes systemic issues
 make strategist   # Strategist — runs once, produces a report
 ```
 
 ### Typical workflow
 
 1. Run `make daemon` overnight — it builds features from the task queue
-2. In the morning, run `make strategist` — it reviews what happened and recommends changes
-3. You approve recommendations, they become tasks
+2. Run `make overseer` after a build run — it audits what was built, fixes task priorities, cleans duplicates, catches direction problems
+3. Run `make strategist` when you want a human-readable big picture review
 4. Run `make review` to harden what was built
 5. Run `make daemon` again to continue building
 
-Or run the builder during the day, the reviewer overnight.
+Or: builder during the day, overseer + reviewer overnight.
 
 ---
 
