@@ -394,7 +394,12 @@ def build_parser() -> argparse.ArgumentParser:
     multi_parser.add_argument("--cycle-minutes", type=int, default=8, help="Cycle duration in test mode")
     multi_parser.add_argument("hours", nargs="?", type=int, help="Override shift duration in hours")
     multi_parser.add_argument("--dry-run", action="store_true", help="Print first prompt for each repo and exit")
-    multi_parser.set_defaults(func=lambda a: run_multi_shift(a, test_mode=a.test))
+    multi_parser.set_defaults(
+        func=lambda a: run_multi_shift(
+            a,
+            runner=lambda repo_args: run_nightshift(repo_args, test_mode=a.test),
+        )
+    )
 
     return parser
 

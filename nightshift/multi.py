@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import copy
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from nightshift.constants import now_local, print_status
 from nightshift.errors import NightshiftError
@@ -70,19 +70,23 @@ def format_multi_summary(results: list[RepoShiftResult]) -> str:
     return "\n".join(lines)
 
 
+# Type alias for the runner function injected from cli.py.
+ShiftRunner = Callable[[argparse.Namespace], int]
+
+
 def run_multi_shift(
     args: argparse.Namespace,
     *,
-    test_mode: bool,
+    runner: ShiftRunner,
 ) -> int:
     """Run a hardening shift on each repo sequentially.
 
     For each repo, creates a fresh args namespace and delegates to
-    ``run_nightshift``. Results are collected from per-repo state files
-    and a combined summary is printed at the end.
+    *runner* (typically ``run_nightshift`` from ``cli.py``).  The runner
+    is injected to avoid a circular import between ``multi.py`` and
+    ``cli.py``.  Results are collected from per-repo state files and a
+    combined summary is printed at the end.
     """
-    from nightshift.cli import run_nightshift  # late import avoids circular dep
-
     repos = [Path(r).resolve() for r in args.repos]
     date = args.date or now_local().strftime("%Y-%m-%d")
 
@@ -97,7 +101,7 @@ def run_multi_shift(
         repo_args = copy.copy(args)
         repo_args.repo_dir = str(repo)
         try:
-            exit_code = run_nightshift(repo_args, test_mode=test_mode)
+            exit_code = runner(repo_args)
         except NightshiftError as error:
             print_status(f"Error on {repo.name}: {error}")
             exit_code = 1
