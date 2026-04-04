@@ -53,6 +53,7 @@ class TestConstants:
             "stop_after_failed_verifications",
             "stop_after_empty_cycles",
             "score_threshold",
+            "test_incentive_cycle",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -566,6 +567,7 @@ class TestAppendCycleState:
                 "failed_verifications": 0,
                 "empty_cycles": 0,
                 "agent_failures": 0,
+                "tests_written": 0,
             },
             "category_counts": {},
             "recent_cycle_paths": [],
@@ -1029,7 +1031,7 @@ class TestBuildPromptStateInjection:
                 "max_low_impact_fixes_per_shift": 4,
             },
             state={
-                "counters": {"low_impact_fixes": 0, "fixes": 1, "issues_logged": 0},
+                "counters": {"low_impact_fixes": 0, "fixes": 1, "issues_logged": 0, "tests_written": 0},
                 "log_only_mode": False,
                 "recent_cycle_paths": ["src"],
                 "cycles": [
@@ -1094,7 +1096,7 @@ class TestBuildPrompt:
                 "max_low_impact_fixes_per_shift": 4,
             },
             state={
-                "counters": {"low_impact_fixes": 0, "fixes": 0, "issues_logged": 0},
+                "counters": {"low_impact_fixes": 0, "fixes": 0, "issues_logged": 0, "tests_written": 0},
                 "log_only_mode": False,
                 "recent_cycle_paths": [],
                 "cycles": [],
@@ -1413,6 +1415,286 @@ class TestScoreDiff:
         )
         assert isinstance(result["score"], int)
         assert 1 <= result["score"] <= 10
+
+
+# --- Test File Detection (state._is_test_file via append_cycle_state) --------
+
+
+class TestTestsWrittenTracking:
+    """Tests that append_cycle_state tracks test files in tests_written counter."""
+
+    def _base_state(self):
+        return {
+            "counters": {
+                "fixes": 0,
+                "issues_logged": 0,
+                "files_touched": 0,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {},
+            "recent_cycle_paths": [],
+            "cycles": [],
+            "log_only_mode": False,
+        }
+
+    def test_python_test_file_increments_counter(self):
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [{"title": "add test", "category": "Tests", "impact": "medium", "files": ["test_auth.py"]}],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["test_auth.py"],
+            "dominant_path": "tests",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["counters"]["tests_written"] == 1
+
+    def test_js_spec_file_increments_counter(self):
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [{"title": "add spec", "category": "Tests", "impact": "medium", "files": ["auth.spec.ts"]}],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["auth.spec.ts"],
+            "dominant_path": "tests",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["counters"]["tests_written"] == 1
+
+    def test_non_test_file_does_not_increment(self):
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [{"title": "fix bug", "category": "Security", "impact": "high", "files": ["auth.py"]}],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["auth.py"],
+            "dominant_path": "src",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["counters"]["tests_written"] == 0
+
+    def test_multiple_test_files_counted(self):
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [
+                {"title": "add tests", "category": "Tests", "impact": "medium", "files": ["test_a.py", "test_b.py"]},
+            ],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["test_a.py", "test_b.py"],
+            "dominant_path": "tests",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["counters"]["tests_written"] == 2
+
+    def test_accumulates_across_cycles(self):
+        state = self._base_state()
+        for i in range(1, 3):
+            cycle_result = {
+                "fixes": [{"title": f"test {i}", "category": "Tests", "impact": "medium", "files": [f"test_{i}.py"]}],
+                "logged_issues": [],
+                "status": "completed",
+            }
+            verification = {
+                "commits": [f"abc{i}"],
+                "files_touched": [f"test_{i}.py"],
+                "dominant_path": "tests",
+            }
+            nightshift.append_cycle_state(
+                state=state,
+                cycle_number=i,
+                cycle_result=cycle_result,
+                verification=verification,
+            )
+        assert state["counters"]["tests_written"] == 2
+
+    def test_tsx_test_file_detected(self):
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [{"title": "add test", "category": "Tests", "impact": "medium", "files": ["Button.test.tsx"]}],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["src/components/Button.test.tsx"],
+            "dominant_path": "src",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["counters"]["tests_written"] == 1
+
+
+# --- Test Writing Escalation -------------------------------------------------
+
+
+class TestBuildTestEscalation:
+    """Tests for build_test_escalation prompt escalation logic."""
+
+    def _base_config(self):
+        return {"test_incentive_cycle": 3}
+
+    def _base_state(self, tests_written=0):
+        return {
+            "counters": {"tests_written": tests_written},
+        }
+
+    def test_no_escalation_before_threshold(self):
+        result = nightshift.build_test_escalation(
+            cycle=2,
+            config=self._base_config(),
+            state=self._base_state(),
+        )
+        assert result == ""
+
+    def test_escalation_at_threshold_with_no_tests(self):
+        result = nightshift.build_test_escalation(
+            cycle=3,
+            config=self._base_config(),
+            state=self._base_state(),
+        )
+        assert "MUST include a test file" in result
+
+    def test_escalation_after_threshold_with_no_tests(self):
+        result = nightshift.build_test_escalation(
+            cycle=5,
+            config=self._base_config(),
+            state=self._base_state(),
+        )
+        assert "MUST include a test file" in result
+
+    def test_no_escalation_when_tests_written(self):
+        result = nightshift.build_test_escalation(
+            cycle=5,
+            config=self._base_config(),
+            state=self._base_state(tests_written=2),
+        )
+        assert result == ""
+
+    def test_custom_threshold(self):
+        config = {"test_incentive_cycle": 5}
+        result = nightshift.build_test_escalation(
+            cycle=4,
+            config=config,
+            state=self._base_state(),
+        )
+        assert result == ""
+        result = nightshift.build_test_escalation(
+            cycle=5,
+            config=config,
+            state=self._base_state(),
+        )
+        assert "MUST include a test file" in result
+
+    def test_threshold_exactly_at_boundary(self):
+        result = nightshift.build_test_escalation(
+            cycle=3,
+            config=self._base_config(),
+            state=self._base_state(tests_written=1),
+        )
+        assert result == ""
+
+
+# --- Test Escalation in build_prompt -----------------------------------------
+
+
+class TestBuildPromptTestEscalation:
+    """Tests that build_prompt includes test escalation when appropriate."""
+
+    def _base_args(self, cycle=4, tests_written=0):
+        return dict(
+            cycle=cycle,
+            is_final=False,
+            config={
+                "agent": "codex",
+                "max_fixes_per_cycle": 3,
+                "max_files_per_fix": 5,
+                "max_files_per_cycle": 12,
+                "max_low_impact_fixes_per_shift": 4,
+                "test_incentive_cycle": 3,
+            },
+            state={
+                "counters": {"low_impact_fixes": 0, "fixes": 3, "issues_logged": 0, "tests_written": tests_written},
+                "log_only_mode": False,
+                "recent_cycle_paths": ["src"],
+                "cycles": [
+                    {
+                        "cycle": 1,
+                        "status": "done",
+                        "fixes": [],
+                        "logged_issues": [],
+                        "verification": {
+                            "files_touched": ["src/auth.py"],
+                            "dominant_path": "src",
+                            "commits": ["abc1234"],
+                            "violations": [],
+                            "verify_command": None,
+                            "verify_status": "skipped",
+                            "verify_exit_code": None,
+                        },
+                    }
+                ],
+                "category_counts": {"Security": 1},
+            },
+            shift_log_relative="docs/Nightshift/2026-04-03.md",
+            blocked_summary="- `.github/`",
+            hot_files=[],
+            prior_path_bias=["src"],
+            test_mode=False,
+        )
+
+    def test_escalation_included_after_threshold(self):
+        prompt = nightshift.build_prompt(**self._base_args(cycle=4, tests_written=0))
+        assert "Test writing directive" in prompt
+        assert "MUST include a test file" in prompt
+
+    def test_no_escalation_before_threshold(self):
+        prompt = nightshift.build_prompt(**self._base_args(cycle=2, tests_written=0))
+        assert "Test writing directive" not in prompt
+
+    def test_no_escalation_when_tests_written(self):
+        prompt = nightshift.build_prompt(**self._base_args(cycle=4, tests_written=2))
+        assert "Test writing directive" not in prompt
 
 
 # --- Discover Base Branch ----------------------------------------------------

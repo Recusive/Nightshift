@@ -72,7 +72,7 @@ These are ordered by impact. Build them in this order unless you have a strong r
 
 **Where it goes**: Extend `build_prompt()` in `cycle.py` to read from the state dict and generate this summary.
 
-### 3. Test Writing Incentives
+### 3. Test Writing Incentives (DONE)
 
 **Problem**: Agents rarely write tests despite it being priority #3. They prefer quick single-file fixes.
 
@@ -82,6 +82,8 @@ These are ordered by impact. Build them in this order unless you have a strong r
 - Give test-writing cycles a higher diff score automatically
 
 **Where it goes**: Counter in `state.py`, prompt logic in `cycle.py`.
+
+**Implemented**: `_is_test_file()` in `state.py`, `build_test_escalation()` in `cycle.py`, test bonus +2 in `scoring.py`. Config: `test_incentive_cycle` (default 3).
 
 ### 4. Backend Exploration Forcing
 

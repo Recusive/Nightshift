@@ -52,6 +52,7 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "stop_after_failed_verifications": 2,
     "stop_after_empty_cycles": 2,
     "score_threshold": 3,
+    "test_incentive_cycle": 3,
 }
 
 # --- Diff scoring data -------------------------------------------------------
