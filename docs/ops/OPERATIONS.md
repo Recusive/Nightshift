@@ -10,27 +10,33 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 
 ```
 Nightshift/
-├── nightshift/                  ← THE PRODUCT (Python package)
-├── tests/                       ← TEST SUITE
+├── nightshift/                  ← THE PRODUCT (Python package, 18 modules)
+├── tests/                       ← TEST SUITE (482 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
+│   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)
+│   ├── evaluations/             ← SELF-EVALUATION REPORTS (scored against real repos)
+│   ├── sessions/                ← DAEMON SESSION LOGS (stream-json + index)
+│   ├── tasks/                   ← TASK QUEUE (pending/done/blocked)
 │   ├── vision/                  ← LONG-TERM DIRECTION (where we're going)
 │   ├── vision-tracker/          ← SCOREBOARD (progress bars)
 │   ├── changelog/               ← HISTORY (per-version release notes)
 │   ├── prompt/                  ← THE SELF-IMPROVING PROMPT + FEEDBACK
-│   ├── ops/                     ← THIS FILE (how everything works)
+│   ├── ops/                     ← OPERATIONS GUIDES (this file + daemon guide + checklist)
 │   ├── context/                 ← LEGACY CONTEXT (architecture decisions from early builds)
 │   └── Nightshift/              ← RUNTIME ARTIFACTS (shift logs, state files, worktrees)
+├── scripts/
+│   ├── daemon.sh                ← SELF-IMPROVING DAEMON (see docs/ops/DAEMON.md)
+│   ├── run.sh / test.sh         ← THIN SHELL WRAPPERS
+│   ├── install.sh               ← ONE-LINER INSTALLER
+│   └── check.sh                 ← LOCAL CI SCRIPT
 ├── CLAUDE.md                    ← AGENT INSTRUCTIONS (always loaded)
 ├── nightshift/SKILL.md          ← THE HARDENING SKILL PROMPT
 ├── nightshift.schema.json       ← STRUCTURED OUTPUT SCHEMA
 ├── .nightshift.json.example     ← PER-REPO CONFIG TEMPLATE
 ├── .nightshift.json             ← THIS REPO'S CONFIG (verify command override)
-├── scripts/run.sh / scripts/test.sh  ← THIN SHELL WRAPPERS
-├── scripts/install.sh           ← ONE-LINER INSTALLER
 ├── pyproject.toml               ← PROJECT CONFIG (mypy, ruff, pytest)
 ├── requirements-dev.txt         ← PINNED DEV TOOL VERSIONS
-├── scripts/check.sh             ← LOCAL CI SCRIPT
 └── .github/workflows/ci.yml     ← CI PIPELINE
 ```
 

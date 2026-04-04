@@ -23,6 +23,25 @@ make test        # run tests
 make check       # full CI locally
 make dry-run     # preview cycle prompt
 make clean       # remove runtime artifacts
+make daemon      # run the self-improving daemon (see docs/ops/DAEMON.md)
+```
+
+## Daemon
+
+The daemon runs autonomous sessions in a loop. Full guide: `docs/ops/DAEMON.md`
+
+```bash
+# Start in tmux (recommended)
+tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+
+# Monitor
+tmux capture-pane -t nightshift -p -S -15   # daemon wrapper output
+cat docs/sessions/index.md                   # session history
+gh pr list --state all --limit 5             # recent PRs
+
+# Stop
+tmux send-keys -t nightshift C-c            # graceful (after current session)
+tmux kill-session -t nightshift             # immediate
 ```
 
 ## Git Workflow

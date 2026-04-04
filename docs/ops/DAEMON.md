@@ -1,0 +1,378 @@
+# Daemon Operations Guide
+
+How to run, monitor, and manage the Nightshift self-improving daemon. This is the complete reference for operating the autonomous loop.
+
+---
+
+## What the Daemon Does
+
+The daemon (`scripts/daemon.sh`) runs an infinite loop of autonomous Claude sessions. Each session:
+
+1. Pulls latest main
+2. Checks for open PRs from previous sessions (recovers partial work)
+3. Spawns `claude -p` with the evolve prompt + autonomous override
+4. The agent reads the handoff, picks the highest priority task, builds it, tests it, reviews it, documents it, pushes a PR, merges it
+5. Writes a handoff for the next session
+6. Logs everything to `docs/sessions/`
+7. Pauses, then starts the next session
+
+Each session is a fresh Claude instance with no memory of previous sessions. The handoff system is the memory.
+
+---
+
+## Starting the Daemon
+
+### Quick start (run in foreground)
+
+```bash
+./scripts/daemon.sh              # claude agent, 60s pause, unlimited sessions
+./scripts/daemon.sh codex        # codex agent
+./scripts/daemon.sh claude 120   # 120s pause between sessions
+./scripts/daemon.sh claude 60 5  # stop after 5 sessions
+```
+
+### Production start (tmux — recommended)
+
+Always run the daemon in tmux so it survives terminal disconnects and can be monitored from any session.
+
+```bash
+# Start the daemon in a detached tmux session
+tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+
+# Verify it's running
+tmux capture-pane -t nightshift -p -S -15
+```
+
+You should see:
+
+```
+Lock acquired. PID XXXXX.
+
+==================================================
+  NIGHTSHIFT DAEMON
+  Agent:       claude
+  Pause:       60s between sessions
+  Max sessions: unlimited
+  Circuit:     stops after 3 consecutive failures
+  Logs:        /path/to/docs/sessions
+  Stop:        Ctrl+C
+==================================================
+
+-- Session 1 --- HH:MM --- YYYYMMDD-HHMMSS --
+```
+
+### With a session limit
+
+```bash
+# Run 10 sessions then stop (good for overnight runs with a budget)
+tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60 10"
+```
+
+### Using make
+
+```bash
+make daemon   # shortcut for ./scripts/daemon.sh (foreground)
+```
+
+---
+
+## Monitoring the Daemon
+
+### From a Claude Code session (agent-as-monitor)
+
+This is how you supervise the daemon from another Claude session. Tell Claude to monitor and it will read the stream-json logs.
+
+**1. Check if the daemon is alive:**
+
+```bash
+tmux has-session -t nightshift 2>&1 && echo "alive" || echo "dead"
+ps aux | grep "claude -p" | grep -v grep
+```
+
+**2. Read the live session log:**
+
+The daemon outputs `--output-format stream-json` which produces one JSON event per line. Each event contains tool calls, messages, and results. Use this Python parser to read them:
+
+```bash
+LATEST_LOG=$(ls docs/sessions/*.log | tail -1)
+cat "$LATEST_LOG" | python3 -c "
+import json, sys
+for line in sys.stdin:
+    line = line.strip()
+    if not line: continue
+    try:
+        event = json.loads(line)
+        etype = event.get('type', '?')
+        if etype == 'assistant':
+            for block in event.get('message', {}).get('content', []):
+                if block.get('type') == 'tool_use':
+                    name = block['name']
+                    inp = block.get('input', {})
+                    if name == 'Bash':
+                        print(f'BASH: {inp.get(\"command\", \"\")[:90]}')
+                    elif name in ('Read', 'Write', 'Edit'):
+                        print(f'{name}: {inp.get(\"file_path\", \"\").split(\"/\")[-1]}')
+                    elif name == 'Agent':
+                        print(f'AGENT: {inp.get(\"description\", \"\")[:60]}')
+                    else:
+                        print(name)
+                elif block.get('type') == 'text':
+                    t = block.get('text', '').strip()
+                    if t and len(t) > 15:
+                        print(f'MSG: {t[:140]}')
+        elif etype == 'result':
+            t = event.get('result', '').strip()
+            if t:
+                print(f'DONE: {t[:200]}')
+    except json.JSONDecodeError:
+        pass
+"
+```
+
+This shows you exactly what the agent is doing: which files it reads, which tools it calls, what it's thinking, and the final result.
+
+**3. Check event count (how far along is the session):**
+
+```bash
+LATEST_LOG=$(ls docs/sessions/*.log | tail -1)
+python3 -c "
+import json
+count = sum(1 for line in open('$LATEST_LOG')
+            if line.strip() and json.loads(line.strip()).get('type') == 'assistant')
+print(f'{count} events (of 500 max turns)')
+"
+```
+
+**4. Check for PRs (proof the agent is shipping):**
+
+```bash
+gh pr list --state all --limit 5
+```
+
+**5. Check the session index:**
+
+```bash
+cat docs/sessions/index.md
+```
+
+**6. Check the tmux pane (daemon wrapper output):**
+
+```bash
+tmux capture-pane -t nightshift -p -S -20
+```
+
+### Understanding the stream-json log format
+
+Each line in the log is a JSON object. The key event types:
+
+| Type | What it contains |
+|------|-----------------|
+| `assistant` | Agent's response — contains `message.content[]` with `tool_use` and `text` blocks |
+| `result` | Final session output — contains the `SESSION COMPLETE` report |
+| `system` | System events — API retries, errors |
+
+**Tool use events** (inside `assistant` messages):
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "content": [
+      {
+        "type": "tool_use",
+        "name": "Read",
+        "input": {"file_path": "/path/to/file.py"}
+      }
+    ]
+  }
+}
+```
+
+**Text events** (agent thinking/speaking):
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Now let me build the feature..."
+      }
+    ]
+  }
+}
+```
+
+**Result event** (session complete):
+
+```json
+{
+  "type": "result",
+  "result": "SESSION COMPLETE\n================\n\nBuilt: Feature name\n..."
+}
+```
+
+---
+
+## Stopping the Daemon
+
+### Graceful stop (after current session finishes)
+
+From inside the tmux session:
+
+```bash
+tmux send-keys -t nightshift C-c
+```
+
+This sends Ctrl+C which triggers the trap handler. The daemon finishes the current pause/session boundary and stops cleanly.
+
+### Immediate stop
+
+```bash
+tmux kill-session -t nightshift
+```
+
+This kills everything immediately. If a session is mid-work, the PR may be left open. The next daemon run will detect it via open-PR recovery.
+
+### If the lock file is stuck
+
+If the daemon crashes without cleanup, the lock file remains:
+
+```bash
+rmdir .nightshift-daemon.lock
+```
+
+---
+
+## What to Look For (Is It Working?)
+
+### Signs the daemon is healthy
+
+1. **Session index grows** — new rows in `docs/sessions/index.md` with `success` status
+2. **PRs are merging** — `gh pr list --state merged --limit 5` shows recent merges
+3. **Tests are increasing** — `python3 -m pytest tests/ -q` shows growing test count
+4. **Handoff updates** — `docs/handoffs/LATEST.md` changes after each session
+5. **Log files are large** — each `.log` file should be 1-6MB of stream-json
+
+### Signs something is wrong
+
+1. **Circuit breaker tripped** — session index shows `CIRCUIT-BREAK` row. Check the last 3 log files.
+2. **Consecutive failures** — multiple `failed` rows in the index. Read the logs to find the error.
+3. **Log file is 0 bytes** — the session started but produced no output. Check if `claude` CLI is installed and authenticated.
+4. **Open PR stuck** — `gh pr list --state open` shows a PR that's been open for multiple sessions. May have merge conflicts.
+5. **No new events** — if the latest log hasn't grown in 10+ minutes and the process is alive, the agent may be stuck on a long-running command.
+
+### Quick health check (copy-paste this)
+
+```bash
+echo "=== DAEMON ===" && tmux has-session -t nightshift 2>&1 && echo "ALIVE" || echo "DEAD"
+echo "=== PROCESS ===" && ps aux | grep "claude -p" | grep -v grep | awk '{print "PID:",$2,"CPU:",$3}' || echo "none"
+echo "=== LATEST LOG ===" && ls -la docs/sessions/*.log | tail -1
+echo "=== RECENT PRS ===" && gh pr list --state all --limit 3
+echo "=== INDEX ===" && tail -5 docs/sessions/index.md
+echo "=== TESTS ===" && python3 -m pytest tests/ -q 2>&1 | tail -1
+```
+
+---
+
+## Session Lifecycle (What Happens Each Cycle)
+
+```
+daemon.sh loop iteration
+    |
+    v
+git fetch + reset --hard origin/main    # clean slate
+    |
+    v
+check gh pr list --state open           # open-PR recovery
+    |
+    v
+build prompt (evolve-auto.md + evolve.md)
+    |
+    v
+claude -p --max-turns 500               # the autonomous session
+  --output-format stream-json            # line-by-line JSON events
+  --verbose                              # full tool output
+  2>&1 | tee $LOG_FILE                   # capture everything
+    |
+    v
+extract feature + PR from log           # session index update
+    |
+    v
+circuit breaker check                   # stop after 3 consecutive failures
+    |
+    v
+sleep $PAUSE                            # 60s default
+    |
+    v
+next iteration
+```
+
+---
+
+## Configuration
+
+| Parameter | Default | How to change |
+|-----------|---------|--------------|
+| Agent | claude | 1st arg: `./scripts/daemon.sh codex` |
+| Pause between sessions | 60s | 2nd arg: `./scripts/daemon.sh claude 120` |
+| Max sessions | unlimited (0) | 3rd arg: `./scripts/daemon.sh claude 60 10` |
+| Max turns per session | 500 | Edit `MAX_TURNS` in `scripts/daemon.sh` |
+| Circuit breaker threshold | 3 failures | Edit `MAX_CONSECUTIVE_FAILURES` in `scripts/daemon.sh` |
+| Log directory | `docs/sessions/` | Edit `LOG_DIR` in `scripts/daemon.sh` |
+
+---
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/daemon.sh` | The daemon script |
+| `docs/prompt/evolve.md` | The session lifecycle prompt (11 steps) |
+| `docs/prompt/evolve-auto.md` | Autonomous override (skip human confirmation) |
+| `docs/sessions/*.log` | Stream-json logs (one per session) |
+| `docs/sessions/index.md` | Session index (one row per session) |
+| `.nightshift-daemon.lock` | Lock directory (prevents two daemons) |
+
+---
+
+## Troubleshooting
+
+### "Another daemon may be running"
+
+The lock directory exists. Either another daemon is running, or a previous one crashed.
+
+```bash
+# Check if a daemon process exists
+ps aux | grep daemon.sh | grep -v grep
+
+# If no process, remove the stale lock
+rmdir .nightshift-daemon.lock
+```
+
+### Session fails immediately (exit 1, 0 minutes)
+
+The `claude` CLI may not be authenticated or installed.
+
+```bash
+claude --version
+claude -p "hello" --output-format json
+```
+
+### Agent builds nothing (session succeeds but no PR)
+
+The handoff may be out of date or there are no pending tasks. Check:
+
+```bash
+cat docs/handoffs/LATEST.md
+ls docs/tasks/*.md
+```
+
+### Log file is empty
+
+If you see 0-byte log files, the daemon may be using an old version without `--output-format stream-json`. Update `scripts/daemon.sh` to ensure the claude command includes:
+
+```
+--output-format stream-json --verbose
+```

@@ -26,5 +26,12 @@ in the handoff and move on to the next priority. Do not push broken code.
 
 All other steps remain the same. Follow the evolve prompt exactly.
 
+DAEMON CONTEXT: You are running inside `scripts/daemon.sh` via tmux.
+- Your output is captured as stream-json to `docs/sessions/YYYYMMDD-HHMMSS.log`
+- A monitor agent or human may be reading your log in real-time
+- The daemon will hard-reset to origin/main before your next session starts
+- If you leave an open PR, the next session will detect it and finish it
+- Full daemon docs: `docs/ops/DAEMON.md`
+
 ---
 
