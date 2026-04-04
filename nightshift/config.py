@@ -50,6 +50,7 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         stop_after_failed_verifications=_require_int(raw, "stop_after_failed_verifications"),
         stop_after_empty_cycles=_require_int(raw, "stop_after_empty_cycles"),
         score_threshold=_require_int(raw, "score_threshold"),
+        test_incentive_cycle=_require_int(raw, "test_incentive_cycle"),
     )
 
 

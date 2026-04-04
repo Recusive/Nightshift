@@ -88,6 +88,30 @@ def command_for_agent(
     raise NightshiftError(f"Unsupported agent: {agent}")
 
 
+def build_test_escalation(
+    *,
+    cycle: int,
+    config: NightshiftConfig,
+    state: ShiftState,
+) -> str:
+    """Return a test-writing escalation message if the agent has not written tests.
+
+    Returns an empty string when tests have been written or the cycle threshold
+    has not been reached.
+    """
+    threshold = int(config.get("test_incentive_cycle", 3))
+    if cycle < threshold:
+        return ""
+    if state["counters"]["tests_written"] > 0:
+        return ""
+    return (
+        "You have not written any tests in this shift so far. "
+        "Your next fix MUST include a test file. "
+        "Writing tests is priority #3 (after Security and Error Handling). "
+        "If you cannot find a security or error-handling issue, write a test."
+    )
+
+
 def build_state_summary(state: ShiftState) -> str:
     """Build a human-readable summary of prior cycles for injection into the prompt.
 
@@ -159,6 +183,11 @@ def build_prompt(
     if state_summary:
         indented = textwrap.indent(state_summary, "        ")
         state_block = f"\n        Prior cycle intelligence:\n{indented}\n"
+    test_escalation = build_test_escalation(cycle=cycle, config=config, state=state)
+    test_block = ""
+    if test_escalation:
+        indented_test = textwrap.indent(test_escalation, "        ")
+        test_block = f"\n        Test writing directive:\n{indented_test}\n"
     return textwrap.dedent(
         f"""
         You are Nightshift running inside an isolated git worktree. Do not create a worktree, do not switch branches, and do not touch the user's original checkout.
@@ -172,7 +201,7 @@ def build_prompt(
         - Final cycle: {"yes" if is_final else "no"}
         - Agent: {config["agent"]}
         - Log-only mode: {"yes" if log_only else "no"}
-{state_block}
+{state_block}{test_block}
         Hard limits enforced by the runner:
         - At most {config["max_fixes_per_cycle"]} fixes this cycle.
         - At most {config["max_files_per_fix"]} files per fix.

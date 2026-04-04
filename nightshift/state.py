@@ -48,6 +48,7 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
         failed_verifications=int(counters_raw.get("failed_verifications", 0)),
         empty_cycles=int(counters_raw.get("empty_cycles", 0)),
         agent_failures=int(counters_raw.get("agent_failures", 0)),
+        tests_written=int(counters_raw.get("tests_written", 0)),
     )
     cycles_raw = raw.get("cycles", [])
     if not isinstance(cycles_raw, list):
@@ -100,6 +101,7 @@ def read_state(
             failed_verifications=0,
             empty_cycles=0,
             agent_failures=0,
+            tests_written=0,
         ),
         category_counts={},
         recent_cycle_paths=[],
@@ -121,6 +123,17 @@ def top_path(files: list[str]) -> str:
     return sorted(top_level.items(), key=lambda item: (-item[1], item[0]))[0][0]
 
 
+def _is_test_file(name: str) -> bool:
+    """Return True if a filename looks like a test file."""
+    basename = name.rsplit("/", 1)[-1].lower()
+    if basename.startswith("test_") or basename.endswith("_test.py"):
+        return True
+    for suffix in (".test.ts", ".test.js", ".test.tsx", ".test.jsx", ".spec.ts", ".spec.js"):
+        if basename.endswith(suffix):
+            return True
+    return False
+
+
 def append_cycle_state(
     *,
     state: ShiftState,
@@ -139,6 +152,9 @@ def append_cycle_state(
         category = fix.get("category")
         if category is not None:
             state["category_counts"][category] = state["category_counts"].get(category, 0) + 1
+
+    test_files_count = sum(1 for f in verification["files_touched"] if _is_test_file(f))
+    state["counters"]["tests_written"] += test_files_count
 
     state["counters"]["fixes"] += inferred_fix_count
     state["counters"]["issues_logged"] += len(logged_issues)

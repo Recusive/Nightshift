@@ -78,10 +78,10 @@ def score_diff(
     line_score = _diff_line_score(diff_text)
     base = max(base, line_score)
 
-    # Factor 3: test bonus
+    # Factor 3: test bonus (+2 to incentivize test writing)
     test_bonus = _has_test_files(files_touched)
     if test_bonus:
-        base = min(base + 1, 10)
+        base = min(base + 2, 10)
 
     # Factor 4: category breadth bonus
     category_bonus = len(categories_seen) >= 2

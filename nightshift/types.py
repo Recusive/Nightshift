@@ -21,6 +21,7 @@ class NightshiftConfig(TypedDict):
     stop_after_failed_verifications: int
     stop_after_empty_cycles: int
     score_threshold: int
+    test_incentive_cycle: int
 
 
 class DiffScore(TypedDict):
@@ -40,6 +41,7 @@ class Counters(TypedDict):
     failed_verifications: int
     empty_cycles: int
     agent_failures: int
+    tests_written: int
 
 
 class Baseline(TypedDict):
