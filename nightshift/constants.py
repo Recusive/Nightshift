@@ -126,6 +126,18 @@ BACKEND_DIR_NAMES: set[str] = {
 FRONTEND_EXTENSIONS: set[str] = {".tsx", ".jsx", ".vue", ".svelte", ".css", ".scss", ".less"}
 BACKEND_EXTENSIONS: set[str] = {".py", ".go", ".rs", ".java", ".rb", ".php", ".ex", ".exs"}
 
+CLASSIFY_SKIP_DIRS: set[str] = {
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "coverage",
+    ".svn",
+}
+
 # --- Safe artifacts ----------------------------------------------------------
 
 SAFE_ARTIFACT_DIRS = [

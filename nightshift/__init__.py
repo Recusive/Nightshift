@@ -19,6 +19,7 @@ from nightshift.constants import (
     BACKEND_DIR_NAMES,
     BACKEND_EXTENSIONS,
     CATEGORY_ORDER,
+    CLASSIFY_SKIP_DIRS,
     DATA_VERSION,
     DEFAULT_CONFIG,
     FRONTEND_DIR_NAMES,
@@ -90,6 +91,7 @@ __all__ = [
     "BACKEND_DIR_NAMES",
     "BACKEND_EXTENSIONS",
     "CATEGORY_ORDER",
+    "CLASSIFY_SKIP_DIRS",
     "DATA_VERSION",
     "DEFAULT_CONFIG",
     "FRONTEND_DIR_NAMES",
@@ -115,8 +117,8 @@ __all__ = [
     "append_cycle_state",
     # cycle
     "blocked_file",
-    # cli
     "build_backend_escalation",
+    # cli
     "build_parser",
     "build_prompt",
     "build_state_summary",

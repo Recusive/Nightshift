@@ -13,6 +13,7 @@ from nightshift.constants import (
     BACKEND_DIR_NAMES,
     BACKEND_EXTENSIONS,
     CATEGORY_ORDER,
+    CLASSIFY_SKIP_DIRS,
     FRONTEND_DIR_NAMES,
     FRONTEND_EXTENSIONS,
     print_status,
@@ -160,7 +161,6 @@ def classify_repo_dirs(repo_dir: Path) -> tuple[list[str], list[str]]:
     classified are excluded from both lists. Hidden directories and
     common non-code directories are skipped.
     """
-    skip = {"node_modules", ".git", "__pycache__", "dist", "build", "out", "target"}
     frontend: list[str] = []
     backend: list[str] = []
     try:
@@ -171,7 +171,7 @@ def classify_repo_dirs(repo_dir: Path) -> tuple[list[str], list[str]]:
         if not entry.is_dir():
             continue
         name = entry.name
-        if name.startswith(".") or name in skip:
+        if name.startswith(".") or name in CLASSIFY_SKIP_DIRS:
             continue
         classification = _classify_dir(entry)
         if classification == "frontend":
@@ -207,8 +207,11 @@ def build_backend_escalation(
         return ""
     frontend_set = set(frontend_dirs)
     backend_set = set(backend_dirs)
-    # Check recent N paths (where N = threshold)
-    window = recent[-threshold:]
+    # Check recent paths, filtering out "(none)" from empty/log-only cycles
+    real_paths = [p for p in recent if p != "(none)"]
+    if len(real_paths) < threshold:
+        return ""
+    window = real_paths[-threshold:]
     all_frontend = all(p in frontend_set for p in window)
     any_backend = any(p in backend_set for p in window)
     if any_backend or not all_frontend:

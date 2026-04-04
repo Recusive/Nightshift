@@ -215,25 +215,25 @@ Read `docs/vision-tracker/TRACKER.md`. For every component you affected:
 - `docs/vision/02-loop2-feature-builder.md` — answer resolved open questions
 - `docs/vision/00-overview.md` — update success criteria if relevant
 
-### 6e. CLAUDE.md (IF you changed project structure, conventions, or added systems)
+### 6f. CLAUDE.md (IF you changed project structure, conventions, or added systems)
 Update the project structure tree, add new conventions, document new systems.
 
-### 6f. README.md (IF you made a user-facing change)
+### 6g. README.md (IF you made a user-facing change)
 Update feature descriptions, usage examples, requirements, roadmap.
 
-### 6g. Operations Guide (IF you added a new system or changed a workflow)
+### 6h. Operations Guide (IF you added a new system or changed a workflow)
 Update `docs/ops/OPERATIONS.md` with new system description. Update quick-reference table.
 
-### 6h. Config files (IF you added config options)
+### 6i. Config files (IF you added config options)
 Update `.nightshift.json.example`, `nightshift.schema.json`, `DEFAULT_CONFIG` in constants.py.
 
-### 6i. Install Script (IF you added files that ship to users)
+### 6j. Install Script (IF you added files that ship to users)
 Update `PACKAGE_FILES`, `ROOT_FILES`, or `SCRIPT_FILES` in `scripts/install.sh`.
 
-### 6j. Evolve Prompt (IF you learned something future sessions need)
+### 6k. Evolve Prompt (IF you learned something future sessions need)
 Update this file with new knowledge, gotchas, or procedural changes.
 
-### 6k. Version Assessment
+### 6l. Version Assessment
 Check `docs/ops/OPERATIONS.md` version milestones:
 - Are all items for the current version done?
 - If yes: prepare for release (tag, changelog status, new version file)
