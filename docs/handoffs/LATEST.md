@@ -1,6 +1,6 @@
 # Handoff #0010
 **Date**: 2026-04-03
-**Version**: v0.0.5 in progress
+**Version**: v0.0.5 released, v0.0.6 in progress
 **Session duration**: ~30m
 
 ## What I Built
