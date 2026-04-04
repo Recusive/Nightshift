@@ -9,7 +9,7 @@ import textwrap
 from pathlib import Path
 from typing import Any
 
-from nightshift.constants import FORBIDDEN_CYCLE_COMMANDS, print_status
+from nightshift.constants import FORBIDDEN_CYCLE_COMMANDS, HIGH_SIGNAL_PATH_CANDIDATES, print_status
 from nightshift.errors import NightshiftError
 from nightshift.shell import git, run_shell_string
 from nightshift.state import top_path
@@ -98,13 +98,16 @@ def build_prompt(
     blocked_summary: str,
     hot_files: list[str],
     prior_path_bias: list[str],
+    focus_hints: list[str],
     test_mode: bool,
 ) -> str:
     hot_files_lines = "\n".join(f"- `{entry}`" for entry in hot_files[:10]) or "- None"
     prior_paths = "\n".join(f"- `{entry}`" for entry in prior_path_bias[-2:]) or "- None"
+    focus_lines = "\n".join(f"- `{entry}`" for entry in focus_hints[:5]) or "- None"
     blocked_lines = textwrap.indent(blocked_summary, "        ")
     hot_lines = textwrap.indent(hot_files_lines, "        ")
     prior_lines = textwrap.indent(prior_paths, "        ")
+    focus_block = textwrap.indent(focus_lines, "        ")
     log_only = state["log_only_mode"]
     return textwrap.dedent(
         f"""
@@ -148,14 +151,33 @@ def build_prompt(
         Category mix guidance:
         - Prefer breadth across Security, Error Handling, Tests, A11y, Code Quality, Performance, and Polish.
         - If you find repetitive low-value cleanup, fix a small representative sample and log the broader pattern.
+        - Prefer high-signal, low-blast-radius helpers before broad UI sweeps when these areas exist:
+{focus_block}
 
-        {"This is a short validation run. Finish quickly. Prefer exactly one small fix or one logged issue. If nothing clearly safe is found within a few minutes, log one issue and stop." if test_mode else ""}
+        {"This is a short validation run. Finish quickly. Prefer exactly one small fix or one logged issue. Prefer a 1-2 file fix in auth/session/http/parser/api helper code before choosing log-only. If nothing clearly safe is found within a few minutes, log one issue and stop." if test_mode else ""}
 
         {"Final cycle instructions: wrap up the Summary and Recommendations sections, make sure commit hashes are correct, and run the full verification command one last time." if is_final else "Do not rewrite the final Summary yet unless there is less than one cycle left."}
 
         End your work with a single JSON object and nothing else. The JSON must satisfy the provided schema exactly.
         """
     ).strip()
+
+
+def high_signal_focus_paths(repo_dir: Path, hot_files: list[str]) -> list[str]:
+    hot_prefixes = {entry for entry in hot_files if entry}
+    suggestions: list[str] = []
+    for candidate in HIGH_SIGNAL_PATH_CANDIDATES:
+        if any(candidate == hot or candidate.startswith(f"{hot}/") for hot in hot_prefixes):
+            continue
+        if not (repo_dir / candidate).exists():
+            continue
+        suggestions.append(candidate)
+        if len(suggestions) >= 5:
+            break
+    if suggestions:
+        return suggestions
+    fallback = [candidate for candidate in HIGH_SIGNAL_PATH_CANDIDATES if (repo_dir / candidate).exists()]
+    return fallback[:5]
 
 
 def recent_hot_files(repo_dir: Path) -> list[str]:

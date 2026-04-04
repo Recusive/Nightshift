@@ -94,6 +94,23 @@ FORBIDDEN_CYCLE_COMMANDS = [
     "bun run build",
 ]
 
+HIGH_SIGNAL_PATH_CANDIDATES = [
+    "src/lib/auth",
+    "src/lib/http.ts",
+    "src/app/api",
+    "src/lib/db/queries",
+    "src/lib/analytics",
+    "src/lib/contracts",
+    "lib/auth",
+    "lib/http.ts",
+    "app/api",
+    "server",
+    "api",
+    "backend",
+    "src/server",
+    "src/api",
+]
+
 # --- Safe artifacts ----------------------------------------------------------
 
 SAFE_ARTIFACT_DIRS = [

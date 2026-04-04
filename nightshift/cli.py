@@ -17,6 +17,7 @@ from nightshift.cycle import (
     command_for_agent,
     evaluate_baseline,
     extract_json,
+    high_signal_focus_paths,
     parse_cycle_result,
     recent_hot_files,
     verify_cycle,
@@ -78,6 +79,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     blocked_summary = "\n".join(f"- `{entry}`" for entry in [*config["blocked_paths"], *config["blocked_globs"]])
     dry_run_cycle = len(state["cycles"]) + 1
     dry_run_final = total_cycles is not None and dry_run_cycle == total_cycles
+    dry_run_hot_files = recent_hot_files(repo_dir)
     prompt = build_prompt(
         cycle=dry_run_cycle,
         is_final=dry_run_final,
@@ -85,8 +87,9 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         state=state,
         shift_log_relative=shift_log_relative,
         blocked_summary=blocked_summary,
-        hot_files=recent_hot_files(repo_dir),
+        hot_files=dry_run_hot_files,
         prior_path_bias=state["recent_cycle_paths"],
+        focus_hints=high_signal_focus_paths(repo_dir, dry_run_hot_files),
         test_mode=test_mode,
     )
     if args.dry_run:
@@ -141,6 +144,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
 
         print_status(f"-- Cycle {cycle_number} --- {now_local().strftime('%H:%M')} --")
 
+        cycle_hot_files = recent_hot_files(repo_dir)
         prompt = build_prompt(
             cycle=cycle_number,
             is_final=is_final,
@@ -148,8 +152,9 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             state=state,
             shift_log_relative=shift_log_relative,
             blocked_summary=blocked_summary,
-            hot_files=recent_hot_files(repo_dir),
+            hot_files=cycle_hot_files,
             prior_path_bias=state["recent_cycle_paths"],
+            focus_hints=high_signal_focus_paths(repo_dir, cycle_hot_files),
             test_mode=test_mode,
         )
 

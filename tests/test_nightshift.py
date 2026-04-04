@@ -736,6 +736,24 @@ class TestRecentHotFiles:
         assert result == []
 
 
+class TestHighSignalFocusPaths:
+    def test_prefers_existing_high_signal_paths(self, tmp_path: Path) -> None:
+        (tmp_path / "src" / "lib" / "auth").mkdir(parents=True)
+        (tmp_path / "src" / "app" / "api").mkdir(parents=True)
+        (tmp_path / "src" / "lib" / "http.ts").write_text("", encoding="utf-8")
+
+        result = nightshift.high_signal_focus_paths(tmp_path, [])
+        assert result[:3] == ["src/lib/auth", "src/lib/http.ts", "src/app/api"]
+
+    def test_skips_hot_prefixes_when_possible(self, tmp_path: Path) -> None:
+        (tmp_path / "src" / "lib" / "auth").mkdir(parents=True)
+        (tmp_path / "src" / "app" / "api").mkdir(parents=True)
+
+        result = nightshift.high_signal_focus_paths(tmp_path, ["src/lib/auth"])
+        assert "src/lib/auth" not in result
+        assert "src/app/api" in result
+
+
 # --- Shift Log ---------------------------------------------------------------
 
 
@@ -927,6 +945,7 @@ class TestBuildPrompt:
             blocked_summary="- `.github/`\n- `*.lock`",
             hot_files=["src/hot.ts"],
             prior_path_bias=[],
+            focus_hints=["src/lib/auth", "src/lib/http.ts"],
             test_mode=False,
         )
 
@@ -980,6 +999,11 @@ class TestBuildPrompt:
     def test_warns_about_package_manager_test_commands(self):
         prompt = nightshift.build_prompt(**self._base_args())
         assert "Avoid package-manager test commands like `npm test`" in prompt
+
+    def test_includes_high_signal_focus_hints(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Prefer high-signal, low-blast-radius helpers" in prompt
+        assert "`src/lib/auth`" in prompt
 
 
 # --- Parse Cycle Result ------------------------------------------------------
