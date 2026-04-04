@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -17,11 +18,42 @@ from nightshift.errors import NightshiftError
 from nightshift.shell import git, run_command
 
 
+def _missing_gitdir_hint(worktree_dir: Path) -> str | None:
+    git_file = worktree_dir / ".git"
+    if not git_file.is_file():
+        return None
+    content = git_file.read_text(encoding="utf-8").strip()
+    if not content.startswith("gitdir:"):
+        return None
+    gitdir = Path(content.split(":", 1)[1].strip())
+    if gitdir.exists():
+        return None
+    return f"Worktree .git points to missing gitdir `{gitdir}`."
+
+
+def validate_worktree(worktree_dir: Path) -> None:
+    try:
+        inside = git(worktree_dir, "rev-parse", "--is-inside-work-tree")
+    except NightshiftError as error:
+        hint = _missing_gitdir_hint(worktree_dir)
+        if hint is not None:
+            raise NightshiftError(f"Broken git worktree at {worktree_dir}. {hint}") from error
+        raise NightshiftError(f"Broken git worktree at {worktree_dir}: {error}") from error
+    if inside.strip() != "true":
+        raise NightshiftError(f"Broken git worktree at {worktree_dir}: git did not confirm a worktree.")
+
+
 def ensure_worktree(repo_dir: Path, worktree_dir: Path, branch: str) -> None:
     git(repo_dir, "worktree", "prune", check=False)
     if worktree_dir.exists():
         print_status(f"Resuming existing worktree at: {worktree_dir}")
-        return
+        try:
+            validate_worktree(worktree_dir)
+            return
+        except NightshiftError as error:
+            print_status(f"{error} Recreating worktree.")
+            shutil.rmtree(worktree_dir, ignore_errors=True)
+            git(repo_dir, "worktree", "prune", check=False)
     print_status(f"Creating worktree at: {worktree_dir}")
     branch_exists = bool(git(repo_dir, "branch", "--list", branch))
     try:
@@ -37,6 +69,7 @@ def ensure_worktree(repo_dir: Path, worktree_dir: Path, branch: str) -> None:
             git(repo_dir, "worktree", "add", "-f", str(worktree_dir), branch)
         else:
             git(repo_dir, "worktree", "add", "-f", str(worktree_dir), "-b", branch)
+    validate_worktree(worktree_dir)
 
 
 def ensure_shift_log(shift_log_path: Path, *, today: str, branch: str, base_branch: str) -> None:

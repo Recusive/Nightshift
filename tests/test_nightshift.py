@@ -776,6 +776,46 @@ class TestSyncShiftLog:
         assert not (repo / "docs" / "Nightshift" / "log.md").exists()
 
 
+class TestValidateWorktree:
+    def test_reports_missing_gitdir_from_git_file(self, tmp_path: Path) -> None:
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+        missing = tmp_path / "missing-gitdir"
+        (worktree / ".git").write_text(f"gitdir: {missing}\n", encoding="utf-8")
+
+        with pytest.raises(nightshift.NightshiftError, match="missing gitdir"):
+            nightshift.validate_worktree(worktree)
+
+
+class TestEnsureWorktree:
+    def test_recreates_broken_existing_worktree(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+
+        worktree = repo / "docs" / "Nightshift" / "worktree-2026-04-03"
+        worktree.mkdir(parents=True)
+        (worktree / ".git").write_text(f"gitdir: {tmp_path / 'broken-gitdir'}\n", encoding="utf-8")
+        (worktree / "broken.txt").write_text("stale\n", encoding="utf-8")
+
+        nightshift.ensure_worktree(repo, worktree, "nightshift/2026-04-03")
+
+        status = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=worktree,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert status.stdout.strip() == "true"
+        assert not (worktree / "broken.txt").exists()
+
+
 # --- Command Construction ----------------------------------------------------
 
 
