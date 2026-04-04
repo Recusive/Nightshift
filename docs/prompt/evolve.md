@@ -56,6 +56,28 @@ Non-negotiable. Violating any of these means the session failed.
 
 <process>
 
+## STEP 0 — EVALUATE PREVIOUS SESSION (if applicable)
+
+Before doing anything else, check if the previous session left work that needs evaluating. Read `docs/handoffs/LATEST.md`. If it says "evaluate me" or "pending evaluation", you must evaluate before building.
+
+**How to evaluate:**
+1. Clone the test target: `git clone --depth 1 https://github.com/fazxes/Phractal.git /tmp/nightshift-eval`
+2. Create `.nightshift.json` if needed (check `docs/evaluations/README.md` for the standard config)
+3. Run: `PYTHONPATH=$(pwd) python3 -m nightshift test --agent claude --cycles 2 --cycle-minutes 5` from the clone
+4. Read the shift log, state file, and runner log
+5. Score across 10 dimensions (see `docs/evaluations/README.md` for the scorecard)
+6. Write evaluation report: `docs/evaluations/NNNN.md` (next sequential number)
+7. For any dimension scoring below 6/10: create a task in `docs/tasks/` (read `docs/tasks/GUIDE.md` for format)
+8. Clean up the clone
+
+You are evaluating code YOU DID NOT WRITE. Be honest. The previous session's agent is not you — grade it objectively.
+
+If the eval score is below 40/100, note it as critical in the handoff. If above 60/100, proceed normally.
+
+**Skip this step if:** the handoff does not mention evaluation, this is the first session ever, or the test target is unreachable. Note "eval skipped" in your status report.
+
+---
+
 ## STEP 1 — SITUATIONAL AWARENESS
 
 Read the handoff first. Go deeper only if needed.
@@ -63,18 +85,19 @@ Read the handoff first. Go deeper only if needed.
 **Always read:**
 1. `docs/handoffs/LATEST.md` — what happened last, what's broken, what to build next
 2. `docs/tasks/` — scan for `status: pending` files to find your next task
+3. `docs/learnings/` — all files. Hard-won knowledge from previous sessions. Gotchas, patterns, failures. These prevent you from repeating mistakes.
 
 **Read if this is the first session ever (no LATEST.md exists):**
-2. `docs/vision/00-overview.md` — the north star
-3. `docs/vision/01-loop1-hardening.md` — Loop 1 roadmap
-4. `docs/vision/02-loop2-feature-builder.md` — Loop 2 design
-5. `docs/vision-tracker/TRACKER.md` — progress scoreboard
+3. `docs/vision/00-overview.md` — the north star
+4. `docs/vision/01-loop1-hardening.md` — Loop 1 roadmap
+5. `docs/vision/02-loop2-feature-builder.md` — Loop 2 design
+6. `docs/vision-tracker/TRACKER.md` — progress scoreboard
 
 **Read if the handoff points you there or you need deeper context:**
-6. `docs/prompt/feedback/` — human feedback (if any exist)
-7. Specific `nightshift/*.py` modules relevant to your task
-8. `CLAUDE.md` — if you're changing project structure
-9. `git log --oneline -10` — if you need more history
+7. `docs/prompt/feedback/` — human feedback (if any exist)
+8. Specific `nightshift/*.py` modules relevant to your task
+9. `CLAUDE.md` — if you're changing project structure
+10. `git log --oneline -10` — if you need more history
 
 Then output your status report:
 
@@ -233,7 +256,16 @@ Update `PACKAGE_FILES`, `ROOT_FILES`, or `SCRIPT_FILES` in `scripts/install.sh`.
 ### 6k. Evolve Prompt (IF you learned something future sessions need)
 Update this file with new knowledge, gotchas, or procedural changes.
 
-### 6l. Version Assessment
+### 6l. Learnings (ALWAYS)
+Write at least one learning to `docs/learnings/YYYY-MM-DD-topic.md`. Ask yourself:
+- Did anything surprise you? (gotcha)
+- Did you waste turns on something avoidable? (failure)
+- Did you discover a pattern that saved time? (optimization)
+- Did a tool or approach work unexpectedly well? (pattern)
+
+See `docs/learnings/README.md` for format. One learning per file, under 30 lines. Be specific — "mypy is strict" is useless. "mypy rejects .get() on required TypedDict fields" is useful.
+
+### 6m. Version Assessment
 Check `docs/ops/OPERATIONS.md` version milestones:
 - Are all items for the current version done?
 - If yes: prepare for release (tag, changelog status, new version file)
@@ -335,7 +367,18 @@ bash scripts/rollback.sh <merge-commit>
 
 Do NOT proceed to the next step if CI on main is failing. Fix it first or revert.
 
-## STEP 10 — RELEASE CHECK
+## STEP 10 — HANDOFF WITH EVALUATION FLAG
+
+In your handoff, add this line so the NEXT session knows to evaluate your work:
+
+```
+## Evaluate
+Run evaluation against Phractal for the changes merged this session.
+```
+
+This triggers Step 0 in the next session. A different agent will score your work objectively.
+
+## STEP 11 — RELEASE CHECK
 
 After the health check passes, decide if this warrants a release. Read `docs/ops/OPERATIONS.md` "Release Strategy" section.
 
@@ -345,7 +388,7 @@ Ask yourself:
 - If yes: cut the release (tag, push tag, `gh release create`)
 - If no: move on. It'll ship with the next release.
 
-## STEP 11 — REPORT
+## STEP 12 — REPORT
 
 ```
 SESSION COMPLETE

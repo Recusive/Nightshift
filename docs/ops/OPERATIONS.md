@@ -36,6 +36,36 @@ Nightshift/
 
 ---
 
+## System -1: Evaluations (`docs/evaluations/`)
+
+### What it is
+Self-scoring. After every merge, the agent runs Nightshift against Phractal and scores itself across 10 dimensions. Failures become tasks.
+
+### Files
+| File | Purpose |
+|------|---------|
+| `README.md` | Scorecard (10 dimensions), report format, threshold rules |
+| `NNNN.md` | Individual evaluation reports (sequential numbers) |
+
+### How it works (cross-session, not self-grading)
+1. Session N merges a PR, writes handoff with "Evaluate" flag
+2. Session N+1 starts, reads the handoff, sees the evaluation flag
+3. Session N+1 runs Step 0: clones Phractal, runs 2-cycle test shift
+4. Session N+1 reads shift log + state + runner log (from the test shift, not from session N)
+5. Scores 10 dimensions (startup, discovery, fix quality, shift log, state file, verification, guard rails, clean state, breadth, usefulness)
+6. Writes report to `docs/evaluations/NNNN.md`
+7. Any dimension below 6/10 becomes a task in `docs/tasks/`
+8. Session N+1 then proceeds to its own build task
+
+The agent that evaluates is NOT the agent that built the feature. This prevents grading your own homework.
+
+### How to update
+- When you add a new evaluation dimension: update the scorecard in `README.md`
+- When you improve scoring criteria: update the dimension descriptions
+- The score should trend upward over time as fixes land
+
+---
+
 ## System 0: Task Queue (`docs/tasks/`)
 
 ### What it is
@@ -658,8 +688,10 @@ Step 5:  Verify (make check)
 Step 6:  Update ALL docs (handoff, changelog, tracker, vision, CLAUDE.md, etc.)
 Step 7:  Pre-push checklist (docs/ops/PRE-PUSH-CHECKLIST.md)
 Step 8:  Branch, commit, push, PR, sub-agent review, merge
-Step 9:  Release check (is this a milestone?)
-Step 10: Report
+Step 9:  Post-merge health check (CI on main)
+Step 10: Flag handoff for evaluation (next session scores your work)
+Step 11: Release check (is this a milestone?)
+Step 12: Report
 ```
 
 See `docs/prompt/evolve.md` for the full details of each step. This summary exists for quick reference only — the evolve prompt is authoritative.

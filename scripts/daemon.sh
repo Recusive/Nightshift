@@ -23,7 +23,7 @@ INDEX_FILE="$LOG_DIR/index.md"
 AUTO_PREFIX="$REPO_DIR/docs/prompt/evolve-auto.md"
 EVOLVE_PROMPT="$REPO_DIR/docs/prompt/evolve.md"
 LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
-MAX_TURNS=100
+MAX_TURNS=500
 CYCLE=0
 CONSECUTIVE_FAILURES=0
 MAX_CONSECUTIVE_FAILURES=3
@@ -54,8 +54,8 @@ if [ ! -f "$INDEX_FILE" ]; then
     {
         echo "# Session Index"
         echo ""
-        echo "| Timestamp | Session | Exit | Duration | Status |"
-        echo "|-----------|---------|------|----------|--------|"
+        echo "| Timestamp | Session | Exit | Duration | Status | Feature | PR |"
+        echo "|-----------|---------|------|----------|--------|---------|-----|"
     } > "$INDEX_FILE"
 fi
 
@@ -101,8 +101,26 @@ while true; do
     git reset --hard origin/main --quiet 2>/dev/null || true
     git clean -fd --quiet 2>/dev/null || true
 
+    # --- Check for open PRs from previous sessions ---
+    OPEN_PR=""
+    OPEN_PR_INFO=$(gh pr list --state open --json number,title,headRefName --jq '.[0] // empty' 2>/dev/null || true)
+    if [ -n "$OPEN_PR_INFO" ]; then
+        PR_NUM=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['number'])" 2>/dev/null || true)
+        PR_TITLE=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['title'])" 2>/dev/null || true)
+        PR_BRANCH=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['headRefName'])" 2>/dev/null || true)
+        if [ -n "$PR_NUM" ]; then
+            OPEN_PR="OPEN PR FROM PREVIOUS SESSION: PR #${PR_NUM} (${PR_TITLE}) on branch ${PR_BRANCH}. Check its CI status. If CI passes, merge it with: gh pr merge ${PR_NUM} --merge --delete-branch --admin. If CI fails, checkout the branch, fix the issue, push, and merge. Do NOT rebuild this feature from scratch."
+            echo "  Found open PR #${PR_NUM}: ${PR_TITLE}"
+        fi
+    fi
+
     # Rebuild prompt each cycle
     PROMPT=$(build_prompt)
+    if [ -n "$OPEN_PR" ]; then
+        PROMPT="${OPEN_PR}
+
+${PROMPT}"
+    fi
 
     # --- Run the agent ---
     # Use stream-json for line-by-line event output so tee flushes in real-time.
@@ -140,7 +158,39 @@ while true; do
     else
         STATUS="failed (exit $EXIT_CODE)"
     fi
-    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | $STATUS |" >> "$INDEX_FILE"
+
+    # Extract feature name and PR from log (best-effort)
+    FEATURE=$(python3 -c "
+import json, sys
+for line in open('$LOG_FILE'):
+    try:
+        e = json.loads(line.strip())
+        if e.get('type') == 'result':
+            r = e.get('result', '')
+            for l in r.splitlines():
+                if l.startswith('Built:'):
+                    print(l.replace('Built:', '').strip()[:50])
+                    sys.exit(0)
+    except: pass
+print('-')
+" 2>/dev/null || echo "-")
+
+    PR_URL=$(python3 -c "
+import json, sys
+for line in open('$LOG_FILE'):
+    try:
+        e = json.loads(line.strip())
+        if e.get('type') == 'result':
+            r = e.get('result', '')
+            for l in r.splitlines():
+                if l.startswith('PR:'):
+                    print(l.replace('PR:', '').strip()[:60])
+                    sys.exit(0)
+    except: pass
+print('-')
+" 2>/dev/null || echo "-")
+
+    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | $STATUS | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
 
     # --- Circuit breaker ---
     if [ "$EXIT_CODE" -ne 0 ]; then
