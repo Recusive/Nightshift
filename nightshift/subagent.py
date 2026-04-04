@@ -9,7 +9,6 @@ from nightshift.constants import (
     DECOMPOSER_MAX_RETRIES,
     SUBAGENT_DEFAULT_TIMEOUT,
     SUBAGENT_MAX_TURNS,
-    TASK_SCHEMA_PATH,
     print_status,
 )
 from nightshift.cycle import extract_json
@@ -34,16 +33,17 @@ def _build_subagent_command(
     prompt: str,
     cwd: Path,
     message_path: Path,
+    schema_path: str,
 ) -> list[str]:
     """Build the CLI command to invoke a sub-agent for a work order."""
     if agent == "codex":
-        schema_path = cwd / TASK_SCHEMA_PATH
+        full_schema_path = cwd / schema_path
         return [
             "codex",
             "exec",
             "--json",
             "--output-schema",
-            str(schema_path),
+            str(full_schema_path),
             "--output-last-message",
             str(message_path),
             "-c",
@@ -70,7 +70,9 @@ def _validate_task_completion(data: dict[str, object], task_id: int) -> bool:
         return False
     if data.get("task_id") != task_id:
         return False
-    return data.get("status") in ("done", "blocked")
+    if data.get("status") not in ("done", "blocked"):
+        return False
+    return all(isinstance(data.get(key), list) for key in ("files_created", "files_modified", "tests_written"))
 
 
 def _parse_task_completion(
@@ -135,6 +137,7 @@ def spawn_task(
         prompt=work_order["prompt"],
         cwd=repo_dir,
         message_path=message_path,
+        schema_path=work_order["schema_path"],
     )
 
     print_status(f"[subagent] Spawning {agent} for task {task_id}: {work_order['title']}")

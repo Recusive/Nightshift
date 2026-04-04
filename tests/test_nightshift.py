@@ -4579,6 +4579,7 @@ class TestBuildSubagentCommand:
             prompt="Build X",
             cwd=Path("/tmp/repo"),
             message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="schemas/task.schema.json",
         )
         assert cmd[0] == "codex"
         assert "exec" in cmd
@@ -4595,6 +4596,7 @@ class TestBuildSubagentCommand:
             prompt="Build X",
             cwd=Path("/tmp/repo"),
             message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="schemas/task.schema.json",
         )
         assert cmd[0] == "claude"
         assert "-p" in cmd
@@ -4609,6 +4611,7 @@ class TestBuildSubagentCommand:
             prompt="Build X",
             cwd=Path("/tmp/repo"),
             message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="schemas/task.schema.json",
         )
         turns_idx = cmd.index("--max-turns")
         assert cmd[turns_idx + 1] == str(nightshift.SUBAGENT_MAX_TURNS)
@@ -4622,6 +4625,7 @@ class TestBuildSubagentCommand:
                 prompt="Build X",
                 cwd=Path("/tmp/repo"),
                 message_path=Path("/tmp/logs/task-1.msg.json"),
+                schema_path="schemas/task.schema.json",
             )
 
     def test_codex_message_path(self) -> None:
@@ -4633,9 +4637,22 @@ class TestBuildSubagentCommand:
             prompt="Build X",
             cwd=Path("/tmp/repo"),
             message_path=msg,
+            schema_path="schemas/task.schema.json",
         )
         assert "--output-last-message" in cmd
         assert str(msg) in cmd
+
+    def test_codex_uses_work_order_schema_path(self) -> None:
+        from nightshift.subagent import _build_subagent_command
+
+        cmd = _build_subagent_command(
+            agent="codex",
+            prompt="Build X",
+            cwd=Path("/tmp/repo"),
+            message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="custom/schema.json",
+        )
+        assert str(Path("/tmp/repo/custom/schema.json")) in cmd
 
 
 class TestValidateTaskCompletion:
@@ -4694,6 +4711,20 @@ class TestValidateTaskCompletion:
             "task_id": 1,
             "status": "partial",
             "files_created": [],
+            "files_modified": [],
+            "tests_written": [],
+            "tests_passed": True,
+            "notes": "",
+        }
+        assert _validate_task_completion(data, 1) is False
+
+    def test_string_instead_of_list(self) -> None:
+        from nightshift.subagent import _validate_task_completion
+
+        data = {
+            "task_id": 1,
+            "status": "done",
+            "files_created": "src/foo.ts",
             "files_modified": [],
             "tests_written": [],
             "tests_passed": True,
