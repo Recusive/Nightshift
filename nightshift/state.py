@@ -8,7 +8,14 @@ from typing import Any
 
 from nightshift.constants import DATA_VERSION
 from nightshift.errors import NightshiftError
-from nightshift.types import Baseline, Counters, CycleResult, CycleVerification, ShiftState
+from nightshift.types import (
+    Baseline,
+    Counters,
+    CycleResult,
+    CycleVerification,
+    FeatureState,
+    ShiftState,
+)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -18,7 +25,7 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def write_json(path: Path, payload: dict[str, Any] | ShiftState) -> None:
+def write_json(path: Path, payload: dict[str, Any] | ShiftState | FeatureState) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

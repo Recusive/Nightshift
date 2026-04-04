@@ -264,3 +264,45 @@ class IntegrationResult(TypedDict):
     files_staged: list[str]
     fix_attempts: list[FixAttempt]
     failure_diagnosis: str
+
+
+# --- Loop 2: Feature build orchestration ------------------------------------
+
+
+class FinalVerificationResult(TypedDict):
+    """Outcome of the final production-readiness verification step."""
+
+    status: str  # "passed" | "failed"
+    tests_run: bool
+    lint_run: bool
+    test_command: str | None
+    lint_command: str | None
+    test_exit_code: int
+    lint_exit_code: int
+    test_output: str
+    lint_output: str
+
+
+class FeatureWaveState(TypedDict):
+    """Persisted state for one execution wave in a feature build."""
+
+    wave: int
+    task_ids: list[int]
+    status: str  # "pending" | "running" | "passed" | "failed"
+    wave_result: WaveResult | None
+    integration_result: IntegrationResult | None
+
+
+class FeatureState(TypedDict):
+    """Persisted state for the Loop 2 feature build orchestrator."""
+
+    version: int
+    feature_description: str
+    agent: str
+    status: str  # "awaiting_confirmation" | "building" | "failed" | "completed"
+    scope_warning: str
+    current_wave: int
+    profile: RepoProfile
+    plan: FeaturePlan
+    waves: list[FeatureWaveState]
+    final_verification: FinalVerificationResult | None
