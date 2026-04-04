@@ -443,7 +443,7 @@ Architecture overview: {architecture_overview}
 When done, return a JSON object matching the task completion schema:
 
 ```json
-{{{{
+{{
   "task_id": {task_id},
   "status": "done",
   "files_created": ["<path>", "..."],
@@ -451,13 +451,13 @@ When done, return a JSON object matching the task completion schema:
   "tests_written": ["<test description>", "..."],
   "tests_passed": true,
   "notes": "<any important context for the orchestrator>"
-}}}}
+}}
 ```
 
 If you are blocked and cannot complete the task, return:
 
 ```json
-{{{{
+{{
   "task_id": {task_id},
   "status": "blocked",
   "files_created": [],
@@ -465,7 +465,7 @@ If you are blocked and cannot complete the task, return:
   "tests_written": [],
   "tests_passed": false,
   "notes": "<explain what is blocking you>"
-}}}}
+}}
 ```
 
 Return ONLY the JSON object. No markdown fences, no commentary.

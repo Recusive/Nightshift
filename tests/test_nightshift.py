@@ -4150,6 +4150,18 @@ class TestBuildWorkOrderPrompt:
         assert '"done"' in prompt
         assert '"blocked"' in prompt
 
+    def test_json_examples_have_single_braces(self) -> None:
+        """Verify JSON examples use { } not {{ }} (brace escaping correctness)."""
+        profile = _make_profile()
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        # The prompt should contain valid JSON examples with single braces
+        assert "{\n" in prompt
+        assert "}" in prompt
+        # Double braces would mean the .format() escaping is wrong
+        assert "{{\n" not in prompt
+
     def test_multiple_acceptance_criteria(self) -> None:
         tasks = [
             nightshift.PlanTask(
