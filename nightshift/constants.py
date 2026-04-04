@@ -471,6 +471,14 @@ If you are blocked and cannot complete the task, return:
 Return ONLY the JSON object. No markdown fences, no commentary.
 """
 
+# --- Sub-agent spawner data --------------------------------------------------
+
+# Default timeout per sub-agent invocation in seconds (10 minutes).
+SUBAGENT_DEFAULT_TIMEOUT = 600
+
+# Maximum turns for claude sub-agents.
+SUBAGENT_MAX_TURNS = 50
+
 PROFILER_SKIP_DIRS: set[str] = {
     "node_modules",
     ".git",

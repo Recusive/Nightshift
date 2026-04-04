@@ -4515,3 +4515,713 @@ class TestFormatWorkOrders:
         output = nightshift.format_work_orders(result)
         assert "Total waves: 0" in output
         assert "Total tasks: 0" in output
+
+
+# --- Sub-agent spawner -------------------------------------------------------
+
+
+def _make_work_order(**overrides: object) -> nightshift.WorkOrder:
+    """Build a minimal WorkOrder for testing, with overrides."""
+    defaults: dict[str, object] = {
+        "task_id": 1,
+        "wave": 1,
+        "title": "Create theme provider",
+        "prompt": "Build a theme provider component.",
+        "acceptance_criteria": ["Theme toggles between light and dark"],
+        "estimated_files": 3,
+        "depends_on": [],
+        "schema_path": "schemas/task.schema.json",
+    }
+    defaults.update(overrides)
+    return nightshift.WorkOrder(**defaults)  # type: ignore[arg-type]
+
+
+def _make_done_json(task_id: int = 1) -> str:
+    """Return valid JSON for a done TaskCompletion."""
+    import json
+
+    return json.dumps(
+        {
+            "task_id": task_id,
+            "status": "done",
+            "files_created": ["src/theme.ts"],
+            "files_modified": ["src/app.ts"],
+            "tests_written": ["theme provider renders"],
+            "tests_passed": True,
+            "notes": "All good",
+        }
+    )
+
+
+def _make_blocked_json(task_id: int = 1) -> str:
+    """Return valid JSON for a blocked TaskCompletion."""
+    import json
+
+    return json.dumps(
+        {
+            "task_id": task_id,
+            "status": "blocked",
+            "files_created": [],
+            "files_modified": [],
+            "tests_written": [],
+            "tests_passed": False,
+            "notes": "Missing dependency",
+        }
+    )
+
+
+class TestBuildSubagentCommand:
+    def test_codex_command(self) -> None:
+        from nightshift.subagent import _build_subagent_command
+
+        cmd = _build_subagent_command(
+            agent="codex",
+            prompt="Build X",
+            cwd=Path("/tmp/repo"),
+            message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="schemas/task.schema.json",
+        )
+        assert cmd[0] == "codex"
+        assert "exec" in cmd
+        assert "--json" in cmd
+        assert "--output-schema" in cmd
+        assert str(Path("/tmp/repo/schemas/task.schema.json")) in cmd
+        assert "Build X" in cmd
+
+    def test_claude_command(self) -> None:
+        from nightshift.subagent import _build_subagent_command
+
+        cmd = _build_subagent_command(
+            agent="claude",
+            prompt="Build X",
+            cwd=Path("/tmp/repo"),
+            message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="schemas/task.schema.json",
+        )
+        assert cmd[0] == "claude"
+        assert "-p" in cmd
+        assert "Build X" in cmd
+        assert "--max-turns" in cmd
+
+    def test_claude_uses_configured_max_turns(self) -> None:
+        from nightshift.subagent import _build_subagent_command
+
+        cmd = _build_subagent_command(
+            agent="claude",
+            prompt="Build X",
+            cwd=Path("/tmp/repo"),
+            message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="schemas/task.schema.json",
+        )
+        turns_idx = cmd.index("--max-turns")
+        assert cmd[turns_idx + 1] == str(nightshift.SUBAGENT_MAX_TURNS)
+
+    def test_unsupported_agent_raises(self) -> None:
+        from nightshift.subagent import _build_subagent_command
+
+        with pytest.raises(nightshift.NightshiftError, match="Unsupported agent"):
+            _build_subagent_command(
+                agent="gemini",
+                prompt="Build X",
+                cwd=Path("/tmp/repo"),
+                message_path=Path("/tmp/logs/task-1.msg.json"),
+                schema_path="schemas/task.schema.json",
+            )
+
+    def test_codex_message_path(self) -> None:
+        from nightshift.subagent import _build_subagent_command
+
+        msg = Path("/tmp/logs/task-42.msg.json")
+        cmd = _build_subagent_command(
+            agent="codex",
+            prompt="Build X",
+            cwd=Path("/tmp/repo"),
+            message_path=msg,
+            schema_path="schemas/task.schema.json",
+        )
+        assert "--output-last-message" in cmd
+        assert str(msg) in cmd
+
+    def test_codex_uses_work_order_schema_path(self) -> None:
+        from nightshift.subagent import _build_subagent_command
+
+        cmd = _build_subagent_command(
+            agent="codex",
+            prompt="Build X",
+            cwd=Path("/tmp/repo"),
+            message_path=Path("/tmp/logs/task-1.msg.json"),
+            schema_path="custom/schema.json",
+        )
+        assert str(Path("/tmp/repo/custom/schema.json")) in cmd
+
+
+class TestValidateTaskCompletion:
+    def test_valid_done(self) -> None:
+        from nightshift.subagent import _validate_task_completion
+
+        data = {
+            "task_id": 1,
+            "status": "done",
+            "files_created": [],
+            "files_modified": [],
+            "tests_written": [],
+            "tests_passed": True,
+            "notes": "",
+        }
+        assert _validate_task_completion(data, 1) is True
+
+    def test_valid_blocked(self) -> None:
+        from nightshift.subagent import _validate_task_completion
+
+        data = {
+            "task_id": 2,
+            "status": "blocked",
+            "files_created": [],
+            "files_modified": [],
+            "tests_written": [],
+            "tests_passed": False,
+            "notes": "stuck",
+        }
+        assert _validate_task_completion(data, 2) is True
+
+    def test_missing_key(self) -> None:
+        from nightshift.subagent import _validate_task_completion
+
+        data = {"task_id": 1, "status": "done"}
+        assert _validate_task_completion(data, 1) is False
+
+    def test_wrong_task_id(self) -> None:
+        from nightshift.subagent import _validate_task_completion
+
+        data = {
+            "task_id": 99,
+            "status": "done",
+            "files_created": [],
+            "files_modified": [],
+            "tests_written": [],
+            "tests_passed": True,
+            "notes": "",
+        }
+        assert _validate_task_completion(data, 1) is False
+
+    def test_invalid_status(self) -> None:
+        from nightshift.subagent import _validate_task_completion
+
+        data = {
+            "task_id": 1,
+            "status": "partial",
+            "files_created": [],
+            "files_modified": [],
+            "tests_written": [],
+            "tests_passed": True,
+            "notes": "",
+        }
+        assert _validate_task_completion(data, 1) is False
+
+    def test_string_instead_of_list(self) -> None:
+        from nightshift.subagent import _validate_task_completion
+
+        data = {
+            "task_id": 1,
+            "status": "done",
+            "files_created": "src/foo.ts",
+            "files_modified": [],
+            "tests_written": [],
+            "tests_passed": True,
+            "notes": "",
+        }
+        assert _validate_task_completion(data, 1) is False
+
+
+class TestParseTaskCompletion:
+    def test_parses_valid_done(self) -> None:
+        from nightshift.subagent import _parse_task_completion
+
+        result = _parse_task_completion(_make_done_json(1), 1)
+        assert result is not None
+        assert result["task_id"] == 1
+        assert result["status"] == "done"
+        assert result["files_created"] == ["src/theme.ts"]
+        assert result["tests_passed"] is True
+
+    def test_parses_valid_blocked(self) -> None:
+        from nightshift.subagent import _parse_task_completion
+
+        result = _parse_task_completion(_make_blocked_json(2), 2)
+        assert result is not None
+        assert result["task_id"] == 2
+        assert result["status"] == "blocked"
+        assert result["notes"] == "Missing dependency"
+
+    def test_returns_none_for_garbage(self) -> None:
+        from nightshift.subagent import _parse_task_completion
+
+        assert _parse_task_completion("not json at all", 1) is None
+
+    def test_returns_none_for_empty(self) -> None:
+        from nightshift.subagent import _parse_task_completion
+
+        assert _parse_task_completion("", 1) is None
+
+    def test_returns_none_for_wrong_task_id(self) -> None:
+        from nightshift.subagent import _parse_task_completion
+
+        result = _parse_task_completion(_make_done_json(99), 1)
+        assert result is None
+
+    def test_parses_json_in_fences(self) -> None:
+        from nightshift.subagent import _parse_task_completion
+
+        fenced = "```json\n" + _make_done_json(1) + "\n```"
+        result = _parse_task_completion(fenced, 1)
+        assert result is not None
+        assert result["status"] == "done"
+
+    def test_parses_json_with_leading_text(self) -> None:
+        from nightshift.subagent import _parse_task_completion
+
+        with_text = "Here is my output:\n" + _make_done_json(1)
+        result = _parse_task_completion(with_text, 1)
+        assert result is not None
+        assert result["status"] == "done"
+
+
+class TestMakeErrorCompletion:
+    def test_creates_blocked_completion(self) -> None:
+        from nightshift.subagent import _make_error_completion
+
+        result = _make_error_completion(5, "Agent crashed")
+        assert result["task_id"] == 5
+        assert result["status"] == "blocked"
+        assert result["notes"] == "Agent crashed"
+        assert result["files_created"] == []
+        assert result["tests_passed"] is False
+
+
+class TestSpawnTask:
+    def test_returns_parsed_completion_on_success(self, tmp_path: Path) -> None:
+        done_json = _make_done_json(1)
+        order = _make_work_order()
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.subagent.run_command", return_value=(0, done_json)):
+            result = nightshift.spawn_task(
+                order,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert result is not None
+        assert result["task_id"] == 1
+        assert result["status"] == "done"
+
+    def test_returns_none_on_unparseable_output(self, tmp_path: Path) -> None:
+        order = _make_work_order()
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.subagent.run_command", return_value=(0, "garbage output")):
+            result = nightshift.spawn_task(
+                order,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert result is None
+
+    def test_returns_blocked_on_agent_blocked(self, tmp_path: Path) -> None:
+        blocked_json = _make_blocked_json(1)
+        order = _make_work_order()
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.subagent.run_command", return_value=(0, blocked_json)):
+            result = nightshift.spawn_task(
+                order,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert result is not None
+        assert result["status"] == "blocked"
+
+    def test_nonzero_exit_still_parses(self, tmp_path: Path) -> None:
+        done_json = _make_done_json(1)
+        order = _make_work_order()
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.subagent.run_command", return_value=(1, done_json)):
+            result = nightshift.spawn_task(
+                order,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert result is not None
+        assert result["status"] == "done"
+
+    def test_creates_log_dir(self, tmp_path: Path) -> None:
+        order = _make_work_order()
+        log_dir = tmp_path / "deep" / "nested" / "logs"
+
+        with patch("nightshift.subagent.run_command", return_value=(0, _make_done_json(1))):
+            nightshift.spawn_task(
+                order,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert log_dir.exists()
+
+    def test_uses_custom_timeout(self, tmp_path: Path) -> None:
+        order = _make_work_order()
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.subagent.run_command", return_value=(0, _make_done_json(1))) as mock_run:
+            nightshift.spawn_task(
+                order,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+                timeout_seconds=120,
+            )
+
+        _, kwargs = mock_run.call_args
+        assert kwargs["timeout_seconds"] == 120
+
+    def test_uses_default_timeout(self, tmp_path: Path) -> None:
+        order = _make_work_order()
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.subagent.run_command", return_value=(0, _make_done_json(1))) as mock_run:
+            nightshift.spawn_task(
+                order,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        _, kwargs = mock_run.call_args
+        assert kwargs["timeout_seconds"] == nightshift.SUBAGENT_DEFAULT_TIMEOUT
+
+    def test_codex_reads_message_file(self, tmp_path: Path) -> None:
+        order = _make_work_order()
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir(parents=True)
+        msg_path = log_dir / "task-1.msg.json"
+        msg_path.write_text(_make_done_json(1))
+
+        with patch("nightshift.subagent.run_command", return_value=(0, "garbage")):
+            result = nightshift.spawn_task(
+                order,
+                agent="codex",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert result is not None
+        assert result["status"] == "done"
+
+
+class TestSpawnWave:
+    def test_all_done(self, tmp_path: Path) -> None:
+        orders = [
+            _make_work_order(task_id=1, title="Task A"),
+            _make_work_order(task_id=2, title="Task B"),
+        ]
+        log_dir = tmp_path / "logs"
+
+        def fake_run(cmd: list[str], **kwargs: object) -> tuple[int, str]:
+            # Extract task_id from prompt (all prompts are the same, just return done)
+            for i, arg in enumerate(cmd):
+                if arg == "-p" and i + 1 < len(cmd):
+                    return (0, _make_done_json(1))
+            return (0, _make_done_json(1))
+
+        with patch(
+            "nightshift.subagent.run_command", side_effect=lambda cmd, **kw: (0, _make_done_json(kw.get("_tid", 1)))
+        ):
+
+            def mock_spawn(order: nightshift.WorkOrder, **kw: object) -> nightshift.TaskCompletion | None:
+                return nightshift.TaskCompletion(
+                    task_id=order["task_id"],
+                    status="done",
+                    files_created=[],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="ok",
+                )
+
+            with patch("nightshift.subagent.spawn_task", side_effect=mock_spawn):
+                result = nightshift.spawn_wave(
+                    orders,
+                    agent="claude",
+                    repo_dir=tmp_path,
+                    log_dir=log_dir,
+                )
+
+        assert result["wave"] == 1
+        assert result["total_tasks"] == 2
+        assert len(result["completed"]) == 2
+        assert len(result["failed"]) == 0
+
+    def test_one_blocked(self, tmp_path: Path) -> None:
+        orders = [
+            _make_work_order(task_id=1, title="Task A"),
+            _make_work_order(task_id=2, title="Task B"),
+        ]
+        log_dir = tmp_path / "logs"
+
+        def mock_spawn(order: nightshift.WorkOrder, **kw: object) -> nightshift.TaskCompletion | None:
+            if order["task_id"] == 1:
+                return nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=[],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="ok",
+                )
+            return nightshift.TaskCompletion(
+                task_id=2,
+                status="blocked",
+                files_created=[],
+                files_modified=[],
+                tests_written=[],
+                tests_passed=False,
+                notes="stuck",
+            )
+
+        with patch("nightshift.subagent.spawn_task", side_effect=mock_spawn):
+            result = nightshift.spawn_wave(
+                orders,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert len(result["completed"]) == 1
+        assert len(result["failed"]) == 1
+        assert result["failed"][0]["task_id"] == 2
+
+    def test_retries_on_none(self, tmp_path: Path) -> None:
+        orders = [_make_work_order(task_id=1)]
+        log_dir = tmp_path / "logs"
+        call_count = 0
+
+        def mock_spawn(order: nightshift.WorkOrder, **kw: object) -> nightshift.TaskCompletion | None:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                return None
+            return nightshift.TaskCompletion(
+                task_id=1,
+                status="done",
+                files_created=[],
+                files_modified=[],
+                tests_written=[],
+                tests_passed=True,
+                notes="ok",
+            )
+
+        with patch("nightshift.subagent.spawn_task", side_effect=mock_spawn):
+            result = nightshift.spawn_wave(
+                orders,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+                max_retries=3,
+            )
+
+        assert call_count == 3
+        assert len(result["completed"]) == 1
+
+    def test_exhausts_retries(self, tmp_path: Path) -> None:
+        orders = [_make_work_order(task_id=1)]
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.subagent.spawn_task", return_value=None):
+            result = nightshift.spawn_wave(
+                orders,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+                max_retries=2,
+            )
+
+        assert len(result["completed"]) == 0
+        assert len(result["failed"]) == 1
+        assert "2 attempt(s)" in result["failed"][0]["notes"]
+
+    def test_does_not_retry_blocked(self, tmp_path: Path) -> None:
+        orders = [_make_work_order(task_id=1)]
+        log_dir = tmp_path / "logs"
+        call_count = 0
+
+        def mock_spawn(order: nightshift.WorkOrder, **kw: object) -> nightshift.TaskCompletion | None:
+            nonlocal call_count
+            call_count += 1
+            return nightshift.TaskCompletion(
+                task_id=1,
+                status="blocked",
+                files_created=[],
+                files_modified=[],
+                tests_written=[],
+                tests_passed=False,
+                notes="cannot proceed",
+            )
+
+        with patch("nightshift.subagent.spawn_task", side_effect=mock_spawn):
+            result = nightshift.spawn_wave(
+                orders,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+                max_retries=3,
+            )
+
+        assert call_count == 1
+        assert len(result["failed"]) == 1
+
+    def test_empty_wave(self, tmp_path: Path) -> None:
+        result = nightshift.spawn_wave(
+            [],
+            agent="claude",
+            repo_dir=tmp_path,
+            log_dir=tmp_path / "logs",
+        )
+        assert result["wave"] == 0
+        assert result["total_tasks"] == 0
+        assert result["completed"] == []
+        assert result["failed"] == []
+
+    def test_uses_default_max_retries(self, tmp_path: Path) -> None:
+        orders = [_make_work_order(task_id=1)]
+        log_dir = tmp_path / "logs"
+        call_count = 0
+
+        def mock_spawn(order: nightshift.WorkOrder, **kw: object) -> nightshift.TaskCompletion | None:
+            nonlocal call_count
+            call_count += 1
+            return None
+
+        with patch("nightshift.subagent.spawn_task", side_effect=mock_spawn):
+            nightshift.spawn_wave(
+                orders,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=log_dir,
+            )
+
+        assert call_count == nightshift.DECOMPOSER_MAX_RETRIES
+
+    def test_wave_number_from_first_order(self, tmp_path: Path) -> None:
+        orders = [_make_work_order(task_id=5, wave=3)]
+
+        def mock_spawn(order: nightshift.WorkOrder, **kw: object) -> nightshift.TaskCompletion | None:
+            return nightshift.TaskCompletion(
+                task_id=5,
+                status="done",
+                files_created=[],
+                files_modified=[],
+                tests_written=[],
+                tests_passed=True,
+                notes="ok",
+            )
+
+        with patch("nightshift.subagent.spawn_task", side_effect=mock_spawn):
+            result = nightshift.spawn_wave(
+                orders,
+                agent="claude",
+                repo_dir=tmp_path,
+                log_dir=tmp_path / "logs",
+            )
+
+        assert result["wave"] == 3
+
+
+class TestFormatWaveResult:
+    def test_includes_wave_number(self) -> None:
+        result = nightshift.WaveResult(wave=2, completed=[], failed=[], total_tasks=0)
+        output = nightshift.format_wave_result(result)
+        assert "Wave 2" in output
+
+    def test_includes_counts(self) -> None:
+        completed = [
+            nightshift.TaskCompletion(
+                task_id=1,
+                status="done",
+                files_created=["a.py"],
+                files_modified=[],
+                tests_written=["test A"],
+                tests_passed=True,
+                notes="ok",
+            )
+        ]
+        result = nightshift.WaveResult(wave=1, completed=completed, failed=[], total_tasks=1)
+        output = nightshift.format_wave_result(result)
+        assert "**1** completed" in output
+        assert "**0** failed" in output
+        assert "**1** total" in output
+
+    def test_includes_completed_details(self) -> None:
+        completed = [
+            nightshift.TaskCompletion(
+                task_id=1,
+                status="done",
+                files_created=["src/new.ts"],
+                files_modified=["src/old.ts"],
+                tests_written=["test new component"],
+                tests_passed=True,
+                notes="Looks good",
+            )
+        ]
+        result = nightshift.WaveResult(wave=1, completed=completed, failed=[], total_tasks=1)
+        output = nightshift.format_wave_result(result)
+        assert "Task 1" in output
+        assert "src/new.ts" in output
+        assert "src/old.ts" in output
+        assert "Looks good" in output
+
+    def test_includes_failed_details(self) -> None:
+        failed = [
+            nightshift.TaskCompletion(
+                task_id=3,
+                status="blocked",
+                files_created=[],
+                files_modified=[],
+                tests_written=[],
+                tests_passed=False,
+                notes="Cannot find dependency",
+            )
+        ]
+        result = nightshift.WaveResult(wave=1, completed=[], failed=failed, total_tasks=1)
+        output = nightshift.format_wave_result(result)
+        assert "Task 3" in output
+        assert "Cannot find dependency" in output
+        assert "## Failed" in output
+
+    def test_empty_result(self) -> None:
+        result = nightshift.WaveResult(wave=0, completed=[], failed=[], total_tasks=0)
+        output = nightshift.format_wave_result(result)
+        assert "**0** completed" in output
+        assert "**0** failed" in output
+
+
+class TestSubagentConstants:
+    def test_default_timeout(self) -> None:
+        assert nightshift.SUBAGENT_DEFAULT_TIMEOUT == 600
+
+    def test_max_turns(self) -> None:
+        assert nightshift.SUBAGENT_MAX_TURNS == 50
+
+    def test_max_turns_is_positive(self) -> None:
+        assert nightshift.SUBAGENT_MAX_TURNS > 0
+
+    def test_default_timeout_is_positive(self) -> None:
+        assert nightshift.SUBAGENT_DEFAULT_TIMEOUT > 0
