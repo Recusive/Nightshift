@@ -32,6 +32,7 @@ PACKAGE_FILES=(
   "nightshift/planner.py"
   "nightshift/decomposer.py"
   "nightshift/subagent.py"
+  "nightshift/integrator.py"
   "nightshift/cli.py"
 )
 

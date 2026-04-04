@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-03 by agent session (v0.0.6 sub-agent spawner).
+Last updated: 2026-04-03 by agent session (v0.0.6 integrator module).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,9 +9,9 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              █████████████░░░░░░░  67%
+NIGHTSHIFT VISION                              ██████████████░░░░░░  69%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
-├── Loop 2 — Feature Builder Loop              ███████░░░░░░░░░░░░░  36%
+├── Loop 2 — Feature Builder Loop              █████████░░░░░░░░░░░  45%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
 ```
@@ -37,7 +37,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (445 tests) | Done | ████████████████████ 100% |
+| Test suite (482 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -52,9 +52,9 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 
 ---
 
-## Loop 2 — Feature Builder Loop (36%)
+## Loop 2 — Feature Builder Loop (45%)
 
-Repo profiling, feature planning, task decomposition, and sub-agent spawning are complete. Integration and CLI remain.
+Repo profiling, feature planning, task decomposition, sub-agent spawning, and wave integration are complete. CLI orchestrator, state tracking, and final verification remain.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -63,7 +63,7 @@ Repo profiling, feature planning, task decomposition, and sub-agent spawning are
 | Task decomposer | Done | ████████████████████ 100% |
 | Sub-agent spawner / manager | Done | ████████████████████ 100% |
 | Sub-agent coordination | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
-| Integration / merge engine | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Integration / merge engine | Done | ████████████████████ 100% |
 | E2E test runner | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Feature CLI (`nightshift build`) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Feature state tracking | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

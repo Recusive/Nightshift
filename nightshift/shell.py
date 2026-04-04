@@ -138,3 +138,24 @@ def command_exists(name: str) -> bool:
 
 def run_shell_string(command: str, *, cwd: Path, runner_log: Path) -> tuple[int, str]:
     return run_command(["bash", "-lc", command], cwd=cwd, log_path=runner_log)
+
+
+def run_test_command(command: str, *, cwd: Path, timeout: int = 300) -> tuple[int, str]:
+    """Run a shell command and return (exit_code, combined_output).
+
+    Unlike run_capture (which only returns stdout), this returns the exit
+    code alongside combined stdout+stderr.  Designed for test suite execution
+    where the caller needs to inspect both the result and the output.
+    """
+    try:
+        result = subprocess.run(
+            ["bash", "-lc", command],
+            cwd=str(cwd),
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
+        return result.returncode, result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        return 1, f"Command timed out after {timeout} seconds"

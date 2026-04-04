@@ -5225,3 +5225,527 @@ class TestSubagentConstants:
 
     def test_default_timeout_is_positive(self) -> None:
         assert nightshift.SUBAGENT_DEFAULT_TIMEOUT > 0
+
+
+# --- Integrator ---------------------------------------------------------------
+
+
+def _make_wave_result(
+    wave: int = 1,
+    completed: list[nightshift.TaskCompletion] | None = None,
+    failed: list[nightshift.TaskCompletion] | None = None,
+) -> nightshift.WaveResult:
+    """Build a WaveResult for testing."""
+    c = completed or []
+    f = failed or []
+    return nightshift.WaveResult(
+        wave=wave,
+        completed=c,
+        failed=f,
+        total_tasks=len(c) + len(f),
+    )
+
+
+def _make_task_completion(
+    task_id: int = 1,
+    status: str = "done",
+    files_created: list[str] | None = None,
+    files_modified: list[str] | None = None,
+    tests_written: list[str] | None = None,
+    tests_passed: bool = True,
+    notes: str = "ok",
+) -> nightshift.TaskCompletion:
+    """Build a TaskCompletion for testing."""
+    return nightshift.TaskCompletion(
+        task_id=task_id,
+        status=status,
+        files_created=files_created or [],
+        files_modified=files_modified or [],
+        tests_written=tests_written or [],
+        tests_passed=tests_passed,
+        notes=notes,
+    )
+
+
+class TestCollectWaveFiles:
+    def test_empty_wave(self) -> None:
+        wr = _make_wave_result()
+        assert nightshift.collect_wave_files(wr) == []
+
+    def test_collects_created_and_modified(self) -> None:
+        tc = _make_task_completion(
+            files_created=["src/a.py"],
+            files_modified=["src/b.py"],
+        )
+        wr = _make_wave_result(completed=[tc])
+        result = nightshift.collect_wave_files(wr)
+        assert result == ["src/a.py", "src/b.py"]
+
+    def test_deduplicates(self) -> None:
+        tc1 = _make_task_completion(task_id=1, files_created=["src/shared.py"])
+        tc2 = _make_task_completion(task_id=2, files_modified=["src/shared.py"])
+        wr = _make_wave_result(completed=[tc1, tc2])
+        result = nightshift.collect_wave_files(wr)
+        assert result == ["src/shared.py"]
+
+    def test_sorted_output(self) -> None:
+        tc = _make_task_completion(
+            files_created=["z.py", "a.py", "m.py"],
+        )
+        wr = _make_wave_result(completed=[tc])
+        result = nightshift.collect_wave_files(wr)
+        assert result == ["a.py", "m.py", "z.py"]
+
+    def test_ignores_failed_tasks(self) -> None:
+        tc_done = _make_task_completion(task_id=1, files_created=["good.py"])
+        tc_fail = _make_task_completion(task_id=2, status="blocked", files_created=["bad.py"])
+        wr = _make_wave_result(completed=[tc_done], failed=[tc_fail])
+        result = nightshift.collect_wave_files(wr)
+        assert result == ["good.py"]
+
+    def test_multiple_tasks_merge(self) -> None:
+        tc1 = _make_task_completion(task_id=1, files_created=["a.py"], files_modified=["c.py"])
+        tc2 = _make_task_completion(task_id=2, files_created=["b.py"], files_modified=["d.py"])
+        wr = _make_wave_result(completed=[tc1, tc2])
+        result = nightshift.collect_wave_files(wr)
+        assert result == ["a.py", "b.py", "c.py", "d.py"]
+
+
+class TestStageFiles:
+    def test_stages_existing_files(self, tmp_path: Path) -> None:
+        (tmp_path / "a.py").write_text("print('a')")
+        (tmp_path / "b.py").write_text("print('b')")
+
+        with patch("nightshift.integrator.git") as mock_git:
+            result = nightshift.stage_files(tmp_path, ["a.py", "b.py"])
+
+        assert result == ["a.py", "b.py"]
+        assert mock_git.call_count == 2
+
+    def test_skips_missing_files(self, tmp_path: Path) -> None:
+        (tmp_path / "exists.py").write_text("print('hi')")
+
+        with patch("nightshift.integrator.git") as mock_git:
+            result = nightshift.stage_files(tmp_path, ["exists.py", "missing.py"])
+
+        assert result == ["exists.py"]
+        assert mock_git.call_count == 1
+
+    def test_empty_file_list(self, tmp_path: Path) -> None:
+        with patch("nightshift.integrator.git") as mock_git:
+            result = nightshift.stage_files(tmp_path, [])
+
+        assert result == []
+        assert mock_git.call_count == 0
+
+
+class TestRunTestSuite:
+    def test_returns_zero_on_success(self, tmp_path: Path) -> None:
+        with patch("nightshift.integrator.run_test_command", return_value=(0, "ok")):
+            code, output = nightshift.run_test_suite(tmp_path, "echo test")
+
+        assert code == 0
+        assert "ok" in output
+
+    def test_returns_nonzero_on_failure(self, tmp_path: Path) -> None:
+        with patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL error")):
+            code, output = nightshift.run_test_suite(tmp_path, "test")
+
+        assert code == 1
+        assert "FAIL" in output
+
+    def test_no_test_command_returns_success(self, tmp_path: Path) -> None:
+        code, output = nightshift.run_test_suite(tmp_path, None)
+        assert code == 0
+        assert output == ""
+
+    def test_timeout_returns_failure(self, tmp_path: Path) -> None:
+        with patch("nightshift.integrator.run_test_command", return_value=(1, "Command timed out after 10 seconds")):
+            code, output = nightshift.run_test_suite(tmp_path, "test", timeout=10)
+
+        assert code == 1
+        assert "timed out" in output
+
+
+class TestDiagnoseFailure:
+    def test_identifies_suspect_by_file_mention(self) -> None:
+        tc1 = _make_task_completion(task_id=1, files_created=["src/auth.py"])
+        tc2 = _make_task_completion(task_id=2, files_created=["src/utils.py"])
+        wr = _make_wave_result(completed=[tc1, tc2])
+
+        test_output = "FAILED tests/test_auth.py::test_login - ImportError: src/auth.py"
+        suspect_id, diag = nightshift.diagnose_failure(test_output, wr)
+
+        assert suspect_id == 1
+        assert "Task 1" in diag
+
+    def test_identifies_by_basename(self) -> None:
+        tc = _make_task_completion(task_id=3, files_created=["deep/nested/handler.py"])
+        wr = _make_wave_result(completed=[tc])
+
+        test_output = "Error in handler.py line 42"
+        suspect_id, _diag = nightshift.diagnose_failure(test_output, wr)
+
+        assert suspect_id == 3
+
+    def test_returns_none_when_no_match(self) -> None:
+        tc = _make_task_completion(task_id=1, files_created=["src/models.py"])
+        wr = _make_wave_result(completed=[tc])
+
+        test_output = "FAILED: something completely unrelated"
+        suspect_id, diag = nightshift.diagnose_failure(test_output, wr)
+
+        assert suspect_id is None
+        assert "Could not match" in diag
+
+    def test_empty_test_output(self) -> None:
+        wr = _make_wave_result()
+        suspect_id, diag = nightshift.diagnose_failure("", wr)
+
+        assert suspect_id is None
+        assert "No test output" in diag
+
+    def test_picks_most_mentioned_task(self) -> None:
+        tc1 = _make_task_completion(task_id=1, files_created=["a.py"])
+        tc2 = _make_task_completion(task_id=2, files_created=["b.py"])
+        wr = _make_wave_result(completed=[tc1, tc2])
+
+        # b.py mentioned 3 times, a.py mentioned 1 time
+        test_output = "Error in a.py\nError in b.py\nAlso b.py\nAnd b.py again"
+        suspect_id, _ = nightshift.diagnose_failure(test_output, wr)
+
+        assert suspect_id == 2
+
+
+class TestIntegrateWave:
+    def test_passed_when_tests_succeed(self, tmp_path: Path) -> None:
+        tc = _make_task_completion(task_id=1, files_created=["src/new.py"])
+        wr = _make_wave_result(completed=[tc])
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "new.py").write_text("x = 1")
+        log_dir = tmp_path / "logs"
+
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(0, "3 passed")),
+        ):
+            result = nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command="pytest",
+                agent="claude",
+                log_dir=log_dir,
+            )
+
+        assert result["status"] == "passed"
+        assert result["tests_run"] is True
+        assert result["test_exit_code"] == 0
+        assert "src/new.py" in result["files_staged"]
+        assert result["fix_attempts"] == []
+
+    def test_no_test_runner(self, tmp_path: Path) -> None:
+        tc = _make_task_completion(task_id=1, files_created=["app.js"])
+        wr = _make_wave_result(completed=[tc])
+        (tmp_path / "app.js").write_text("module.exports = {}")
+        log_dir = tmp_path / "logs"
+
+        with patch("nightshift.integrator.git"):
+            result = nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command=None,
+                agent="claude",
+                log_dir=log_dir,
+            )
+
+        assert result["status"] == "no_test_runner"
+        assert result["tests_run"] is False
+
+    def test_failed_after_exhausting_fix_attempts(self, tmp_path: Path) -> None:
+        tc = _make_task_completion(
+            task_id=1,
+            files_created=["src/broken.py"],
+            notes="Something went wrong",
+        )
+        wr = _make_wave_result(completed=[tc])
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "broken.py").write_text("x = 1")
+        log_dir = tmp_path / "logs"
+
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL src/broken.py broken.py")),
+            patch("nightshift.integrator.spawn_task", return_value=_make_task_completion()),
+        ):
+            result = nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command="pytest",
+                agent="claude",
+                log_dir=log_dir,
+                max_fix_attempts=2,
+            )
+
+        assert result["status"] == "failed"
+        assert result["tests_run"] is True
+        assert result["test_exit_code"] == 1
+        assert len(result["fix_attempts"]) == 2
+
+    def test_fix_agent_succeeds_on_second_attempt(self, tmp_path: Path) -> None:
+        tc = _make_task_completion(
+            task_id=1,
+            files_created=["src/fixable.py"],
+        )
+        wr = _make_wave_result(completed=[tc])
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "fixable.py").write_text("x = 1")
+        log_dir = tmp_path / "logs"
+
+        # First test run fails, second succeeds (after fix)
+        call_count = 0
+
+        def mock_test_run(*args: object, **kwargs: object) -> tuple[int, str]:
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                return (1, "FAIL fixable.py")
+            return (0, "3 passed")
+
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", side_effect=mock_test_run),
+            patch("nightshift.integrator.spawn_task", return_value=_make_task_completion()),
+        ):
+            result = nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command="pytest",
+                agent="claude",
+                log_dir=log_dir,
+                max_fix_attempts=3,
+            )
+
+        assert result["status"] == "passed"
+        assert len(result["fix_attempts"]) == 2
+        assert result["fix_attempts"][-1]["tests_passed"] is True
+
+    def test_stops_fixing_when_diagnosis_fails(self, tmp_path: Path) -> None:
+        tc = _make_task_completion(task_id=1, files_created=["src/x.py"])
+        wr = _make_wave_result(completed=[tc])
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "x.py").write_text("x = 1")
+        log_dir = tmp_path / "logs"
+
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL unrelated_test")),
+        ):
+            result = nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command="pytest",
+                agent="claude",
+                log_dir=log_dir,
+                max_fix_attempts=3,
+            )
+
+        assert result["status"] == "failed"
+        # Should only have 1 fix attempt (stopped early because diagnosis failed)
+        assert len(result["fix_attempts"]) == 1
+        assert "Could not identify" in result["fix_attempts"][0]["fix_agent_notes"]
+
+    def test_empty_wave_still_integrates(self, tmp_path: Path) -> None:
+        wr = _make_wave_result()
+        log_dir = tmp_path / "logs"
+
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(0, "ok")),
+        ):
+            result = nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command="pytest",
+                agent="claude",
+                log_dir=log_dir,
+            )
+
+        assert result["status"] == "passed"
+        assert result["files_staged"] == []
+
+    def test_missing_files_not_staged(self, tmp_path: Path) -> None:
+        tc = _make_task_completion(
+            task_id=1,
+            files_created=["exists.py", "ghost.py"],
+        )
+        wr = _make_wave_result(completed=[tc])
+        (tmp_path / "exists.py").write_text("x = 1")
+        log_dir = tmp_path / "logs"
+
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(0, "ok")),
+        ):
+            result = nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command="pytest",
+                agent="claude",
+                log_dir=log_dir,
+            )
+
+        assert "exists.py" in result["files_staged"]
+        assert "ghost.py" not in result["files_staged"]
+
+    def test_uses_custom_max_fix_attempts(self, tmp_path: Path) -> None:
+        tc = _make_task_completion(task_id=1, files_created=["src/f.py"])
+        wr = _make_wave_result(completed=[tc])
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "f.py").write_text("x = 1")
+        log_dir = tmp_path / "logs"
+
+        spawn_count = 0
+
+        def counting_spawn(*args: object, **kwargs: object) -> nightshift.TaskCompletion:
+            nonlocal spawn_count
+            spawn_count += 1
+            return _make_task_completion()
+
+        with (
+            patch("nightshift.integrator.git"),
+            patch("nightshift.integrator.run_test_command", return_value=(1, "FAIL src/f.py f.py")),
+            patch("nightshift.integrator.spawn_task", side_effect=counting_spawn),
+        ):
+            nightshift.integrate_wave(
+                wr,
+                repo_dir=tmp_path,
+                test_command="pytest",
+                agent="claude",
+                log_dir=log_dir,
+                max_fix_attempts=5,
+            )
+
+        assert spawn_count == 5
+
+
+class TestFormatIntegrationResult:
+    def test_includes_status(self) -> None:
+        result = nightshift.IntegrationResult(
+            wave=1,
+            status="passed",
+            tests_run=True,
+            test_exit_code=0,
+            test_output="3 passed",
+            files_staged=["a.py"],
+            fix_attempts=[],
+            failure_diagnosis="",
+        )
+        output = nightshift.format_integration_result(result)
+        assert "passed" in output
+        assert "Wave 1" in output
+
+    def test_includes_files_staged(self) -> None:
+        result = nightshift.IntegrationResult(
+            wave=2,
+            status="passed",
+            tests_run=True,
+            test_exit_code=0,
+            test_output="ok",
+            files_staged=["src/auth.py", "src/utils.py"],
+            fix_attempts=[],
+            failure_diagnosis="",
+        )
+        output = nightshift.format_integration_result(result)
+        assert "src/auth.py" in output
+        assert "src/utils.py" in output
+
+    def test_includes_fix_attempts(self) -> None:
+        fa = nightshift.FixAttempt(
+            task_id=3,
+            test_output="FAIL",
+            fix_agent_notes="Fixed import",
+            tests_passed=True,
+        )
+        result = nightshift.IntegrationResult(
+            wave=1,
+            status="passed",
+            tests_run=True,
+            test_exit_code=0,
+            test_output="ok",
+            files_staged=[],
+            fix_attempts=[fa],
+            failure_diagnosis="Task 3 files mentioned",
+        )
+        output = nightshift.format_integration_result(result)
+        assert "Fix Attempts" in output
+        assert "Fixed import" in output
+        assert "Task 3 files mentioned" in output
+
+    def test_includes_diagnosis(self) -> None:
+        result = nightshift.IntegrationResult(
+            wave=1,
+            status="failed",
+            tests_run=True,
+            test_exit_code=1,
+            test_output="FAIL",
+            files_staged=[],
+            fix_attempts=[],
+            failure_diagnosis="Could not match test failures",
+        )
+        output = nightshift.format_integration_result(result)
+        assert "Could not match" in output
+
+    def test_empty_result(self) -> None:
+        result = nightshift.IntegrationResult(
+            wave=0,
+            status="no_test_runner",
+            tests_run=False,
+            test_exit_code=0,
+            test_output="",
+            files_staged=[],
+            fix_attempts=[],
+            failure_diagnosis="",
+        )
+        output = nightshift.format_integration_result(result)
+        assert "no_test_runner" in output
+
+
+class TestIntegratorConstants:
+    def test_max_fix_attempts(self) -> None:
+        assert nightshift.INTEGRATOR_MAX_FIX_ATTEMPTS == 3
+
+    def test_test_timeout(self) -> None:
+        assert nightshift.INTEGRATOR_TEST_TIMEOUT == 300
+
+    def test_max_fix_attempts_is_positive(self) -> None:
+        assert nightshift.INTEGRATOR_MAX_FIX_ATTEMPTS > 0
+
+    def test_test_timeout_is_positive(self) -> None:
+        assert nightshift.INTEGRATOR_TEST_TIMEOUT > 0
+
+
+class TestIntegratorTypes:
+    def test_fix_attempt_fields(self) -> None:
+        fa = nightshift.FixAttempt(
+            task_id=1,
+            test_output="output",
+            fix_agent_notes="notes",
+            tests_passed=True,
+        )
+        assert fa["task_id"] == 1
+        assert fa["tests_passed"] is True
+
+    def test_integration_result_fields(self) -> None:
+        result = nightshift.IntegrationResult(
+            wave=1,
+            status="passed",
+            tests_run=True,
+            test_exit_code=0,
+            test_output="ok",
+            files_staged=["a.py"],
+            fix_attempts=[],
+            failure_diagnosis="",
+        )
+        assert result["wave"] == 1
+        assert result["status"] == "passed"
+        assert result["files_staged"] == ["a.py"]

@@ -479,6 +479,14 @@ SUBAGENT_DEFAULT_TIMEOUT = 600
 # Maximum turns for claude sub-agents.
 SUBAGENT_MAX_TURNS = 50
 
+# --- Integrator data ---------------------------------------------------------
+
+# Maximum fix-agent attempts per wave before giving up.
+INTEGRATOR_MAX_FIX_ATTEMPTS = 3
+
+# Timeout for running the test suite during integration (seconds).
+INTEGRATOR_TEST_TIMEOUT = 300
+
 PROFILER_SKIP_DIRS: set[str] = {
     "node_modules",
     ".git",
