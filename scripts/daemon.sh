@@ -105,6 +105,9 @@ while true; do
     PROMPT=$(build_prompt)
 
     # --- Run the agent ---
+    # Use stream-json for line-by-line event output so tee flushes in real-time.
+    # Each line is a JSON event (tool calls, messages, results) that can be
+    # monitored by reading the log file while the session is running.
     set +e
     if [ "$AGENT" = "codex" ]; then
         codex exec \
@@ -117,6 +120,7 @@ while true; do
     else
         claude -p "$PROMPT" \
             --max-turns "$MAX_TURNS" \
+            --output-format stream-json \
             --verbose \
             2>&1 | tee "$LOG_FILE"
         EXIT_CODE=${PIPESTATUS[0]}
