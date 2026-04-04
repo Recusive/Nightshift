@@ -48,6 +48,10 @@ review:
 strategist:
 	bash scripts/daemon-strategist.sh
 
+# Run the overseer (loops -- audits task queue, fixes priorities, cleans duplicates)
+overseer:
+	bash scripts/daemon-overseer.sh
+
 # Remove runtime artifacts
 clean:
 	rm -rf docs/Nightshift/worktree-*/ docs/Nightshift/*.runner.log docs/Nightshift/*.state.json
