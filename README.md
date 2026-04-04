@@ -72,29 +72,43 @@ Main repo checkout                 Nightshift worktree
 └── receives copied logs           └── verification happens after each cycle
 ```
 
-### Key files
+### Package modules (18)
+
+| Module | Purpose |
+|--------|---------|
+| `types.py` | TypedDicts for all data structures (strict typing) |
+| `constants.py` | Config defaults, scoring patterns, category data |
+| `errors.py` | NightshiftError |
+| `shell.py` | Subprocess execution, git helper, shell utilities |
+| `config.py` | Config loading, agent resolution, environment detection |
+| `state.py` | State read/write, cycle state management |
+| `worktree.py` | Git worktree lifecycle, shift log management |
+| `cycle.py` | Prompt building, verification, baseline evaluation, state injection |
+| `scoring.py` | Post-cycle diff scoring (1-10 production impact) |
+| `multi.py` | Multi-repo support (sequential hardening across repos) |
+| `profiler.py` | Repo understanding and profiling (Loop 2) |
+| `planner.py` | Feature planning from natural language (Loop 2) |
+| `decomposer.py` | Task decomposition into parallelizable units (Loop 2) |
+| `subagent.py` | Sub-agent spawning and management (Loop 2) |
+| `integrator.py` | Wave integration, test diagnosis, fix agents (Loop 2) |
+| `cli.py` | CLI entry points: run, test, multi, summarize, verify-cycle |
+| `__init__.py` | Package re-exports |
+| `__main__.py` | Entry point for `python3 -m nightshift` |
+
+### Self-improving infrastructure
 
 | File | Purpose |
 |------|---------|
-| `nightshift/` | Python package — orchestrator, policy engine, verifier, state manager |
-| `nightshift/types.py` | TypedDicts for all data structures (strict typing) |
-| `nightshift/constants.py` | DATA_VERSION, DEFAULT_CONFIG, SHIFT_LOG_TEMPLATE, etc. |
-| `nightshift/errors.py` | NightshiftError |
-| `nightshift/shell.py` | run_command, run_capture, git, command_exists, run_shell_string |
-| `nightshift/config.py` | merge_config, resolve_agent, infer_package_manager, infer_verify_command |
-| `nightshift/state.py` | read_state, write_json, load_json, append_cycle_state, top_path |
-| `nightshift/worktree.py` | ensure_worktree, ensure_shift_log, sync_shift_log, revert_cycle, cleanup_safe_artifacts |
-| `nightshift/cycle.py` | build_prompt, command_for_agent, verify_cycle, evaluate_baseline, extract_json |
-| `nightshift/cli.py` | run_nightshift, summarize, verify_cycle_cli, build_parser, main |
-| `nightshift.schema.json` | Required final-response schema for agent cycles |
-| `pyproject.toml` | Project config: mypy strict, ruff lint/format, pytest |
-| `requirements-dev.txt` | Pinned dev tool versions (mypy, ruff, pytest) |
-| `scripts/check.sh` | Local CI — runs all checks (mirrors GitHub Actions) |
-| `.github/workflows/ci.yml` | CI pipeline: lint, typecheck, test, integration, artifact validation |
-| `nightshift/SKILL.md` | Interactive nightshift skill instructions |
-| `scripts/run.sh` | Thin wrapper around `python3 -m nightshift run` |
-| `scripts/test.sh` | Thin wrapper around `python3 -m nightshift test` |
-| `.nightshift.json.example` | Optional per-repo config template |
+| `scripts/daemon.sh` | Self-improving daemon (see [Daemon](#daemon)) |
+| `docs/prompt/evolve.md` | 11-step session lifecycle prompt |
+| `docs/prompt/evolve-auto.md` | Autonomous mode override |
+| `docs/handoffs/` | Session-to-session memory |
+| `docs/learnings/` | Cross-session knowledge (gotchas, patterns) |
+| `docs/evaluations/` | Self-evaluation reports (scored against real repos) |
+| `docs/sessions/` | Daemon session logs (stream-json) |
+| `docs/tasks/` | Task queue |
+| `docs/vision-tracker/` | Progress scoreboard |
+| `docs/changelog/` | Per-version release notes |
 
 ---
 
@@ -235,6 +249,34 @@ The shift log is for humans. The state file is for quick auditing:
 
 ---
 
+## Daemon
+
+Nightshift can run itself autonomously in a loop, building features, fixing bugs, and shipping releases with zero human intervention.
+
+```bash
+# Start the self-improving daemon in tmux
+tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+
+# Monitor
+cat docs/sessions/index.md          # session history
+gh pr list --state all --limit 5    # recent PRs
+
+# Stop
+tmux send-keys -t nightshift C-c
+```
+
+Full daemon operations guide: `docs/ops/DAEMON.md`
+
+In one 4-hour daemon run, Nightshift autonomously:
+- Shipped 19 PRs across 12 sessions
+- Grew from 145 to 482 tests
+- Completed Loop 1 (100%), started Loop 2 (45%)
+- Released v0.0.3, v0.0.4, v0.0.5
+- Validated itself against Phractal (real monorepo)
+- Found and fixed its own bugs through self-evaluation
+
+---
+
 ## Roadmap
 
 - [x] Pluggable agent adapters (Codex, Claude)
@@ -244,9 +286,19 @@ The shift log is for humans. The state file is for quick auditing:
 - [x] Cycle-to-cycle state injection
 - [x] Test writing incentives
 - [x] Backend exploration forcing
+- [x] Category balancing
+- [x] Multi-repo support
 - [x] Validated against real monorepo (Phractal)
-- [ ] Smarter category balancing
-- [ ] Loop 2: Feature Builder (plan, decompose, build, test)
+- [x] Self-improving daemon (autonomous loop)
+- [x] Cross-session learnings system
+- [x] Self-evaluation against real repos
+- [x] Loop 2: Repo profiler
+- [x] Loop 2: Feature planner
+- [x] Loop 2: Task decomposer
+- [x] Loop 2: Sub-agent spawner
+- [x] Loop 2: Wave integrator
+- [ ] Loop 2: Feature CLI (`nightshift build`)
+- [ ] Loop 2: End-to-end pipeline test
 - [ ] Built-in to Orbit as a native feature
 
 ---
