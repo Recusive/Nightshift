@@ -266,13 +266,14 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | `cycle.py` | Per-cycle logic | `build_prompt()`, `command_for_agent()`, `verify_cycle()`, `evaluate_baseline()`, `extract_json()`, `blocked_file()` |
 | `scoring.py` | Post-cycle diff scoring | `score_diff()`, `diff_line_score()`, `has_test_files()` |
 | `multi.py` | Multi-repo orchestration | `run_multi_shift()`, `validate_repos()`, `format_multi_summary()` |
+| `profiler.py` | Repo analysis for Loop 2 | `profile_repo()` |
 | `cli.py` | Entry points + main loop | `run_nightshift()`, `summarize()`, `verify_cycle_cli()`, `build_parser()`, `main()` |
 | `__main__.py` | Package entry point | `python3 -m nightshift` |
 | `__init__.py` | Re-exports all public names | Everything above |
 
 ### Dependency flow
 ```
-types → constants → errors → shell → config/state → worktree → cycle → scoring → multi → cli
+types → constants → errors → shell → config/state → worktree → cycle → scoring → multi → profiler → cli
 ```
 No circular imports. Each module only imports from modules to its left. `multi.py` receives the `run_nightshift` callable from `cli.py` via dependency injection to avoid circular deps.
 
@@ -564,13 +565,17 @@ What defines each version. Use this to know when a release is ready.
 - [x] Backend exploration forcing (bonus, originally v0.0.4)
 - [x] Validated against Phractal test target
 
-### v0.0.4 — Agent Quality (next)
+### v0.0.4 — Agent Quality (released)
 - [x] Test writing incentives (shipped in v0.0.3)
 - [x] Backend exploration forcing (shipped in v0.0.3)
-- [ ] Smarter category balancing
-- [ ] Fix shift-log-in-commit verification for codex
+- [x] Smarter category balancing
+- [x] Fix shift-log-in-commit verification for codex
 
-### v0.0.5 — Loop 2 Scaffold
+### v0.0.5 — Multi-Repo (released)
+- [x] Multi-repo support (`nightshift multi` subcommand)
+
+### v0.0.6 — Loop 2 Foundation
+- [x] Repo profiling module (`nightshift/profiler.py`)
 - [ ] Feature planner module
 - [ ] Task decomposer module
 - [ ] `nightshift build` CLI command (even if basic)

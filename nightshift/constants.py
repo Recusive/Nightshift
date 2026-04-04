@@ -241,6 +241,103 @@ The shift has started. Reconnaissance is underway and this summary will be rewri
 """
 
 
+# --- Repo profiling data -----------------------------------------------------
+
+LANGUAGE_EXTENSIONS: dict[str, str] = {
+    ".py": "Python",
+    ".js": "JavaScript",
+    ".ts": "TypeScript",
+    ".tsx": "TypeScript",
+    ".jsx": "JavaScript",
+    ".go": "Go",
+    ".rs": "Rust",
+    ".java": "Java",
+    ".rb": "Ruby",
+    ".php": "PHP",
+    ".ex": "Elixir",
+    ".exs": "Elixir",
+    ".swift": "Swift",
+    ".kt": "Kotlin",
+    ".cs": "C#",
+    ".cpp": "C++",
+    ".c": "C",
+    ".vue": "Vue",
+    ".svelte": "Svelte",
+}
+
+FRAMEWORK_MARKERS: dict[str, list[str]] = {
+    "Next.js": ["next.config.js", "next.config.mjs", "next.config.ts"],
+    "Nuxt": ["nuxt.config.js", "nuxt.config.ts"],
+    "SvelteKit": ["svelte.config.js", "svelte.config.ts"],
+    "Django": ["manage.py", "django"],
+    "Flask": ["flask"],
+    "FastAPI": ["fastapi"],
+    "Rails": ["Gemfile", "config/routes.rb"],
+    "Express": ["express"],
+    "Nest.js": ["nest-cli.json"],
+    "Spring Boot": ["pom.xml", "build.gradle"],
+    "Laravel": ["artisan", "composer.json"],
+    "Phoenix": ["mix.exs"],
+    "Remix": ["remix.config.js", "remix.config.ts"],
+    "Astro": ["astro.config.mjs", "astro.config.ts"],
+}
+
+# Framework names that are detected by scanning package.json dependencies
+# rather than by marker files. Maps framework name -> package name.
+FRAMEWORK_PACKAGES: dict[str, str] = {
+    "React": "react",
+    "Vue": "vue",
+    "Angular": "@angular/core",
+    "Svelte": "svelte",
+    "Express": "express",
+    "Nest.js": "@nestjs/core",
+    "FastAPI": "fastapi",
+    "Flask": "flask",
+    "Django": "django",
+}
+
+INSTRUCTION_FILE_NAMES: list[str] = [
+    "CLAUDE.md",
+    "AGENTS.md",
+    ".cursorrules",
+    ".github/copilot-instructions.md",
+    "CONTRIBUTING.md",
+    "GEMINI.md",
+    ".clinerules",
+    "CONVENTIONS.md",
+]
+
+MONOREPO_MARKERS: list[str] = [
+    "lerna.json",
+    "pnpm-workspace.yaml",
+    "turbo.json",
+    "nx.json",
+    "rush.json",
+]
+
+PROFILER_SKIP_DIRS: set[str] = {
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "coverage",
+    ".svn",
+    ".next",
+    ".nuxt",
+    "vendor",
+    ".venv",
+    "venv",
+    "env",
+    ".tox",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+}
+
+
 def now_local() -> dt.datetime:
     return dt.datetime.now().astimezone()
 

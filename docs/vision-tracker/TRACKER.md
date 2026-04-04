@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-03 by agent session (v0.0.5 multi-repo support).
+Last updated: 2026-04-03 by agent session (v0.0.6 repo profiler).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,9 +9,9 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ████████████░░░░░░░░  56%
+NIGHTSHIFT VISION                              ████████████░░░░░░░░  59%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
-├── Loop 2 — Feature Builder Loop              ░░░░░░░░░░░░░░░░░░░░   0%
+├── Loop 2 — Feature Builder Loop              ██░░░░░░░░░░░░░░░░░░   9%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
 ```
@@ -37,7 +37,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (243 tests) | Done | ████████████████████ 100% |
+| Test suite (290 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -52,13 +52,13 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 
 ---
 
-## Loop 2 — Feature Builder Loop (0%)
+## Loop 2 — Feature Builder Loop (9%)
 
-Not started. Vision docs describe the full architecture. No code exists yet.
+Repo profiling is complete. All other components are not started.
 
 | Component | Status | Progress |
 |---|---|---|
-| Repo understanding / profiling | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Repo understanding / profiling | Done | ████████████████████ 100% |
 | Feature planner | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Task decomposer | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Sub-agent spawner / manager | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

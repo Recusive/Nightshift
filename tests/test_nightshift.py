@@ -2810,3 +2810,439 @@ class TestDryRunIntegration:
         )
         assert result.returncode == 1
         assert "No agent configured" in result.stderr
+
+
+# --- Profiler Types -----------------------------------------------------------
+
+
+class TestFrameworkInfoType:
+    def test_framework_info_fields(self) -> None:
+        info = nightshift.FrameworkInfo(name="React", version="^18.0.0")
+        assert info["name"] == "React"
+        assert info["version"] == "^18.0.0"
+
+    def test_repo_profile_fields(self) -> None:
+        profile = nightshift.RepoProfile(
+            languages={"Python": 10},
+            primary_language="Python",
+            frameworks=[],
+            package_manager=None,
+            test_runner=None,
+            instruction_files=[],
+            top_level_dirs=["src"],
+            has_monorepo_markers=False,
+            total_files=10,
+        )
+        assert profile["primary_language"] == "Python"
+        assert profile["total_files"] == 10
+
+
+# --- Profiler Constants -------------------------------------------------------
+
+
+class TestProfilerConstants:
+    def test_language_extensions_has_major_languages(self) -> None:
+        from nightshift.constants import LANGUAGE_EXTENSIONS
+
+        assert ".py" in LANGUAGE_EXTENSIONS
+        assert ".js" in LANGUAGE_EXTENSIONS
+        assert ".ts" in LANGUAGE_EXTENSIONS
+        assert ".go" in LANGUAGE_EXTENSIONS
+        assert ".rs" in LANGUAGE_EXTENSIONS
+
+    def test_framework_markers_has_common_frameworks(self) -> None:
+        from nightshift.constants import FRAMEWORK_MARKERS
+
+        assert "Next.js" in FRAMEWORK_MARKERS
+        assert "Django" in FRAMEWORK_MARKERS
+        assert "Rails" in FRAMEWORK_MARKERS
+
+    def test_framework_packages_has_common_packages(self) -> None:
+        from nightshift.constants import FRAMEWORK_PACKAGES
+
+        assert "React" in FRAMEWORK_PACKAGES
+        assert FRAMEWORK_PACKAGES["React"] == "react"
+
+    def test_instruction_file_names(self) -> None:
+        from nightshift.constants import INSTRUCTION_FILE_NAMES
+
+        assert "CLAUDE.md" in INSTRUCTION_FILE_NAMES
+        assert "AGENTS.md" in INSTRUCTION_FILE_NAMES
+
+    def test_monorepo_markers(self) -> None:
+        from nightshift.constants import MONOREPO_MARKERS
+
+        assert "lerna.json" in MONOREPO_MARKERS
+        assert "turbo.json" in MONOREPO_MARKERS
+
+    def test_profiler_skip_dirs(self) -> None:
+        from nightshift.constants import PROFILER_SKIP_DIRS
+
+        assert "node_modules" in PROFILER_SKIP_DIRS
+        assert ".git" in PROFILER_SKIP_DIRS
+
+
+# --- Profiler Language Detection ----------------------------------------------
+
+
+class TestCountLanguages:
+    def test_empty_dir(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_languages
+
+        assert _count_languages(tmp_path) == {}
+
+    def test_counts_python_files(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_languages
+
+        (tmp_path / "app.py").write_text("x = 1")
+        (tmp_path / "utils.py").write_text("y = 2")
+        counts = _count_languages(tmp_path)
+        assert counts == {"Python": 2}
+
+    def test_counts_multiple_languages(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_languages
+
+        (tmp_path / "app.py").write_text("x = 1")
+        (tmp_path / "index.js").write_text("var x = 1")
+        (tmp_path / "main.ts").write_text("const x = 1")
+        counts = _count_languages(tmp_path)
+        assert counts == {"Python": 1, "JavaScript": 1, "TypeScript": 1}
+
+    def test_skips_node_modules(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_languages
+
+        nm = tmp_path / "node_modules" / "pkg"
+        nm.mkdir(parents=True)
+        (nm / "index.js").write_text("x")
+        (tmp_path / "app.js").write_text("y")
+        counts = _count_languages(tmp_path)
+        assert counts == {"JavaScript": 1}
+
+    def test_skips_hidden_files(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_languages
+
+        (tmp_path / ".hidden.py").write_text("x = 1")
+        (tmp_path / "visible.py").write_text("y = 2")
+        counts = _count_languages(tmp_path)
+        assert counts == {"Python": 1}
+
+    def test_tsx_counted_as_typescript(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_languages
+
+        (tmp_path / "App.tsx").write_text("export default App")
+        counts = _count_languages(tmp_path)
+        assert counts == {"TypeScript": 1}
+
+    def test_nonexistent_dir(self) -> None:
+        from nightshift.profiler import _count_languages
+
+        assert _count_languages(Path("/nonexistent/dir")) == {}
+
+
+class TestPrimaryLanguage:
+    def test_returns_unknown_for_empty(self) -> None:
+        from nightshift.profiler import _primary_language
+
+        assert _primary_language({}) == "Unknown"
+
+    def test_returns_highest_count(self) -> None:
+        from nightshift.profiler import _primary_language
+
+        assert _primary_language({"Python": 5, "JavaScript": 10}) == "JavaScript"
+
+    def test_single_language(self) -> None:
+        from nightshift.profiler import _primary_language
+
+        assert _primary_language({"Go": 3}) == "Go"
+
+
+# --- Profiler Framework Detection ---------------------------------------------
+
+
+class TestDetectFrameworksByMarker:
+    def test_detects_nextjs(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_marker
+
+        (tmp_path / "next.config.js").write_text("{}")
+        found = _detect_frameworks_by_marker(tmp_path)
+        assert "Next.js" in found
+
+    def test_detects_django(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_marker
+
+        (tmp_path / "manage.py").write_text("#!/usr/bin/env python")
+        found = _detect_frameworks_by_marker(tmp_path)
+        assert "Django" in found
+
+    def test_empty_dir_no_frameworks(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_marker
+
+        assert _detect_frameworks_by_marker(tmp_path) == []
+
+
+class TestDetectFrameworksByPackage:
+    def test_detects_react_from_package_json(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_package
+
+        pkg = {"dependencies": {"react": "^18.2.0"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        found = _detect_frameworks_by_package(tmp_path)
+        assert len(found) == 1
+        assert found[0]["name"] == "React"
+        assert found[0]["version"] == "^18.2.0"
+
+    def test_detects_from_dev_dependencies(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_package
+
+        pkg = {"devDependencies": {"svelte": "^4.0.0"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        found = _detect_frameworks_by_package(tmp_path)
+        assert len(found) == 1
+        assert found[0]["name"] == "Svelte"
+
+    def test_no_package_json(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_package
+
+        assert _detect_frameworks_by_package(tmp_path) == []
+
+    def test_invalid_package_json(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_package
+
+        (tmp_path / "package.json").write_text("not json")
+        assert _detect_frameworks_by_package(tmp_path) == []
+
+
+class TestDetectFrameworks:
+    def test_combines_marker_and_package(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks
+
+        (tmp_path / "next.config.js").write_text("{}")
+        pkg = {"dependencies": {"react": "^18.0.0"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        found = _detect_frameworks(tmp_path)
+        names = {fw["name"] for fw in found}
+        assert "Next.js" in names
+        assert "React" in names
+
+    def test_no_duplicates_when_both_detect(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks
+
+        pkg = {"dependencies": {"express": "^4.18.0"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        found = _detect_frameworks(tmp_path)
+        express_count = sum(1 for fw in found if fw["name"] == "Express")
+        assert express_count == 1
+
+
+# --- Profiler Instruction Files -----------------------------------------------
+
+
+class TestFindInstructionFiles:
+    def test_finds_claude_md(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _find_instruction_files
+
+        (tmp_path / "CLAUDE.md").write_text("# Instructions")
+        found = _find_instruction_files(tmp_path)
+        assert "CLAUDE.md" in found
+
+    def test_finds_multiple(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _find_instruction_files
+
+        (tmp_path / "CLAUDE.md").write_text("x")
+        (tmp_path / "CONTRIBUTING.md").write_text("y")
+        found = _find_instruction_files(tmp_path)
+        assert "CLAUDE.md" in found
+        assert "CONTRIBUTING.md" in found
+
+    def test_finds_nested_instruction(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _find_instruction_files
+
+        gh = tmp_path / ".github"
+        gh.mkdir()
+        (gh / "copilot-instructions.md").write_text("x")
+        found = _find_instruction_files(tmp_path)
+        assert ".github/copilot-instructions.md" in found
+
+    def test_empty_dir(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _find_instruction_files
+
+        assert _find_instruction_files(tmp_path) == []
+
+
+# --- Profiler Directory Listing -----------------------------------------------
+
+
+class TestListTopLevelDirs:
+    def test_lists_dirs(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _list_top_level_dirs
+
+        (tmp_path / "src").mkdir()
+        (tmp_path / "tests").mkdir()
+        dirs = _list_top_level_dirs(tmp_path)
+        assert "src" in dirs
+        assert "tests" in dirs
+
+    def test_skips_hidden(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _list_top_level_dirs
+
+        (tmp_path / ".git").mkdir()
+        (tmp_path / "src").mkdir()
+        dirs = _list_top_level_dirs(tmp_path)
+        assert ".git" not in dirs
+        assert "src" in dirs
+
+    def test_skips_ignored(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _list_top_level_dirs
+
+        (tmp_path / "node_modules").mkdir()
+        (tmp_path / "src").mkdir()
+        dirs = _list_top_level_dirs(tmp_path)
+        assert "node_modules" not in dirs
+
+    def test_sorted(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _list_top_level_dirs
+
+        (tmp_path / "z_dir").mkdir()
+        (tmp_path / "a_dir").mkdir()
+        dirs = _list_top_level_dirs(tmp_path)
+        assert dirs == ["a_dir", "z_dir"]
+
+
+# --- Profiler Monorepo Detection ----------------------------------------------
+
+
+class TestHasMonorepoMarkers:
+    def test_detects_turbo(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _has_monorepo_markers
+
+        (tmp_path / "turbo.json").write_text("{}")
+        assert _has_monorepo_markers(tmp_path) is True
+
+    def test_detects_lerna(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _has_monorepo_markers
+
+        (tmp_path / "lerna.json").write_text("{}")
+        assert _has_monorepo_markers(tmp_path) is True
+
+    def test_no_markers(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _has_monorepo_markers
+
+        assert _has_monorepo_markers(tmp_path) is False
+
+
+# --- Profiler File Count ------------------------------------------------------
+
+
+class TestCountTotalFiles:
+    def test_counts_files(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_total_files
+
+        (tmp_path / "a.py").write_text("x")
+        (tmp_path / "b.txt").write_text("y")
+        assert _count_total_files(tmp_path) == 2
+
+    def test_skips_ignored_dirs(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_total_files
+
+        nm = tmp_path / "node_modules" / "pkg"
+        nm.mkdir(parents=True)
+        (nm / "index.js").write_text("x")
+        (tmp_path / "app.py").write_text("y")
+        assert _count_total_files(tmp_path) == 1
+
+    def test_skips_hidden_files(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _count_total_files
+
+        (tmp_path / ".env").write_text("SECRET=x")
+        (tmp_path / "app.py").write_text("y")
+        assert _count_total_files(tmp_path) == 1
+
+
+# --- Profiler Integration (profile_repo) --------------------------------------
+
+
+class TestProfileRepo:
+    def test_python_project(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "src" / "app.py").write_text("x = 1")
+        (tmp_path / "src" / "utils.py").write_text("y = 2")
+        (tmp_path / "tests" / "test_app.py").write_text("def test(): pass")
+        (tmp_path / "pyproject.toml").write_text("[tool.pytest]")
+        (tmp_path / "CLAUDE.md").write_text("# Instructions")
+
+        profile = nightshift.profile_repo(tmp_path)
+
+        assert profile["primary_language"] == "Python"
+        assert profile["languages"]["Python"] == 3
+        assert profile["test_runner"] == "python3 -m pytest"
+        assert "CLAUDE.md" in profile["instruction_files"]
+        assert "src" in profile["top_level_dirs"]
+        assert "tests" in profile["top_level_dirs"]
+        assert profile["has_monorepo_markers"] is False
+        assert profile["total_files"] >= 3
+
+    def test_nextjs_project(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "page.tsx").write_text("export default function Page() {}")
+        (tmp_path / "src" / "layout.tsx").write_text("export default function Layout() {}")
+        (tmp_path / "src" / "globals.ts").write_text("export const x = 1")
+        (tmp_path / "next.config.js").write_text("module.exports = {}")
+        pkg = {
+            "dependencies": {"react": "^18.2.0", "next": "^14.0.0"},
+            "scripts": {"test": "jest"},
+        }
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        (tmp_path / "package-lock.json").write_text("{}")
+
+        profile = nightshift.profile_repo(tmp_path)
+
+        assert profile["primary_language"] == "TypeScript"
+        assert profile["package_manager"] == "npm"
+        framework_names = {fw["name"] for fw in profile["frameworks"]}
+        assert "Next.js" in framework_names
+        assert "React" in framework_names
+        assert profile["test_runner"] == "npm test"
+
+    def test_monorepo_project(self, tmp_path: Path) -> None:
+        (tmp_path / "packages").mkdir()
+        (tmp_path / "apps").mkdir()
+        (tmp_path / "turbo.json").write_text("{}")
+        (tmp_path / "pnpm-workspace.yaml").write_text("packages: ['packages/*']")
+
+        profile = nightshift.profile_repo(tmp_path)
+
+        assert profile["has_monorepo_markers"] is True
+
+    def test_empty_dir(self, tmp_path: Path) -> None:
+        profile = nightshift.profile_repo(tmp_path)
+
+        assert profile["primary_language"] == "Unknown"
+        assert profile["languages"] == {}
+        assert profile["frameworks"] == []
+        assert profile["package_manager"] is None
+        assert profile["test_runner"] is None
+        assert profile["instruction_files"] == []
+        assert profile["has_monorepo_markers"] is False
+        assert profile["total_files"] == 0
+
+    def test_go_project(self, tmp_path: Path) -> None:
+        (tmp_path / "cmd").mkdir()
+        (tmp_path / "cmd" / "main.go").write_text("package main")
+        (tmp_path / "go.mod").write_text("module example.com/foo")
+
+        profile = nightshift.profile_repo(tmp_path)
+
+        assert profile["primary_language"] == "Go"
+        assert profile["test_runner"] == "go test ./..."
+
+    def test_profiles_self(self) -> None:
+        """Profile the Nightshift repo itself as a real-world integration test."""
+        repo_dir = Path(__file__).resolve().parent.parent
+        profile = nightshift.profile_repo(repo_dir)
+
+        assert profile["primary_language"] == "Python"
+        assert profile["languages"]["Python"] > 0
+        assert "CLAUDE.md" in profile["instruction_files"]
+        assert "nightshift" in profile["top_level_dirs"]
+        assert profile["total_files"] > 0
