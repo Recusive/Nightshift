@@ -146,3 +146,47 @@ class RepoProfile(TypedDict):
     top_level_dirs: list[str]
     has_monorepo_markers: bool
     total_files: int
+
+
+# --- Loop 2: Feature Planner types -------------------------------------------
+
+
+class PlanTask(TypedDict):
+    """A single task in a feature plan's task breakdown."""
+
+    id: int
+    title: str
+    description: str
+    depends_on: list[int]
+    parallel: bool
+    acceptance_criteria: list[str]
+    estimated_files: int
+
+
+class ArchitectureDoc(TypedDict):
+    """Architecture decisions for a feature."""
+
+    overview: str
+    tech_choices: list[str]
+    data_model_changes: list[str]
+    api_changes: list[str]
+    frontend_changes: list[str]
+    integration_points: list[str]
+
+
+class TestPlan(TypedDict):
+    """Test strategy for a feature."""
+
+    unit_tests: list[str]
+    integration_tests: list[str]
+    e2e_tests: list[str]
+    edge_cases: list[str]
+
+
+class FeaturePlan(TypedDict):
+    """Complete plan for a feature build -- output of the planner module."""
+
+    feature: str
+    architecture: ArchitectureDoc
+    tasks: list[PlanTask]
+    test_plan: TestPlan

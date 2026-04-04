@@ -3246,3 +3246,711 @@ class TestProfileRepo:
         assert "CLAUDE.md" in profile["instruction_files"]
         assert "nightshift" in profile["top_level_dirs"]
         assert profile["total_files"] > 0
+
+
+# --- Feature Planner ---------------------------------------------------------
+
+
+def _make_profile(**overrides: object) -> nightshift.RepoProfile:
+    """Build a minimal RepoProfile for testing, with overrides."""
+    defaults: dict[str, object] = {
+        "languages": {"Python": 10},
+        "primary_language": "Python",
+        "frameworks": [],
+        "package_manager": "pip",
+        "test_runner": "pytest",
+        "instruction_files": ["CLAUDE.md"],
+        "top_level_dirs": ["src", "tests"],
+        "has_monorepo_markers": False,
+        "total_files": 42,
+    }
+    defaults.update(overrides)
+    return nightshift.RepoProfile(**defaults)  # type: ignore[arg-type]
+
+
+def _make_valid_plan_dict(**overrides: object) -> dict[str, object]:
+    """Build a valid plan dict for testing, with overrides."""
+    plan: dict[str, object] = {
+        "feature": "Add dark mode",
+        "architecture": {
+            "overview": "Add a dark mode toggle to the settings page.",
+            "tech_choices": ["Use CSS variables for theming"],
+            "data_model_changes": [],
+            "api_changes": [],
+            "frontend_changes": ["Add ThemeToggle component"],
+            "integration_points": ["Settings page"],
+        },
+        "tasks": [
+            {
+                "id": 1,
+                "title": "Create theme provider",
+                "description": "Set up CSS variables and theme context",
+                "depends_on": [],
+                "parallel": True,
+                "acceptance_criteria": ["Theme toggles between light and dark"],
+                "estimated_files": 3,
+            },
+            {
+                "id": 2,
+                "title": "Add toggle UI",
+                "description": "Add toggle switch to settings page",
+                "depends_on": [1],
+                "parallel": False,
+                "acceptance_criteria": ["Toggle renders and changes theme"],
+                "estimated_files": 2,
+            },
+        ],
+        "test_plan": {
+            "unit_tests": ["Theme provider returns correct CSS vars"],
+            "integration_tests": ["Toggle switches theme for all components"],
+            "e2e_tests": ["User can toggle dark mode from settings"],
+            "edge_cases": ["System preference detection"],
+        },
+    }
+    plan.update(overrides)
+    return plan
+
+
+class TestBuildPlanPrompt:
+    def test_includes_primary_language(self) -> None:
+        profile = _make_profile(primary_language="TypeScript")
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "TypeScript" in prompt
+
+    def test_includes_feature_description(self) -> None:
+        profile = _make_profile()
+        prompt = nightshift.build_plan_prompt(profile, "Build a REST API")
+        assert "Build a REST API" in prompt
+
+    def test_includes_frameworks(self) -> None:
+        profile = _make_profile(frameworks=[nightshift.FrameworkInfo(name="Next.js", version="14.0.0")])
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "Next.js (14.0.0)" in prompt
+
+    def test_includes_framework_without_version(self) -> None:
+        profile = _make_profile(frameworks=[nightshift.FrameworkInfo(name="Django", version="")])
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "Django" in prompt
+
+    def test_no_frameworks_shows_none(self) -> None:
+        profile = _make_profile(frameworks=[])
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "none detected" in prompt
+
+    def test_includes_package_manager(self) -> None:
+        profile = _make_profile(package_manager="pnpm")
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "pnpm" in prompt
+
+    def test_null_package_manager_shows_none(self) -> None:
+        profile = _make_profile(package_manager=None)
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "none detected" in prompt
+
+    def test_includes_test_runner(self) -> None:
+        profile = _make_profile(test_runner="jest")
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "jest" in prompt
+
+    def test_includes_instruction_files(self) -> None:
+        profile = _make_profile(instruction_files=["CLAUDE.md", "AGENTS.md"])
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "CLAUDE.md" in prompt
+        assert "AGENTS.md" in prompt
+
+    def test_includes_top_level_dirs(self) -> None:
+        profile = _make_profile(top_level_dirs=["src", "tests", "docs"])
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "src" in prompt
+        assert "docs" in prompt
+
+    def test_includes_monorepo_flag(self) -> None:
+        profile = _make_profile(has_monorepo_markers=True)
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "yes" in prompt
+
+    def test_includes_total_files(self) -> None:
+        profile = _make_profile(total_files=500)
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "500" in prompt
+
+    def test_includes_json_structure(self) -> None:
+        profile = _make_profile()
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert '"feature"' in prompt
+        assert '"architecture"' in prompt
+        assert '"tasks"' in prompt
+        assert '"test_plan"' in prompt
+
+
+class TestValidatePlan:
+    def test_valid_plan_passes(self) -> None:
+        plan = _make_valid_plan_dict()
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is True
+        assert errors == []
+
+    def test_missing_feature(self) -> None:
+        plan = _make_valid_plan_dict()
+        del plan["feature"]
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("feature" in e for e in errors)
+
+    def test_empty_feature(self) -> None:
+        plan = _make_valid_plan_dict(feature="")
+        valid, _errors = nightshift.validate_plan(plan)
+        assert valid is False
+
+    def test_missing_architecture(self) -> None:
+        plan = _make_valid_plan_dict()
+        del plan["architecture"]
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("architecture" in e for e in errors)
+
+    def test_architecture_missing_overview(self) -> None:
+        plan = _make_valid_plan_dict()
+        arch = dict(plan["architecture"])  # type: ignore[arg-type]
+        del arch["overview"]
+        plan["architecture"] = arch
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("overview" in e for e in errors)
+
+    def test_architecture_missing_list_field(self) -> None:
+        plan = _make_valid_plan_dict()
+        arch = dict(plan["architecture"])  # type: ignore[arg-type]
+        arch["tech_choices"] = "not a list"
+        plan["architecture"] = arch
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("tech_choices" in e for e in errors)
+
+    def test_empty_tasks(self) -> None:
+        plan = _make_valid_plan_dict(tasks=[])
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("tasks" in e for e in errors)
+
+    def test_missing_tasks(self) -> None:
+        plan = _make_valid_plan_dict()
+        del plan["tasks"]
+        valid, _errors = nightshift.validate_plan(plan)
+        assert valid is False
+
+    def test_task_missing_title(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])
+        del task["title"]
+        tasks[0] = task
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("title" in e for e in errors)
+
+    def test_task_missing_acceptance_criteria(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])
+        task["acceptance_criteria"] = []
+        tasks[0] = task
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("acceptance" in e for e in errors)
+
+    def test_task_invalid_id(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])
+        task["id"] = -1
+        tasks[0] = task
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("positive integer" in e for e in errors)
+
+    def test_duplicate_task_ids(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task2 = dict(tasks[1])
+        task2["id"] = 1  # duplicate
+        task2["depends_on"] = []
+        tasks[1] = task2
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("duplicate" in e for e in errors)
+
+    def test_task_depends_on_itself(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])
+        task["depends_on"] = [1]
+        tasks[0] = task
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("depends on itself" in e for e in errors)
+
+    def test_task_depends_on_unknown_id(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[1])
+        task["depends_on"] = [99]
+        tasks[1] = task
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("unknown task 99" in e for e in errors)
+
+    def test_circular_dependency(self) -> None:
+        plan = _make_valid_plan_dict()
+        plan["tasks"] = [
+            {
+                "id": 1,
+                "title": "Task A",
+                "description": "Does A",
+                "depends_on": [2],
+                "parallel": False,
+                "acceptance_criteria": ["A works"],
+                "estimated_files": 1,
+            },
+            {
+                "id": 2,
+                "title": "Task B",
+                "description": "Does B",
+                "depends_on": [1],
+                "parallel": False,
+                "acceptance_criteria": ["B works"],
+                "estimated_files": 1,
+            },
+        ]
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("circular" in e for e in errors)
+
+    def test_missing_test_plan(self) -> None:
+        plan = _make_valid_plan_dict()
+        del plan["test_plan"]
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("test_plan" in e for e in errors)
+
+    def test_test_plan_missing_field(self) -> None:
+        plan = _make_valid_plan_dict()
+        tp = dict(plan["test_plan"])  # type: ignore[arg-type]
+        del tp["unit_tests"]
+        plan["test_plan"] = tp
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("unit_tests" in e for e in errors)
+
+    def test_task_negative_estimated_files(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])
+        task["estimated_files"] = -1
+        tasks[0] = task
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("non-negative" in e for e in errors)
+
+    def test_task_parallel_not_bool(self) -> None:
+        plan = _make_valid_plan_dict()
+        tasks = list(plan["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])
+        task["parallel"] = "yes"
+        tasks[0] = task
+        plan["tasks"] = tasks
+        valid, errors = nightshift.validate_plan(plan)
+        assert valid is False
+        assert any("parallel" in e for e in errors)
+
+
+class TestParsePlan:
+    def test_parses_valid_json(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        raw = json.dumps(plan_dict)
+        plan = nightshift.parse_plan(raw)
+        assert plan is not None
+        assert plan["feature"] == "Add dark mode"
+        assert len(plan["tasks"]) == 2
+        assert plan["tasks"][0]["title"] == "Create theme provider"
+
+    def test_parses_json_in_markdown_fence(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        raw = f"Here is the plan:\n```json\n{json.dumps(plan_dict)}\n```\nDone."
+        plan = nightshift.parse_plan(raw)
+        assert plan is not None
+        assert plan["feature"] == "Add dark mode"
+
+    def test_parses_json_with_leading_text(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        raw = f"Here is the plan:\n{json.dumps(plan_dict)}"
+        plan = nightshift.parse_plan(raw)
+        assert plan is not None
+
+    def test_returns_none_for_empty(self) -> None:
+        assert nightshift.parse_plan("") is None
+
+    def test_returns_none_for_invalid_json(self) -> None:
+        assert nightshift.parse_plan("this is not json") is None
+
+    def test_returns_none_for_invalid_plan(self) -> None:
+        raw = json.dumps({"feature": ""})
+        assert nightshift.parse_plan(raw) is None
+
+    def test_typed_output(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        assert isinstance(plan["architecture"]["overview"], str)
+        assert isinstance(plan["tasks"][0]["depends_on"], list)
+        assert isinstance(plan["test_plan"]["unit_tests"], list)
+
+
+class TestExecutionOrder:
+    def test_empty_tasks(self) -> None:
+        assert nightshift.execution_order([]) == []
+
+    def test_single_task(self) -> None:
+        task = nightshift.PlanTask(
+            id=1,
+            title="A",
+            description="A",
+            depends_on=[],
+            parallel=True,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        waves = nightshift.execution_order([task])
+        assert waves == [[1]]
+
+    def test_two_parallel_tasks(self) -> None:
+        t1 = nightshift.PlanTask(
+            id=1,
+            title="A",
+            description="A",
+            depends_on=[],
+            parallel=True,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        t2 = nightshift.PlanTask(
+            id=2,
+            title="B",
+            description="B",
+            depends_on=[],
+            parallel=True,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        waves = nightshift.execution_order([t1, t2])
+        assert waves == [[1, 2]]
+
+    def test_sequential_tasks(self) -> None:
+        t1 = nightshift.PlanTask(
+            id=1,
+            title="A",
+            description="A",
+            depends_on=[],
+            parallel=True,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        t2 = nightshift.PlanTask(
+            id=2,
+            title="B",
+            description="B",
+            depends_on=[1],
+            parallel=False,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        waves = nightshift.execution_order([t1, t2])
+        assert waves == [[1], [2]]
+
+    def test_diamond_dependency(self) -> None:
+        t1 = nightshift.PlanTask(
+            id=1,
+            title="A",
+            description="A",
+            depends_on=[],
+            parallel=True,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        t2 = nightshift.PlanTask(
+            id=2,
+            title="B",
+            description="B",
+            depends_on=[1],
+            parallel=True,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        t3 = nightshift.PlanTask(
+            id=3,
+            title="C",
+            description="C",
+            depends_on=[1],
+            parallel=True,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        t4 = nightshift.PlanTask(
+            id=4,
+            title="D",
+            description="D",
+            depends_on=[2, 3],
+            parallel=False,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        waves = nightshift.execution_order([t1, t2, t3, t4])
+        assert waves == [[1], [2, 3], [4]]
+
+    def test_circular_raises(self) -> None:
+        t1 = nightshift.PlanTask(
+            id=1,
+            title="A",
+            description="A",
+            depends_on=[2],
+            parallel=False,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        t2 = nightshift.PlanTask(
+            id=2,
+            title="B",
+            description="B",
+            depends_on=[1],
+            parallel=False,
+            acceptance_criteria=["ok"],
+            estimated_files=1,
+        )
+        with pytest.raises(ValueError, match="circular"):
+            nightshift.execution_order([t1, t2])
+
+    def test_complex_graph(self) -> None:
+        """Tasks: 1 and 2 parallel, 3 depends on 1, 4 depends on 2, 5 depends on 3+4."""
+        tasks = [
+            nightshift.PlanTask(
+                id=1,
+                title="A",
+                description="A",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["ok"],
+                estimated_files=1,
+            ),
+            nightshift.PlanTask(
+                id=2,
+                title="B",
+                description="B",
+                depends_on=[],
+                parallel=True,
+                acceptance_criteria=["ok"],
+                estimated_files=1,
+            ),
+            nightshift.PlanTask(
+                id=3,
+                title="C",
+                description="C",
+                depends_on=[1],
+                parallel=True,
+                acceptance_criteria=["ok"],
+                estimated_files=1,
+            ),
+            nightshift.PlanTask(
+                id=4,
+                title="D",
+                description="D",
+                depends_on=[2],
+                parallel=True,
+                acceptance_criteria=["ok"],
+                estimated_files=1,
+            ),
+            nightshift.PlanTask(
+                id=5,
+                title="E",
+                description="E",
+                depends_on=[3, 4],
+                parallel=False,
+                acceptance_criteria=["ok"],
+                estimated_files=1,
+            ),
+        ]
+        waves = nightshift.execution_order(tasks)
+        assert waves == [[1, 2], [3, 4], [5]]
+
+
+class TestFormatPlan:
+    def test_includes_feature_name(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        md = nightshift.format_plan(plan)
+        assert "Add dark mode" in md
+
+    def test_includes_architecture_overview(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        md = nightshift.format_plan(plan)
+        assert "dark mode toggle" in md
+
+    def test_includes_wave_numbers(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        md = nightshift.format_plan(plan)
+        assert "Wave 1" in md
+        assert "Wave 2" in md
+
+    def test_includes_task_details(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        md = nightshift.format_plan(plan)
+        assert "Create theme provider" in md
+        assert "Add toggle UI" in md
+        assert "parallel" in md.lower() or "sequential" in md.lower()
+
+    def test_includes_test_plan(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        md = nightshift.format_plan(plan)
+        assert "Test Plan" in md
+        assert "Unit Tests" in md
+
+    def test_shows_dependencies(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        md = nightshift.format_plan(plan)
+        assert "depends on" in md
+
+    def test_skips_empty_sections(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        arch = dict(plan_dict["architecture"])  # type: ignore[arg-type]
+        arch["data_model_changes"] = []
+        plan_dict["architecture"] = arch
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        md = nightshift.format_plan(plan)
+        assert "Data Model Changes" not in md
+
+
+class TestScopeCheck:
+    def test_within_limits(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        assert nightshift.scope_check(plan) is None
+
+    def test_too_many_tasks(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        tasks = []
+        for i in range(1, 12):
+            tasks.append(
+                {
+                    "id": i,
+                    "title": f"Task {i}",
+                    "description": f"Does {i}",
+                    "depends_on": [],
+                    "parallel": True,
+                    "acceptance_criteria": [f"Task {i} works"],
+                    "estimated_files": 2,
+                }
+            )
+        plan_dict["tasks"] = tasks
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        warning = nightshift.scope_check(plan)
+        assert warning is not None
+        assert "11 tasks" in warning
+
+    def test_too_many_files(self) -> None:
+        plan_dict = _make_valid_plan_dict()
+        tasks = list(plan_dict["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])
+        task["estimated_files"] = 60
+        tasks[0] = task
+        plan_dict["tasks"] = tasks
+        plan = nightshift.parse_plan(json.dumps(plan_dict))
+        assert plan is not None
+        warning = nightshift.scope_check(plan)
+        assert warning is not None
+        assert "files" in warning
+
+
+class TestPlanFeatureCLI:
+    def test_dry_run_prints_prompt(self, capsys: pytest.CaptureFixture[str]) -> None:
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["plan", "Add dark mode", "--dry-run"])
+        result = args.func(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Feature Request" in captured.out
+        assert "Add dark mode" in captured.out
+
+    def test_default_prints_prompt(self, capsys: pytest.CaptureFixture[str]) -> None:
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["plan", "Add auth"])
+        result = args.func(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Add auth" in captured.out
+
+    def test_result_file_parses_plan(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        plan_dict = _make_valid_plan_dict()
+        result_file = tmp_path / "plan.json"
+        result_file.write_text(json.dumps(plan_dict), encoding="utf-8")
+        parser = nightshift.build_parser()
+        args = parser.parse_args(
+            [
+                "plan",
+                "Add dark mode",
+                "--result-file",
+                str(result_file),
+            ]
+        )
+        result = args.func(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Add dark mode" in captured.out
+        assert "Wave 1" in captured.out
+
+    def test_result_file_not_found(self, tmp_path: Path) -> None:
+        parser = nightshift.build_parser()
+        args = parser.parse_args(
+            [
+                "plan",
+                "Add auth",
+                "--result-file",
+                str(tmp_path / "nonexistent.json"),
+            ]
+        )
+        with pytest.raises(nightshift.NightshiftError, match="not found"):
+            args.func(args)
+
+    def test_result_file_invalid_plan(self, tmp_path: Path) -> None:
+        result_file = tmp_path / "bad.json"
+        result_file.write_text('{"not": "a plan"}', encoding="utf-8")
+        parser = nightshift.build_parser()
+        args = parser.parse_args(
+            [
+                "plan",
+                "Add auth",
+                "--result-file",
+                str(result_file),
+            ]
+        )
+        with pytest.raises(nightshift.NightshiftError, match="Could not parse"):
+            args.func(args)

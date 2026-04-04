@@ -26,6 +26,8 @@ from nightshift.cycle import (
 )
 from nightshift.errors import NightshiftError
 from nightshift.multi import run_multi_shift
+from nightshift.planner import build_plan_prompt, format_plan, parse_plan, scope_check
+from nightshift.profiler import profile_repo
 from nightshift.scoring import score_diff
 from nightshift.shell import command_exists, git, run_command
 from nightshift.state import append_cycle_state, load_json, read_state, write_json
@@ -355,6 +357,38 @@ def verify_cycle_cli(args: argparse.Namespace) -> int:
     return 0 if valid else 1
 
 
+def plan_feature(args: argparse.Namespace) -> int:
+    """Plan a feature: generate a planning prompt or parse a plan result."""
+    repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
+    profile = profile_repo(repo_dir)
+    feature_description: str = args.feature
+    prompt = build_plan_prompt(profile, feature_description)
+
+    if args.dry_run:
+        print(prompt)
+        return 0
+
+    # If --result-file is provided, parse a plan from agent output
+    if args.result_file:
+        result_path = Path(args.result_file)
+        if not result_path.exists():
+            raise NightshiftError(f"Result file not found: {result_path}")
+        raw_output = result_path.read_text(encoding="utf-8")
+        plan = parse_plan(raw_output)
+        if plan is None:
+            raise NightshiftError("Could not parse a valid feature plan from the result file.")
+        warning = scope_check(plan)
+        if warning:
+            print_status(f"WARNING: {warning}")
+            print_status("")
+        print(format_plan(plan))
+        return 0
+
+    # Default: print the prompt for manual use with an agent
+    print(prompt)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Nightshift orchestrator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -386,6 +420,12 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--pre-head", required=True, help="Commit hash before the cycle")
     verify_parser.add_argument("--result-file", help="Structured result JSON from the agent")
     verify_parser.set_defaults(func=verify_cycle_cli)
+
+    plan_parser = subparsers.add_parser("plan", parents=[common], help="Plan a feature build")
+    plan_parser.add_argument("feature", help="Natural language feature description")
+    plan_parser.add_argument("--dry-run", action="store_true", help="Print the planning prompt and exit")
+    plan_parser.add_argument("--result-file", help="Parse a plan from agent output file")
+    plan_parser.set_defaults(func=plan_feature)
 
     multi_parser = subparsers.add_parser("multi", parents=[common], help="Run shifts on multiple repos")
     multi_parser.add_argument("repos", nargs="+", help="Repository paths to process")

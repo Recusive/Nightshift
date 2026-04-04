@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FeaturePlan",
+  "description": "Structured output schema for the Nightshift feature planner. Agents return this JSON when planning a feature build.",
+  "type": "object",
+  "required": ["feature", "architecture", "tasks", "test_plan"],
+  "additionalProperties": false,
+  "properties": {
+    "feature": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-line feature name"
+    },
+    "architecture": {
+      "type": "object",
+      "required": ["overview", "tech_choices", "data_model_changes", "api_changes", "frontend_changes", "integration_points"],
+      "additionalProperties": false,
+      "properties": {
+        "overview": {
+          "type": "string",
+          "minLength": 1,
+          "description": "2-3 sentence summary of the approach"
+        },
+        "tech_choices": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Technology choices with reasoning"
+        },
+        "data_model_changes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Data model or schema changes"
+        },
+        "api_changes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "API endpoint or route changes"
+        },
+        "frontend_changes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Frontend component or page changes"
+        },
+        "integration_points": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Where this feature touches existing code"
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "description", "depends_on", "parallel", "acceptance_criteria", "estimated_files"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Unique task identifier"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Short task title"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What this task builds"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 1 },
+            "description": "Task IDs this depends on"
+          },
+          "parallel": {
+            "type": "boolean",
+            "description": "Whether this task can run in parallel with others in the same wave"
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "Testable acceptance criteria"
+          },
+          "estimated_files": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Estimated number of files this task will touch"
+          }
+        }
+      }
+    },
+    "test_plan": {
+      "type": "object",
+      "required": ["unit_tests", "integration_tests", "e2e_tests", "edge_cases"],
+      "additionalProperties": false,
+      "properties": {
+        "unit_tests": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What to unit test"
+        },
+        "integration_tests": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What to integration test"
+        },
+        "e2e_tests": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What to e2e test"
+        },
+        "edge_cases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Edge cases to handle"
+        }
+      }
+    }
+  }
+}

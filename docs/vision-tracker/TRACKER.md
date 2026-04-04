@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-03 by agent session (v0.0.6 repo profiler).
+Last updated: 2026-04-03 by agent session (v0.0.6 feature planner).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,9 +9,9 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ████████████░░░░░░░░  59%
+NIGHTSHIFT VISION                              ████████████░░░░░░░░  62%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
-├── Loop 2 — Feature Builder Loop              ██░░░░░░░░░░░░░░░░░░   9%
+├── Loop 2 — Feature Builder Loop              ████░░░░░░░░░░░░░░░░  18%
 ├── Self-Maintaining Repo                      ███████████░░░░░░░░░  54%
 └── Meta-Prompt System                         ████████████░░░░░░░░  57%
 ```
@@ -52,14 +52,14 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 
 ---
 
-## Loop 2 — Feature Builder Loop (9%)
+## Loop 2 — Feature Builder Loop (18%)
 
-Repo profiling is complete. All other components are not started.
+Repo profiling and feature planning are complete. Decomposer and sub-agent execution are not started.
 
 | Component | Status | Progress |
 |---|---|---|
 | Repo understanding / profiling | Done | ████████████████████ 100% |
-| Feature planner | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Feature planner | Done | ████████████████████ 100% |
 | Task decomposer | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Sub-agent spawner / manager | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Sub-agent coordination | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

@@ -267,13 +267,14 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | `scoring.py` | Post-cycle diff scoring | `score_diff()`, `diff_line_score()`, `has_test_files()` |
 | `multi.py` | Multi-repo orchestration | `run_multi_shift()`, `validate_repos()`, `format_multi_summary()` |
 | `profiler.py` | Repo analysis for Loop 2 | `profile_repo()` |
-| `cli.py` | Entry points + main loop | `run_nightshift()`, `summarize()`, `verify_cycle_cli()`, `build_parser()`, `main()` |
+| `planner.py` | Feature planning for Loop 2 | `build_plan_prompt()`, `validate_plan()`, `parse_plan()`, `execution_order()`, `format_plan()`, `scope_check()` |
+| `cli.py` | Entry points + main loop | `run_nightshift()`, `summarize()`, `verify_cycle_cli()`, `plan_feature()`, `build_parser()`, `main()` |
 | `__main__.py` | Package entry point | `python3 -m nightshift` |
 | `__init__.py` | Re-exports all public names | Everything above |
 
 ### Dependency flow
 ```
-types → constants → errors → shell → config/state → worktree → cycle → scoring → multi → profiler → cli
+types → constants → errors → shell → config/state → worktree → cycle → scoring → multi → profiler → planner → cli
 ```
 No circular imports. Each module only imports from modules to its left. `multi.py` receives the `run_nightshift` callable from `cli.py` via dependency injection to avoid circular deps.
 
@@ -576,7 +577,7 @@ What defines each version. Use this to know when a release is ready.
 
 ### v0.0.6 — Loop 2 Foundation
 - [x] Repo profiling module (`nightshift/profiler.py`)
-- [ ] Feature planner module
+- [x] Feature planner module (`nightshift/planner.py`)
 - [ ] Task decomposer module
 - [ ] `nightshift build` CLI command (even if basic)
 

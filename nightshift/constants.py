@@ -315,6 +315,79 @@ MONOREPO_MARKERS: list[str] = [
     "rush.json",
 ]
 
+# --- Feature planner data ----------------------------------------------------
+
+# Maximum tasks before suggesting the feature be broken into phases.
+PLAN_MAX_TASKS = 10
+
+# Maximum estimated files across all tasks before suggesting phasing.
+PLAN_MAX_TOTAL_FILES = 50
+
+PLAN_PROMPT_TEMPLATE = """You are a senior software architect planning a feature for an existing codebase.
+
+## Repository Profile
+
+- **Primary language**: {primary_language}
+- **Frameworks**: {frameworks}
+- **Package manager**: {package_manager}
+- **Test runner**: {test_runner}
+- **Instruction files**: {instruction_files}
+- **Top-level directories**: {top_level_dirs}
+- **Monorepo**: {is_monorepo}
+- **Total files**: {total_files}
+
+## Feature Request
+
+{feature_description}
+
+## Your Task
+
+Produce a feature plan as a JSON object with this exact structure:
+
+```json
+{{
+  "feature": "<one-line feature name>",
+  "architecture": {{
+    "overview": "<2-3 sentence summary of the approach>",
+    "tech_choices": ["<choice 1 with reasoning>", "..."],
+    "data_model_changes": ["<change 1>", "..."],
+    "api_changes": ["<endpoint or route change>", "..."],
+    "frontend_changes": ["<component or page change>", "..."],
+    "integration_points": ["<where this touches existing code>", "..."]
+  }},
+  "tasks": [
+    {{
+      "id": 1,
+      "title": "<short task title>",
+      "description": "<what this task builds>",
+      "depends_on": [],
+      "parallel": true,
+      "acceptance_criteria": ["<testable criterion>", "..."],
+      "estimated_files": 3
+    }}
+  ],
+  "test_plan": {{
+    "unit_tests": ["<what to unit test>", "..."],
+    "integration_tests": ["<what to integration test>", "..."],
+    "e2e_tests": ["<what to e2e test>", "..."],
+    "edge_cases": ["<edge case to handle>", "..."]
+  }}
+}}
+```
+
+## Rules
+
+1. Use the repo's existing stack. Do not introduce new frameworks unless the feature absolutely requires it.
+2. Follow existing conventions (file naming, directory structure, test patterns).
+3. Every task must have at least one acceptance criterion that is testable.
+4. Mark tasks as `parallel: true` if they have no dependencies on each other.
+5. Task `depends_on` references other task IDs that must complete first.
+6. Keep tasks small -- each should touch {max_files_hint} files or fewer.
+7. If the feature would need more than {max_tasks} tasks, suggest breaking it into phases and plan only phase 1.
+8. Use empty arrays (not null) for sections that don't apply (e.g., no frontend changes for a backend-only feature).
+9. Return ONLY the JSON object. No markdown fences, no commentary.
+"""
+
 PROFILER_SKIP_DIRS: set[str] = {
     "node_modules",
     ".git",
