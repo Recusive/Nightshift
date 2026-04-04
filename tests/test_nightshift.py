@@ -971,6 +971,10 @@ class TestBuildPrompt:
         prompt = nightshift.build_prompt(**args)
         assert "2" in prompt  # 4 - 2 = 2 remaining
 
+    def test_warns_about_package_manager_test_commands(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Avoid package-manager test commands like `npm test`" in prompt
+
 
 # --- Parse Cycle Result ------------------------------------------------------
 

@@ -141,6 +141,7 @@ def build_prompt(
         - Every fix entry must include `Impact` and `Verification`.
         - Do not run the repo's full verification or lint commands yourself. The Nightshift runner already executed baseline verification and will run final verification after your cycle.
         - If you need extra confidence, only run narrow, file-scoped checks that do not require background IPC servers or long-lived watchers.
+        - Avoid package-manager test commands like `npm test`, `pnpm test`, `yarn test`, or `bun test` inside the cycle unless they are clearly file-scoped and sandbox-safe. Many JavaScript test runners spawn IPC servers and will fail under sandboxing even when the runner's own verification succeeds.
         - Do not add dependencies, do not delete files, and do not edit CI/deploy/generated artifacts.
         - Do not invoke Nightshift recursively. Never run `nightshift.py`, `run.sh`, `test.sh`, `codex exec`, or `claude -p` from inside this cycle.
 
