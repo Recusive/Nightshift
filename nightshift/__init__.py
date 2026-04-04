@@ -52,6 +52,11 @@ from nightshift.cycle import (
     recent_hot_files,
     verify_cycle,
 )
+from nightshift.decomposer import (
+    build_work_order_prompt,
+    decompose_plan,
+    format_work_orders,
+)
 from nightshift.errors import NightshiftError
 from nightshift.multi import (
     format_multi_summary,
@@ -89,6 +94,7 @@ from nightshift.types import (
     CycleEntry,
     CycleResult,
     CycleVerification,
+    DecomposerResult,
     DiffScore,
     FeaturePlan,
     Fix,
@@ -100,6 +106,7 @@ from nightshift.types import (
     RepoShiftResult,
     ShiftState,
     TestPlan,
+    WorkOrder,
 )
 from nightshift.worktree import (
     cleanup_safe_artifacts,
@@ -136,6 +143,7 @@ __all__ = [
     "CycleEntry",
     "CycleResult",
     "CycleVerification",
+    "DecomposerResult",
     "DiffScore",
     "FeaturePlan",
     "Fix",
@@ -148,6 +156,7 @@ __all__ = [
     "RepoShiftResult",
     "ShiftState",
     "TestPlan",
+    "WorkOrder",
     "append_cycle_state",
     "blocked_file",
     "build_backend_escalation",
@@ -157,10 +166,12 @@ __all__ = [
     "build_prompt",
     "build_state_summary",
     "build_test_escalation",
+    "build_work_order_prompt",
     "classify_repo_dirs",
     "cleanup_safe_artifacts",
     "command_exists",
     "command_for_agent",
+    "decompose_plan",
     "discover_base_branch",
     "ensure_shift_log",
     "ensure_shift_log_committed",
@@ -173,6 +184,7 @@ __all__ = [
     "forbidden_reported_commands",
     "format_multi_summary",
     "format_plan",
+    "format_work_orders",
     "git",
     "git_changed_files_for_commit",
     "git_name_status_for_commit",

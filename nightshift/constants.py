@@ -391,6 +391,86 @@ Produce a feature plan as a JSON object with this exact structure:
 9. Return ONLY the JSON object. No markdown fences, no commentary.
 """
 
+# --- Task decomposer data ----------------------------------------------------
+
+# JSON schema path for sub-agent task completion output.
+TASK_SCHEMA_PATH = "schemas/task.schema.json"
+
+# Maximum retries for a single sub-agent work order before marking it failed.
+DECOMPOSER_MAX_RETRIES = 3
+
+WORK_ORDER_PROMPT_TEMPLATE = """You are a software engineer executing a specific task as part of a larger feature build.
+
+## Repository Profile
+
+- **Primary language**: {primary_language}
+- **Frameworks**: {frameworks}
+- **Package manager**: {package_manager}
+- **Test runner**: {test_runner}
+- **Instruction files**: {instruction_files}
+
+## Feature Context
+
+You are building: **{feature_name}**
+
+Architecture overview: {architecture_overview}
+
+## Your Task
+
+**Task {task_id}: {task_title}**
+
+{task_description}
+
+### Acceptance Criteria
+
+{acceptance_criteria}
+
+### Dependencies
+
+{dependency_context}
+
+### Constraints
+
+1. Only modify files relevant to this task.
+2. Follow the repo's existing conventions (naming, imports, file structure).
+3. Write tests for every piece of logic you add.
+4. Run the test runner ({test_runner}) and ensure your tests pass.
+5. Keep changes under {estimated_files} files if possible.
+6. Do NOT modify files that other parallel tasks are working on.
+
+## Output
+
+When done, return a JSON object matching the task completion schema:
+
+```json
+{{{{
+  "task_id": {task_id},
+  "status": "done",
+  "files_created": ["<path>", "..."],
+  "files_modified": ["<path>", "..."],
+  "tests_written": ["<test description>", "..."],
+  "tests_passed": true,
+  "notes": "<any important context for the orchestrator>"
+}}}}
+```
+
+If you are blocked and cannot complete the task, return:
+
+```json
+{{{{
+  "task_id": {task_id},
+  "status": "blocked",
+  "files_created": [],
+  "files_modified": [],
+  "tests_written": [],
+  "tests_passed": false,
+  "notes": "<explain what is blocking you>"
+}}}}
+```
+
+Return ONLY the JSON object. No markdown fences, no commentary.
+"""
+
 PROFILER_SKIP_DIRS: set[str] = {
     "node_modules",
     ".git",

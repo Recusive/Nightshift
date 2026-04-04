@@ -268,13 +268,14 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | `multi.py` | Multi-repo orchestration | `run_multi_shift()`, `validate_repos()`, `format_multi_summary()` |
 | `profiler.py` | Repo analysis for Loop 2 | `profile_repo()` |
 | `planner.py` | Feature planning for Loop 2 | `build_plan_prompt()`, `validate_plan()`, `parse_plan()`, `execution_order()`, `format_plan()`, `scope_check()` |
+| `decomposer.py` | Task decomposition for Loop 2 | `decompose_plan()`, `build_work_order_prompt()`, `format_work_orders()` |
 | `cli.py` | Entry points + main loop | `run_nightshift()`, `summarize()`, `verify_cycle_cli()`, `plan_feature()`, `build_parser()`, `main()` |
 | `__main__.py` | Package entry point | `python3 -m nightshift` |
 | `__init__.py` | Re-exports all public names | Everything above |
 
 ### Dependency flow
 ```
-types → constants → errors → shell → config/state → worktree → cycle → scoring → multi → profiler → planner → cli
+types → constants → errors → shell → config/state → worktree → cycle → scoring → multi → profiler → planner → decomposer → cli
 ```
 No circular imports. Each module only imports from modules to its left. `multi.py` receives the `run_nightshift` callable from `cli.py` via dependency injection to avoid circular deps.
 
@@ -578,7 +579,7 @@ What defines each version. Use this to know when a release is ready.
 ### v0.0.6 — Loop 2 Foundation
 - [x] Repo profiling module (`nightshift/profiler.py`)
 - [x] Feature planner module (`nightshift/planner.py`)
-- [ ] Task decomposer module
+- [x] Task decomposer module (`nightshift/decomposer.py`)
 - [ ] `nightshift build` CLI command (even if basic)
 
 ### v1.0.0 — Production
