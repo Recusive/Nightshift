@@ -25,6 +25,7 @@ from nightshift.cycle import (
     verify_cycle,
 )
 from nightshift.errors import NightshiftError
+from nightshift.multi import run_multi_shift
 from nightshift.scoring import score_diff
 from nightshift.shell import command_exists, git, run_command
 from nightshift.state import append_cycle_state, load_json, read_state, write_json
@@ -385,6 +386,20 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("--pre-head", required=True, help="Commit hash before the cycle")
     verify_parser.add_argument("--result-file", help="Structured result JSON from the agent")
     verify_parser.set_defaults(func=verify_cycle_cli)
+
+    multi_parser = subparsers.add_parser("multi", parents=[common], help="Run shifts on multiple repos")
+    multi_parser.add_argument("repos", nargs="+", help="Repository paths to process")
+    multi_parser.add_argument("--test", action="store_true", help="Use test mode (short cycles)")
+    multi_parser.add_argument("--cycles", type=int, default=4, help="Cycles per repo in test mode")
+    multi_parser.add_argument("--cycle-minutes", type=int, default=8, help="Cycle duration in test mode")
+    multi_parser.add_argument("hours", nargs="?", type=int, help="Override shift duration in hours")
+    multi_parser.add_argument("--dry-run", action="store_true", help="Print first prompt for each repo and exit")
+    multi_parser.set_defaults(
+        func=lambda a: run_multi_shift(
+            a,
+            runner=lambda repo_args: run_nightshift(repo_args, test_mode=a.test),
+        )
+    )
 
     return parser
 

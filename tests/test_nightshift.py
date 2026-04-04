@@ -2565,6 +2565,215 @@ class TestShiftLogVerificationTolerance:
 # --- Dry Run Integration ----------------------------------------------------
 
 
+# --- Multi-Repo Support -------------------------------------------------------
+
+
+class TestRepoShiftResultType:
+    def test_has_required_fields(self):
+        result: nightshift.RepoShiftResult = {
+            "repo_dir": "/tmp/repo",
+            "exit_code": 0,
+            "cycles_run": 3,
+            "fixes": 2,
+            "issues_logged": 1,
+            "halt_reason": "",
+        }
+        assert result["repo_dir"] == "/tmp/repo"
+        assert result["exit_code"] == 0
+        assert result["cycles_run"] == 3
+        assert result["fixes"] == 2
+        assert result["issues_logged"] == 1
+        assert result["halt_reason"] == ""
+
+
+class TestValidateRepos:
+    def test_valid_repos(self, tmp_path):
+        repo1 = tmp_path / "repo1"
+        repo1.mkdir()
+        (repo1 / ".git").mkdir()
+        repo2 = tmp_path / "repo2"
+        repo2.mkdir()
+        (repo2 / ".git").mkdir()
+        nightshift.validate_repos([repo1, repo2])
+
+    def test_rejects_missing_dir(self, tmp_path):
+        missing = tmp_path / "nonexistent"
+        with pytest.raises(nightshift.NightshiftError, match="does not exist"):
+            nightshift.validate_repos([missing])
+
+    def test_rejects_non_git_dir(self, tmp_path):
+        not_git = tmp_path / "plain"
+        not_git.mkdir()
+        with pytest.raises(nightshift.NightshiftError, match="Not a git repository"):
+            nightshift.validate_repos([not_git])
+
+    def test_accepts_git_worktree_file(self, tmp_path):
+        """A .git file (not dir) is valid -- worktrees use this."""
+        repo = tmp_path / "worktree"
+        repo.mkdir()
+        (repo / ".git").write_text("gitdir: /somewhere/.git/worktrees/wt")
+        nightshift.validate_repos([repo])
+
+
+class TestFormatMultiSummary:
+    def test_all_ok(self):
+        results: list[nightshift.RepoShiftResult] = [
+            {
+                "repo_dir": "/tmp/alpha",
+                "exit_code": 0,
+                "cycles_run": 4,
+                "fixes": 3,
+                "issues_logged": 1,
+                "halt_reason": "",
+            },
+            {
+                "repo_dir": "/tmp/beta",
+                "exit_code": 0,
+                "cycles_run": 2,
+                "fixes": 1,
+                "issues_logged": 0,
+                "halt_reason": "",
+            },
+        ]
+        summary = nightshift.format_multi_summary(results)
+        assert "MULTI-REPO SUMMARY" in summary
+        assert "alpha" in summary
+        assert "beta" in summary
+        assert "OK" in summary
+        assert "Total: 6 cycles, 4 fixes, 1 issues" in summary
+
+    def test_mixed_results(self):
+        results: list[nightshift.RepoShiftResult] = [
+            {
+                "repo_dir": "/tmp/good",
+                "exit_code": 0,
+                "cycles_run": 3,
+                "fixes": 2,
+                "issues_logged": 0,
+                "halt_reason": "",
+            },
+            {
+                "repo_dir": "/tmp/bad",
+                "exit_code": 1,
+                "cycles_run": 1,
+                "fixes": 0,
+                "issues_logged": 0,
+                "halt_reason": "Agent command failed twice in a row.",
+            },
+        ]
+        summary = nightshift.format_multi_summary(results)
+        assert "good" in summary
+        assert "OK" in summary
+        assert "bad" in summary
+        assert "FAIL" in summary
+
+    def test_empty_results(self):
+        summary = nightshift.format_multi_summary([])
+        assert "MULTI-REPO SUMMARY" in summary
+        assert "Total: 0 cycles, 0 fixes, 0 issues" in summary
+
+
+class TestReadRepoMetrics:
+    """Test _read_repo_metrics via the multi module."""
+
+    def test_reads_state_file(self, tmp_path):
+        from nightshift.multi import _read_repo_metrics
+
+        docs = tmp_path / "docs" / "Nightshift"
+        docs.mkdir(parents=True)
+        state = {
+            "version": 1,
+            "cycles": [{"cycle": 1}, {"cycle": 2}],
+            "counters": {"fixes": 3, "issues_logged": 1},
+            "halt_reason": None,
+        }
+        (docs / "2026-04-03.state.json").write_text(json.dumps(state))
+        result = _read_repo_metrics(tmp_path, "2026-04-03")
+        assert result["cycles_run"] == 2
+        assert result["fixes"] == 3
+        assert result["issues_logged"] == 1
+        assert result["halt_reason"] == ""
+
+    def test_missing_state_file(self, tmp_path):
+        from nightshift.multi import _read_repo_metrics
+
+        result = _read_repo_metrics(tmp_path, "2026-04-03")
+        assert result["cycles_run"] == 0
+        assert result["fixes"] == 0
+        assert result["issues_logged"] == 0
+
+    def test_halt_reason_preserved(self, tmp_path):
+        from nightshift.multi import _read_repo_metrics
+
+        docs = tmp_path / "docs" / "Nightshift"
+        docs.mkdir(parents=True)
+        state = {
+            "version": 1,
+            "cycles": [],
+            "counters": {"fixes": 0, "issues_logged": 0},
+            "halt_reason": "Agent command failed twice in a row.",
+        }
+        (docs / "2026-04-03.state.json").write_text(json.dumps(state))
+        result = _read_repo_metrics(tmp_path, "2026-04-03")
+        assert result["halt_reason"] == "Agent command failed twice in a row."
+
+
+class TestMultiSubcommandParser:
+    def test_multi_subcommand_parses(self):
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["multi", "/tmp/repo1", "/tmp/repo2", "--agent", "codex", "--test"])
+        assert args.command == "multi"
+        assert args.repos == ["/tmp/repo1", "/tmp/repo2"]
+        assert args.agent == "codex"
+        assert args.test is True
+
+    def test_multi_requires_repos(self):
+        parser = nightshift.build_parser()
+        with pytest.raises(SystemExit):
+            parser.parse_args(["multi"])
+
+    def test_multi_dry_run(self):
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["multi", "/tmp/r1", "--dry-run", "--agent", "codex"])
+        assert args.dry_run is True
+
+    def test_multi_defaults(self):
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["multi", "/tmp/r1"])
+        assert args.test is False
+        assert args.cycles == 4
+        assert args.cycle_minutes == 8
+
+
+class TestMultiDryRunIntegration:
+    """End-to-end: multi subcommand with --dry-run against real repos."""
+
+    def test_multi_dry_run_single_repo(self):
+        repo = Path(__file__).resolve().parent.parent
+        result = subprocess.run(
+            [sys.executable, "-m", "nightshift", "multi", str(repo), "--agent", "codex", "--test", "--dry-run"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "Nightshift" in result.stdout
+
+    def test_multi_rejects_nonexistent_repo(self):
+        repo = Path(__file__).resolve().parent.parent
+        result = subprocess.run(
+            [sys.executable, "-m", "nightshift", "multi", "/tmp/nonexistent-repo-xyz", "--agent", "codex", "--test"],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 1
+        assert "does not exist" in result.stderr
+
+
+# --- Dry-Run Integration Tests -----------------------------------------------
+
+
 class TestDryRunIntegration:
     """End-to-end test: the full CLI with --dry-run produces a prompt."""
 

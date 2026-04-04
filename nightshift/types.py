@@ -114,3 +114,14 @@ class ShiftState(TypedDict):
     cycles: list[CycleEntry]
     halt_reason: str | None
     log_only_mode: bool
+
+
+class RepoShiftResult(TypedDict):
+    """Per-repo outcome from a multi-repo shift."""
+
+    repo_dir: str
+    exit_code: int
+    cycles_run: int
+    fixes: int
+    issues_logged: int
+    halt_reason: str
