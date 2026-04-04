@@ -36,6 +36,36 @@ Nightshift/
 
 ---
 
+## System 0: Task Queue (`docs/tasks/`)
+
+### What it is
+The work queue. Numbered task files. The agent picks up the lowest-numbered `pending` task. Humans add tasks by creating the next numbered file.
+
+### Files
+| File | Purpose |
+|------|---------|
+| `README.md` | Format spec, status values, rules |
+| `NNNN.md` | Individual task files (0001.md, 0002.md, ...) |
+
+### How to use (human)
+1. Check latest number: `ls docs/tasks/*.md | tail -1`
+2. Create next file with `status: pending` in frontmatter
+3. Done. The agent picks it up.
+
+### How to use (agent)
+1. Read all `.md` files in `docs/tasks/` (skip README.md)
+2. Filter to `status: pending`, sort by number
+3. Pick the lowest-numbered pending task (urgent priority first)
+4. Set `status: in-progress` when starting, `status: done` when finished
+5. If no pending tasks, fall back to the priority engine in `evolve.md`
+
+### How to update
+- When you finish a task: set `status: done`, add `completed: YYYY-MM-DD`
+- Never delete task files — done tasks are history
+- If a task is too big: mark it done with a note, create follow-up tasks
+
+---
+
 ## System 1: Handoffs (`docs/handoffs/`)
 
 ### What it is

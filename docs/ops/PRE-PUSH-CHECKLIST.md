@@ -43,6 +43,14 @@ Your answers determine which sections below are mandatory.
 
 ---
 
+## Part 2b: Task Status (IF working from a task)
+
+- [ ] Task file set to `status: done` with `completed: YYYY-MM-DD`
+- [ ] If task was too big and you only did part of it: mark done, create follow-up task(s)
+- [ ] Handoff references the next pending task numbers
+
+---
+
 ## Part 3: Handoff (ALWAYS)
 
 - [ ] New handoff written: `docs/handoffs/NNNN.md` (next sequential number)

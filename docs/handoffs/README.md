@@ -70,8 +70,8 @@ Every handoff follows this exact structure. No exceptions. Keep it tight — the
 - Version: vX.X.X — [X of Y features done]
 
 ## Next Session Should
-1. [Highest priority — what to build and why]
-2. [Second priority — if time permits]
+Tasks: #NNNN, #NNNN (reference docs/tasks/ files by number)
+Fallback: [if no pending tasks, what to do]
 
 ## Where to Look
 - [module/file]: [why the next agent might need to read this]

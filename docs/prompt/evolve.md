@@ -62,6 +62,7 @@ Read the handoff first. Go deeper only if needed.
 
 **Always read:**
 1. `docs/handoffs/LATEST.md` — what happened last, what's broken, what to build next
+2. `docs/tasks/` — scan for `status: pending` files to find your next task
 
 **Read if this is the first session ever (no LATEST.md exists):**
 2. `docs/vision/00-overview.md` — the north star
@@ -104,17 +105,25 @@ Open feedback: [from docs/prompt/feedback/ or "none"]
 
 ## STEP 2 — DECIDE WHAT TO BUILD
 
-Based on the status report, pick ONE feature using this priority:
+Check the task queue first, then fall back to the priority engine.
 
+**Task queue** (`docs/tasks/`):
+1. Read all `.md` files in `docs/tasks/` (skip README.md)
+2. Filter to `status: pending`
+3. If any have `priority: urgent`, pick those first
+4. Otherwise pick the lowest-numbered pending task
+5. That's your task. Set it to `status: in-progress` before building.
+
+**If no pending tasks**, fall back to this priority:
 ```
 Priority 1: Bugs in existing features (fix what's broken first)
-Priority 2: Loop 1 improvements (diff scorer → state injection → test incentives → backend forcing)
-Priority 3: Self-maintaining infrastructure (auto-changelog, auto-tracker, auto-release)
-Priority 4: Loop 2 scaffolding (planner → decomposer → sub-agent manager)
-Priority 5: Multi-repo support, polish, optimization
+Priority 2: Loop 1 improvements from vision tracker (Not started components)
+Priority 3: Self-maintaining infrastructure
+Priority 4: Loop 2 scaffolding
+Priority 5: Polish, optimization
 ```
 
-If there's human feedback in `docs/prompt/feedback/`, that overrides the priority list.
+**If there's human feedback** in `docs/prompt/feedback/`, that overrides both the task queue and the priority list.
 
 ## STEP 3 — PROPOSE
 
