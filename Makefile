@@ -44,6 +44,10 @@ daemon:
 review:
 	bash scripts/daemon-review.sh
 
+# Run the strategist (single run -- reviews the system, produces a report)
+strategist:
+	bash scripts/daemon-strategist.sh
+
 # Remove runtime artifacts
 clean:
 	rm -rf docs/Nightshift/worktree-*/ docs/Nightshift/*.runner.log docs/Nightshift/*.state.json

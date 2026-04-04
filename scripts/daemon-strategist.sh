@@ -1,0 +1,64 @@
+#!/bin/bash
+# ──────────────────────────────────────────────
+# Nightshift Strategist -- Big Picture Review
+#
+# Unlike the other daemons, this one runs ONCE.
+# It reviews what's happened, produces a strategy report,
+# and presents it to the human for decisions.
+#
+# Run it when you want to check on the system:
+#   ./scripts/daemon-strategist.sh
+#   ./scripts/daemon-strategist.sh codex
+#
+# It does NOT loop. It does NOT build. It advises.
+# ──────────────────────────────────────────────
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+AGENT="${1:-claude}"
+LOG_DIR="$REPO_DIR/docs/sessions"
+STRATEGIST_PROMPT="$REPO_DIR/docs/prompt/strategist.md"
+MAX_TURNS=200
+
+mkdir -p "$LOG_DIR"
+
+SESSION_ID="strategist-$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="$LOG_DIR/$SESSION_ID.log"
+
+echo ""
+echo "=================================================="
+echo "  NIGHTSHIFT STRATEGIST"
+echo "  Agent:  $AGENT"
+echo "  Mode:   single run (interactive)"
+echo "=================================================="
+echo ""
+
+cd "$REPO_DIR"
+git checkout main --quiet 2>/dev/null || true
+git pull origin main --quiet 2>/dev/null || true
+
+PROMPT=$(cat "$STRATEGIST_PROMPT")
+
+if [ "$AGENT" = "codex" ]; then
+    codex exec \
+        --json \
+        -c 'approval_policy="never"' \
+        -s "workspace-write" \
+        "$PROMPT" \
+        2>&1 | tee "$LOG_FILE"
+else
+    # Interactive -- not -p, so the human can respond to recommendations
+    claude -p "$PROMPT" \
+        --max-turns "$MAX_TURNS" \
+        --verbose \
+        2>&1 | tee "$LOG_FILE"
+fi
+
+echo ""
+echo "=================================================="
+echo "  STRATEGIST COMPLETE"
+echo "  Report: docs/strategy/$(date +%Y-%m-%d).md"
+echo "  Log:    $LOG_FILE"
+echo "=================================================="
