@@ -67,6 +67,7 @@ Your answers determine which sections below are mandatory.
 - [ ] "Next Session Should" filled with actionable recommendation
 - [ ] "Where to Look" lists specific files relevant to the next task
 - [ ] `docs/handoffs/LATEST.md` is an exact copy of the new handoff
+- [ ] "Learnings applied" section present in handoff — quotes a specific learning file and explains how it affected this session's approach
 - [ ] If 7+ numbered handoff files exist: compacted into `docs/handoffs/weekly/week-YYYY-WNN.md`
 
 ---

@@ -63,6 +63,10 @@ Every handoff follows this exact structure. No exceptions. Keep it tight — the
 - [Bug/gap]: [one line — what's wrong and where]
 - (carry forward from previous handoff if not fixed)
 
+## Learnings Applied
+- "[one-line summary from INDEX.md]" (docs/learnings/YYYY-MM-DD-topic.md)
+  Affects my approach: [how this learning changes what I did this session]
+
 ## Current State
 - Loop 1: XX% — [one line status]
 - Loop 2: XX% — [one line status]

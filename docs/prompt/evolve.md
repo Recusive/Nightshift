@@ -124,7 +124,13 @@ Current version: vX.X.X
 Tests: XXX passing
 Last change: [from git log]
 Open feedback: [from docs/prompt/feedback/ or "none"]
+
+Learnings applied this session:
+  - "[one-line summary from INDEX.md]" (docs/learnings/YYYY-MM-DD-topic.md)
+    Affects my approach: [how this learning changes what I do today]
 ```
+
+**Learnings applied**: You MUST quote at least one specific learning from `docs/learnings/INDEX.md` and explain how it affects your approach this session. Pick the learning most relevant to the task you're about to build. This creates an auditable trail that learnings are actually being read, not just written.
 
 ## STEP 2 — DECIDE WHAT TO BUILD
 
@@ -233,6 +239,7 @@ Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact
 
 **Required sections in every handoff:**
 - "Tracker delta: XX% -> XX%" (makes project progress visible)
+- "Learnings applied: [quote + file]" (from Step 1 — what learning you applied and how)
 - "Generated tasks: [list #NNNN titles, or 'none']" (from Step 6o — what work you identified)
 - "Tasks I did NOT pick and why:" (skip accountability — list every pending task you read and chose not to build, with the reason)
 
@@ -511,6 +518,9 @@ Manual test suggestion:
   - [How the human can verify on a real repo]
 
 Tracker delta: [XX% -> XX%] (or "no change" if cleanup only)
+
+Learnings applied:
+  - "[summary]" (file) — [how it affected this session]
 
 Generated tasks:
   Vision alignment: [last 5 target: loop1=N, loop2=N, self-maintaining=N, meta-prompt=N, none=N]
