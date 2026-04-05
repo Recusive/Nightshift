@@ -13,6 +13,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 
 ## Process
 
+- [CONTRIBUTING.md: synthesize, not copy](2026-04-05-contributing-md-synthesis-not-copy.md) — Write external view only; reference CLAUDE.md for details, mirror review-agent gates as checklist
 - [Review notes must become tasks](2026-04-04-review-notes-must-become-tasks.md) — Code review advisory notes must get follow-up tasks, never dismissed as "known limitation"
 - [Always use make check](2026-04-04-always-make-check-never-partial-lint.md) — Never run ruff/mypy individually; `make check` covers nightshift/ AND tests/
 - [Task selection is mesa-optimization](2026-04-04-task-selection-mesa-optimization.md) — Agent optimizes session success over project progress; queue order is authoritative, handoff is advisory
