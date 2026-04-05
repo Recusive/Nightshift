@@ -35,6 +35,8 @@
 - Existing pending tasks lack `vision_section` field (task #0060 covers backfilling)
 - Task #0071 is a confirmed duplicate of completed #0059 (task #0075 covers dedup)
 - profiler.py has fragile manual NightshiftConfig construction (task #0082 covers fix)
+- Readiness scanner lacks path traversal guard (task #0084 covers fix)
+- Readiness display has latent IndexError on empty details string (task #0085 covers fix)
 
 ## Current State
 - Loop 1: 100% (22/22)
@@ -53,6 +55,8 @@ Generated tasks:
   Vision alignment: [last 5 target: loop2=1, self-maintaining=1, meta-prompt=1, none=2]
   - #0082: Replace manual NightshiftConfig in profiler.py (dimension: architecture, vision: self-maintaining, priority: normal)
   - #0083: Sub-agent coordination module (dimension: vision-progress, vision: loop2, priority: normal)
+  - #0084: Path traversal guard for readiness scanner (dimension: safety, priority: low)
+  - #0085: Fix latent IndexError in readiness display (dimension: robustness, priority: low)
 
 ## Tasks I Did NOT Pick and Why
 - #0012: environment: integration (needs API access)
