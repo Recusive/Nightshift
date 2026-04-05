@@ -1,5 +1,5 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Nightshift Strategist -- Big Picture Review
 #
 # Unlike the other daemons, this one runs ONCE.
@@ -11,7 +11,7 @@
 #   ./scripts/daemon-strategist.sh codex     # skip prompts, use codex
 #
 # It does NOT loop. It does NOT build. It advises.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -uo pipefail
 

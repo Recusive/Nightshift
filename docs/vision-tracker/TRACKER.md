@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0042 (Profiler deeper analysis).
+Last updated: 2026-04-05 by agent session #0043 (Shell script ASCII cleanup + first real evaluation).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,8 +9,8 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ██████████████████░░  91%
-├── Loop 1 — Hardening Loop                    ████████████████████ 100%
+NIGHTSHIFT VISION                              ██████████████████░░  89%
+├── Loop 1 — Hardening Loop                    ███████████████████░  95%
 ├── Loop 2 — Feature Builder Loop              ████████████████████ 100%
 ├── Self-Maintaining Repo                      ████████████░░░░░░░░  60%
 └── Meta-Prompt System                         ████████████████░░░░  76%
@@ -18,9 +18,9 @@ NIGHTSHIFT VISION                              ███████████
 
 ---
 
-## Loop 1 — Hardening Loop (100%)
+## Loop 1 — Hardening Loop (95%)
 
-The core loop works end-to-end. The orchestrator, agent adapters, verification, and state tracking are functional. What's missing: intelligence improvements that make the agent find better issues.
+The core loop still works on the happy path, but the first real Phractal evaluation exposed a false-rejection bug in shift-log verification on case-insensitive filesystems. Until that is fixed, Loop 1 cannot honestly stay at 100%.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -31,13 +31,13 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Runner-enforced guard rails | Done | ████████████████████ 100% |
 | Machine-readable state | Done | ████████████████████ 100% |
 | Baseline verification | Done | ████████████████████ 100% |
-| Post-cycle verification | Done | ████████████████████ 100% |
+| Post-cycle verification | In progress | ██████████████████░░ 90% |
 | Shift log generation | Done | ████████████████████ 100% |
 | Category dominance check | Done | ████████████████████ 100% |
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (890 tests) | Done | ████████████████████ 100% |
+| Test suite (891 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -48,7 +48,8 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | run_command timeout fix | Done | ████████████████████ 100% |
 
 ### Bugs Found (not yet fixed)
-- None
+- `verify_cycle()` can reject valid shift-log commits when the filesystem folds `docs/` and `Docs/` to the same path (#0098).
+- Real evaluations still need a target-specific verify command for Phractal, so baseline/cycle verification is weaker than intended (#0099).
 
 ---
 

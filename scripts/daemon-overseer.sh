@@ -1,5 +1,5 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Nightshift Overseer -- System Health Loop
 #
 # Audits the task queue, handoffs, learnings, and
@@ -15,7 +15,7 @@
 #
 # Stop: Ctrl+C or kill the process
 # Shares lockfile with other daemons -- only one runs at a time.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -uo pipefail
 
@@ -123,7 +123,7 @@ while true; do
     # --- Self-restart: if daemon-overseer.sh changed, exec into new version ---
     NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon-overseer.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon-overseer.sh" 2>/dev/null | cut -d' ' -f1)
     if [ -n "${_DAEMON_HASH:-}" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
-        echo "  daemon-overseer.sh changed on main — restarting with new code..."
+        echo "  daemon-overseer.sh changed on main -- restarting with new code..."
         exec bash "$SCRIPT_DIR/daemon-overseer.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
     fi
     export _DAEMON_HASH="$NEW_HASH"

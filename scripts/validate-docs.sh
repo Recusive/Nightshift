@@ -1,11 +1,11 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Doc Consistency Validator
 #
 # Checks that documentation matches code reality.
 # Exits non-zero if any check fails.
 # Run in CI or as a pre-commit hook.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -euo pipefail
 
@@ -86,7 +86,7 @@ echo "-- Tracker percentage accuracy --"
 if [ -f "$REPO_DIR/docs/vision-tracker/TRACKER.md" ]; then
     for section in "Loop 1" "Loop 2" "Self-Maintaining" "Meta-Prompt"; do
         # Count Done vs total components in the section's table
-        # This is approximate — looks for "| Done |" and "| Not started |" and "| In progress |"
+        # This is approximate -- looks for "| Done |" and "| Not started |" and "| In progress |"
         done_count=$(awk "/## $section/,/^---/" "$REPO_DIR/docs/vision-tracker/TRACKER.md" \
             | grep -c "| Done |" 2>/dev/null || true)
         done_count=$(echo "$done_count" | tr -dc '0-9')
