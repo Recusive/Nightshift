@@ -99,6 +99,7 @@ Full daemon operations guide with troubleshooting: `docs/ops/DAEMON.md`
 - **Review notes MUST become tasks.** If the code review sub-agent flags advisory notes, known limitations, or follow-up items but still passes, you MUST create follow-up tasks in `docs/tasks/` before merging. "Known limitation" is not a valid reason to skip — the task queue tracks deferred work.
 - **If CI fails after merge:** create a `fix/` branch and PR. Never push directly to main, even for "trivial" fixes.
 - **Human task creation:** Humans create tasks as GitHub Issues with the `task` label. The daemon's housekeeping step syncs them to `docs/tasks/` automatically. See `docs/tasks/GUIDE.md` for details.
+- **Exception: housekeeping commits push to main directly.** `sync_github_tasks` commits and pushes task files to main before the agent session starts. This bypasses the branch-PR workflow because the daemon's `git reset --hard origin/main` at cycle start would wipe uncommitted files. These are structural doc changes (task files), not code.
 - Full workflow: `docs/ops/OPERATIONS.md` under "Git Workflow"
 
 ## Environment

@@ -337,6 +337,10 @@ for issue in issues:
     task_num = f'{next_id:04d}'
     task_file = os.path.join(tasks_dir, f'{task_num}.md')
 
+    # Guard: skip if task file already exists (stale .next-id)
+    if os.path.exists(task_file):
+        continue
+
     # Map labels to frontmatter fields
     label_names = [lb.get('name', '') for lb in issue.get('labels', [])]
 
@@ -361,6 +365,7 @@ for issue in issues:
         '---',
         'status: pending',
         f'priority: {priority}',
+        'target:',
     ]
     if environment:
         fm_lines.append(f'environment: {environment}')

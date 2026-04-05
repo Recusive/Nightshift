@@ -29,7 +29,7 @@
 - `notify_human` has not been tested with a live webhook
 - Tasks #0024 and #0036 have malformed YAML frontmatter (task #0064 covers fix)
 - Existing pending tasks lack `vision_section` field (task #0060 covers backfilling)
-- The git commit step in sync_github_tasks will fail silently if the working tree has uncommitted changes (by design -- daemon housekeeping runs after git reset --hard, so the tree is always clean)
+- sync_github_tasks pushes directly to main (documented exception in CLAUDE.md) because the daemon's `git reset --hard origin/main` at cycle start would wipe uncommitted files. This differs from `archive_done_tasks` which only moves files locally
 
 ## Current State
 - Loop 1: 100% (22/22)
