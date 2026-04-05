@@ -55,6 +55,10 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "test_incentive_cycle": 3,
     "backend_forcing_cycle": 3,
     "category_balancing_cycle": 3,
+    "claude_model": "claude-opus-4-6",
+    "claude_effort": "max",
+    "codex_model": "gpt-5.4",
+    "codex_thinking": "extra_high",
 }
 
 # --- Diff scoring data -------------------------------------------------------

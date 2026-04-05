@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from nightshift.config import infer_lint_command
+from nightshift.config import infer_lint_command, merge_config
 from nightshift.constants import (
     DATA_VERSION,
     FEATURE_LOG_DIR,
@@ -33,6 +33,7 @@ from nightshift.types import (
     FixAttempt,
     FrameworkInfo,
     IntegrationResult,
+    NightshiftConfig,
     RepoProfile,
     TaskCompletion,
     WaveResult,
@@ -254,6 +255,7 @@ def _plan_feature_with_agent(
     feature_description: str,
     agent: str,
     log_dir: Path,
+    config: NightshiftConfig,
 ) -> FeaturePlan:
     if not command_exists(agent):
         raise NightshiftError(f"`{agent}` is not installed or not on PATH.")
@@ -271,6 +273,7 @@ def _plan_feature_with_agent(
         cwd=repo_dir,
         schema_path=schema_path,
         message_path=message_path,
+        config=config,
     )
     exit_code, raw_output = run_command(cmd, cwd=repo_dir, log_path=log_path, timeout_seconds=FEATURE_VERIFY_TIMEOUT)
     if exit_code != 0:
@@ -441,6 +444,7 @@ def build_feature(
     status_only: bool,
 ) -> int:
     """Run the full Loop 2 feature-build pipeline."""
+    config = merge_config(repo_dir)
     state_path = feature_state_path(repo_dir)
 
     if status_only:
@@ -463,6 +467,7 @@ def build_feature(
             feature_description=feature_description,
             agent=agent,
             log_dir=feature_log_dir(repo_dir),
+            config=config,
         )
         state = new_feature_state(
             feature_description=feature_description,
@@ -511,6 +516,7 @@ def build_feature(
             agent=effective_agent,
             repo_dir=repo_dir,
             log_dir=wave_log_dir,
+            config=config,
         )
         integration_result = integrate_wave(
             wave_result,
@@ -518,6 +524,7 @@ def build_feature(
             test_command=state["profile"]["test_runner"],
             agent=effective_agent,
             log_dir=wave_log_dir,
+            config=config,
         )
 
         wave_state["wave_result"] = wave_result

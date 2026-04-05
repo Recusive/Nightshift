@@ -103,20 +103,22 @@ def command_for_agent(
     cwd: Path,
     schema_path: Path,
     message_path: Path,
+    config: NightshiftConfig,
 ) -> list[str]:
     if agent == "codex":
         return [
             "codex",
             "exec",
+            "--dangerously-bypass-approvals-and-sandbox",
             "--json",
             "--output-schema",
             str(schema_path),
             "--output-last-message",
             str(message_path),
+            "--model",
+            config["codex_model"],
             "-c",
-            'approval_policy="never"',
-            "-s",
-            "workspace-write",
+            f'reasoning_effort="{config["codex_thinking"]}"',
             prompt,
         ]
     if agent == "claude":
@@ -126,6 +128,10 @@ def command_for_agent(
             prompt,
             "--max-turns",
             "50",
+            "--model",
+            config["claude_model"],
+            "--effort",
+            config["claude_effort"],
             "--verbose",
         ]
     raise NightshiftError(f"Unsupported agent: {agent}")

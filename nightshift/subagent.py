@@ -14,7 +14,7 @@ from nightshift.constants import (
 from nightshift.cycle import extract_json
 from nightshift.errors import NightshiftError
 from nightshift.shell import run_command
-from nightshift.types import TaskCompletion, WaveResult, WorkOrder
+from nightshift.types import NightshiftConfig, TaskCompletion, WaveResult, WorkOrder
 
 _TASK_COMPLETION_REQUIRED_KEYS = {
     "task_id",
@@ -34,6 +34,7 @@ def _build_subagent_command(
     cwd: Path,
     message_path: Path,
     schema_path: str,
+    config: NightshiftConfig,
 ) -> list[str]:
     """Build the CLI command to invoke a sub-agent for a work order."""
     if agent == "codex":
@@ -41,15 +42,16 @@ def _build_subagent_command(
         return [
             "codex",
             "exec",
+            "--dangerously-bypass-approvals-and-sandbox",
             "--json",
             "--output-schema",
             str(full_schema_path),
             "--output-last-message",
             str(message_path),
+            "--model",
+            config["codex_model"],
             "-c",
-            'approval_policy="never"',
-            "-s",
-            "workspace-write",
+            f'reasoning_effort="{config["codex_thinking"]}"',
             prompt,
         ]
     if agent == "claude":
@@ -59,6 +61,10 @@ def _build_subagent_command(
             prompt,
             "--max-turns",
             str(SUBAGENT_MAX_TURNS),
+            "--model",
+            config["claude_model"],
+            "--effort",
+            config["claude_effort"],
             "--verbose",
         ]
     raise NightshiftError(f"Unsupported agent: {agent}")
@@ -118,6 +124,7 @@ def spawn_task(
     agent: str,
     repo_dir: Path,
     log_dir: Path,
+    config: NightshiftConfig,
     timeout_seconds: int | None = None,
 ) -> TaskCompletion | None:
     """Spawn a single sub-agent to execute a work order.
@@ -138,6 +145,7 @@ def spawn_task(
         cwd=repo_dir,
         message_path=message_path,
         schema_path=work_order["schema_path"],
+        config=config,
     )
 
     print_status(f"[subagent] Spawning {agent} for task {task_id}: {work_order['title']}")
@@ -167,6 +175,7 @@ def spawn_wave(
     agent: str,
     repo_dir: Path,
     log_dir: Path,
+    config: NightshiftConfig,
     timeout_seconds: int | None = None,
     max_retries: int = DECOMPOSER_MAX_RETRIES,
 ) -> WaveResult:
@@ -198,6 +207,7 @@ def spawn_wave(
                 agent=agent,
                 repo_dir=repo_dir,
                 log_dir=log_dir,
+                config=config,
                 timeout_seconds=timeout_seconds,
             )
             if result is not None:

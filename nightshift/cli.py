@@ -203,6 +203,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             cwd=worktree_dir,
             schema_path=schema_path,
             message_path=message_path,
+            config=config,
         )
         print_status(" ".join(shlex.quote(part) for part in cmd))
         timeout_seconds = max(300, cycle_minutes * 60 + (240 if test_mode else 180))
@@ -391,7 +392,8 @@ def plan_feature(args: argparse.Namespace) -> int:
 
     # If --agent is provided, invoke the agent to generate the plan
     if args.agent:
-        plan = run_plan_agent(repo_dir, feature_description, args.agent, profile)
+        config = merge_config(repo_dir)
+        plan = run_plan_agent(repo_dir, feature_description, args.agent, profile, config)
         warning = scope_check(plan)
         if warning:
             print_status(f"WARNING: {warning}")

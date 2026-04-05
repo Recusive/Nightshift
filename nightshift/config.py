@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,13 @@ def _require_int(raw: dict[str, Any], key: str) -> int:
     val = raw.get(key)
     if not isinstance(val, int):
         raise NightshiftError(f".nightshift.json: '{key}' must be an integer, got {type(val).__name__}")
+    return val
+
+
+def _require_str(raw: dict[str, Any], key: str) -> str:
+    val = raw.get(key)
+    if not isinstance(val, str):
+        raise NightshiftError(f".nightshift.json: '{key}' must be a string, got {type(val).__name__}")
     return val
 
 
@@ -53,6 +61,10 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         test_incentive_cycle=_require_int(raw, "test_incentive_cycle"),
         backend_forcing_cycle=_require_int(raw, "backend_forcing_cycle"),
         category_balancing_cycle=_require_int(raw, "category_balancing_cycle"),
+        claude_model=_require_str(raw, "claude_model"),
+        claude_effort=_require_str(raw, "claude_effort"),
+        codex_model=_require_str(raw, "codex_model"),
+        codex_thinking=_require_str(raw, "codex_thinking"),
     )
 
 
@@ -67,6 +79,17 @@ def merge_config(repo_dir: Path) -> NightshiftConfig:
     overwritten normally.
     """
     raw: dict[str, Any] = json.loads(json.dumps(DEFAULT_CONFIG))
+    # Environment variable overrides (between defaults and config file).
+    # Config file values win over env vars; env vars win over defaults.
+    _ENV_OVERRIDES: dict[str, str] = {
+        "claude_model": "NIGHTSHIFT_CLAUDE_MODEL",
+        "codex_model": "NIGHTSHIFT_CODEX_MODEL",
+        "codex_thinking": "NIGHTSHIFT_CODEX_THINKING",
+    }
+    for config_key, env_var in _ENV_OVERRIDES.items():
+        env_val = os.environ.get(env_var)
+        if env_val is not None:
+            raw[config_key] = env_val
     path = repo_dir / ".nightshift.json"
     if path.exists():
         loaded = load_json(path)

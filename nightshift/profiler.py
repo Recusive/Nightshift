@@ -176,6 +176,10 @@ def _infer_test_runner(repo_dir: Path) -> str | None:
         test_incentive_cycle=DEFAULT_CONFIG["test_incentive_cycle"],
         backend_forcing_cycle=DEFAULT_CONFIG["backend_forcing_cycle"],
         category_balancing_cycle=DEFAULT_CONFIG["category_balancing_cycle"],
+        claude_model=DEFAULT_CONFIG["claude_model"],
+        claude_effort=DEFAULT_CONFIG["claude_effort"],
+        codex_model=DEFAULT_CONFIG["codex_model"],
+        codex_thinking=DEFAULT_CONFIG["codex_thinking"],
     )
     return infer_verify_command(repo_dir, config)
 

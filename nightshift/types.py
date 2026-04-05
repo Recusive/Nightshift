@@ -24,6 +24,10 @@ class NightshiftConfig(TypedDict):
     test_incentive_cycle: int
     backend_forcing_cycle: int
     category_balancing_cycle: int
+    claude_model: str
+    claude_effort: str
+    codex_model: str
+    codex_thinking: str
 
 
 class DiffScore(TypedDict):
