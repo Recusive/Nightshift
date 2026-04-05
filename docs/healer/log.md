@@ -1,6 +1,6 @@
 # Healer Log
 
-Observations from the meta-layer observer. Newest entries first.
+Observations from the meta-layer observer. Appended chronologically.
 
 ---
 
@@ -257,3 +257,16 @@ Observations from the meta-layer observer. Newest entries first.
 
 ### Actions taken
 - No new tasks needed this cycle. Existing tasks `#0095`, `#0097`-`#0102`, and `#0106` already cover the current system trends.
+
+## 2026-04-05 -- Session #0052 (Task queue summary command)
+
+**System health:** caution
+
+### Observations
+- **The human-facing session index is still effectively blind.** `docs/sessions/index.md` currently has only the header row, while `cost_analysis('docs/sessions')` still finds 29 sessions and classifies 19 of them as `task_type=unknown`. Existing task `#0095` remains the fix path for that observability gap.
+- **Queue trust is still partial even with the new summary command.** `scripts/list-tasks.sh` immediately surfaced malformed files `#0024`, `#0036`, and `#0045`, which means the authoritative queue still depends on manual judgment until tasks `#0058` and `#0064` land.
+- **The proven Loop 1 eval failure cluster is still unchanged.** Evaluation `#0008` reproduced the same startup, shift-log, verification, and cleanup failures already tracked by `#0097`-`#0102`, while queue order continues to route lower-numbered cleanup ahead of those fixes.
+- **Dry-run integration checks still depend on repo runtime state.** `make check` failed until `make clean` removed a stale `docs/Nightshift/*.state.json`, so I created follow-up task `#0116` to isolate those tests from leftover artifacts.
+
+### Actions taken
+- Created task `#0116`: Isolate dry-run integration tests from runtime artifacts

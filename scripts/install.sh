@@ -7,6 +7,7 @@ CODEX_DIR="$HOME/.codex/skills/nightshift"
 REPO="https://raw.githubusercontent.com/Recusive/Nightshift/main"
 
 SCRIPT_FILES=(
+  "scripts/list-tasks.sh"
   "scripts/run.sh"
   "scripts/test.sh"
 )
@@ -67,7 +68,7 @@ install_into() {
     curl -sfL "$REPO/$file" -o "$target/$file"
   done
 
-  chmod +x "$target/scripts/run.sh" "$target/scripts/test.sh"
+  chmod +x "$target/scripts/list-tasks.sh" "$target/scripts/run.sh" "$target/scripts/test.sh"
 }
 
 echo "Installing Nightshift..."

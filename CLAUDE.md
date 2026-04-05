@@ -22,6 +22,7 @@ Full vision: `docs/vision/00-overview.md`
 make test        # run tests
 make check       # full CI locally
 make dry-run     # preview cycle prompt
+make tasks       # show pending/blocked/in-progress tasks
 make clean       # remove runtime artifacts
 make daemon      # builder daemon (loops, ships features)
 make review      # reviewer daemon (loops, fixes code quality)

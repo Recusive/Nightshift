@@ -8909,6 +8909,137 @@ class TestShellScripts:
         assert not violations, "Non-ASCII shell script content found:\n" + "\n".join(violations)
 
 
+class TestListTasksScript:
+    @staticmethod
+    def _write_task(
+        task_dir: Path,
+        task_id: int,
+        *,
+        status: str,
+        priority: str,
+        title: str,
+        target: str = "v0.0.8",
+        environment: str | None = None,
+    ) -> Path:
+        lines = [
+            "---",
+            f"status: {status}",
+            f"priority: {priority}",
+            f"target: {target}",
+        ]
+        if environment is not None:
+            lines.append(f"environment: {environment}")
+        lines.extend(
+            [
+                "created: 2026-04-05",
+                "completed:",
+                "---",
+                "",
+                f"# {title}",
+                "",
+                "## Acceptance Criteria",
+                "- [ ] Example",
+                "",
+            ]
+        )
+        path = task_dir / f"{task_id:04d}.md"
+        path.write_text("\n".join(lines), encoding="utf-8")
+        return path
+
+    def test_lists_active_tasks_in_priority_then_number_order(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        script = repo_root / "scripts" / "list-tasks.sh"
+        task_dir = tmp_path / "tasks"
+        task_dir.mkdir()
+
+        self._write_task(task_dir, 9, status="done", priority="urgent", title="Completed task")
+        self._write_task(task_dir, 5, status="blocked", priority="normal", title="Blocked task")
+        self._write_task(
+            task_dir,
+            7,
+            status="in-progress",
+            priority="low",
+            title="In-progress task",
+            environment="integration",
+        )
+        self._write_task(task_dir, 3, status="pending", priority="urgent", title="Urgent task")
+
+        result = subprocess.run(
+            ["bash", str(script), str(task_dir)],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        lines = result.stdout.splitlines()
+        active_lines = [line for line in lines if line.strip().startswith(("0003", "0005", "0007"))]
+        assert active_lines == [
+            "  0003  [pending    ]  urgent    v0.0.8    internal    Urgent task",
+            "  0005  [blocked    ]  normal    v0.0.8    internal    Blocked task",
+            "  0007  [in-progress]  low       v0.0.8    integration  In-progress task",
+        ]
+        assert "0009" not in result.stdout
+
+    def test_prints_empty_queue_message(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        script = repo_root / "scripts" / "list-tasks.sh"
+        task_dir = tmp_path / "tasks"
+        task_dir.mkdir()
+
+        result = subprocess.run(
+            ["bash", str(script), str(task_dir)],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "No pending, blocked, or in-progress tasks." in result.stdout
+        assert "INVALID TASK FILES" not in result.stdout
+
+    def test_reports_invalid_task_files(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        script = repo_root / "scripts" / "list-tasks.sh"
+        task_dir = tmp_path / "tasks"
+        task_dir.mkdir()
+        (task_dir / "0045.md").write_text(
+            "---\n\n## status: pending\npriority: low\ntarget: v0.0.8\ncreated: 2026-04-05\n\n# Broken task\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            ["bash", str(script), str(task_dir)],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "INVALID TASK FILES" in result.stdout
+        assert "0045" in result.stdout
+        assert "(frontmatter)" in result.stdout
+
+    def test_make_tasks_target_respects_env_override(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        task_dir = tmp_path / "tasks"
+        task_dir.mkdir()
+        self._write_task(task_dir, 1, status="pending", priority="normal", title="Queue via make")
+
+        env = dict(os.environ)
+        env["NIGHTSHIFT_TASK_DIR"] = str(task_dir)
+        result = subprocess.run(
+            ["make", "tasks"],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+            env=env,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "Queue via make" in result.stdout
+
+
 # ---------------------------------------------------------------------------
 # Readiness checker tests
 # ---------------------------------------------------------------------------

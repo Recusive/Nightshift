@@ -43,6 +43,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Healer persistence needs workflow](2026-04-05-healer-persistence-needs-workflow.md) — Daemon sub-agent outputs need branch+PR+merge; git reset wipes uncommitted files
 - [gh issue labels are nested objects](2026-04-05-gh-issue-json-labels-nested.md) — `gh issue list --json labels` returns `[{"name":...}]` not strings; access `.name`
 - [Shell expansion mangles markdown](2026-04-05-shell-expansion-mangles-markdown.md) — Never use `$(cat file.md)` for prompts containing backticks/$; merge into agent step or use heredoc
+- [Dry-run integration tests need isolated runtime artifacts](2026-04-05-dry-run-tests-need-isolated-runtime-artifacts.md) — Repo-root dry-run tests must not depend on `docs/Nightshift/` being empty
 - [Reuse planner functions](2026-04-03-reuse-existing-functions.md) — Don't reimplement; import from existing modules
 - [Agent scope separation mirrors module separation](2026-04-05-agent-scope-separation-mirrors-module-separation.md) — If a review agent needs "skip these checks when X" fast paths, it should be split into specialists
 - [Pattern detection via path segments](2026-04-05-summary-module-pattern-detection.md) — Split paths into segment sets and intersect with keyword sets; more robust than regex for file categorization
