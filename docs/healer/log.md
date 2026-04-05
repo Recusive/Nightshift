@@ -124,6 +124,22 @@ Observations from the meta-layer observer. Newest entries first.
 
 - **Session velocity is good.** Feature was scoped tightly (one new module, ~120 lines, 22 tests). No wasted turns on debugging or refactoring. The one-concern-per-module rule and pre-existing test patterns made implementation straightforward.
 
+## 2026-04-05 -- Session #0041 (Self-evaluation loop)
+
+**System health:** good
+
+- **Self-Maintaining is the bottleneck at 60%.** Five components sit at 0% (auto-release, auto-changelog, auto-tracker, auto-CLAUDE.md, prompt self-refinement). These are all automation features. The system builds features effectively but cannot maintain itself autonomously. Next sessions should prioritize #0066 (auto-release) or similar self-maintaining tasks.
+
+- **Module template pattern is 5 for 5.** evaluation.py is the 5th module built with the same template (profiler, planner, decomposer, subagent, integrator, summary, readiness, e2e, coordination, evaluation). Pure computation, constants extracted, shell integration, comprehensive tests. 480 lines, 66 tests, one session. The pattern is now the de facto standard for new modules.
+
+- **Tracker arithmetic was wrong -- corrected this session.** The earlier part of this session set Self-Maintaining to 63% and Overall to 92%, but the honest math gives 60% and 91%. The weighted calculation (7 done + 0.8 partial out of 13 components at 15% weight) barely moves the overall needle. Corrected both the tracker and handoff. Future sessions should double-check: (sum of component percentages) / (total components * 100).
+
+- **v0.0.6 still untagged -- 7th session noting this.** Tasks #0062 and #0087 exist for this. This is the oldest outstanding hygiene issue. Step 11 of this session will attempt the release.
+
+- **profiler.py config fragility bit again.** Adding `eval_frequency` and `eval_target_repo` required updating the 25-line manual NightshiftConfig construction in profiler.py. This is the 2nd session where this caused a mypy failure. Task #0082 tracks the fix.
+
+---
+
 ## 2026-04-05 -- Session #0040 (Sub-agent coordination)
 
 **System health:** good

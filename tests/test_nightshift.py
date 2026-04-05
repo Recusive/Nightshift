@@ -62,6 +62,8 @@ class TestConstants:
             "codex_thinking",
             "notification_webhook",
             "readiness_checks",
+            "eval_frequency",
+            "eval_target_repo",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -9533,3 +9535,750 @@ class TestLogConflicts:
         report = nightshift.log_conflicts(wave_result)
         assert report["has_conflicts"]
         assert len(report["conflicts"]) == 1
+
+
+# ============================================================================
+# Evaluation Module Tests
+# ============================================================================
+
+
+def _make_eval_artifacts(
+    state=None,
+    shift_log="",
+    runner_exit_code=0,
+    state_file_valid=True,
+    shift_log_exists=True,
+):
+    """Helper to build ShiftArtifacts for testing."""
+    return nightshift.ShiftArtifacts(
+        state=state,
+        shift_log=shift_log,
+        runner_exit_code=runner_exit_code,
+        state_file_valid=state_file_valid,
+        shift_log_exists=shift_log_exists,
+    )
+
+
+def _make_good_state():
+    """Helper that builds a realistic good shift state dict."""
+    return {
+        "version": 1,
+        "date": "2026-04-05",
+        "branch": "nightshift-20260405",
+        "agent": "claude",
+        "verify_command": "npm test",
+        "baseline": {"status": "passed", "command": "npm test", "message": "ok"},
+        "counters": {
+            "fixes": 3,
+            "issues_logged": 2,
+            "files_touched": 8,
+            "low_impact_fixes": 1,
+            "failed_verifications": 0,
+            "empty_cycles": 0,
+            "agent_failures": 0,
+            "tests_written": 2,
+        },
+        "category_counts": {"Security": 1, "Error Handling": 1, "Tests": 1},
+        "recent_cycle_paths": [],
+        "cycles": [
+            {
+                "cycle": 1,
+                "status": "completed",
+                "fixes": [
+                    {
+                        "title": "Add input validation to auth handler",
+                        "category": "Security",
+                        "impact": "high",
+                        "files": ["src/auth.ts"],
+                    },
+                    {
+                        "title": "Add error boundary for API calls",
+                        "category": "Error Handling",
+                        "impact": "medium",
+                        "files": ["src/api.ts"],
+                    },
+                ],
+                "logged_issues": [
+                    {
+                        "title": "Missing rate limiting on /login",
+                        "category": "Security",
+                        "severity": "high",
+                        "files": ["src/auth.ts"],
+                    },
+                ],
+                "verification": {
+                    "verify_command": "npm test",
+                    "verify_status": "passed",
+                    "verify_exit_code": 0,
+                    "dominant_path": "src",
+                    "commits": ["abc"],
+                    "files_touched": ["src/auth.ts", "src/api.ts", "tests/auth.test.ts"],
+                    "violations": [],
+                },
+            },
+            {
+                "cycle": 2,
+                "status": "completed",
+                "fixes": [
+                    {
+                        "title": "Add missing test for user model",
+                        "category": "Tests",
+                        "impact": "medium",
+                        "files": ["tests/user.test.ts"],
+                    },
+                ],
+                "logged_issues": [
+                    {
+                        "title": "No error handling in data layer",
+                        "category": "Error Handling",
+                        "severity": "medium",
+                        "files": ["src/data/index.ts"],
+                    },
+                ],
+                "verification": {
+                    "verify_command": "npm test",
+                    "verify_status": "passed",
+                    "verify_exit_code": 0,
+                    "dominant_path": "src/data",
+                    "commits": ["def"],
+                    "files_touched": ["tests/user.test.ts", "src/data/index.ts"],
+                    "violations": [],
+                },
+            },
+        ],
+        "halt_reason": "max_cycles",
+        "log_only_mode": False,
+    }
+
+
+def _make_good_shift_log():
+    """Helper that builds a realistic shift log."""
+    return """# Nightshift -- 2026-04-05
+
+**Branch**: `nightshift-20260405`
+**Base**: `main`
+**Started**: 2026-04-05 01:00
+
+## Summary
+Found 3 fixes and 2 issues across security, error handling, and tests.
+
+## Stats
+- Fixes committed: 3
+- Issues logged: 2
+- Tests added: 2
+- Files touched: 8
+- Low-impact fixes: 1
+
+---
+
+## Fixes
+
+1. **Add input validation to auth handler** (Security, high)
+   Files: src/auth.ts
+2. **Add error boundary for API calls** (Error Handling, medium)
+   Files: src/api.ts
+3. **Add missing test for user model** (Tests, medium)
+   Files: tests/user.test.ts
+
+---
+
+## Logged Issues
+
+1. **Missing rate limiting on /login** (Security, high)
+2. **No error handling in data layer** (Error Handling, medium)
+
+---
+
+## Recommendations
+
+- Consider adding rate limiting middleware
+- Data layer needs comprehensive error handling
+"""
+
+
+class TestScoreStartup:
+    def test_perfect_startup(self):
+        arts = _make_eval_artifacts(state=_make_good_state(), state_file_valid=True, runner_exit_code=0)
+        s = nightshift.score_startup(arts)
+        assert s["name"] == "Startup"
+        assert s["score"] == 10
+
+    def test_no_state(self):
+        arts = _make_eval_artifacts(state=None, state_file_valid=False, runner_exit_code=1)
+        s = nightshift.score_startup(arts)
+        assert s["score"] == 0
+
+    def test_state_but_no_baseline(self):
+        state = _make_good_state()
+        state["baseline"] = {"status": "pending", "command": None, "message": ""}
+        arts = _make_eval_artifacts(state=state, runner_exit_code=0)
+        s = nightshift.score_startup(arts)
+        assert s["score"] == 7  # 3 (state) + 0 (baseline) + 2 (cycles) + 2 (exit)
+
+    def test_no_cycles(self):
+        state = _make_good_state()
+        state["cycles"] = []
+        arts = _make_eval_artifacts(state=state, runner_exit_code=0)
+        s = nightshift.score_startup(arts)
+        assert s["score"] == 8  # 3 + 3 + 0 + 2
+
+    def test_nonzero_exit(self):
+        arts = _make_eval_artifacts(state=_make_good_state(), runner_exit_code=1)
+        s = nightshift.score_startup(arts)
+        assert s["score"] == 8  # 3 + 3 + 2 + 0
+
+
+class TestScoreDiscovery:
+    def test_good_discovery(self):
+        arts = _make_eval_artifacts(state=_make_good_state())
+        s = nightshift.score_discovery(arts)
+        assert s["name"] == "Discovery"
+        assert s["score"] == 10
+
+    def test_no_fixes_no_issues(self):
+        state = _make_good_state()
+        state["counters"]["fixes"] = 0
+        state["counters"]["issues_logged"] = 0
+        state["cycles"] = []
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_discovery(arts)
+        assert s["score"] == 0
+
+    def test_empty_state(self):
+        arts = _make_eval_artifacts(state={}, state_file_valid=True)
+        s = nightshift.score_discovery(arts)
+        assert s["score"] == 0
+
+
+class TestScoreFixQuality:
+    def test_good_fixes(self):
+        arts = _make_eval_artifacts(state=_make_good_state())
+        s = nightshift.score_fix_quality(arts)
+        assert s["name"] == "Fix quality"
+        assert s["score"] == 10
+
+    def test_no_fixes(self):
+        state = _make_good_state()
+        state["cycles"] = []
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_fix_quality(arts)
+        assert s["score"] == 0
+        assert "no fixes" in s["notes"]
+
+    def test_missing_category(self):
+        state = _make_good_state()
+        state["cycles"][0]["fixes"][0]["category"] = ""
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_fix_quality(arts)
+        assert s["score"] < 10
+
+    def test_all_low_impact(self):
+        state = _make_good_state()
+        for cycle in state["cycles"]:
+            for fix in cycle["fixes"]:
+                fix["impact"] = "low"
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_fix_quality(arts)
+        assert "all fixes low impact" in s["notes"]
+
+
+class TestScoreShiftLog:
+    def test_good_shift_log(self):
+        arts = _make_eval_artifacts(
+            state=_make_good_state(),
+            shift_log=_make_good_shift_log(),
+            shift_log_exists=True,
+        )
+        s = nightshift.score_shift_log(arts)
+        assert s["name"] == "Shift log"
+        assert s["score"] == 10
+
+    def test_missing_shift_log(self):
+        arts = _make_eval_artifacts(shift_log="", shift_log_exists=False)
+        s = nightshift.score_shift_log(arts)
+        assert s["score"] == 0
+
+    def test_template_shift_log(self):
+        arts = _make_eval_artifacts(
+            shift_log="# Nightshift\n\nwill be rewritten as the overnight run accumulates\n\nFixes committed: 0",
+            shift_log_exists=True,
+        )
+        s = nightshift.score_shift_log(arts)
+        assert "template content" in s["notes"]
+
+
+class TestScoreStateFile:
+    def test_good_state(self):
+        arts = _make_eval_artifacts(state=_make_good_state(), state_file_valid=True)
+        s = nightshift.score_state_file(arts)
+        assert s["name"] == "State file"
+        assert s["score"] == 10
+
+    def test_invalid_state(self):
+        arts = _make_eval_artifacts(state=None, state_file_valid=False)
+        s = nightshift.score_state_file(arts)
+        assert s["score"] == 0
+
+    def test_missing_keys(self):
+        arts = _make_eval_artifacts(state={"version": 1}, state_file_valid=True)
+        s = nightshift.score_state_file(arts)
+        assert s["score"] < 10
+        assert "missing keys" in s["notes"]
+
+
+class TestScoreVerification:
+    def test_good_verification(self):
+        arts = _make_eval_artifacts(state=_make_good_state())
+        s = nightshift.score_verification(arts)
+        assert s["name"] == "Verification"
+        assert s["score"] == 10
+
+    def test_no_baseline(self):
+        state = _make_good_state()
+        state["baseline"] = {"status": "pending", "command": None, "message": ""}
+        state["cycles"] = []
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_verification(arts)
+        assert s["score"] == 0
+
+    def test_failed_verification(self):
+        state = _make_good_state()
+        state["cycles"][0]["verification"]["verify_status"] = "failed"
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_verification(arts)
+        assert "verification failure" in s["notes"]
+
+
+class TestScoreGuardRails:
+    def test_good_guard_rails(self):
+        arts = _make_eval_artifacts(state=_make_good_state())
+        s = nightshift.score_guard_rails(arts)
+        assert s["name"] == "Guard rails"
+        assert s["score"] == 10
+
+    def test_high_file_count(self):
+        state = _make_good_state()
+        state["counters"]["files_touched"] = 100
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_guard_rails(arts)
+        assert "high file count" in s["notes"]
+
+    def test_too_many_low_impact(self):
+        state = _make_good_state()
+        state["counters"]["low_impact_fixes"] = 10
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_guard_rails(arts)
+        assert "too many low-impact" in s["notes"]
+
+
+class TestScoreCleanState:
+    def test_clean(self):
+        state = _make_good_state()
+        arts = _make_eval_artifacts(state=state, runner_exit_code=0)
+        s = nightshift.score_clean_state(arts)
+        assert s["name"] == "Clean state"
+        assert s["score"] == 10
+
+    def test_nonzero_exit(self):
+        state = _make_good_state()
+        arts = _make_eval_artifacts(state=state, runner_exit_code=1)
+        s = nightshift.score_clean_state(arts)
+        assert s["score"] < 10
+
+    def test_unknown_exit(self):
+        state = _make_good_state()
+        arts = _make_eval_artifacts(state=state, runner_exit_code=-1)
+        s = nightshift.score_clean_state(arts)
+        assert "exit code unknown" in s["notes"]
+
+
+class TestScoreBreadth:
+    def test_good_breadth(self):
+        arts = _make_eval_artifacts(state=_make_good_state())
+        s = nightshift.score_breadth(arts)
+        assert s["name"] == "Breadth"
+        assert s["score"] >= 6
+
+    def test_no_state(self):
+        arts = _make_eval_artifacts(state={}, state_file_valid=True)
+        s = nightshift.score_breadth(arts)
+        assert s["score"] == 0
+
+    def test_single_directory(self):
+        state = _make_good_state()
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "completed",
+                "fixes": [],
+                "logged_issues": [],
+                "verification": {
+                    "files_touched": ["src/auth.ts"],
+                    "verify_status": "passed",
+                    "verify_exit_code": 0,
+                    "verify_command": "",
+                    "dominant_path": "src",
+                    "commits": [],
+                    "violations": [],
+                },
+            }
+        ]
+        state["category_counts"] = {"Security": 1}
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_breadth(arts)
+        assert s["score"] < 6
+
+
+class TestScoreUsefulness:
+    def test_useful_session(self):
+        arts = _make_eval_artifacts(
+            state=_make_good_state(),
+            shift_log=_make_good_shift_log(),
+            shift_log_exists=True,
+        )
+        s = nightshift.score_usefulness(arts)
+        assert s["name"] == "Usefulness"
+        assert s["score"] >= 7
+
+    def test_useless_session(self):
+        arts = _make_eval_artifacts(state={}, shift_log="", shift_log_exists=False)
+        s = nightshift.score_usefulness(arts)
+        assert s["score"] == 0
+
+
+class TestScoreAllDimensions:
+    def test_returns_10_dimensions(self):
+        arts = _make_eval_artifacts(state=_make_good_state(), shift_log=_make_good_shift_log(), shift_log_exists=True)
+        dims = nightshift.score_all_dimensions(arts)
+        assert len(dims) == 10
+
+    def test_all_dimension_names_match(self):
+        arts = _make_eval_artifacts(state=_make_good_state(), shift_log=_make_good_shift_log(), shift_log_exists=True)
+        dims = nightshift.score_all_dimensions(arts)
+        names = [d["name"] for d in dims]
+        assert names == nightshift.EVALUATION_DIMENSIONS
+
+    def test_good_state_scores_high(self):
+        arts = _make_eval_artifacts(
+            state=_make_good_state(),
+            shift_log=_make_good_shift_log(),
+            shift_log_exists=True,
+            runner_exit_code=0,
+        )
+        dims = nightshift.score_all_dimensions(arts)
+        total = sum(d["score"] for d in dims)
+        assert total >= 70  # Good state should score well
+
+    def test_empty_state_scores_low(self):
+        arts = _make_eval_artifacts(state=None, state_file_valid=False, shift_log_exists=False, runner_exit_code=1)
+        dims = nightshift.score_all_dimensions(arts)
+        total = sum(d["score"] for d in dims)
+        assert total < 20
+
+
+class TestNextEvaluationId:
+    def test_empty_dir(self, tmp_path):
+        assert nightshift.next_evaluation_id(tmp_path) == 1
+
+    def test_with_existing(self, tmp_path):
+        (tmp_path / "0001.md").write_text("eval 1")
+        (tmp_path / "0003.md").write_text("eval 3")
+        assert nightshift.next_evaluation_id(tmp_path) == 4
+
+    def test_ignores_non_numbered(self, tmp_path):
+        (tmp_path / "README.md").write_text("readme")
+        assert nightshift.next_evaluation_id(tmp_path) == 1
+
+
+class TestFormatEvaluationReport:
+    def test_basic_format(self):
+        result = nightshift.EvaluationResult(
+            evaluation_id=1,
+            date="2026-04-05",
+            target_repo="https://github.com/test/repo",
+            agent="claude",
+            cycles=2,
+            after_task="#0049",
+            dimensions=[
+                nightshift.DimensionScore(name="Startup", score=10, max_score=10, notes="clean"),
+                nightshift.DimensionScore(name="Discovery", score=5, max_score=10, notes="some issues"),
+            ],
+            total_score=15,
+            max_total=20,
+            tasks_created=["#0091: fix Discovery"],
+        )
+        report = nightshift.format_evaluation_report(result)
+        assert "# Evaluation #0001" in report
+        assert "| Startup | 10/10 | clean |" in report
+        assert "| Discovery | 5/10 | some issues |" in report
+        assert "| **Total** | **15/20** |" in report
+        assert "#0091: fix Discovery" in report
+
+    def test_no_tasks(self):
+        result = nightshift.EvaluationResult(
+            evaluation_id=2,
+            date="2026-04-05",
+            target_repo="test",
+            agent="codex",
+            cycles=1,
+            after_task="",
+            dimensions=[],
+            total_score=0,
+            max_total=0,
+            tasks_created=[],
+        )
+        report = nightshift.format_evaluation_report(result)
+        assert "Tasks Created" not in report
+
+
+class TestWriteEvaluationReport:
+    def test_writes_file(self, tmp_path):
+        result = nightshift.EvaluationResult(
+            evaluation_id=1,
+            date="2026-04-05",
+            target_repo="test",
+            agent="claude",
+            cycles=2,
+            after_task="",
+            dimensions=[],
+            total_score=0,
+            max_total=0,
+            tasks_created=[],
+        )
+        path = nightshift.write_evaluation_report(tmp_path, result)
+        assert path.exists()
+        assert path.name == "0001.md"
+
+    def test_creates_dirs(self, tmp_path):
+        eval_dir = tmp_path / "deep" / "nested"
+        result = nightshift.EvaluationResult(
+            evaluation_id=5,
+            date="2026-04-05",
+            target_repo="test",
+            agent="claude",
+            cycles=1,
+            after_task="",
+            dimensions=[],
+            total_score=0,
+            max_total=0,
+            tasks_created=[],
+        )
+        path = nightshift.write_evaluation_report(eval_dir, result)
+        assert path.exists()
+        assert path.name == "0005.md"
+
+
+class TestCreateFollowupTasks:
+    def test_creates_tasks_for_low_scores(self, tmp_path):
+        (tmp_path / ".next-id").write_text("91\n")
+        result = nightshift.EvaluationResult(
+            evaluation_id=1,
+            date="2026-04-05",
+            target_repo="test",
+            agent="claude",
+            cycles=2,
+            after_task="",
+            dimensions=[
+                nightshift.DimensionScore(name="Startup", score=10, max_score=10, notes="ok"),
+                nightshift.DimensionScore(name="Discovery", score=3, max_score=10, notes="bad"),
+                nightshift.DimensionScore(name="Fix quality", score=2, max_score=10, notes="worse"),
+            ],
+            total_score=15,
+            max_total=30,
+            tasks_created=[],
+        )
+        created = nightshift.create_followup_tasks(tmp_path, result)
+        assert len(created) == 2
+        assert "#0091:" in created[0]
+        assert "#0092:" in created[1]
+        assert (tmp_path / "0091.md").exists()
+        assert (tmp_path / "0092.md").exists()
+        assert (tmp_path / ".next-id").read_text().strip() == "93"
+
+    def test_no_tasks_when_all_pass(self, tmp_path):
+        (tmp_path / ".next-id").write_text("1\n")
+        result = nightshift.EvaluationResult(
+            evaluation_id=1,
+            date="2026-04-05",
+            target_repo="test",
+            agent="claude",
+            cycles=2,
+            after_task="",
+            dimensions=[
+                nightshift.DimensionScore(name="Startup", score=8, max_score=10, notes="ok"),
+            ],
+            total_score=8,
+            max_total=10,
+            tasks_created=[],
+        )
+        created = nightshift.create_followup_tasks(tmp_path, result)
+        assert len(created) == 0
+
+    def test_task_content_has_frontmatter(self, tmp_path):
+        (tmp_path / ".next-id").write_text("50\n")
+        result = nightshift.EvaluationResult(
+            evaluation_id=3,
+            date="2026-04-05",
+            target_repo="https://github.com/test/repo",
+            agent="codex",
+            cycles=2,
+            after_task="#0049",
+            dimensions=[
+                nightshift.DimensionScore(name="Breadth", score=2, max_score=10, notes="single dir"),
+            ],
+            total_score=2,
+            max_total=10,
+            tasks_created=[],
+        )
+        nightshift.create_followup_tasks(tmp_path, result)
+        content = (tmp_path / "0050.md").read_text()
+        assert "status: pending" in content
+        assert "priority: normal" in content
+        assert "source: evaluation-0003" in content
+        assert "Breadth" in content
+
+    def test_custom_threshold(self, tmp_path):
+        (tmp_path / ".next-id").write_text("1\n")
+        result = nightshift.EvaluationResult(
+            evaluation_id=1,
+            date="2026-04-05",
+            target_repo="test",
+            agent="claude",
+            cycles=2,
+            after_task="",
+            dimensions=[
+                nightshift.DimensionScore(name="Startup", score=7, max_score=10, notes="ok"),
+            ],
+            total_score=7,
+            max_total=10,
+            tasks_created=[],
+        )
+        # Default threshold 6 -> passes
+        created = nightshift.create_followup_tasks(tmp_path, result, threshold=6)
+        assert len(created) == 0
+        # Higher threshold -> fails
+        created = nightshift.create_followup_tasks(tmp_path, result, threshold=8)
+        assert len(created) == 1
+
+
+class TestParseShiftArtifacts:
+    def test_empty_dir(self, tmp_path):
+        arts = nightshift.parse_shift_artifacts(tmp_path)
+        assert arts["state"] is None
+        assert arts["shift_log"] == ""
+        assert not arts["state_file_valid"]
+        assert not arts["shift_log_exists"]
+
+    def test_valid_state_file(self, tmp_path):
+        ns_dir = tmp_path / "docs" / "Nightshift"
+        ns_dir.mkdir(parents=True)
+        state = {"version": 1, "cycles": []}
+        (ns_dir / "test.state.json").write_text(json.dumps(state))
+        arts = nightshift.parse_shift_artifacts(tmp_path)
+        assert arts["state_file_valid"]
+        assert arts["state"] == state
+
+    def test_invalid_json(self, tmp_path):
+        ns_dir = tmp_path / "docs" / "Nightshift"
+        ns_dir.mkdir(parents=True)
+        (ns_dir / "test.state.json").write_text("not json{{{")
+        arts = nightshift.parse_shift_artifacts(tmp_path)
+        assert not arts["state_file_valid"]
+        assert arts["state"] is None
+
+    def test_shift_log(self, tmp_path):
+        ns_dir = tmp_path / "docs" / "Nightshift"
+        ns_dir.mkdir(parents=True)
+        (ns_dir / "SHIFT-LOG.md").write_text("# Nightshift log")
+        arts = nightshift.parse_shift_artifacts(tmp_path)
+        assert arts["shift_log_exists"]
+        assert "Nightshift" in arts["shift_log"]
+
+
+class TestEvaluationConstants:
+    def test_dimensions_count(self):
+        assert len(nightshift.EVALUATION_DIMENSIONS) == 10
+
+    def test_max_per_dimension(self):
+        assert nightshift.EVALUATION_MAX_PER_DIMENSION == 10
+
+    def test_threshold(self):
+        assert nightshift.EVALUATION_SCORE_THRESHOLD == 6
+
+    def test_default_cycles(self):
+        assert nightshift.EVALUATION_DEFAULT_CYCLES == 2
+
+    def test_default_cycle_minutes(self):
+        assert nightshift.EVALUATION_DEFAULT_CYCLE_MINUTES == 5
+
+    def test_shift_timeout_positive(self):
+        assert nightshift.EVALUATION_SHIFT_TIMEOUT > 0
+
+
+class TestEvaluationTypes:
+    def test_dimension_score_round_trip(self):
+        ds = nightshift.DimensionScore(name="Startup", score=8, max_score=10, notes="ok")
+        assert ds["name"] == "Startup"
+        assert ds["score"] == 8
+
+    def test_evaluation_result_round_trip(self):
+        er = nightshift.EvaluationResult(
+            evaluation_id=1,
+            date="2026-04-05",
+            target_repo="test",
+            agent="claude",
+            cycles=2,
+            after_task="",
+            dimensions=[],
+            total_score=0,
+            max_total=100,
+            tasks_created=[],
+        )
+        assert er["evaluation_id"] == 1
+        assert er["max_total"] == 100
+
+    def test_shift_artifacts_round_trip(self):
+        sa = nightshift.ShiftArtifacts(
+            state={"version": 1},
+            shift_log="log",
+            runner_exit_code=0,
+            state_file_valid=True,
+            shift_log_exists=True,
+        )
+        assert sa["state_file_valid"]
+        assert sa["shift_log"] == "log"
+
+
+class TestEvaluationConfig:
+    def test_default_config_has_eval_keys(self):
+        assert "eval_frequency" in nightshift.DEFAULT_CONFIG
+        assert "eval_target_repo" in nightshift.DEFAULT_CONFIG
+
+    def test_default_eval_frequency(self):
+        assert nightshift.DEFAULT_CONFIG["eval_frequency"] == 5
+
+    def test_default_eval_target_repo(self):
+        assert "Phractal" in nightshift.DEFAULT_CONFIG["eval_target_repo"]
+
+    def test_merge_config_includes_eval(self, tmp_path):
+        config = nightshift.merge_config(tmp_path)
+        assert config["eval_frequency"] == 5
+        assert "Phractal" in config["eval_target_repo"]
+
+    def test_merge_config_override_eval(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(
+            json.dumps(
+                {
+                    "eval_frequency": 10,
+                    "eval_target_repo": "https://github.com/test/other",
+                }
+            )
+        )
+        config = nightshift.merge_config(tmp_path)
+        assert config["eval_frequency"] == 10
+        assert "other" in config["eval_target_repo"]
+
+    def test_eval_frequency_zero_disables(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"eval_frequency": 0}))
+        config = nightshift.merge_config(tmp_path)
+        assert config["eval_frequency"] == 0

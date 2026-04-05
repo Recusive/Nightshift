@@ -204,6 +204,11 @@ print(format_session_cost(entry))
     COST_USD=$(echo "$SESSION_COST" | head -1)
     echo "$SESSION_COST" | tail -n +2
 
+    # --- Self-evaluation check ---
+    if [ "$EXIT_CODE" -eq 0 ] && should_evaluate "$CYCLE"; then
+        run_evaluation "$AGENT" "$FEATURE"
+    fi
+
     # --- Session index entry ---
     if [ "$EXIT_CODE" -eq 0 ]; then
         STATUS="success"

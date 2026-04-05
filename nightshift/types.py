@@ -30,6 +30,8 @@ class NightshiftConfig(TypedDict):
     codex_thinking: str
     notification_webhook: str | None
     readiness_checks: list[str]
+    eval_frequency: int
+    eval_target_repo: str
 
 
 class DiffScore(TypedDict):
@@ -434,3 +436,40 @@ class CompactionResult(TypedDict):
     compacted: list[str]
     weekly_file: str
     errors: list[str]
+
+
+# --- Evaluation types -------------------------------------------------------
+
+
+class DimensionScore(TypedDict):
+    """Score for a single evaluation dimension (0-10)."""
+
+    name: str
+    score: int
+    max_score: int
+    notes: str
+
+
+class EvaluationResult(TypedDict):
+    """Full evaluation report from running nightshift against a test target."""
+
+    evaluation_id: int
+    date: str
+    target_repo: str
+    agent: str
+    cycles: int
+    after_task: str
+    dimensions: list[DimensionScore]
+    total_score: int
+    max_total: int
+    tasks_created: list[str]
+
+
+class ShiftArtifacts(TypedDict):
+    """Parsed artifacts from a completed test shift for evaluation scoring."""
+
+    state: dict[str, object] | None
+    shift_log: str
+    runner_exit_code: int
+    state_file_valid: bool
+    shift_log_exists: bool

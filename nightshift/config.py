@@ -72,6 +72,8 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         codex_thinking=_require_str(raw, "codex_thinking"),
         notification_webhook=notification_webhook,
         readiness_checks=_require_str_list(raw, "readiness_checks"),
+        eval_frequency=_require_int(raw, "eval_frequency"),
+        eval_target_repo=_require_str(raw, "eval_target_repo"),
     )
 
 
