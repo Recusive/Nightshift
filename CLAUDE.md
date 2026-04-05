@@ -70,6 +70,8 @@ tmux send-keys -t nightshift C-c            # graceful (after current session)
 tmux kill-session -t nightshift             # immediate
 ```
 
+**Hot reload:** The daemon re-sources `lib-agent.sh` and checks for `daemon.sh` changes at the start of every loop iteration. If the agent modifies shell scripts during a session, the changes take effect next iteration automatically. No manual restart needed.
+
 **WARNING: The daemon and the monitor/human share the same working directory.** Do not run `git checkout`, `git stash`, or any branch-switching commands while the daemon is mid-session — it will corrupt or lose the daemon's uncommitted work.
 
 **Making changes while the daemon is running:** Use a git worktree in `/tmp` instead of touching the main repo:
