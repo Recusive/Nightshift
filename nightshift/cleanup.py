@@ -20,6 +20,18 @@ from nightshift.types import BranchPruneResult, HealerRotationResult, LogRotatio
 _HEALER_ENTRY_RE = re.compile(r"^##\s+(\d{4}-\d{2}-\d{2})\s+--\s+.*$", re.MULTILINE)
 
 
+def _first_symlink_ancestor(path: Path) -> Path | None:
+    """Return the first symlink found at *path* or any existing ancestor."""
+    current = path
+    while True:
+        if current.is_symlink():
+            return current
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent
+
+
 def _split_healer_log(content: str) -> tuple[str, list[str]]:
     """Return the static preamble and each top-level healer entry section."""
     matches = list(_HEALER_ENTRY_RE.finditer(content))
@@ -69,6 +81,15 @@ def rotate_healer_log(
             "errors": [f"keep_entries must be >= 1: {keep_entries}"],
         }
 
+    symlink_path = _first_symlink_ancestor(log_file)
+    if symlink_path is not None:
+        return {
+            "archived_files": [],
+            "rotated_entries": 0,
+            "kept_entries": 0,
+            "errors": [f"log_path is a symlink or inside a symlinked directory: {symlink_path}"],
+        }
+
     if not log_file.is_file():
         return {
             "archived_files": [],
@@ -100,6 +121,15 @@ def rotate_healer_log(
     kept_entries = entries[-keep_entries:]
     archive_path = Path(archive_dir) if archive_dir is not None else log_file.parent / "archive"
 
+    symlink_path = _first_symlink_ancestor(archive_path)
+    if symlink_path is not None:
+        return {
+            "archived_files": [],
+            "rotated_entries": 0,
+            "kept_entries": len(entries),
+            "errors": [f"archive_dir is a symlink or inside a symlinked directory: {symlink_path}"],
+        }
+
     try:
         archive_path.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
@@ -126,6 +156,14 @@ def rotate_healer_log(
     for month, month_entries in grouped_entries.items():
         monthly_archive = archive_path / f"{month}.md"
         existing_entries: list[str] = []
+        symlink_path = _first_symlink_ancestor(monthly_archive)
+        if symlink_path is not None:
+            return {
+                "archived_files": archived_files,
+                "rotated_entries": 0,
+                "kept_entries": len(entries),
+                "errors": [f"archive file is a symlink or inside a symlinked directory: {symlink_path}"],
+            }
         if monthly_archive.exists():
             try:
                 _, existing_entries = _split_healer_log(monthly_archive.read_text())

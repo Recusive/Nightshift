@@ -7983,7 +7983,7 @@ class TestRotateHealerLog:
         assert log.read_text() == original
         assert not (log.parent / "archive").exists()
 
-    def test_prepends_newer_entries_to_existing_archive(self, tmp_path: Path) -> None:
+    def test_appends_newer_entries_to_existing_archive(self, tmp_path: Path) -> None:
         log = tmp_path / "docs" / "healer" / "log.md"
         archive_dir = log.parent / "archive"
         _write_healer_log_fixture(
@@ -8011,6 +8011,75 @@ class TestRotateHealerLog:
         assert pos_0099 != -1
         assert pos_0090 != -1
         assert pos_0090 < pos_0098 < pos_0099
+
+    def test_rejects_symlinked_live_log(self, tmp_path: Path) -> None:
+        real_log = tmp_path / "real-log.md"
+        _write_healer_log_fixture(
+            real_log,
+            [
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+        log = tmp_path / "docs" / "healer" / "log.md"
+        log.parent.mkdir(parents=True)
+        log.symlink_to(real_log)
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=1)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 0
+        assert "log_path is a symlink" in result["errors"][0]
+
+    def test_rejects_symlinked_archive_dir(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        _write_healer_log_fixture(
+            log,
+            [
+                ("2026-04-03", "Session #0098"),
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+        original = log.read_text()
+        real_archive = tmp_path / "real-archive"
+        real_archive.mkdir()
+        archive_link = log.parent / "archive"
+        archive_link.symlink_to(real_archive, target_is_directory=True)
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=1)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 3
+        assert "archive_dir is a symlink" in result["errors"][0]
+        assert log.read_text() == original
+
+    def test_rejects_symlinked_archive_file(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        archive_dir = log.parent / "archive"
+        _write_healer_log_fixture(
+            log,
+            [
+                ("2026-04-03", "Session #0098"),
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+        original = log.read_text()
+        archive_dir.mkdir(parents=True)
+        real_archive_file = tmp_path / "real-2026-04.md"
+        _write_healer_log_fixture(real_archive_file, [("2026-04-01", "Session #0090")])
+        (archive_dir / "2026-04.md").symlink_to(real_archive_file)
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=1)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 3
+        assert "archive file is a symlink" in result["errors"][0]
+        assert log.read_text() == original
 
     def test_rejects_invalid_keep_entries(self, tmp_path: Path) -> None:
         log = tmp_path / "docs" / "healer" / "log.md"

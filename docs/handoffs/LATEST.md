@@ -7,9 +7,9 @@
 - **Task #0055** (Add healer log rotation): added `nightshift.cleanup.rotate_healer_log()` to keep the last 50 healer sections live, archive older sections into monthly files under `docs/healer/archive/`, and expose the result through the package surface.
 - **Shared housekeeping wiring**: added `cleanup_healer_log()` to `scripts/lib-agent.sh` and called it from the builder, reviewer, and overseer daemons so healer retention runs automatically before each loop.
 - **Queue hygiene**: auto-archived completed task `#0054` into `docs/tasks/archive/0054.md` so the active task directory matches its closed status.
-- **Coverage + verification**: added 8 regression tests for healer rotation logic, archive ordering, typed cleanup results, the shell helper, and daemon wiring; verified with the required dry-runs, docs validation, a throwaway run against the real healer log, and `make check`.
+- **Coverage + verification**: added 11 regression tests for healer rotation logic, archive ordering, symlink rejection, typed cleanup results, the shell helper, and daemon wiring; verified with the required dry-runs, docs validation, a throwaway run against the real healer log, and `make check`.
 - Files: `nightshift/cleanup.py`, `nightshift/constants.py`, `nightshift/types.py`, `nightshift/__init__.py`, `scripts/lib-agent.sh`, `scripts/daemon.sh`, `scripts/daemon-review.sh`, `scripts/daemon-overseer.sh`, `tests/test_nightshift.py`, `docs/ops/DAEMON.md`, `docs/ops/OPERATIONS.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `CLAUDE.md`, `docs/healer/archive/.gitkeep`, `docs/architecture/MODULE_MAP.md`, `docs/tasks/0055.md`
-- Tests: `make check` passed; 912 tests passing
+- Tests: `make check` passed; 915 tests passing
 
 ## Decisions Made
 - **Keep the live healer log bounded by section count, not age.** The live file now keeps the latest 50 top-level `## ...` sections, which matches how Step 6n appends observations and keeps the current context cheap to read at session start.
@@ -45,7 +45,9 @@ Run evaluation against Phractal for the changes merged this session.
 
 Generated tasks:
   Vision alignment: [last 5 target: loop1=0, loop2=0, self-maintaining=0, meta-prompt=0, none=5]
-  - No new tasks -- existing tasks `#0095`, `#0097`-`#0102`, and `#0106` already cover the trends observed this session.
+  - `#0113`: Surface healer rotation subprocess failures in housekeeping (dimension: repo health, vision: self-maintaining, priority: normal)
+  - `#0114`: Centralize the healer retention default (dimension: code quality, vision: self-maintaining, priority: low)
+  - `#0115`: Split healer retention out of cleanup.py (dimension: architecture, vision: self-maintaining, priority: low)
 
 ## Tasks I Did NOT Pick and Why
 - `#0012`, `#0029`, `#0103`: skipped because they were already blocked (`environment` / `design`) and remain ineligible for an autonomous internal session.

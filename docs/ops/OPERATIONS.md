@@ -11,7 +11,7 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 ```
 Nightshift/
 ├── nightshift/                  ← THE PRODUCT (Python package, 28 modules)
-├── tests/                       ← TEST SUITE (912 tests)
+├── tests/                       ← TEST SUITE (915 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
 │   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)
@@ -389,7 +389,7 @@ No circular imports. Each module only imports from modules to its left. `multi.p
 ## System 7: Tests (`tests/`)
 
 ### What it is
-904 pytest tests covering every pure function, config, state, CLI, and integration.
+915 pytest tests covering every pure function, config, state, CLI, and integration.
 
 ### Files
 | File | Purpose |
