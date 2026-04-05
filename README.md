@@ -5,114 +5,194 @@
 <h1 align="center">Nightshift</h1>
 
 <p align="center">
-  <strong>Your overnight engineer. Autonomous. Thorough. Ready by morning.</strong><br/>
-  Run it before bed. Wake up to a reviewed worktree, a shift log, and a machine-readable record of what the agent actually did.
+  <strong>An autonomous engineering system that maintains itself.</strong><br/>
+  Point it at any codebase. It finds bugs, fixes them, creates PRs, reviews them with another AI agent, merges them, and writes a handoff so the next session knows exactly what happened. Then it does it again. Every 60 seconds. For as long as you let it run.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
   <img src="https://img.shields.io/badge/Claude-Supported-F97316" alt="Claude Code" />
+  <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
   <img src="https://img.shields.io/badge/License-MIT-22C55E" alt="MIT License" />
+  <img src="https://img.shields.io/badge/Tests-600+-blue" alt="Tests" />
+  <img src="https://img.shields.io/badge/PRs%20Merged-35+-purple" alt="PRs" />
 </p>
 
 ---
 
-## About
+## This repo maintains itself
 
-Nightshift is an overnight codebase-hardening runner built by **[Recursive Labs](https://github.com/Recusive)** as part of the [Orbit](https://github.com/Recusive/Orbit-Release) ecosystem.
+Most of the code in this repository was written, tested, reviewed, and merged by AI agents -- not humans. The 4 daemon system runs autonomously: the **Builder** ships features, the **Reviewer** audits code quality, the **Overseer** audits the process itself, and the **Strategist** advises the human on what to change.
 
-The original version relied mostly on prompt discipline. This version adds a real control plane:
+The human's role is to start the daemon, monitor it, and occasionally course-correct. The agents do the engineering.
 
-- a Python orchestrator (the `nightshift/` package)
-- pluggable agent adapters (Codex and Claude — pick one, both go through the same pipeline)
-- machine-readable shift state (`docs/Nightshift/YYYY-MM-DD.state.json`)
-- runner-enforced guard rails, verification gates, and halt conditions
+**The proof is in the git history.** Every PR was created by an agent. Every code review was performed by a sub-agent. Every handoff, learning, and task was written by an agent. You can verify this yourself:
+
+```bash
+gh pr list --state merged --limit 50          # every merged PR
+cat docs/sessions/index.md                     # every daemon session with timestamps
+cat docs/handoffs/LATEST.md                    # what the last session built
+ls docs/learnings/                             # permanent memory from past mistakes
+```
+
+### The numbers (and growing)
+
+| Metric | Count |
+|--------|-------|
+| Python modules | 21 |
+| Source lines | 6,000+ |
+| Tests | 600+ |
+| PRs merged | 35+ |
+| Tasks created and tracked | 39 |
+| Learnings (permanent memory) | 21+ |
+| Versions released | v0.0.1 through v0.0.7 |
+| Commits on main | 145+ |
+
+These numbers update every time the daemon runs. Check the [vision tracker](docs/vision-tracker/TRACKER.md) for live progress.
 
 ---
 
-## What It Does
+## What it does
 
-Nightshift runs in an isolated git worktree and repeatedly asks an agent to:
+Nightshift has two loops:
 
-1. read the current repo instructions and shift log
-2. find a small production-readiness improvement
-3. fix it or log it
-4. verify it
-5. record it
+**Loop 1 -- Hardening** (100% complete): Point it at any repository. It detects your stack automatically (language, framework, package manager, test runner, linter), spins up an isolated git worktree, and runs cycles. Each cycle: find a production-readiness issue, fix it, verify it, score it, commit it. Categories: security vulnerabilities, missing error handling, test coverage gaps, accessibility, code quality, performance, and polish.
 
-The runner enforces the difference between a productive overnight shift and 8 hours of churn.
+**Loop 2 -- Feature Building** (63% complete): Give it a feature spec in plain English. It profiles the repo, plans the architecture, decomposes into parallelizable tasks, spawns sub-agents for each task, integrates the results wave by wave, and verifies the full feature end-to-end.
 
-### Runner-enforced guard rails
+### How a cycle works
 
-- Max `3` fixes per cycle
-- Max `5` files per fix
-- Max `12` files touched per cycle
-- Max `4` low-impact fixes per shift
-- Blocked edits for CI/deploy/infra/generated files and lockfiles
-- Hot-file protection via recent git activity
-- Halt after repeated failed verification or empty cycles
-- Worktree must end clean after every accepted cycle
-- Each fix commit must include the shift log update
+```
+1. Scan codebase across 7 categories
+2. Find an issue, fix it
+3. Verify: did tests pass? blocked files touched? files deleted? shift log updated?
+4. Score 1-10 for production impact (diff scorer with 4 factors)
+5. Below threshold? Reverted. Above? Committed.
+6. Steer: category balancing, test escalation, backend forcing, path diversity
+7. Repeat
+```
 
-### Output artifacts
+Every fix goes through a 6-stage verification gate. If ANY stage fails, the entire cycle is reverted. `git reset --hard`. The AI doesn't get to negotiate.
 
-- `docs/Nightshift/YYYY-MM-DD.md` — human-readable shift log
-- `docs/Nightshift/YYYY-MM-DD.state.json` — machine-readable cycle state
-- `docs/Nightshift/YYYY-MM-DD.runner.log` — raw runner output
-- `nightshift/YYYY-MM-DD` — isolated review branch
+---
+
+## The 4 daemons
+
+The self-maintaining layer. Each daemon has a single purpose, a dedicated prompt, and runs in a tmux session. They share a lockfile -- only one runs at a time.
+
+### Builder (`make daemon`)
+
+Picks up tasks from the queue (`docs/tasks/`), builds features, writes tests, runs the full test suite, creates a branch, opens a PR, spawns a sub-agent for code review, merges on pass, writes the handoff. Loops every 60 seconds.
+
+In one overnight run: 19 PRs shipped across 12 sessions. Tests grew from 145 to 482. Three versions released.
+
+### Reviewer (`make review`)
+
+Never builds features. Reviews existing code one file at a time. Line-by-line audit: type safety, error handling, test gaps, dead code, documentation drift. Every fix runs the full test suite. Branch, PR, review, merge.
+
+### Overseer (`make overseer`)
+
+Doesn't touch code. Audits the process: duplicate tasks, wrong priorities, stale handoffs, percentage drift, direction problems. Picks the single biggest systemic issue per cycle and fixes it.
+
+### Strategist (`make strategist`)
+
+Runs once. Reads everything: git log, PRs, evaluations, learnings, session indices, tracker, task queue. Produces a report: what's working, what's failing, what's missing. Each recommendation has evidence and a specific fix. The human reviews and approves.
+
+---
+
+## Session memory
+
+AI agents are stateless. Nightshift isn't.
+
+### Handoffs (`docs/handoffs/`)
+
+Every session ends by writing a structured handoff: what was built, decisions made (and why), known issues, current state, what the next session should do, and which files to read first. The next session reads this before doing anything. Full context transfer in 30 seconds.
+
+### Learnings (`docs/learnings/`)
+
+Permanent memory. Every gotcha, failure, and non-obvious pattern gets a learning file. Every future session reads all learnings before touching code. The system cannot make the same mistake twice.
+
+Real examples from this repo's memory:
+
+- *"mypy rejects .get() on required TypedDict fields -- use direct key access"*
+- *"Always use `make check`, never partial lint commands -- partial checks miss test file errors"*
+- *"Code review advisory notes must become follow-up tasks -- 'known limitation' is not a valid disposition"*
+- *"Sessions die at 500 max turns without warning -- reduce context usage by 10-20%"*
+
+### Task queue (`docs/tasks/`)
+
+Numbered markdown files with status, priority, and acceptance criteria. The builder picks up the lowest-numbered pending task. When it finishes, it creates follow-up tasks based on what it learned. The queue feeds itself.
+
+---
+
+## Guard rails
+
+### Verification pipeline
+
+Every fix goes through 6 stages before it's accepted:
+
+1. Did the commit happen and shift log update?
+2. Did it touch blocked files? (lockfiles, node_modules, .env -- instant rejection)
+3. Did the test suite pass?
+4. Did it delete any files? (zero tolerance -- immediate revert)
+5. Is it balanced across categories? (no tunnel-visioning on easy fixes)
+6. Is it exploring different parts of the codebase? (no same-directory loops)
+
+### Diff scorer
+
+Every accepted fix is scored 1-10 for production impact. Four factors: category bonus, diff content analysis (regex patterns for auth/encryption/error-handling), test bonus, breadth bonus. Below the threshold? Reverted.
+
+### Prompt injection protection
+
+Nightshift reads instruction files from target repos (CLAUDE.md, AGENTS.md, .cursorrules). These are wrapped in an untrusted boundary before the agent sees them -- the agent is told to treat them as coding-convention references only, never as directives.
+
+### Self-modification guard
+
+Before every cycle, 7 control files are snapshotted. After the cycle, every file is diffed against its snapshot. If any control file was modified: full diff logged, alert file written, session flagged, next cycle alerted.
+
+### Cost tracking
+
+Session costs are parsed from stream-json logs in real time. Per-session and per-shift budget ceilings halt the daemon if spending exceeds the limit.
 
 ---
 
 ## Architecture
 
 ```
-Main repo checkout                 Nightshift worktree
-├── untouched                      ├── agent edits happen here
-├── no branch switching            ├── isolated nightshift/YYYY-MM-DD branch
-└── receives copied logs           └── verification happens after each cycle
+nightshift/
+├── types.py          # TypedDicts for all data structures (mypy --strict)
+├── constants.py      # Config defaults, scoring patterns, category data
+├── errors.py         # NightshiftError
+├── shell.py          # Subprocess execution, git helpers
+├── config.py         # Config loading, agent resolution, env detection
+├── state.py          # State read/write, cycle management
+├── worktree.py       # Git worktree lifecycle, shift log management
+├── cycle.py          # Prompt building, verification, baseline evaluation
+├── scoring.py        # Post-cycle diff scoring (1-10 production impact)
+├── costs.py          # Session cost parsing, budget tracking, ledger
+├── cleanup.py        # Log rotation, orphan branch pruning
+├── multi.py          # Multi-repo support
+├── profiler.py       # Repo profiling (Loop 2)
+├── planner.py        # Feature planning from natural language (Loop 2)
+├── decomposer.py     # Task decomposition into waves (Loop 2)
+├── subagent.py       # Sub-agent spawning and management (Loop 2)
+├── integrator.py     # Wave integration, test diagnosis (Loop 2)
+├── feature.py        # Feature CLI orchestrator (Loop 2)
+├── cli.py            # CLI entry points
+├── __init__.py       # Package re-exports
+└── __main__.py       # python3 -m nightshift
 ```
 
-### Package modules (18)
+**Dependency chain** (strictly enforced, no circular imports):
 
-| Module | Purpose |
-|--------|---------|
-| `types.py` | TypedDicts for all data structures (strict typing) |
-| `constants.py` | Config defaults, scoring patterns, category data |
-| `errors.py` | NightshiftError |
-| `shell.py` | Subprocess execution, git helper, shell utilities |
-| `config.py` | Config loading, agent resolution, environment detection |
-| `state.py` | State read/write, cycle state management |
-| `worktree.py` | Git worktree lifecycle, shift log management |
-| `cycle.py` | Prompt building, verification, baseline evaluation, state injection |
-| `scoring.py` | Post-cycle diff scoring (1-10 production impact) |
-| `multi.py` | Multi-repo support (sequential hardening across repos) |
-| `profiler.py` | Repo understanding and profiling (Loop 2) |
-| `planner.py` | Feature planning from natural language (Loop 2) |
-| `decomposer.py` | Task decomposition into parallelizable units (Loop 2) |
-| `subagent.py` | Sub-agent spawning and management (Loop 2) |
-| `integrator.py` | Wave integration, test diagnosis, fix agents (Loop 2) |
-| `cli.py` | CLI entry points: run, test, multi, summarize, verify-cycle |
-| `__init__.py` | Package re-exports |
-| `__main__.py` | Entry point for `python3 -m nightshift` |
+```
+types -> constants -> errors -> shell -> config/state -> worktree -> cycle ->
+scoring -> costs -> cleanup -> multi -> profiler -> planner -> decomposer ->
+subagent -> integrator -> feature -> cli
+```
 
-### Self-improving infrastructure
+**Type enforcement**: mypy --strict. Full annotations on every function. Zero `cast()`. Zero `# type: ignore`. `Any` only at JSON deserialization boundaries.
 
-| File | Purpose |
-|------|---------|
-| `scripts/daemon.sh` | Builder daemon — loops, builds features, ships code |
-| `scripts/daemon-review.sh` | Reviewer daemon — loops, reviews code quality |
-| `scripts/daemon-overseer.sh` | Overseer daemon — loops, audits tasks, fixes priorities |
-| `scripts/daemon-strategist.sh` | Strategist — runs once, big picture review for human |
-| `docs/prompt/evolve.md` | 11-step session lifecycle prompt |
-| `docs/prompt/evolve-auto.md` | Autonomous mode override |
-| `docs/prompt/overseer.md` | Overseer audit process |
-| `docs/handoffs/` | Session-to-session memory |
-| `docs/learnings/` | Cross-session knowledge (gotchas, patterns) |
-| `docs/evaluations/` | Self-evaluation reports (scored against real repos) |
-| `docs/sessions/` | Daemon session logs (stream-json) |
-| `docs/tasks/` | Task queue |
-| `docs/vision-tracker/` | Progress scoreboard |
-| `docs/changelog/` | Per-version release notes |
+**Linting**: ruff with 13 rule sets. Zero `# noqa` in source code.
 
 ---
 
@@ -124,10 +204,7 @@ Main repo checkout                 Nightshift worktree
 curl -sL https://raw.githubusercontent.com/Recusive/Nightshift/main/scripts/install.sh | bash
 ```
 
-This installs Nightshift into both:
-
-- `~/.codex/skills/nightshift`
-- `~/.claude/skills/nightshift`
+Installs into `~/.codex/skills/nightshift` and `~/.claude/skills/nightshift`.
 
 ### Repo setup
 
@@ -141,7 +218,7 @@ docs/Nightshift/*.state.json
 EOF
 ```
 
-Optional: copy the config template into the repo root:
+Optional config:
 
 ```bash
 cp ~/.codex/skills/nightshift/.nightshift.json.example .nightshift.json
@@ -149,99 +226,131 @@ cp ~/.codex/skills/nightshift/.nightshift.json.example .nightshift.json
 
 ---
 
+## Usage
+
+### Run against any repo
+
+```bash
+nightshift run                              # interactive -- asks for agent
+nightshift run --agent claude               # use Claude
+nightshift run --agent codex                # use Codex
+nightshift test                             # short validation run (2 cycles)
+nightshift multi /repo1 /repo2 --agent claude  # multi-repo
+```
+
+### Run the daemon (self-maintaining mode)
+
+```bash
+# Start (interactive -- asks for agent and duration)
+make daemon
+
+# Or specify directly
+tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+
+# Monitor
+tmux capture-pane -t nightshift -p -S -15   # daemon output
+cat docs/sessions/index.md                   # session history
+gh pr list --state all --limit 5             # recent PRs
+
+# Stop
+tmux send-keys -t nightshift C-c            # graceful
+tmux kill-session -t nightshift             # immediate
+```
+
+### Feature building (Loop 2)
+
+```bash
+nightshift plan "Add user authentication with OAuth"         # plan only
+nightshift plan "Add dark mode" --agent claude               # plan with agent
+nightshift build "Add user authentication with OAuth"        # full pipeline
+nightshift build --status                                    # check progress
+nightshift build --resume                                    # resume after crash
+```
+
+---
+
 ## Config
 
-Nightshift looks for `.nightshift.json` in the repo root.
-
-Supported keys:
+`.nightshift.json` in the repo root:
 
 ```json
 {
-  "agent": "codex or claude",
+  "agent": "claude",
   "hours": 8,
   "cycle_minutes": 30,
   "verify_command": null,
   "blocked_paths": [".github/", "infra/", "deploy/"],
   "blocked_globs": ["*.lock", "package-lock.json"],
-  "max_fixes_per_cycle": 3,
-  "max_files_per_fix": 5,
-  "max_files_per_cycle": 12,
-  "max_low_impact_fixes_per_shift": 4,
-  "stop_after_failed_verifications": 2,
-  "stop_after_empty_cycles": 2,
   "score_threshold": 3,
-  "test_incentive_cycle": 3,
-  "backend_forcing_cycle": 3
+  "claude_model": "claude-opus-4-6",
+  "claude_effort": "max",
+  "codex_model": "o3",
+  "budget_per_session_usd": 15.0,
+  "budget_per_shift_usd": 100.0
 }
 ```
 
-If `verify_command` is omitted, Nightshift tries to infer one from common repo manifests such as `package.json`, `Cargo.toml`, `go.mod`, and `pyproject.toml`.
+If `verify_command` is omitted, Nightshift auto-detects from `package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, etc.
+
+Environment variable overrides: `NIGHTSHIFT_CLAUDE_MODEL`, `NIGHTSHIFT_CODEX_MODEL`, `NIGHTSHIFT_CODEX_THINKING`.
 
 ---
 
-## Usage
+## How it maintains itself
 
-### Overnight run
+This is the part that's different from every other AI coding tool.
 
-```bash
-~/.codex/skills/nightshift/scripts/run.sh            # prompts for agent choice
-~/.codex/skills/nightshift/scripts/run.sh --agent codex
-~/.codex/skills/nightshift/scripts/run.sh --agent claude
-~/.codex/skills/nightshift/scripts/run.sh 10          # 10 hours
-~/.codex/skills/nightshift/scripts/run.sh 6 45        # 6 hours, 45 min per cycle
-```
+Nightshift pointed at its own codebase started improving itself. The builder daemon picks up tasks, builds features, writes tests, creates PRs, reviews them with a sub-agent, merges them, and writes a handoff so the next session continues where it left off.
 
-If no `--agent` flag is passed and `.nightshift.json` doesn't set one, the runner asks which agent to use.
-
-### Short validation run
+The git history tells the story:
 
 ```bash
-~/.codex/skills/nightshift/scripts/test.sh
-~/.codex/skills/nightshift/scripts/test.sh --agent codex --cycles 2 --cycle-minutes 5
+# See every PR the agents shipped
+gh pr list --state merged --limit 50
+
+# See the session-by-session record
+cat docs/sessions/index.md
+
+# See what the system learned from its own mistakes
+ls docs/learnings/
+
+# See the task queue it maintains for itself
+for f in docs/tasks/0*.md; do
+  num=$(basename "$f" .md)
+  st=$(grep "^status:" "$f" | head -1 | sed 's/status: //')
+  title=$(grep "^# " "$f" | head -1 | sed 's/# //')
+  printf "  %s  %-12s  %s\n" "$num" "[$st]" "$title"
+done
 ```
 
-### Multi-repo run
-
-```bash
-python3 -m nightshift multi /path/to/repo1 /path/to/repo2 --agent codex
-python3 -m nightshift multi /path/to/repo1 /path/to/repo2 --agent codex --test --cycles 2
-```
-
-Runs a full hardening shift on each repo sequentially. Validates all repos upfront, prints an aggregate summary at the end.
-
-### Direct orchestrator usage
-
-```bash
-python3 -m nightshift run
-python3 -m nightshift run --agent codex
-python3 -m nightshift run --agent claude
-python3 -m nightshift test
-python3 -m nightshift multi /path/to/repo1 /path/to/repo2 --agent codex
-python3 -m nightshift summarize
-```
-
-Both agents go through the same runner, same verification, same policy enforcement. The only difference is the CLI command each adapter constructs.
+The human starts the daemon and monitors it. The agents do the engineering. Every PR, every test, every code review, every handoff, every learning -- written by the agents, verifiable in the git history.
 
 ---
 
-## Morning Review
+## Roadmap
 
-```bash
-cat docs/Nightshift/2026-04-02.md
-cat docs/Nightshift/2026-04-02.state.json
-git log nightshift/2026-04-02 --oneline
-git merge nightshift/2026-04-02
-git worktree remove docs/Nightshift/worktree-2026-04-02
-git branch -d nightshift/2026-04-02
-```
-
-The shift log is for humans. The state file is for quick auditing:
-
-- how many cycles ran
-- which categories were touched
-- which files changed
-- whether verification passed
-- why the run stopped
+- [x] Pluggable agent adapters (Codex, Claude)
+- [x] Runner-enforced guard rails and verification pipeline
+- [x] Post-cycle diff scoring (1-10 production impact)
+- [x] Anti-tunnel-vision: category balancing, test escalation, backend forcing
+- [x] Multi-repo support
+- [x] Self-improving daemon (4 specialized daemons)
+- [x] Session memory: handoffs + learnings
+- [x] Self-evaluation against real repos
+- [x] Loop 2: Feature builder pipeline (profiler, planner, decomposer, sub-agents, integrator)
+- [x] Feature CLI (`nightshift build`, `nightshift plan`)
+- [x] Prompt injection protection (untrusted instruction boundary)
+- [x] Self-modification guard (control file snapshots + diff detection)
+- [x] Cost tracking and budget ceilings
+- [x] Configurable models per daemon
+- [x] Interactive daemon setup
+- [x] Log rotation and orphan branch pruning
+- [ ] Loop 2: Sub-agent parallelization within waves
+- [ ] Loop 2: End-to-end testing (dev server + Playwright/Cypress)
+- [ ] Reviewer and Overseer daemon production deployment
+- [ ] Instruction file size caps and symlink protection
+- [ ] Monitoring/alerting webhooks
+- [ ] Built-in to [Orbit](https://github.com/Recusive/Orbit-Release) as a native feature
 
 ---
 
@@ -249,70 +358,7 @@ The shift log is for humans. The state file is for quick auditing:
 
 - Python 3.9+
 - Git
-- `codex` CLI or `claude` CLI (whichever agent you choose)
-
----
-
-## Daemon
-
-Nightshift has four daemons that run autonomously (one at a time, shared lockfile):
-
-```bash
-make daemon       # Builder — loops, builds features, ships code
-make review       # Reviewer — loops, reviews code quality file by file
-make overseer     # Overseer — loops, audits task queue, fixes priorities
-make strategist   # Strategist — runs once, big picture review for human
-```
-
-Run in tmux for production use:
-
-```bash
-# Start
-tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
-
-# Monitor
-cat docs/sessions/index.md          # session history
-gh pr list --state all --limit 5    # recent PRs
-
-# Stop
-tmux send-keys -t nightshift C-c
-```
-
-Full daemon operations guide: `docs/ops/DAEMON.md`
-
-In one 4-hour daemon run, Nightshift autonomously:
-- Shipped 19 PRs across 12 sessions
-- Grew from 145 to 482 tests
-- Completed Loop 1 (100%), started Loop 2 (45%)
-- Released v0.0.3, v0.0.4, v0.0.5
-- Validated itself against Phractal (real monorepo)
-- Found and fixed its own bugs through self-evaluation
-
----
-
-## Roadmap
-
-- [x] Pluggable agent adapters (Codex, Claude)
-- [x] Runner-enforced guard rails
-- [x] Structured cycle outputs and state files
-- [x] Post-cycle diff scoring before accepting a fix
-- [x] Cycle-to-cycle state injection
-- [x] Test writing incentives
-- [x] Backend exploration forcing
-- [x] Category balancing
-- [x] Multi-repo support
-- [x] Validated against real monorepo (Phractal)
-- [x] Self-improving daemon (autonomous loop)
-- [x] Cross-session learnings system
-- [x] Self-evaluation against real repos
-- [x] Loop 2: Repo profiler
-- [x] Loop 2: Feature planner
-- [x] Loop 2: Task decomposer
-- [x] Loop 2: Sub-agent spawner
-- [x] Loop 2: Wave integrator
-- [ ] Loop 2: Feature CLI (`nightshift build`)
-- [ ] Loop 2: End-to-end pipeline test
-- [ ] Built-in to Orbit as a native feature
+- `claude` CLI or `codex` CLI
 
 ---
 
