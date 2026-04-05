@@ -289,10 +289,9 @@ See `docs/learnings/README.md` for format. One learning per file, under 30 lines
 **IMPORTANT: Update `docs/learnings/INDEX.md`** — add a one-line entry for your new learning in the correct category. The index is what future sessions read, not the individual files.
 
 ### 6m. Version Assessment
-Check `docs/ops/OPERATIONS.md` version milestones:
-- Are all items for the current version done?
-- If yes: prepare for release (tag, changelog status, new version file)
-- If no: note in the handoff what's still needed
+Check whether any changelog versions lack a git tag. If a version's tasks are all done,
+Step 11 will release it after merge — no separate release task needed. If tasks remain,
+note in the handoff: "vX.X.X has N tasks remaining before release."
 
 ### 6n. Observe the System (ALWAYS)
 
@@ -401,7 +400,7 @@ Install Script:
   [x] Updated / [ ] No changes needed
 
 Release:
-  [ ] Not a release milestone
+  [ ] Checked for untagged changelog versions (Step 11 handles post-merge)
 ```
 
 If everything checks out, proceed to commit.
@@ -507,13 +506,25 @@ This triggers Step 0 in the next session. A different agent will score your work
 
 ## STEP 11 — RELEASE CHECK
 
-After the health check passes, decide if this warrants a release. Read `docs/ops/OPERATIONS.md` "Release Strategy" section.
+After the health check passes, check whether any versions are ready to release.
+Do not wait for a task to tell you to release — releasing is part of the build cycle.
 
-Ask yourself:
-- Is this a user-facing change? Bug fix? New feature?
-- Check the version milestones — is the current version complete?
-- If yes: cut the release (tag, push tag, `gh release create`)
-- If no: move on. It'll ship with the next release.
+**Algorithm:**
+1. List changelog files: `ls docs/changelog/v*.md`
+2. List existing tags: `git tag --list 'v*'`
+3. For each changelog version that has NO matching tag (oldest first):
+   a. Read the changelog file — does it have real entries under Added/Changed/Fixed?
+   b. Check: are there pending tasks in `docs/tasks/` targeting this version? (`target: vX.X.X` in frontmatter)
+   c. If entries exist AND no pending tasks target it → **release it**:
+      - Update the changelog status from "In progress" to "Released" with today's date
+      - Run: `make release VERSION=X.X.X CODENAME="[codename from changelog title]"`
+      - Create the next version's changelog skeleton if it doesn't exist
+   d. If pending tasks still target it → skip, note in handoff "vX.X.X has N tasks remaining"
+4. Release versions in order (v0.0.6 before v0.0.7) — never skip ahead.
+
+**Codename:** Use the subtitle from the changelog title (e.g., `# v0.0.6 -- Loop 2 Foundation` → codename is "Loop 2 Foundation").
+
+**Multiple releases in one session is fine.** If v0.0.6 and v0.0.7 are both ready, release both.
 
 ## STEP 12 — REPORT
 
