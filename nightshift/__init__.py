@@ -43,6 +43,8 @@ from nightshift.constants import (
     SUBAGENT_DEFAULT_TIMEOUT,
     SUBAGENT_MAX_TURNS,
     SUPPORTED_AGENTS,
+    UNTRUSTED_INSTRUCTIONS_PREAMBLE,
+    UNTRUSTED_INSTRUCTIONS_SUFFIX,
     now_local,
     print_status,
 )
@@ -62,8 +64,10 @@ from nightshift.cycle import (
     forbidden_reported_commands,
     high_signal_focus_paths,
     parse_cycle_result,
+    read_repo_instructions,
     recent_hot_files,
     verify_cycle,
+    wrap_repo_instructions,
 )
 from nightshift.decomposer import (
     build_work_order_prompt,
@@ -195,6 +199,8 @@ __all__ = [
     "SUBAGENT_DEFAULT_TIMEOUT",
     "SUBAGENT_MAX_TURNS",
     "SUPPORTED_AGENTS",
+    "UNTRUSTED_INSTRUCTIONS_PREAMBLE",
+    "UNTRUSTED_INSTRUCTIONS_SUFFIX",
     "ArchitectureDoc",
     "Baseline",
     "Counters",
@@ -283,6 +289,7 @@ __all__ = [
     "profile_repo",
     "prompt_for_agent",
     "read_feature_state",
+    "read_repo_instructions",
     "read_state",
     "recent_hot_files",
     "resolve_agent",
@@ -310,6 +317,7 @@ __all__ = [
     "validate_worktree",
     "verify_cycle",
     "verify_cycle_cli",
+    "wrap_repo_instructions",
     "write_feature_state",
     "write_json",
 ]
