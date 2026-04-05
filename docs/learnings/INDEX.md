@@ -19,6 +19,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Merge strategy: --merge never --squash](2026-04-03-merge-never-squash.md) — Always --merge --admin, preserve all commits on main
 - [Turn budget kills good sessions](2026-04-03-turn-budget-kills-sessions.md) — 500 max turns = silent death mid-work; keep context lean
 - [New evolve steps go inside Step 6](2026-04-05-generate-work-placement.md) — Add as subsection (6n, 6o) to avoid renumbering and breaking cross-references
+- [Learnings verification needs three touchpoints](2026-04-05-learnings-verification-scope.md) — Process enforcement requires production, persistence, AND verification points; missing any one makes it toothless
 - [Vision alignment reveals drift](2026-04-05-vision-alignment-prevents-drift.md) — Last 5 tasks all targeted self-maintaining/meta-prompt, zero loop2; explicit section counting catches invisible clustering
 - [Open PR recovery](2026-04-03-open-pr-recovery.md) — Daemon detects open PRs from crashed sessions and recovers them
 
