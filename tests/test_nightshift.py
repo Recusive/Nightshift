@@ -8044,6 +8044,41 @@ def _write_handoffs(tmp_path: Path, count: int, start: int = 1) -> list[Path]:
 
 
 class TestCompactHandoffs:
+    def test_parse_handoff_returns_expected_schema(self, tmp_path: Path) -> None:
+        """Parsed handoff data keeps the fixed key set with string values."""
+        handoff = _write_handoffs(tmp_path, 1)[0]
+
+        import nightshift.compact as compact_module
+
+        parsed = compact_module._parse_handoff(handoff)
+
+        assert parsed == {
+            "session": "0001",
+            "date": "2026-04-03",
+            "version": "v0.0.7",
+            "built": "- Feature 1\n- Files modified: something.py",
+            "decisions": "- Decision from session 1",
+            "known_issues": "- Bug 1",
+            "state": "- Loop 1: 80%\n- Loop 2: 50%\n- Overall: 70%\n- Version: v0.0.7",
+        }
+
+    def test_parse_handoff_defaults_missing_sections_to_empty_string(self, tmp_path: Path) -> None:
+        """Missing sections still produce the full parsed schema."""
+        handoff = tmp_path / "0001.md"
+        handoff.write_text("# Handoff #0001\n**Date**: 2026-04-03\n**Version**: v0.0.7\n")
+
+        import nightshift.compact as compact_module
+
+        parsed = compact_module._parse_handoff(handoff)
+
+        assert parsed["session"] == "0001"
+        assert parsed["date"] == "2026-04-03"
+        assert parsed["version"] == "v0.0.7"
+        assert parsed["built"] == ""
+        assert parsed["decisions"] == ""
+        assert parsed["known_issues"] == ""
+        assert parsed["state"] == ""
+
     def test_below_threshold_no_action(self, tmp_path: Path) -> None:
         """Fewer than threshold files: nothing happens."""
         _write_handoffs(tmp_path, 5)

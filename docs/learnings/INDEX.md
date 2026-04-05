@@ -52,6 +52,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 ## Type System / Linting
 
 - [mypy rejects .get() on required TypedDict](2026-04-03-mypy-typeddict-get.md) — Use direct key access on required fields, not .get()
+- [TypedDict refactors must update aggregate containers too](2026-04-05-typeddict-refactor-updates-containers.md) — Changing a helper return type is not enough; retune every list/parameter storing that TypedDict in the same patch
 - [ruff import sort is alphabetical](2026-04-03-ruff-import-sort-trap.md) — Module names sorted alphabetically; can break runtime if reordered
 - [ruff format before push](2026-04-03-ruff-format-before-push.md) — Always run ruff format; CI catches formatting drift
 - [ruff auto-fix import sorting](2026-04-04-ruff-autofix-import-sorting.md) — Let ruff --fix handle __init__.py import ordering
