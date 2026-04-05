@@ -233,3 +233,15 @@ Observations from the meta-layer observer. Newest entries first.
 - **Session-index fidelity is still the main observability bottleneck.** The last 5 rows in `docs/sessions/index.md` still have blank feature cells, and `cost_analysis('docs/sessions')` continues to classify 17 of 24 sessions as `task_type=unknown`. Existing task `#0095` remains the right fix path; I did not create a duplicate.
 - **Cold-start module discovery now has a durable memory surface.** `docs/architecture/MODULE_MAP.md` is generated from the live package and git history, so future builder sessions can read dependency order, module purposes, and recent shipped sessions without rescanning `nightshift/*.py` from scratch. This closes task `#0052` and should reduce repeated orientation overhead.
 - **Queue pressure is still skewed away from proven product bugs.** The last 5 task files still target `self-maintaining=3, meta-prompt=1, none=1`, while evaluation fixes `#0097`-`#0102` remain pending and the authoritative next task is docs-heavy `#0054`. Existing task `#0106` already covers backlog budgeting, so I did not add another queue-management task.
+
+## 2026-04-05 -- Session #0050 (Document healer in OPERATIONS.md)
+
+**System health:** caution
+
+### Observations
+- **The Loop 1 evaluation cluster is still real, and queue order is still routing around it.** Evaluation `#0007` improved only slightly to `52/100`, but the same low-scoring failures remain: startup overrides (`#0097`), case-insensitive shift-log verification (`#0098`), missing verify-command wiring (`#0099`), dirty rejected-clone cleanup (`#0100`), and rejected-run reporting/scoring gaps (`#0101`, `#0102`). The authoritative next task was still docs task `#0054`, so proven product bugs remain queued behind lower-numbered internal work.
+- **Session-index fidelity is still the main cost-analysis blind spot.** The last 5 rows in `docs/sessions/index.md` still have blank feature cells, and `cost_analysis('docs/sessions')` now classifies `18 of 26` analyzed sessions as `task_type=unknown` with the highest average spend (`$29.32/session`). Existing task `#0095` still covers the fix path.
+- **Healer documentation drift was real and is now corrected.** `docs/ops/OPERATIONS.md` had no `docs/healer/` entry, task `#0054` still referenced removed `persist_healer_changes()` behavior, and the current builder-side Step 6n/6o workflow was undocumented. This session fixed the docs so future sessions have a truthful reference for the merged healer path.
+
+### Actions taken
+- No new tasks needed this cycle. Existing tasks `#0095`, `#0097`-`#0102`, and `#0106` already cover the trends observed here.

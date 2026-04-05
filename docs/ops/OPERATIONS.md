@@ -17,6 +17,7 @@ Nightshift/
 │   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)
 │   ├── evaluations/             ← SELF-EVALUATION REPORTS (scored against real repos)
 │   ├── sessions/                ← DAEMON SESSION LOGS (stream-json + index)
+│   ├── healer/                  ← SYSTEM HEALTH OBSERVATIONS (builder Step 6n/6o log)
 │   ├── tasks/                   ← TASK QUEUE (pending/done/blocked)
 │   ├── architecture/            ← GENERATED MODULE MAP (fast codebase orientation)
 │   ├── vision/                  ← LONG-TERM DIRECTION (where we're going)
@@ -279,7 +280,8 @@ The prompt the human pastes at the start of each session. It tells you (the agen
 ### Files
 | File | Purpose |
 |------|---------|
-| `evolve.md` | The prompt itself. 10 steps: awareness → decide → propose → build → verify → update docs → pre-push checklist → branch/PR/merge → release check → report |
+| `evolve.md` | The authoritative builder prompt. It defines the full session lifecycle, including evaluation, observation, releases, and reporting. |
+| `healer.md` | Reference notes for the builder-side healer workflow. This is documentation, not an executable control file. |
 | `feedback/README.md` | Guide for the human on how to write feedback |
 | `feedback/YYYY-MM-DD.md` | Human feedback files (if any) |
 
@@ -295,6 +297,44 @@ The prompt the human pastes at the start of each session. It tells you (the agen
 
 ### Feedback loop
 After testing what you built, the human drops notes in `feedback/`. Next session reads them. If feedback contradicts the prompt's priority list, feedback wins.
+
+---
+
+## System 5a: Healer Observations (`docs/healer/`)
+
+### What it is
+The healer is no longer a standalone daemon step. It was merged into the
+builder workflow, so every builder session now performs system observation in
+Step 6n ("Observe the System") and Step 6o ("Generate Work") of
+`docs/prompt/evolve.md`.
+
+### Files
+| File | Purpose |
+|------|---------|
+| `docs/healer/log.md` | Append-only system-health observations written by builder sessions |
+| `docs/prompt/healer.md` | Historical/reference workflow for the healer mindset; useful context, but not directly executed |
+
+### How it works
+1. The builder reads recent sessions, cost analysis, the task queue, the vision tracker, the module map, and the existing healer log.
+2. It appends a new dated entry to `docs/healer/log.md` with a health label (`good`, `caution`, or `concern`).
+3. If the observation reveals actionable gaps, the builder creates follow-up tasks during Step 6o.
+4. If the pattern needs human attention, the daemon can escalate with `notify_human`.
+
+### How to inspect healer output
+- Read `docs/healer/log.md` for the durable observation history.
+- Read the matching builder session log in `docs/sessions/*.log` for raw execution details.
+- There are no dedicated `*-healer.log` session files anymore; the old standalone healer flow was removed when the observation step moved into the builder prompt.
+
+### How to change or disable it
+- There is no standalone on/off shell toggle anymore.
+- To change or disable the healer behavior, edit the builder prompt in `docs/prompt/evolve.md` (Step 6n / Step 6o).
+- Renaming or deleting `docs/prompt/healer.md` only removes the reference documentation. It does not disable the builder-side observation step.
+
+### Legacy note
+Older docs and tasks may still mention `persist_healer_changes()` in
+`scripts/lib-agent.sh`. That helper was removed when task `#0061` merged healer
+output into the normal builder session flow. Treat any remaining references to
+that function as historical context, not current behavior.
 
 ---
 
@@ -346,7 +386,7 @@ No circular imports. Each module only imports from modules to its left. `multi.p
 ## System 7: Tests (`tests/`)
 
 ### What it is
-482 pytest tests covering every pure function, config, state, CLI, and integration.
+904 pytest tests covering every pure function, config, state, CLI, and integration.
 
 ### Files
 | File | Purpose |
@@ -466,6 +506,24 @@ make strategist   # Strategist: runs once, reviews big picture, advises human
 All run via tmux in production. See `docs/ops/DAEMON.md` for the complete operations guide: starting, monitoring, stopping, troubleshooting, and the recommended daily workflow.
 
 Only one daemon runs at a time (shared lockfile).
+
+### Shared daemon helpers (`scripts/lib-agent.sh`)
+
+| Function | Purpose |
+|------|---------|
+| `run_agent()` | Normalized Claude/Codex invocation with JSONL logging |
+| `cleanup_old_logs()` | Rotates stale daemon log files via `nightshift.cleanup.rotate_logs()` |
+| `cleanup_orphan_branches()` | Removes remote Nightshift branches that no longer have open PRs |
+| `compact_handoffs()` | Rolls older numbered handoffs into weekly summaries |
+| `archive_done_tasks()` | Moves completed task files into `docs/tasks/archive/` |
+| `sync_github_tasks()` | Mirrors GitHub issues labeled `task` into `docs/tasks/` files |
+| `should_evaluate()` / `run_evaluation()` | Detects the handoff evaluation flag and runs the prescribed Step 0 evaluation |
+| `notify_human()` | Best-effort GitHub issue + optional webhook escalation for human attention |
+
+`persist_healer_changes()` is intentionally absent from this table because the
+function was removed. Healer persistence now happens inside the builder session
+when Step 6n/6o appends to `docs/healer/log.md` and commits the result as part
+of the normal session workflow.
 
 ### How to update
 - If you add a new Python module, add it to the `PACKAGE_FILES` list in `scripts/install.sh`
