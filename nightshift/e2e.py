@@ -44,13 +44,17 @@ def infer_test_command(repo_dir: Path) -> str | None:
             pm = infer_package_manager(repo_dir) or "npm"
             return f"{pm} test"
 
-    if (repo_dir / "pyproject.toml").exists() or (repo_dir / "pytest.ini").exists():
+    pyproject = repo_dir / "pyproject.toml"
+    pytest_ini = repo_dir / "pytest.ini"
+    if (pyproject.exists() and not pyproject.is_symlink()) or (pytest_ini.exists() and not pytest_ini.is_symlink()):
         return "python3 -m pytest"
 
-    if (repo_dir / "Cargo.toml").exists():
+    cargo = repo_dir / "Cargo.toml"
+    if cargo.exists() and not cargo.is_symlink():
         return "cargo test"
 
-    if (repo_dir / "go.mod").exists():
+    gomod = repo_dir / "go.mod"
+    if gomod.exists() and not gomod.is_symlink():
         return "go test ./..."
 
     return None

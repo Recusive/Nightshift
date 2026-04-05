@@ -662,10 +662,7 @@ def build_feature(
         write_feature_state(state_path, state)
 
     state["current_wave"] = 0
-    e2e = run_e2e_tests(
-        repo_dir=repo_dir,
-        test_command=state["profile"]["test_runner"],
-    )
+    e2e = run_e2e_tests(repo_dir=repo_dir)
     state["e2e_result"] = e2e
     write_feature_state(state_path, state)
 
