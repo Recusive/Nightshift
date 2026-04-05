@@ -7175,3 +7175,26 @@ exit $RC
         assert result.returncode == 1
         assert "NEW DIRECTORY docs/prompt/" in result.stdout
         assert "malicious.md" in result.stdout
+
+    def test_no_false_positive_empty_dir_unchanged(self, tmp_path: Path) -> None:
+        """Empty docs/prompt/ with no changes should not trigger an alert."""
+        prompt_dir = tmp_path / "docs" / "prompt"
+        prompt_dir.mkdir(parents=True)
+        lib_path = Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh"
+        script = f"""
+set -e
+source "{lib_path}"
+SNAP=$(save_prompt_snapshots "{tmp_path}")
+set +e
+check_prompt_integrity "{tmp_path}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"False positive: {result.stdout}"
+        assert "SELF-MODIFICATION" not in result.stdout

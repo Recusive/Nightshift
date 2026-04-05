@@ -57,7 +57,7 @@ save_prompt_snapshots() {
         if [ -d "$src_dir" ]; then
             local listing="$snap_dir/${d}.filelist"
             mkdir -p "$(dirname "$listing")"
-            ls -1 "$src_dir" 2>/dev/null | sort > "$listing"
+            LC_ALL=C ls -1 "$src_dir" 2>/dev/null | LC_ALL=C sort > "$listing"
         fi
     done
     echo "$snap_dir"
@@ -116,9 +116,9 @@ check_prompt_integrity() {
         local listing="$snap_dir/${d}.filelist"
         if [ -d "$current_dir" ] && [ -f "$listing" ]; then
             local current_listing
-            current_listing=$(ls -1 "$current_dir" 2>/dev/null | sort)
+            current_listing=$(LC_ALL=C ls -1 "$current_dir" 2>/dev/null | LC_ALL=C sort)
             local new_files
-            new_files=$(comm -13 "$listing" <(echo "$current_listing"))
+            new_files=$(comm -13 "$listing" <(printf '%s\n' "$current_listing"))
             if [ -n "$new_files" ]; then
                 if [ "$changed" -eq 0 ]; then
                     echo ""
