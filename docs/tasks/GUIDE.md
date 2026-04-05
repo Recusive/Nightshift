@@ -112,7 +112,35 @@ Session reads 0004 (Phractal test) -> builds it -> marks done
 
 ## When the human adds a task
 
-Same process, simpler. Create the file, set `pending`. That's it. If it should jump the queue, set `priority: urgent`.
+**Preferred: use GitHub Issues.** The daemon syncs them automatically.
+
+```bash
+# Simple task
+gh issue create --title "Add dark mode" --label "task"
+
+# Urgent task
+gh issue create --title "Fix CI" --label "task,urgent"
+
+# With details and vision section
+gh issue create --title "Build webhook" --label "task,integration,loop2" \
+  --body "Description and acceptance criteria here"
+```
+
+**Label mapping:**
+
+| GitHub label | Frontmatter field |
+|---|---|
+| `task` | (required -- triggers sync) |
+| `urgent` | `priority: urgent` |
+| `low` | `priority: low` |
+| `integration` | `environment: integration` |
+| `loop1` / `loop2` / `self-maintaining` / `meta-prompt` | `vision_section:` |
+
+Default: `priority: normal`, no environment tag.
+
+The daemon's housekeeping step runs `sync_github_tasks` before each session. It reads `.next-id`, creates the task file, increments `.next-id`, closes the issue with a "Converted to task #NNNN" comment, and commits the new files to main.
+
+**Alternative: create the file directly.** Same as the agent process -- read `.next-id`, create the file, increment. Use this only if GitHub is unavailable or you need to set fields not covered by labels.
 
 ## Writing good descriptions
 

@@ -98,6 +98,7 @@ Full daemon operations guide with troubleshooting: `docs/ops/DAEMON.md`
 - Branch naming: `feat/`, `fix/`, `docs/`, `refactor/`, `release/`
 - **Review notes MUST become tasks.** If the code review sub-agent flags advisory notes, known limitations, or follow-up items but still passes, you MUST create follow-up tasks in `docs/tasks/` before merging. "Known limitation" is not a valid reason to skip — the task queue tracks deferred work.
 - **If CI fails after merge:** create a `fix/` branch and PR. Never push directly to main, even for "trivial" fixes.
+- **Human task creation:** Humans create tasks as GitHub Issues with the `task` label. The daemon's housekeeping step syncs them to `docs/tasks/` automatically. See `docs/tasks/GUIDE.md` for details.
 - Full workflow: `docs/ops/OPERATIONS.md` under "Git Workflow"
 
 ## Environment

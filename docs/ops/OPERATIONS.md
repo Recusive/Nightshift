@@ -86,6 +86,15 @@ The work queue. Numbered task files. The agent picks up the lowest-numbered `pen
 | `archive/` | Completed tasks (auto-moved by daemon housekeeping) |
 
 ### How to use (human)
+
+**Preferred: create a GitHub Issue** with the `task` label. The daemon syncs issues to task files automatically during housekeeping. Add `urgent`, `low`, `integration`, or vision section labels as needed. See `docs/tasks/GUIDE.md` for the full label mapping.
+
+```bash
+gh issue create --title "Add dark mode" --label "task"
+gh issue create --title "Fix CI" --label "task,urgent"
+```
+
+**Alternative: create the file directly.**
 1. Read `.next-id` for the next number. Use it, increment, write back.
 2. Create the task file with `status: pending` in frontmatter
 3. Done. The agent picks it up. **Never scan the directory to guess the next number.**
