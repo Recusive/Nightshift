@@ -70,6 +70,8 @@ tmux send-keys -t nightshift C-c            # graceful (after current session)
 tmux kill-session -t nightshift             # immediate
 ```
 
+**WARNING: The daemon and the monitor/human share the same working directory.** Do not run `git checkout`, `git stash`, or any branch-switching commands while the daemon is mid-session — it will corrupt or lose the daemon's uncommitted work. Wait for the between-session cooldown (daemon resets to main between sessions) or read-only commands only (`git log`, `git status`, `gh pr list`, etc.).
+
 Full daemon operations guide with troubleshooting: `docs/ops/DAEMON.md`
 
 ## Git Workflow
