@@ -573,6 +573,7 @@ def print_status(message: str) -> None:
 # Pricing in USD per million tokens. Keys match model IDs from stream-json logs.
 # Update when Anthropic or OpenAI change pricing.
 MODEL_PRICING: dict[str, dict[str, float]] = {
+    # Anthropic models
     "claude-opus-4-6": {
         "input": 15.0,
         "cache_creation": 18.75,
@@ -591,6 +592,34 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         "cache_read": 0.08,
         "output": 4.0,
     },
+    # OpenAI models (used by Codex agent).
+    # OpenAI has no cache-creation concept; cache_creation mirrors input
+    # since Codex logs never report cache-creation tokens.
+    "gpt-5.4": {
+        "input": 2.50,
+        "cache_creation": 2.50,
+        "cache_read": 0.25,
+        "output": 15.0,
+    },
+    "gpt-5.4-mini": {
+        "input": 0.75,
+        "cache_creation": 0.75,
+        "cache_read": 0.075,
+        "output": 4.50,
+    },
+    "gpt-5.4-nano": {
+        "input": 0.20,
+        "cache_creation": 0.20,
+        "cache_read": 0.02,
+        "output": 1.25,
+    },
+}
+
+# Default model for each agent, used when the session log does not contain a
+# model identifier (e.g. Codex turn.completed events omit it).
+AGENT_DEFAULT_MODELS: dict[str, str] = {
+    "codex": "gpt-5.4",
+    "claude": "claude-opus-4-6",
 }
 
 # Filename for the cost ledger (stored in docs/sessions/).

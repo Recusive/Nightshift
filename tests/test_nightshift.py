@@ -6472,6 +6472,193 @@ class TestParseSessionTokens:
         assert cost["cache_read_tokens"] == 0
 
 
+def _make_codex_log_lines(
+    turns: int = 3,
+    input_tokens: int = 1000,
+    cached_input_tokens: int = 800,
+    output_tokens: int = 100,
+) -> list[str]:
+    """Build minimal Codex-style stream-json lines (turn.completed events)."""
+    lines: list[str] = []
+    lines.append(json.dumps({"type": "thread.started", "thread_id": "t_abc"}))
+    for _ in range(turns):
+        lines.append(
+            json.dumps(
+                {
+                    "type": "turn.completed",
+                    "usage": {
+                        "input_tokens": input_tokens,
+                        "cached_input_tokens": cached_input_tokens,
+                        "output_tokens": output_tokens,
+                    },
+                }
+            )
+        )
+    return lines
+
+
+class TestParseCodexSessionTokens:
+    def test_parses_codex_log(self, tmp_path: Path) -> None:
+        log = tmp_path / "codex.log"
+        log.write_text("\n".join(_make_codex_log_lines()) + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        # input_tokens = (1000 - 800) * 3 = 600 (non-cached portion)
+        assert cost["input_tokens"] == 600
+        # cache_read_tokens = 800 * 3 = 2400
+        assert cost["cache_read_tokens"] == 2400
+        # cache_creation is always 0 for Codex
+        assert cost["cache_creation_tokens"] == 0
+        # output_tokens = 100 * 3 = 300
+        assert cost["output_tokens"] == 300
+
+    def test_codex_model_hint_used_when_log_has_no_model(self, tmp_path: Path) -> None:
+        log = tmp_path / "codex.log"
+        log.write_text("\n".join(_make_codex_log_lines(turns=1)) + "\n")
+        cost = nightshift.parse_session_tokens(str(log), model_hint="gpt-5.4")
+        assert cost["model"] == "gpt-5.4"
+
+    def test_codex_model_hint_ignored_when_log_has_model(self, tmp_path: Path) -> None:
+        """Claude logs contain the model; model_hint should not override it."""
+        log = tmp_path / "claude.log"
+        log.write_text("\n".join(_make_log_lines(model="claude-sonnet-4-6", messages=1)) + "\n")
+        cost = nightshift.parse_session_tokens(str(log), model_hint="gpt-5.4")
+        assert cost["model"] == "claude-sonnet-4-6"
+
+    def test_codex_no_cached_tokens(self, tmp_path: Path) -> None:
+        """When cached_input_tokens is 0, all input is non-cached."""
+        log = tmp_path / "codex.log"
+        log.write_text(
+            "\n".join(_make_codex_log_lines(turns=1, input_tokens=500, cached_input_tokens=0, output_tokens=50)) + "\n"
+        )
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["input_tokens"] == 500
+        assert cost["cache_read_tokens"] == 0
+        assert cost["output_tokens"] == 50
+
+    def test_codex_missing_usage_skipped(self, tmp_path: Path) -> None:
+        log = tmp_path / "codex.log"
+        line = json.dumps({"type": "turn.completed"})
+        log.write_text(line + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["input_tokens"] == 0
+        assert cost["output_tokens"] == 0
+
+    def test_codex_mixed_with_other_events(self, tmp_path: Path) -> None:
+        """Non-turn.completed events are ignored."""
+        log = tmp_path / "codex.log"
+        lines = [
+            json.dumps({"type": "thread.started", "thread_id": "t1"}),
+            json.dumps({"type": "turn.started"}),
+            json.dumps({"type": "item.completed", "item": {}}),
+            *_make_codex_log_lines(turns=1, input_tokens=200, cached_input_tokens=100, output_tokens=30),
+        ]
+        log.write_text("\n".join(lines) + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["input_tokens"] == 100
+        assert cost["cache_read_tokens"] == 100
+        assert cost["output_tokens"] == 30
+
+    def test_model_hint_missing_file(self) -> None:
+        cost = nightshift.parse_session_tokens("/nonexistent/log.jsonl", model_hint="gpt-5.4")
+        assert cost["model"] == "gpt-5.4"
+        assert cost["input_tokens"] == 0
+
+
+class TestCalculateCostOpenAI:
+    def test_gpt54_input_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="gpt-5.4",
+            input_tokens=1_000_000,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=0,
+        )
+        assert cost == 2.5
+
+    def test_gpt54_output_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="gpt-5.4",
+            input_tokens=0,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=1_000_000,
+        )
+        assert cost == 15.0
+
+    def test_gpt54_cache_read_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="gpt-5.4",
+            input_tokens=0,
+            cache_creation_tokens=0,
+            cache_read_tokens=1_000_000,
+            output_tokens=0,
+        )
+        assert cost == 0.25
+
+    def test_gpt54_mixed(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="gpt-5.4",
+            input_tokens=200_000,
+            cache_creation_tokens=0,
+            cache_read_tokens=800_000,
+            output_tokens=50_000,
+        )
+        # 0.2M * 2.5 + 0 + 0.8M * 0.25 + 0.05M * 15.0
+        # = 0.5 + 0.2 + 0.75 = 1.45
+        assert cost == 1.45
+
+    def test_gpt54_mini_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="gpt-5.4-mini",
+            input_tokens=1_000_000,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=1_000_000,
+        )
+        # 0.75 + 4.50 = 5.25
+        assert cost == 5.25
+
+    def test_gpt54_nano_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="gpt-5.4-nano",
+            input_tokens=1_000_000,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=1_000_000,
+        )
+        # 0.20 + 1.25 = 1.45
+        assert cost == 1.45
+
+
+class TestRecordSessionCodex:
+    def test_codex_session_uses_default_model(self, tmp_path: Path) -> None:
+        """record_session with agent='codex' uses gpt-5.4 as model hint."""
+        log = tmp_path / "codex.log"
+        log.write_text("\n".join(_make_codex_log_lines(turns=1)) + "\n")
+        ledger_path = str(tmp_path / "costs.json")
+
+        entry = nightshift.record_session(str(log), ledger_path, "test-codex", "codex")
+        assert entry["model"] == "gpt-5.4"
+        assert entry["agent"] == "codex"
+        assert entry["total_cost_usd"] > 0
+
+    def test_codex_session_cost_nonzero(self, tmp_path: Path) -> None:
+        """Codex sessions should produce non-zero cost now that pricing exists."""
+        log = tmp_path / "codex.log"
+        log.write_text(
+            "\n".join(_make_codex_log_lines(turns=2, input_tokens=10_000, cached_input_tokens=8_000, output_tokens=500))
+            + "\n"
+        )
+        ledger_path = str(tmp_path / "costs.json")
+
+        entry = nightshift.record_session(str(log), ledger_path, "test-codex2", "codex")
+        assert entry["total_cost_usd"] > 0
+        # non-cached: (10000-8000)*2 = 4000, cached: 8000*2 = 16000, output: 500*2 = 1000
+        assert entry["input_tokens"] == 4000
+        assert entry["cache_read_tokens"] == 16000
+        assert entry["output_tokens"] == 1000
+
+
 class TestCalculateCost:
     def test_opus_pricing(self) -> None:
         cost = nightshift.calculate_cost(
@@ -6706,6 +6893,29 @@ class TestCostConstants:
 
     def test_model_pricing_has_haiku(self) -> None:
         assert "claude-haiku-4-5-20251001" in nightshift.MODEL_PRICING
+
+    def test_model_pricing_has_gpt54(self) -> None:
+        assert "gpt-5.4" in nightshift.MODEL_PRICING
+        pricing = nightshift.MODEL_PRICING["gpt-5.4"]
+        assert pricing["input"] == 2.50
+        assert pricing["cache_read"] == 0.25
+        assert pricing["output"] == 15.0
+
+    def test_model_pricing_has_gpt54_mini(self) -> None:
+        assert "gpt-5.4-mini" in nightshift.MODEL_PRICING
+        pricing = nightshift.MODEL_PRICING["gpt-5.4-mini"]
+        assert pricing["input"] == 0.75
+        assert pricing["output"] == 4.50
+
+    def test_model_pricing_has_gpt54_nano(self) -> None:
+        assert "gpt-5.4-nano" in nightshift.MODEL_PRICING
+        pricing = nightshift.MODEL_PRICING["gpt-5.4-nano"]
+        assert pricing["input"] == 0.20
+        assert pricing["output"] == 1.25
+
+    def test_agent_default_models(self) -> None:
+        assert nightshift.AGENT_DEFAULT_MODELS["codex"] == "gpt-5.4"
+        assert nightshift.AGENT_DEFAULT_MODELS["claude"] == "claude-opus-4-6"
 
     def test_cost_ledger_filename(self) -> None:
         assert nightshift.COST_LEDGER_FILENAME == "costs.json"
