@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0033 (Learnings verification in status reports).
+Last updated: 2026-04-05 by agent session #0037 (Feature summary generation).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,9 +9,9 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ████████████████░░░░  79%
+NIGHTSHIFT VISION                              ████████████████░░░░  82%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
-├── Loop 2 — Feature Builder Loop              █████████████░░░░░░░  63%
+├── Loop 2 — Feature Builder Loop              ██████████████░░░░░░  72%
 ├── Self-Maintaining Repo                      ████████████░░░░░░░░  59%
 └── Meta-Prompt System                         ████████████████░░░░  76%
 ```
@@ -52,9 +52,9 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 
 ---
 
-## Loop 2 — Feature Builder Loop (63%)
+## Loop 2 — Feature Builder Loop (72%)
 
-Repo profiling, feature planning, task decomposition, sub-agent spawning, wave integration, and the build orchestrator are complete. Sub-agent coordination, E2E test runner, production-readiness checker, and feature summary generation remain.
+Repo profiling, feature planning, task decomposition, sub-agent spawning, wave integration, the build orchestrator, and feature summary generation are complete. Sub-agent coordination, E2E test runner, and production-readiness checker remain.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -68,7 +68,7 @@ Repo profiling, feature planning, task decomposition, sub-agent spawning, wave i
 | Feature CLI (`nightshift build`) | Done | ████████████████████ 100% |
 | Feature state tracking | Done | ████████████████████ 100% |
 | Production-readiness checker | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
-| Feature summary generation | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Feature summary generation | Done | ████████████████████ 100% |
 
 ---
 

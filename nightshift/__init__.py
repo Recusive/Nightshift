@@ -153,6 +153,7 @@ from nightshift.subagent import (
     spawn_task,
     spawn_wave,
 )
+from nightshift.summary import generate_feature_summary
 from nightshift.types import (
     ArchitectureDoc,
     Baseline,
@@ -167,6 +168,7 @@ from nightshift.types import (
     DiffScore,
     FeaturePlan,
     FeatureState,
+    FeatureSummary,
     FeatureWaveState,
     FinalVerificationResult,
     Fix,
@@ -248,6 +250,7 @@ __all__ = [
     "DiffScore",
     "FeaturePlan",
     "FeatureState",
+    "FeatureSummary",
     "FeatureWaveState",
     "FinalVerificationResult",
     "Fix",
@@ -309,6 +312,7 @@ __all__ = [
     "format_session_cost",
     "format_wave_result",
     "format_work_orders",
+    "generate_feature_summary",
     "git",
     "git_changed_files_for_commit",
     "git_name_status_for_commit",
