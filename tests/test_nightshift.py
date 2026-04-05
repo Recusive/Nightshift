@@ -1493,6 +1493,26 @@ class TestReadRepoInstructionsTruncation:
         result = nightshift.read_repo_instructions(tmp_path)
         assert result.count("[WARNING:") >= 2
 
+    def test_total_content_bytes_within_budget(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES, MAX_INSTRUCTION_TOTAL_BYTES
+
+        # Fill 3 files just under per-file limit + a 4th that triggers total-cap.
+        # The total content (including warnings) must stay within budget.
+        file_size = MAX_INSTRUCTION_FILE_BYTES - 40
+        (tmp_path / "CLAUDE.md").write_text("c" * file_size)
+        (tmp_path / "AGENTS.md").write_text("a" * file_size)
+        (tmp_path / ".cursorrules").write_text("r" * file_size)
+        (tmp_path / "CONTRIBUTING.md").write_text("x" * 5000)
+        result = nightshift.read_repo_instructions(tmp_path)
+        # Strip section markers (--- name --- / --- end name ---) to measure
+        # only the content tracked by the total budget.
+        content_bytes = 0
+        for section in result.split("\n\n"):
+            for line in section.split("\n"):
+                if not line.startswith("--- ") or not line.endswith(" ---"):
+                    content_bytes += len(line.encode("utf-8")) + 1  # +1 for newline
+        assert content_bytes <= MAX_INSTRUCTION_TOTAL_BYTES + 500  # generous margin for markers
+
 
 # --- Wrap Repo Instructions --------------------------------------------------
 

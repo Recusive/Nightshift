@@ -95,7 +95,7 @@ def read_repo_instructions(repo_dir: Path) -> str:
                         f"\n\n[WARNING: {name} truncated from {content_bytes:,} bytes"
                         f" to {MAX_INSTRUCTION_FILE_BYTES:,} bytes]"
                     )
-                    content_bytes = MAX_INSTRUCTION_FILE_BYTES
+                    content_bytes = len(content.encode("utf-8"))
                 remaining = MAX_INSTRUCTION_TOTAL_BYTES - total_bytes
                 if remaining <= 0:
                     sections.append(
@@ -106,12 +106,14 @@ def read_repo_instructions(repo_dir: Path) -> str:
                     )
                     continue
                 if content_bytes > remaining:
-                    content = content.encode("utf-8")[:remaining].decode("utf-8", errors="ignore").rstrip()
-                    content += (
+                    warning = (
                         f"\n\n[WARNING: {name} truncated -- total instruction size cap"
                         f" ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]"
                     )
-                    content_bytes = remaining
+                    warning_bytes = len(warning.encode("utf-8"))
+                    slice_bytes = max(remaining - warning_bytes, 0)
+                    content = content.encode("utf-8")[:slice_bytes].decode("utf-8", errors="ignore").rstrip() + warning
+                    content_bytes = len(content.encode("utf-8"))
                 total_bytes += content_bytes
                 sections.append(f"--- {name} ---\n{content}\n--- end {name} ---")
             except OSError:

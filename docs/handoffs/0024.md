@@ -6,7 +6,7 @@
 ## What I Built
 - **Task #0036** (instruction file size cap): Added per-file and total size caps to `read_repo_instructions()`. Files exceeding 10 KB are truncated; total across all files capped at 30 KB. Truncation warnings injected into output so agent knows content was cut. Files that would push past total budget are skipped entirely with a warning.
 - Files modified: `nightshift/constants.py`, `nightshift/cycle.py`, `tests/test_nightshift.py`
-- Tests: +6 new (per-file truncation, total-cap truncation, total-cap skip, UTF-8 safety, multiple truncated, within-limit), 606 total passing
+- Tests: +7 new (per-file truncation, total-cap truncation, total-cap skip, UTF-8 safety, multiple truncated, within-limit, total budget assertion), 607 total passing
 
 ## Decisions Made
 - Per-file limit 10 KB, total limit 30 KB (3x per-file) -- enough for real instruction files, small enough to prevent context flooding
@@ -28,7 +28,7 @@
 - Meta-Prompt: 57% (4/7) -- unchanged
 - Overall: 76% (weighted) -- unchanged
 - Version: v0.0.7 in progress
-- Test count: 606
+- Test count: 607
 
 ## Evaluate
 Run evaluation against Phractal for the changes merged this session.
