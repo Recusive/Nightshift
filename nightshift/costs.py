@@ -58,8 +58,7 @@ def parse_session_tokens(log_path: str) -> SessionCost:
             cache_read_tokens += _int(usage.get("cache_read_input_tokens"))
             output_tokens += _int(usage.get("output_tokens"))
 
-    return _empty_cost("", "", model, input_tokens, cache_creation_tokens,
-                        cache_read_tokens, output_tokens)
+    return _empty_cost("", "", model, input_tokens, cache_creation_tokens, cache_read_tokens, output_tokens)
 
 
 def calculate_cost(
@@ -147,9 +146,7 @@ def record_session(
 
     ledger = read_ledger(ledger_path)
     ledger["sessions"].append(entry)
-    ledger["total_cost_usd"] = round(
-        ledger["total_cost_usd"] + cost_usd, 6
-    )
+    ledger["total_cost_usd"] = round(ledger["total_cost_usd"] + cost_usd, 6)
     write_ledger(ledger_path, ledger)
 
     return entry
@@ -163,10 +160,7 @@ def total_cost(ledger_path: str) -> float:
 def format_session_cost(cost: SessionCost) -> str:
     """Format a session cost as a human-readable one-liner."""
     total_tokens = (
-        cost["input_tokens"]
-        + cost["cache_creation_tokens"]
-        + cost["cache_read_tokens"]
-        + cost["output_tokens"]
+        cost["input_tokens"] + cost["cache_creation_tokens"] + cost["cache_read_tokens"] + cost["output_tokens"]
     )
     return (
         f"Tokens: {total_tokens:,} "

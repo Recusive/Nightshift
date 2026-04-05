@@ -6233,20 +6233,24 @@ def _make_log_lines(
     # System init event (no usage)
     lines.append(json.dumps({"type": "system", "subtype": "init"}))
     for i in range(messages):
-        lines.append(json.dumps({
-            "type": "assistant",
-            "message": {
-                "model": model,
-                "role": "assistant",
-                "content": [{"type": "text", "text": f"msg {i}"}],
-                "usage": {
-                    "input_tokens": input_tokens,
-                    "cache_creation_input_tokens": cache_creation,
-                    "cache_read_input_tokens": cache_read,
-                    "output_tokens": output_tokens,
-                },
-            },
-        }))
+        lines.append(
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {
+                        "model": model,
+                        "role": "assistant",
+                        "content": [{"type": "text", "text": f"msg {i}"}],
+                        "usage": {
+                            "input_tokens": input_tokens,
+                            "cache_creation_input_tokens": cache_creation,
+                            "cache_read_input_tokens": cache_read,
+                            "output_tokens": output_tokens,
+                        },
+                    },
+                }
+            )
+        )
     return lines
 
 
@@ -6301,13 +6305,15 @@ class TestParseSessionTokens:
 
     def test_missing_usage_fields_default_zero(self, tmp_path: Path) -> None:
         log = tmp_path / "partial.log"
-        line = json.dumps({
-            "type": "assistant",
-            "message": {
-                "model": "claude-opus-4-6",
-                "usage": {"output_tokens": 50},
-            },
-        })
+        line = json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "model": "claude-opus-4-6",
+                    "usage": {"output_tokens": 50},
+                },
+            }
+        )
         log.write_text(line + "\n")
         cost = nightshift.parse_session_tokens(str(log))
         assert cost["output_tokens"] == 50
@@ -6410,16 +6416,18 @@ class TestReadWriteLedger:
         path = str(tmp_path / "costs.json")
         original: nightshift.CostLedger = {
             "total_cost_usd": 1.5,
-            "sessions": [{
-                "session_id": "20260404-120000",
-                "agent": "claude",
-                "model": "claude-opus-4-6",
-                "input_tokens": 100,
-                "cache_creation_tokens": 200,
-                "cache_read_tokens": 300,
-                "output_tokens": 400,
-                "total_cost_usd": 1.5,
-            }],
+            "sessions": [
+                {
+                    "session_id": "20260404-120000",
+                    "agent": "claude",
+                    "model": "claude-opus-4-6",
+                    "input_tokens": 100,
+                    "cache_creation_tokens": 200,
+                    "cache_read_tokens": 300,
+                    "output_tokens": 400,
+                    "total_cost_usd": 1.5,
+                }
+            ],
         }
         nightshift.write_ledger(path, original)
         loaded = nightshift.read_ledger(path)
@@ -6447,7 +6455,10 @@ class TestRecordSession:
         ledger_path = str(tmp_path / "costs.json")
 
         entry = nightshift.record_session(
-            str(log), ledger_path, "20260404-120000", "claude",
+            str(log),
+            ledger_path,
+            "20260404-120000",
+            "claude",
         )
         assert entry["session_id"] == "20260404-120000"
         assert entry["agent"] == "claude"
@@ -6458,18 +6469,25 @@ class TestRecordSession:
 
         # Second session accumulates
         entry2 = nightshift.record_session(
-            str(log), ledger_path, "20260404-130000", "claude",
+            str(log),
+            ledger_path,
+            "20260404-130000",
+            "claude",
         )
         ledger = nightshift.read_ledger(ledger_path)
         assert len(ledger["sessions"]) == 2
         assert ledger["total_cost_usd"] == round(
-            entry["total_cost_usd"] + entry2["total_cost_usd"], 6,
+            entry["total_cost_usd"] + entry2["total_cost_usd"],
+            6,
         )
 
     def test_missing_log_records_zero_cost(self, tmp_path: Path) -> None:
         ledger_path = str(tmp_path / "costs.json")
         entry = nightshift.record_session(
-            "/nonexistent/log.jsonl", ledger_path, "test-session", "claude",
+            "/nonexistent/log.jsonl",
+            ledger_path,
+            "test-session",
+            "claude",
         )
         assert entry["total_cost_usd"] == 0.0
         assert entry["input_tokens"] == 0
