@@ -49,9 +49,39 @@ Also check:
 - Is the task queue growing or shrinking?
 - Are learnings being repeated (same mistake multiple times)?
 
+### Prompt effectiveness evidence
+
+You are also auditing whether the system prompt is actually helping.
+
+1. Read the last 10 builder session logs in `docs/sessions/*.log`
+2. For each session, capture:
+   - session id
+   - duration
+   - cost (from `docs/sessions/index.md` or `docs/sessions/costs.json`)
+   - exit status
+   - tracker delta
+   - whether tasks were skipped or blocked
+   - whether CI or post-merge health failed
+   - whether the session was marked `[PROMPT MODIFIED]`
+3. Read the current prompt/control files with line numbers using `nl -ba`:
+   - `docs/prompt/evolve.md`
+   - `docs/prompt/evolve-auto.md`
+   - `docs/prompt/review.md`
+   - `docs/prompt/overseer.md`
+   - `docs/prompt/strategist.md`
+4. For each session, identify which prompt instructions were directly relevant.
+   Examples: shell-script work should reference shell portability or `make check`;
+   task-picking sessions should reference queue-order instructions; prompt/self
+   edits should reference self-modification and documentation steps.
+5. Classify prompt instructions into:
+   - helping: followed and correlated with good outcomes
+   - ignored: relevant but repeatedly skipped or worked around
+   - harmful/confusing: created friction, redundant work, or contradictory behavior
+6. Only make claims you can tie to prompt file lines plus session evidence.
+
 ## STEP 2 — DIAGNOSE
 
-Organize your findings into three buckets:
+Organize your findings into four buckets:
 
 ### What's Working
 Things the system is doing well. Be specific — which processes, which prompts, which checks are actually catching problems or producing good output.
@@ -62,6 +92,18 @@ Things that are broken, slow, wasteful, or producing bad results. Reference the 
 ### What's Missing
 Gaps in the system that no current process addresses. Things that a human CTO would notice but the automated system can't see.
 
+### Prompt Health
+Add a fourth diagnostic section for prompt effectiveness:
+
+- Which prompt instructions clearly improved outcomes?
+- Which instructions were routinely ignored?
+- Which instructions were relevant but too vague, conflicting, or over-specified?
+- Which missing instructions would have prevented repeated failures?
+
+Every prompt-health point must cite both:
+- prompt file + line reference, for example `docs/prompt/evolve.md:120-138`
+- session evidence, for example a specific session id, handoff, evaluation, or PR
+
 ## STEP 3 — RECOMMEND
 
 For each failing or missing item, write a concrete recommendation:
@@ -70,11 +112,20 @@ For each failing or missing item, write a concrete recommendation:
 RECOMMENDATION: [short title]
 Problem: [one sentence — what's wrong]
 Evidence: [specific PR, commit, handoff, or log reference]
+Prompt refs: [specific prompt file + line numbers, or "none"]
 Fix: [what to change — specific enough to become a task]
 Impact: [what improves if this is fixed]
 ```
 
 Limit to 3-5 recommendations. More than that dilutes focus.
+
+For prompt-health recommendations, the `Fix` must be an actual edit action:
+- add a missing instruction
+- remove a stale instruction
+- split one overloaded instruction into two smaller ones
+- reword an instruction that sessions repeatedly misread
+
+Do not write vague advice like "improve the prompt."
 
 ## STEP 4 — WRITE THE REPORT
 
@@ -100,11 +151,23 @@ Save to `docs/strategy/YYYY-MM-DD.md`:
 ## What's Missing
 1. [gap with explanation]
 
+## Prompt Health
+
+### Instructions helping
+- `[file:lines]` — [why it appears to help, with session evidence]
+
+### Instructions ignored or confusing
+- `[file:lines]` — [what happened in sessions, with evidence]
+
+### Candidate prompt edits
+- [specific add/remove/reword recommendation tied to evidence]
+
 ## Recommendations
 
 ### 1. [Title]
 **Problem**: ...
 **Evidence**: ...
+**Prompt refs**: ...
 **Fix**: ...
 **Impact**: ...
 
@@ -113,7 +176,7 @@ Save to `docs/strategy/YYYY-MM-DD.md`:
 
 ## Decision Required
 
-[If any recommendation needs human input — e.g., "should we prioritize Loop 2 over Loop 1 polish?" — state the question clearly here. The human reads this section and responds.]
+[If any recommendation needs human input — e.g., "should we prioritize Loop 2 over Loop 1 polish?" — state the question clearly here. The human reads this section and responds. Prompt edits are advisory only until the human approves them into task files.]
 ```
 
 ## STEP 5 — PRESENT TO HUMAN

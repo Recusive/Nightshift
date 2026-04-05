@@ -461,10 +461,11 @@ Runs ONCE. Not a loop. Produces a strategy report for the human.
 ### What it does
 
 1. Reads git log, merged PRs, handoffs, evaluations, learnings, session indices
-2. Analyzes: what's working, what's failing, what's missing
-3. Writes 3-5 concrete recommendations with evidence
-4. Saves report to `docs/strategy/YYYY-MM-DD.md`
-5. Presents to the human for decisions
+2. Samples the last 10 builder session logs and the active prompt files to judge prompt effectiveness
+3. Analyzes: what's working, what's failing, what's missing, and which prompt instructions help vs. hinder
+4. Writes 3-5 concrete recommendations with evidence, including prompt file line references when a prompt edit is suggested
+5. Saves report to `docs/strategy/YYYY-MM-DD.md`
+6. Presents to the human for decisions
 
 ### Running it
 
@@ -482,6 +483,13 @@ You read the report. For each recommendation:
 - "Yes" — create a task in `docs/tasks/` (the strategist can do this for you)
 - "No" — explain why, strategist notes the feedback
 - "Later" — skip it, it'll come up in the next review
+
+The report now includes a `Prompt Health` section:
+- `Instructions helping` — prompt rules that correlate with good sessions
+- `Instructions ignored or confusing` — prompt rules that sessions repeatedly skip or misread
+- `Candidate prompt edits` — add/remove/reword suggestions backed by prompt line refs and session evidence
+
+Prompt edits remain advisory. The strategist does not auto-edit prompt files; approved changes become normal builder tasks.
 
 The builder daemon picks up the resulting tasks.
 
