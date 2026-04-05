@@ -70,7 +70,25 @@ tmux send-keys -t nightshift C-c            # graceful (after current session)
 tmux kill-session -t nightshift             # immediate
 ```
 
-**WARNING: The daemon and the monitor/human share the same working directory.** Do not run `git checkout`, `git stash`, or any branch-switching commands while the daemon is mid-session — it will corrupt or lose the daemon's uncommitted work. Wait for the between-session cooldown (daemon resets to main between sessions) or read-only commands only (`git log`, `git status`, `gh pr list`, etc.).
+**WARNING: The daemon and the monitor/human share the same working directory.** Do not run `git checkout`, `git stash`, or any branch-switching commands while the daemon is mid-session — it will corrupt or lose the daemon's uncommitted work.
+
+**Making changes while the daemon is running:** Use a git worktree in `/tmp` instead of touching the main repo:
+
+```bash
+# Check if daemon is running
+tmux has-session -t nightshift 2>&1 && echo "RUNNING" || echo "NOT RUNNING"
+
+# If RUNNING: use a worktree (safe — isolated copy, daemon unaffected)
+git worktree add /tmp/nightshift-work origin/main -b docs/my-change
+# ... make changes in /tmp/nightshift-work/ ...
+cd /tmp/nightshift-work && git add . && git commit -m "..." && git push origin docs/my-change
+gh pr create --head docs/my-change && gh pr merge --merge --delete-branch --admin
+git worktree remove /tmp/nightshift-work
+
+# If NOT RUNNING: work directly in the repo as normal
+git checkout -b docs/my-change
+# ... make changes ...
+```
 
 Full daemon operations guide with troubleshooting: `docs/ops/DAEMON.md`
 
