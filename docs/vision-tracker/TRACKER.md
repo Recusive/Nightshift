@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0046 (typed handoff parsing + evaluation rerun).
+Last updated: 2026-04-05 by agent session #0047 (strategist prompt health + evaluation rerun).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,10 +9,10 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ██████████████████░░  90%
+NIGHTSHIFT VISION                              ██████████████████░░  91%
 ├── Loop 1 — Hardening Loop                    ████████████████████  99%
 ├── Loop 2 — Feature Builder Loop              ████████████████████ 100%
-├── Self-Maintaining Repo                      ████████████░░░░░░░░  60%
+├── Self-Maintaining Repo                      ██████████████░░░░░░  68%
 └── Meta-Prompt System                         ████████████████░░░░  76%
 ```
 
@@ -74,9 +74,9 @@ All Loop 2 components are complete: profiling, planning, decomposition, sub-agen
 
 ---
 
-## Self-Maintaining Repo (60%)
+## Self-Maintaining Repo (68%)
 
-The infrastructure that lets the agent manage everything without human intervention.
+The infrastructure that lets the agent manage everything without human intervention. Prompt self-refinement is now active via strategist `Prompt Health` reports, but the rest of the automation backlog is still the main bottleneck.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -92,7 +92,7 @@ The infrastructure that lets the agent manage everything without human intervent
 | Auto-changelog update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-tracker update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-CLAUDE.md update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
-| Prompt self-refinement | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Prompt self-refinement | Done | ████████████████████ 100% |
 
 ---
 
