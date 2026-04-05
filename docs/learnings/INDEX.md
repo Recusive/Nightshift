@@ -36,6 +36,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [gh issue labels are nested objects](2026-04-05-gh-issue-json-labels-nested.md) — `gh issue list --json labels` returns `[{"name":...}]` not strings; access `.name`
 - [Shell expansion mangles markdown](2026-04-05-shell-expansion-mangles-markdown.md) — Never use `$(cat file.md)` for prompts containing backticks/$; merge into agent step or use heredoc
 - [Reuse planner functions](2026-04-03-reuse-existing-functions.md) — Don't reimplement; import from existing modules
+- [Agent scope separation mirrors module separation](2026-04-05-agent-scope-separation-mirrors-module-separation.md) — If a review agent needs "skip these checks when X" fast paths, it should be split into specialists
 - [Code structure rules work](2026-04-03-code-structure-rules-work.md) — CLAUDE.md structure rules catch real violations at review time
 - [Plan agent is simpler than cycle agent](2026-04-04-plan-agent-simpler-than-cycle.md) — Plan invocation needs fewer args than full cycle
 - [Symlink check before is_file](2026-04-04-symlink-before-is-file.md) — Check is_symlink() first for security; symlinks pass is_file()
