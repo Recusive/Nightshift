@@ -6387,6 +6387,423 @@ class TestIntegratorTypes:
         assert result["files_staged"] == ["a.py"]
 
 
+# --- Feature Summary Generation -----------------------------------------------
+
+
+def _make_feature_state_for_summary(**overrides: object) -> nightshift.FeatureState:
+    """Build a minimal FeatureState with wave results for summary tests."""
+    plan = _make_feature_plan()
+    profile = nightshift.RepoProfile(
+        languages={"Python": 10},
+        primary_language="Python",
+        frameworks=[],
+        package_manager=None,
+        test_runner="pytest",
+        instruction_files=[],
+        top_level_dirs=["src", "tests"],
+        has_monorepo_markers=False,
+        total_files=20,
+    )
+    defaults: dict[str, object] = {
+        "version": 1,
+        "feature_description": "Add dark mode",
+        "agent": "claude",
+        "status": "completed",
+        "scope_warning": "",
+        "current_wave": 0,
+        "profile": profile,
+        "plan": plan,
+        "waves": [
+            nightshift.FeatureWaveState(
+                wave=1,
+                task_ids=[1],
+                status="passed",
+                wave_result=nightshift.WaveResult(
+                    wave=1,
+                    completed=[
+                        nightshift.TaskCompletion(
+                            task_id=1,
+                            status="done",
+                            files_created=["src/theme.py", "tests/test_theme.py"],
+                            files_modified=["src/settings.py"],
+                            tests_written=["test theme toggle", "test default theme"],
+                            tests_passed=True,
+                            notes="",
+                        ),
+                    ],
+                    failed=[],
+                    total_tasks=1,
+                ),
+                integration_result=None,
+            ),
+            nightshift.FeatureWaveState(
+                wave=2,
+                task_ids=[2],
+                status="passed",
+                wave_result=nightshift.WaveResult(
+                    wave=2,
+                    completed=[
+                        nightshift.TaskCompletion(
+                            task_id=2,
+                            status="done",
+                            files_created=["src/components/toggle.py"],
+                            files_modified=["src/settings.py"],
+                            tests_written=["test toggle renders"],
+                            tests_passed=True,
+                            notes="",
+                        ),
+                    ],
+                    failed=[],
+                    total_tasks=1,
+                ),
+                integration_result=None,
+            ),
+        ],
+        "final_verification": None,
+        "summary": None,
+    }
+    defaults.update(overrides)
+    return nightshift.FeatureState(**defaults)  # type: ignore[arg-type]
+
+
+class TestGenerateFeatureSummary:
+    def test_collects_files_created(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        assert "src/theme.py" in summary["files_created"]
+        assert "tests/test_theme.py" in summary["files_created"]
+        assert "src/components/toggle.py" in summary["files_created"]
+
+    def test_collects_files_modified(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        # settings.py appears in both waves but should only appear once
+        assert summary["files_modified"] == ["src/settings.py"]
+
+    def test_files_in_both_created_and_modified_only_in_created(self) -> None:
+        """A file that appears in both created and modified should only be in created."""
+        state = _make_feature_state_for_summary(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/new.py"],
+                                files_modified=["src/new.py"],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert "src/new.py" in summary["files_created"]
+        assert "src/new.py" not in summary["files_modified"]
+
+    def test_collects_tests_added(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        assert len(summary["tests_added"]) == 3
+        assert "test theme toggle" in summary["tests_added"]
+        assert "test toggle renders" in summary["tests_added"]
+
+    def test_task_counts(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        assert summary["total_tasks"] == 2
+        assert summary["completed_tasks"] == 2
+        assert summary["failed_tasks"] == 0
+
+    def test_failed_task_counted(self) -> None:
+        state = _make_feature_state_for_summary(
+            status="failed",
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="failed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[],
+                        failed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="blocked",
+                                files_created=[],
+                                files_modified=[],
+                                tests_written=[],
+                                tests_passed=False,
+                                notes="blocked",
+                            ),
+                        ],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert summary["failed_tasks"] == 1
+        assert summary["completed_tasks"] == 0
+
+    def test_detects_api_pattern(self) -> None:
+        state = _make_feature_state_for_summary(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/api/users.py"],
+                                files_modified=[],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert "New or modified API endpoints" in summary["patterns_detected"]
+
+    def test_detects_cli_pattern(self) -> None:
+        state = _make_feature_state_for_summary(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=[],
+                                files_modified=["src/cli/main.py"],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert "New or modified CLI commands" in summary["patterns_detected"]
+
+    def test_detects_new_python_modules(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        assert any("Python module" in p for p in summary["patterns_detected"])
+
+    def test_detects_new_test_files(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        assert any("test file" in p for p in summary["patterns_detected"])
+
+    def test_detects_db_pattern(self) -> None:
+        state = _make_feature_state_for_summary(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/models/user.py"],
+                                files_modified=[],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert "Database or model changes" in summary["patterns_detected"]
+
+    def test_detects_config_pattern(self) -> None:
+        state = _make_feature_state_for_summary(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=[],
+                                files_modified=["config/settings.py"],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert "Configuration changes" in summary["patterns_detected"]
+
+    def test_description_includes_feature_name(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        assert "Add dark mode" in summary["description"]
+
+    def test_description_includes_completed_status(self) -> None:
+        state = _make_feature_state_for_summary()
+        summary = nightshift.generate_feature_summary(state)
+        assert "2/2 tasks completed" in summary["description"]
+
+    def test_description_shows_failed_status(self) -> None:
+        state = _make_feature_state_for_summary(status="failed")
+        summary = nightshift.generate_feature_summary(state)
+        assert "failed" in summary["description"]
+
+    def test_empty_waves_no_wave_results(self) -> None:
+        state = _make_feature_state_for_summary(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="pending",
+                    wave_result=None,
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert summary["files_created"] == []
+        assert summary["files_modified"] == []
+        assert summary["tests_added"] == []
+        assert summary["completed_tasks"] == 0
+
+    def test_no_patterns_when_no_files(self) -> None:
+        state = _make_feature_state_for_summary(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=[],
+                                files_modified=[],
+                                tests_written=["a test"],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        summary = nightshift.generate_feature_summary(state)
+        assert summary["patterns_detected"] == []
+
+
+class TestFeatureSummaryType:
+    def test_feature_summary_fields(self) -> None:
+        summary = nightshift.FeatureSummary(
+            files_created=["a.py"],
+            files_modified=["b.py"],
+            tests_added=["test_a"],
+            total_tasks=2,
+            completed_tasks=1,
+            failed_tasks=1,
+            patterns_detected=["New or modified API endpoints"],
+            description="Built feature.",
+        )
+        assert summary["files_created"] == ["a.py"]
+        assert summary["total_tasks"] == 2
+        assert summary["description"] == "Built feature."
+
+
+class TestFeatureStatusWithSummary:
+    def test_format_includes_summary(self) -> None:
+        state = _make_feature_state_for_summary()
+        state["summary"] = nightshift.generate_feature_summary(state)
+        output = nightshift.format_feature_status(state)
+        assert "## Summary" in output
+        assert "Add dark mode" in output
+
+    def test_format_no_summary(self) -> None:
+        state = _make_feature_state_for_summary()
+        output = nightshift.format_feature_status(state)
+        # With summary=None, the Summary section should not appear
+        assert "## Summary" not in output
+
+
+class TestFeatureStateRoundTrip:
+    def test_read_write_with_summary(self, tmp_path: Path) -> None:
+        state = _make_feature_state_for_summary()
+        state["summary"] = nightshift.generate_feature_summary(state)
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["summary"] is not None
+        assert loaded["summary"]["files_created"] == state["summary"]["files_created"]
+        assert loaded["summary"]["description"] == state["summary"]["description"]
+        assert loaded["summary"]["completed_tasks"] == state["summary"]["completed_tasks"]
+
+    def test_read_write_without_summary(self, tmp_path: Path) -> None:
+        state = _make_feature_state_for_summary()
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["summary"] is None
+
+
 # --- Cost Tracking -----------------------------------------------------------
 
 

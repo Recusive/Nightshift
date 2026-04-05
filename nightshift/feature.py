@@ -25,9 +25,11 @@ from nightshift.profiler import profile_repo
 from nightshift.shell import command_exists, run_command, run_test_command
 from nightshift.state import load_json, write_json
 from nightshift.subagent import spawn_wave
+from nightshift.summary import generate_feature_summary
 from nightshift.types import (
     FeaturePlan,
     FeatureState,
+    FeatureSummary,
     FeatureWaveState,
     FinalVerificationResult,
     FixAttempt,
@@ -208,6 +210,33 @@ def _build_final_verification(raw: object) -> FinalVerificationResult | None:
     )
 
 
+def _build_feature_summary(raw: object) -> FeatureSummary | None:
+    if not isinstance(raw, dict):
+        return None
+
+    files_created = raw.get("files_created")
+    files_modified = raw.get("files_modified")
+    tests_added = raw.get("tests_added")
+    patterns_detected = raw.get("patterns_detected")
+
+    return FeatureSummary(
+        files_created=[item for item in files_created if isinstance(item, str)]
+        if isinstance(files_created, list)
+        else [],
+        files_modified=[item for item in files_modified if isinstance(item, str)]
+        if isinstance(files_modified, list)
+        else [],
+        tests_added=[item for item in tests_added if isinstance(item, str)] if isinstance(tests_added, list) else [],
+        total_tasks=int(raw.get("total_tasks", 0)) if isinstance(raw.get("total_tasks"), int) else 0,
+        completed_tasks=int(raw.get("completed_tasks", 0)) if isinstance(raw.get("completed_tasks"), int) else 0,
+        failed_tasks=int(raw.get("failed_tasks", 0)) if isinstance(raw.get("failed_tasks"), int) else 0,
+        patterns_detected=[item for item in patterns_detected if isinstance(item, str)]
+        if isinstance(patterns_detected, list)
+        else [],
+        description=str(raw.get("description", "")),
+    )
+
+
 def read_feature_state(state_path: Path) -> FeatureState:
     """Read and validate persisted feature-build state from disk."""
     raw = load_json(state_path)
@@ -239,6 +268,7 @@ def read_feature_state(state_path: Path) -> FeatureState:
         plan=plan,
         waves=waves,
         final_verification=_build_final_verification(raw.get("final_verification")),
+        summary=_build_feature_summary(raw.get("summary")),
     )
 
 
@@ -323,6 +353,7 @@ def new_feature_state(
         plan=plan,
         waves=_build_wave_states(plan, profile),
         final_verification=None,
+        summary=None,
     )
 
 
@@ -373,6 +404,21 @@ def format_feature_status(state: FeatureState) -> str:
             lines.append(f"Tests: exit {final['test_exit_code']} via `{final['test_command']}`")
         if final["lint_command"] is not None:
             lines.append(f"Lint: exit {final['lint_exit_code']} via `{final['lint_command']}`")
+        lines.append("")
+
+    summary = state["summary"]
+    if summary is not None:
+        lines.append("## Summary")
+        lines.append("")
+        lines.append(summary["description"])
+        if summary["files_created"]:
+            lines.append(f"**Files created**: {', '.join(summary['files_created'])}")
+        if summary["files_modified"]:
+            lines.append(f"**Files modified**: {', '.join(summary['files_modified'])}")
+        if summary["tests_added"]:
+            lines.append(f"**Tests added**: {len(summary['tests_added'])}")
+        if summary["patterns_detected"]:
+            lines.append(f"**Patterns**: {', '.join(summary['patterns_detected'])}")
         lines.append("")
 
     return "\n".join(lines)
@@ -548,6 +594,7 @@ def build_feature(
     )
     fv = state["final_verification"]
     state["status"] = "completed" if fv is not None and fv["status"] == "passed" else "failed"
+    state["summary"] = generate_feature_summary(state)
     write_feature_state(state_path, state)
     print_status(format_feature_status(state))
     return 0 if state["status"] == "completed" else 1

@@ -298,6 +298,19 @@ class FeatureWaveState(TypedDict):
     integration_result: IntegrationResult | None
 
 
+class FeatureSummary(TypedDict):
+    """Structured summary of a completed feature build."""
+
+    files_created: list[str]
+    files_modified: list[str]
+    tests_added: list[str]
+    total_tasks: int
+    completed_tasks: int
+    failed_tasks: int
+    patterns_detected: list[str]
+    description: str
+
+
 class FeatureState(TypedDict):
     """Persisted state for the Loop 2 feature build orchestrator."""
 
@@ -311,6 +324,7 @@ class FeatureState(TypedDict):
     plan: FeaturePlan
     waves: list[FeatureWaveState]
     final_verification: FinalVerificationResult | None
+    summary: FeatureSummary | None
 
 
 # --- Cost tracking types ----------------------------------------------------
