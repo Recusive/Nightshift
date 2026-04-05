@@ -124,7 +124,7 @@ while true; do
 
     # --- Self-restart: if daemon.sh changed, exec into new version ---
     NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon.sh" 2>/dev/null | cut -d' ' -f1)
-    if [ -n "$_DAEMON_HASH" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
+    if [ -n "${_DAEMON_HASH:-}" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
         echo "  daemon.sh changed on main — restarting with new code..."
         exec bash "$SCRIPT_DIR/daemon.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
     fi
