@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, TypedDict
+from typing import TypedDict
 
 from nightshift.constants import AGENT_DEFAULT_MODELS, COST_LEDGER_FILENAME, MODEL_PRICING
 from nightshift.types import CostAnalysis, CostLedger, CostOutlier, ModelEfficiency, SessionCost, TaskTypeCostStats
@@ -320,7 +321,7 @@ def _empty_cost(
     cache_creation_tokens: int = 0,
     cache_read_tokens: int = 0,
     output_tokens: int = 0,
-    ) -> SessionCost:
+) -> SessionCost:
     """Build a SessionCost dict."""
     return {
         "session_id": session_id,

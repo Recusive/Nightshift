@@ -7432,7 +7432,10 @@ class TestRecordSession:
         claude_log = tmp_path / "claude.log"
         codex_log = tmp_path / "codex.log"
         claude_log.write_text("\n".join(_make_log_lines(messages=1, input_tokens=10, output_tokens=40)) + "\n")
-        codex_log.write_text("\n".join(_make_codex_log_lines(turns=1, input_tokens=500, cached_input_tokens=400, output_tokens=25)) + "\n")
+        codex_log.write_text(
+            "\n".join(_make_codex_log_lines(turns=1, input_tokens=500, cached_input_tokens=400, output_tokens=25))
+            + "\n"
+        )
         ledger_path = str(tmp_path / "costs.json")
 
         entry = nightshift.record_session_bundle(
