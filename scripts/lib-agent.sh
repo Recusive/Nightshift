@@ -24,6 +24,7 @@ PROMPT_GUARD_FILES=(
     "CLAUDE.md"
     "docs/prompt/evolve.md"
     "docs/prompt/evolve-auto.md"
+    "docs/prompt/pentest.md"
     "docs/prompt/review.md"
     "docs/prompt/overseer.md"
     "docs/prompt/strategist.md"
@@ -701,6 +702,53 @@ run_agent() {
             ;;
     esac
     set -e
+}
+
+# extract_result_summary LOG_FILE [MAX_CHARS] [MAX_LINES]
+# Pull the final result text out of a stream-json session log and trim it for
+# safe prompt injection into a follow-up agent run.
+extract_result_summary() {
+    local log_file="$1"
+    local max_chars="${2:-4000}"
+    local max_lines="${3:-40}"
+
+    python3 - "$log_file" "$max_chars" "$max_lines" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+log_path = Path(sys.argv[1])
+max_chars = int(sys.argv[2])
+max_lines = int(sys.argv[3])
+
+if not log_path.exists():
+    raise SystemExit(0)
+
+result_text = ""
+for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+    stripped = raw_line.strip()
+    if not stripped:
+        continue
+    try:
+        event = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        continue
+    if event.get("type") != "result":
+        continue
+    payload = event.get("result")
+    if isinstance(payload, str) and payload.strip():
+        result_text = payload.strip()
+
+if not result_text:
+    raise SystemExit(0)
+
+lines = [line.rstrip() for line in result_text.splitlines()]
+trimmed = "\n".join(lines[:max_lines]).strip()
+if len(trimmed) > max_chars:
+    trimmed = trimmed[: max_chars - 3].rstrip() + "..."
+
+print(trimmed)
+PY
 }
 
 # ----------------------------------------------

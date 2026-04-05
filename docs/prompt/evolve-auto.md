@@ -1,5 +1,11 @@
 AUTONOMOUS MODE — No human is present. Do NOT wait for confirmation.
 
+PENTEST HANDOFF RULE: The builder daemon may prepend a `PENTEST REPORT FROM
+PRE-BUILD RED TEAM` block before this prompt. Treat any `Fix now` / `Builder
+handoff` items in that block as your highest-priority internal work for the
+session. Validate them first, fix what is real, and explicitly explain any
+false positives or already-fixed findings in the handoff.
+
 Override for Step 3: Instead of presenting a proposal and waiting for "go",
 present the proposal and IMMEDIATELY proceed to Step 4 (build). You are
 the sole decision-maker.
@@ -80,4 +86,3 @@ DAEMON CONTEXT: You are running inside `scripts/daemon.sh` via tmux.
 - Full daemon docs: `docs/ops/DAEMON.md`
 
 ---
-

@@ -6,7 +6,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import TypedDict
+from typing import Sequence, TypedDict
 
 from nightshift.constants import AGENT_DEFAULT_MODELS, COST_LEDGER_FILENAME, MODEL_PRICING
 from nightshift.types import CostAnalysis, CostLedger, CostOutlier, ModelEfficiency, SessionCost, TaskTypeCostStats
@@ -173,28 +173,47 @@ def record_session(
     """Parse a session log, calculate cost, append to the ledger, and return the cost entry."""
     model_hint = AGENT_DEFAULT_MODELS.get(agent, "")
     tokens = parse_session_tokens(log_path, model_hint=model_hint)
-    cost_usd = calculate_cost(
-        tokens["model"],
-        tokens["input_tokens"],
-        tokens["cache_creation_tokens"],
-        tokens["cache_read_tokens"],
-        tokens["output_tokens"],
-    )
-
-    entry: SessionCost = {
-        "session_id": session_id,
-        "agent": agent,
-        "model": tokens["model"],
-        "input_tokens": tokens["input_tokens"],
-        "cache_creation_tokens": tokens["cache_creation_tokens"],
-        "cache_read_tokens": tokens["cache_read_tokens"],
-        "output_tokens": tokens["output_tokens"],
-        "total_cost_usd": cost_usd,
-    }
+    entry = _session_entry_from_parts(session_id, agent, [tokens])
 
     ledger = read_ledger(ledger_path)
     ledger["sessions"].append(entry)
-    ledger["total_cost_usd"] = round(ledger["total_cost_usd"] + cost_usd, 6)
+    ledger["total_cost_usd"] = round(ledger["total_cost_usd"] + entry["total_cost_usd"], 6)
+    write_ledger(ledger_path, ledger)
+
+    return entry
+
+
+def record_session_bundle(
+    log_paths: Sequence[str],
+    ledger_path: str,
+    session_id: str,
+    agent: str,
+    *,
+    part_agents: Sequence[str] | None = None,
+) -> SessionCost:
+    """Record one logical session whose work spans multiple stream-json logs.
+
+    This is used when the daemon runs a short red-team/pentest preflight before
+    the main builder session. The bundle is recorded as a single ledger row so
+    session costs stay aligned with the builder index.
+    """
+    model_hint = AGENT_DEFAULT_MODELS.get(agent, "")
+    hints: list[str] = []
+    if part_agents is None:
+        hints = [model_hint] * len(log_paths)
+    else:
+        hints = [AGENT_DEFAULT_MODELS.get(part_agent, model_hint) for part_agent in part_agents]
+        if len(hints) < len(log_paths):
+            hints.extend([model_hint] * (len(log_paths) - len(hints)))
+        else:
+            hints = hints[: len(log_paths)]
+
+    parts = [parse_session_tokens(path, model_hint=hint) for path, hint in zip(log_paths, hints)]
+    entry = _session_entry_from_parts(session_id, agent, parts)
+
+    ledger = read_ledger(ledger_path)
+    ledger["sessions"].append(entry)
+    ledger["total_cost_usd"] = round(ledger["total_cost_usd"] + entry["total_cost_usd"], 6)
     write_ledger(ledger_path, ledger)
 
     return entry
@@ -301,7 +320,7 @@ def _empty_cost(
     cache_creation_tokens: int = 0,
     cache_read_tokens: int = 0,
     output_tokens: int = 0,
-) -> SessionCost:
+    ) -> SessionCost:
     """Build a SessionCost dict."""
     return {
         "session_id": session_id,
@@ -313,6 +332,52 @@ def _empty_cost(
         "output_tokens": output_tokens,
         "total_cost_usd": 0.0,
     }
+
+
+def _session_entry_from_parts(session_id: str, agent: str, parts: Sequence[SessionCost]) -> SessionCost:
+    """Build a single ledger entry from one or more parsed log parts."""
+    total_cost_usd = 0.0
+    input_tokens = 0
+    cache_creation_tokens = 0
+    cache_read_tokens = 0
+    output_tokens = 0
+    models: list[str] = []
+
+    for part in parts:
+        if part["model"]:
+            models.append(part["model"])
+        input_tokens += part["input_tokens"]
+        cache_creation_tokens += part["cache_creation_tokens"]
+        cache_read_tokens += part["cache_read_tokens"]
+        output_tokens += part["output_tokens"]
+        total_cost_usd += calculate_cost(
+            part["model"],
+            part["input_tokens"],
+            part["cache_creation_tokens"],
+            part["cache_read_tokens"],
+            part["output_tokens"],
+        )
+
+    return {
+        "session_id": session_id,
+        "agent": agent,
+        "model": _merge_models(models),
+        "input_tokens": input_tokens,
+        "cache_creation_tokens": cache_creation_tokens,
+        "cache_read_tokens": cache_read_tokens,
+        "output_tokens": output_tokens,
+        "total_cost_usd": round(total_cost_usd, 6),
+    }
+
+
+def _merge_models(models: Sequence[str]) -> str:
+    """Collapse per-log model labels into a single ledger-friendly value."""
+    unique_models = sorted({model for model in models if model})
+    if not unique_models:
+        return ""
+    if len(unique_models) == 1:
+        return unique_models[0]
+    return f"mixed:{','.join(unique_models)}"
 
 
 def _parse_session_index(index_path: Path) -> dict[str, _SessionIndexEntry]:
