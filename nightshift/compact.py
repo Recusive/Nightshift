@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import re
 from pathlib import Path
 
@@ -129,8 +130,6 @@ def _iso_week_string(date_str: str) -> str:
     if len(parts) != 3:
         return "unknown"
     try:
-        import datetime as dt
-
         d = dt.date(int(parts[0]), int(parts[1]), int(parts[2]))
         iso = d.isocalendar()
         return f"{iso[0]}-W{iso[1]:02d}"

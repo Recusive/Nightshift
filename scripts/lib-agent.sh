@@ -238,9 +238,10 @@ for e in r['errors']:
 compact_handoffs() {
     local handoffs_dir="$1"
     local result
-    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
+    result=$(_NIGHTSHIFT_HDIR="$handoffs_dir" PYTHONPATH="$REPO_DIR" python3 -c "
+import os
 from nightshift.compact import compact_handoffs
-r = compact_handoffs('$handoffs_dir')
+r = compact_handoffs(os.environ['_NIGHTSHIFT_HDIR'])
 if r['compacted']:
     print(f\"  Compacted {len(r['compacted'])} handoff(s) into {r['weekly_file']}\")
 for e in r['errors']:
