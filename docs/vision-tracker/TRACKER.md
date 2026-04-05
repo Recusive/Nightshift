@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0031 (Vision-alignment check).
+Last updated: 2026-04-05 by agent session #0032 (Fix healer -- merge into builder step).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,11 +9,11 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ████████████████░░░░  78%
+NIGHTSHIFT VISION                              ████████████████░░░░  79%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
 ├── Loop 2 — Feature Builder Loop              █████████████░░░░░░░  63%
 ├── Self-Maintaining Repo                      ████████████░░░░░░░░  59%
-└── Meta-Prompt System                         ██████████████░░░░░░  69%
+└── Meta-Prompt System                         ███████████████░░░░░  73%
 ```
 
 ---
@@ -94,7 +94,7 @@ The infrastructure that lets the agent manage everything without human intervent
 
 ---
 
-## Meta-Prompt System (69%)
+## Meta-Prompt System (73%)
 
 The reusable prompt and surrounding docs that make the self-improving loop work.
 
@@ -106,7 +106,7 @@ The reusable prompt and surrounding docs that make the self-improving loop work.
 | Loop 2 deep dive doc | Done | ████████████████████ 100% |
 | Feedback ingestion | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Priority engine (what to build next) | In progress | ████████████░░░░░░░░ 60% |
-| Session history / learning | In progress | █████░░░░░░░░░░░░░░░ 25% |
+| Session history / learning | In progress | ██████████░░░░░░░░░░ 50% |
 
 ---
 

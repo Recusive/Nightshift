@@ -7649,40 +7649,34 @@ class TestHealerInfrastructure:
         content = log.read_text()
         assert "Healer Log" in content
 
-    def test_daemon_references_healer(self) -> None:
-        """daemon.sh must call the healer between housekeeping and builder."""
+    def test_healer_not_in_daemon(self) -> None:
+        """Healer must NOT run as separate agent in daemon.sh (merged into builder step)."""
         content = Path("scripts/daemon.sh").read_text()
-        assert "docs/prompt/healer.md" in content
-        assert "healer" in content.lower()
-        assert "persist_healer_changes" in content
+        assert "HEALER_PROMPT_FILE" not in content
+        assert "persist_healer_changes" not in content
+        assert "HEALER_MAX_TURNS" not in content
 
-    def test_daemon_healer_before_prompt_guard(self) -> None:
-        """Healer must run before the prompt guard snapshot in daemon.sh."""
-        content = Path("scripts/daemon.sh").read_text()
-        healer_pos = content.find("Running healer")
-        guard_pos = content.find("save_prompt_snapshots")
-        assert healer_pos > 0, "Healer call not found in daemon.sh"
-        assert guard_pos > 0, "Prompt guard not found in daemon.sh"
-        assert healer_pos < guard_pos, "Healer must run before prompt guard"
+    def test_healer_in_evolve_prompt(self) -> None:
+        """Healer observation step must be in evolve.md as a builder step."""
+        content = Path("docs/prompt/evolve.md").read_text()
+        assert "Observe the System" in content
+        assert "docs/healer/log.md" in content
 
-    def test_prompt_guard_includes_healer(self) -> None:
-        """lib-agent.sh PROMPT_GUARD_FILES must include healer.md."""
+    def test_healer_step_before_generate_work(self) -> None:
+        """Observe the System step must come before Generate Work in evolve.md."""
+        content = Path("docs/prompt/evolve.md").read_text()
+        observe_pos = content.find("Observe the System")
+        generate_pos = content.find("Generate Work")
+        assert observe_pos > 0, "Observe the System step not found"
+        assert generate_pos > 0, "Generate Work step not found"
+        assert observe_pos < generate_pos, "Observe must come before Generate Work"
+
+    def test_persist_healer_not_in_lib(self) -> None:
+        """persist_healer_changes must be removed from lib-agent.sh."""
         content = Path("scripts/lib-agent.sh").read_text()
-        assert "docs/prompt/healer.md" in content
+        assert "persist_healer_changes()" not in content
 
-    def test_persist_healer_changes_in_lib(self) -> None:
-        """lib-agent.sh must define persist_healer_changes function."""
+    def test_healer_prompt_guard_comment(self) -> None:
+        """healer.md should be noted as reference doc in PROMPT_GUARD_FILES."""
         content = Path("scripts/lib-agent.sh").read_text()
-        assert "persist_healer_changes()" in content
-
-    def test_healer_max_turns_is_low(self) -> None:
-        """Healer must use low max-turns to stay fast and cheap."""
-        content = Path("scripts/daemon.sh").read_text()
-        # Find the HEALER_MAX_TURNS assignment
-        for line in content.splitlines():
-            if "HEALER_MAX_TURNS=" in line:
-                val = line.split("=")[1].strip()
-                turns = int(val)
-                assert turns <= 20, f"Healer max turns {turns} > 20"
-                return
-        pytest.fail("HEALER_MAX_TURNS not found in daemon.sh")
+        assert "healer.md" in content  # commented reference still present

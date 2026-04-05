@@ -233,7 +233,7 @@ Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact
 
 **Required sections in every handoff:**
 - "Tracker delta: XX% -> XX%" (makes project progress visible)
-- "Generated tasks: [list #NNNN titles, or 'none']" (from Step 6n — what work you identified)
+- "Generated tasks: [list #NNNN titles, or 'none']" (from Step 6o — what work you identified)
 - "Tasks I did NOT pick and why:" (skip accountability — list every pending task you read and chose not to build, with the reason)
 
 ### 6c. Changelog (ALWAYS except docs-only changes)
@@ -287,7 +287,34 @@ Check `docs/ops/OPERATIONS.md` version milestones:
 - If yes: prepare for release (tag, changelog status, new version file)
 - If no: note in the handoff what's still needed
 
-### 6n. Generate Work (ALWAYS)
+### 6n. Observe the System (ALWAYS)
+
+Before generating tasks, observe the system like a human checking in. This replaces the old separate healer agent -- the builder now does its own meta-observation.
+
+1. Read `docs/sessions/index.md` -- look at the last 5 entries. Any patterns?
+   - Sessions getting slower or more expensive?
+   - Same task appearing in handoffs repeatedly without getting done?
+   - Consecutive failures?
+2. Read `docs/healer/log.md` -- your previous observations. Don't repeat yourself.
+3. Check the task queue -- any tasks pending 5+ sessions? Any blocked with weak reasons?
+4. Check the vision tracker -- has it moved? Or are sessions doing work that doesn't advance it?
+
+Think in **trends**, not point failures. "Test count wrong" is a point failure. "Builder has shipped 3 sessions without updating the tracker" is a trend.
+
+Append your observations to `docs/healer/log.md` at the END:
+
+```
+## YYYY-MM-DD -- Session [feature-name]
+**System health:** [good / caution / concern]
+- [Observation with evidence]
+- [Observation with evidence]
+```
+
+If system health is **concern**, note it prominently in the handoff so the human sees it.
+
+Then proceed to Generate Work, which creates tasks from what you observed.
+
+### 6o. Generate Work (ALWAYS)
 
 You are not a task runner. You are the engineer who owns this system. Before ending the session, step back and look at the system from every angle. Create 1-5 new tasks based on what you observe.
 

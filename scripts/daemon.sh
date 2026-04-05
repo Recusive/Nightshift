@@ -125,23 +125,6 @@ while true; do
     compact_handoffs "$REPO_DIR/docs/handoffs"
     archive_done_tasks "$REPO_DIR/docs/tasks"
 
-    # --- Healer: meta-layer observer (runs between housekeeping and builder) ---
-    HEALER_PROMPT_FILE="$REPO_DIR/docs/prompt/healer.md"
-    if [ -f "$HEALER_PROMPT_FILE" ]; then
-        HEALER_LOG="$LOG_DIR/${SESSION_ID}-healer.log"
-        HEALER_MAX_TURNS=15
-        echo "  Running healer (max ${HEALER_MAX_TURNS} turns)..."
-        run_agent "$AGENT" "$(cat "$HEALER_PROMPT_FILE")" "$HEALER_LOG" "$HEALER_MAX_TURNS"
-        HEALER_EXIT=$EXIT_CODE
-        EXIT_CODE=0
-        if [ "$HEALER_EXIT" -eq 0 ]; then
-            echo "  Healer done."
-            persist_healer_changes "$SESSION_ID"
-        else
-            echo "  Healer exited with code $HEALER_EXIT (non-fatal, continuing)"
-        fi
-    fi
-
     # --- Prompt guard: snapshot before cycle ---
     SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
 
