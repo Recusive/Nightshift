@@ -124,6 +124,20 @@ Observations from the meta-layer observer. Newest entries first.
 
 - **Session velocity is good.** Feature was scoped tightly (one new module, ~120 lines, 22 tests). No wasted turns on debugging or refactoring. The one-concern-per-module rule and pre-existing test patterns made implementation straightforward.
 
+## 2026-04-05 -- Session #0039 (E2E test runner)
+
+**System health:** good
+
+- **Three consecutive tracker-advancing sessions.** 79%->82%->85%->87%. Loop 2: 63%->72%->81%->90%. Only 1 Loop 2 component remains (sub-agent coordination). One more session could push Loop 2 to 100% and overall to ~91%.
+
+- **Module template is now a proven pattern.** e2e.py is the 4th module built using the same template (summary, readiness, e2e, plus profiler/planner/decomposer/subagent/integrator earlier). Average build time: plan->green CI in one session. The one-concern-per-module rule combined with the test patterns in test_nightshift.py makes new modules predictable.
+
+- **Integration test fragility detected.** Adding run_e2e_tests() to build_feature() broke 2 existing integration tests that mocked everything except the new function. Pattern: when adding a pipeline step, grep for ALL integration tests that exercise the pipeline end-to-end. Learning written.
+
+- **v0.0.6 still untagged.** Task #0018 (low priority) is the only pending task targeting v0.0.6. The release could proceed if #0018 is retargeted to v0.0.8. This has been noted in handoffs for 5+ sessions.
+
+---
+
 ## 2026-04-05 -- Session #0038 (Production-readiness checker)
 
 **System health:** good

@@ -235,6 +235,18 @@ class TestBuildFeature:
             patch("nightshift.feature.spawn_wave", side_effect=spawn_side_effect),
             patch("nightshift.feature.integrate_wave", side_effect=integrate_side_effect),
             patch(
+                "nightshift.feature.run_e2e_tests",
+                return_value=nightshift.E2EResult(
+                    status="passed",
+                    test_command="python3 -m pytest",
+                    test_exit_code=0,
+                    test_output="ok",
+                    smoke_test_command=None,
+                    smoke_test_exit_code=0,
+                    smoke_test_output="",
+                ),
+            ),
+            patch(
                 "nightshift.feature.run_final_verification",
                 return_value=nightshift.FinalVerificationResult(
                     status="passed",
@@ -264,6 +276,8 @@ class TestBuildFeature:
         assert events == ["spawn-1", "integrate-1", "spawn-2", "integrate-2"]
         assert state["waves"][0]["status"] == "passed"
         assert state["waves"][1]["status"] == "passed"
+        assert state["e2e_result"] is not None
+        assert state["e2e_result"]["status"] == "passed"
         assert state["final_verification"] is not None
         assert state["final_verification"]["status"] == "passed"
 
@@ -325,6 +339,18 @@ class TestBuildFeature:
             patch("nightshift.feature.command_exists", return_value=True),
             patch("nightshift.feature.spawn_wave", return_value=_make_wave_result(2, 2)) as mock_spawn,
             patch("nightshift.feature.integrate_wave", return_value=_make_integration_result(2)) as mock_integrate,
+            patch(
+                "nightshift.feature.run_e2e_tests",
+                return_value=nightshift.E2EResult(
+                    status="passed",
+                    test_command="python3 -m pytest",
+                    test_exit_code=0,
+                    test_output="ok",
+                    smoke_test_command=None,
+                    smoke_test_exit_code=0,
+                    smoke_test_output="",
+                ),
+            ),
             patch(
                 "nightshift.feature.run_final_verification",
                 return_value=nightshift.FinalVerificationResult(

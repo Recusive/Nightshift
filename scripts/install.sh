@@ -42,6 +42,7 @@ PACKAGE_FILES=(
   "nightshift/integrator.py"
   "nightshift/summary.py"
   "nightshift/readiness.py"
+  "nightshift/e2e.py"
   "nightshift/feature.py"
   "nightshift/cli.py"
 )

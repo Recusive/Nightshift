@@ -136,7 +136,7 @@ These are enforced by CI. Non-negotiable.
 - **One concern per module.** If you're adding >50 lines of new logic to an existing file, it belongs in its own module. cycle.py handles cycle logic — not scoring. cli.py handles CLI — not business logic.
 - **No hardcoded data in logic files.** Regex patterns, score maps, category weights, thresholds — these go in `constants.py` or a dedicated `*_patterns.py`. Logic files import them.
 - **New module checklist:** create the `.py` file, add to `__init__.py` re-exports, add to `scripts/install.sh` PACKAGE_FILES, add to this file's structure tree.
-- **Follow the dependency flow:** `types -> constants -> errors -> shell -> config/state -> worktree -> cycle -> scoring -> costs -> cleanup/compact -> multi -> profiler -> planner -> decomposer -> subagent -> integrator -> summary -> readiness -> feature -> cli`. New modules slot into this chain. No circular imports. (`multi.py` uses a late import of `run_nightshift` from `cli.py` to avoid circular deps.)
+- **Follow the dependency flow:** `types -> constants -> errors -> shell -> config/state -> worktree -> cycle -> scoring -> costs -> cleanup/compact -> multi -> profiler -> planner -> decomposer -> subagent -> integrator -> summary -> readiness -> e2e -> feature -> cli`. New modules slot into this chain. No circular imports. (`multi.py` uses a late import of `run_nightshift` from `cli.py` to avoid circular deps.)
 - **Functions over inline code.** If a block of code does one thing and is >10 lines, extract it into a named function. The function name documents the intent.
 - **Config over magic numbers.** If a value might change (thresholds, limits, timeouts), put it in `DEFAULT_CONFIG` and `types.py`, not inline.
 

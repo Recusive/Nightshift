@@ -39,6 +39,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Agent scope separation mirrors module separation](2026-04-05-agent-scope-separation-mirrors-module-separation.md) — If a review agent needs "skip these checks when X" fast paths, it should be split into specialists
 - [Pattern detection via path segments](2026-04-05-summary-module-pattern-detection.md) — Split paths into segment sets and intersect with keyword sets; more robust than regex for file categorization
 - [Readiness checks as pure file scanners](2026-04-05-readiness-checks-pure-computation.md) — Pure Path.read_text() + regex beats shell-command wrappers; testable with tmp_path, no mocks needed
+- [E2E as gate before final verify](2026-04-05-e2e-gate-before-final-verify.md) — New pipeline steps sharing checks with later steps should gate; grep for integration tests to update
 - [Code structure rules work](2026-04-03-code-structure-rules-work.md) — CLAUDE.md structure rules catch real violations at review time
 - [Plan agent is simpler than cycle agent](2026-04-04-plan-agent-simpler-than-cycle.md) — Plan invocation needs fewer args than full cycle
 - [Symlink check before is_file](2026-04-04-symlink-before-is-file.md) — Check is_symlink() first for security; symlinks pass is_file()

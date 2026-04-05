@@ -86,6 +86,20 @@ DEBUG_PRINT_PATTERNS: list[re.Pattern[str]] = [
 
 READINESS_ALL_CHECKS: frozenset[str] = frozenset({"secrets", "debug_prints", "test_coverage"})
 
+# --- E2E test runner data ----------------------------------------------------
+
+# Candidate paths for smoke test scripts (checked in order).
+E2E_SMOKE_CANDIDATES: list[str] = [
+    "scripts/smoke-test.sh",
+    "scripts/smoke_test.sh",
+    "scripts/smoke-test",
+    "smoke-test.sh",
+    "smoke_test.sh",
+]
+
+# Timeout in seconds for each E2E test command invocation.
+E2E_TEST_TIMEOUT = 300
+
 # --- Diff scoring data -------------------------------------------------------
 
 SECURITY_PATTERNS: list[tuple[re.Pattern[str], int]] = [

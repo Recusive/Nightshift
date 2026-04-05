@@ -18,6 +18,7 @@ from nightshift.constants import (
 )
 from nightshift.cycle import command_for_agent
 from nightshift.decomposer import decompose_plan
+from nightshift.e2e import run_e2e_tests
 from nightshift.errors import NightshiftError
 from nightshift.integrator import integrate_wave
 from nightshift.planner import build_plan_prompt, format_plan, parse_plan, scope_check
@@ -28,6 +29,7 @@ from nightshift.state import load_json, write_json
 from nightshift.subagent import spawn_wave
 from nightshift.summary import generate_feature_summary
 from nightshift.types import (
+    E2EResult,
     FeaturePlan,
     FeatureState,
     FeatureSummary,
@@ -267,6 +269,22 @@ def _build_readiness_report(raw: object) -> ReadinessReport | None:
     )
 
 
+def _build_e2e_result(raw: object) -> E2EResult | None:
+    if not isinstance(raw, dict):
+        return None
+    return E2EResult(
+        status=str(raw.get("status", "skipped")),
+        test_command=str(raw["test_command"]) if isinstance(raw.get("test_command"), str) else None,
+        test_exit_code=int(raw.get("test_exit_code", 0)) if isinstance(raw.get("test_exit_code"), int) else 0,
+        test_output=str(raw.get("test_output", "")),
+        smoke_test_command=str(raw["smoke_test_command"]) if isinstance(raw.get("smoke_test_command"), str) else None,
+        smoke_test_exit_code=int(raw.get("smoke_test_exit_code", 0))
+        if isinstance(raw.get("smoke_test_exit_code"), int)
+        else 0,
+        smoke_test_output=str(raw.get("smoke_test_output", "")),
+    )
+
+
 def read_feature_state(state_path: Path) -> FeatureState:
     """Read and validate persisted feature-build state from disk."""
     raw = load_json(state_path)
@@ -297,6 +315,7 @@ def read_feature_state(state_path: Path) -> FeatureState:
         profile=_build_profile(raw.get("profile", {}) if isinstance(raw.get("profile"), dict) else {}),
         plan=plan,
         waves=waves,
+        e2e_result=_build_e2e_result(raw.get("e2e_result")),
         final_verification=_build_final_verification(raw.get("final_verification")),
         readiness=_build_readiness_report(raw.get("readiness")),
         summary=_build_feature_summary(raw.get("summary")),
@@ -383,6 +402,7 @@ def new_feature_state(
         profile=profile,
         plan=plan,
         waves=_build_wave_states(plan, profile),
+        e2e_result=None,
         final_verification=None,
         readiness=None,
         summary=None,
@@ -425,6 +445,17 @@ def format_feature_status(state: FeatureState) -> str:
         if wave["wave_result"] is not None and wave["wave_result"]["failed"]:
             failed_ids = ", ".join(str(item["task_id"]) for item in wave["wave_result"]["failed"])
             lines.append(f"Blocked tasks: {failed_ids}")
+        lines.append("")
+
+    e2e = state["e2e_result"]
+    if e2e is not None:
+        lines.append("## E2E Tests")
+        lines.append("")
+        lines.append(f"Status: {e2e['status']}")
+        if e2e["test_command"] is not None:
+            lines.append(f"Tests: exit {e2e['test_exit_code']} via `{e2e['test_command']}`")
+        if e2e["smoke_test_command"] is not None:
+            lines.append(f"Smoke test: exit {e2e['smoke_test_exit_code']} via `{e2e['smoke_test_command']}`")
         lines.append("")
 
     final = state["final_verification"]
@@ -631,6 +662,16 @@ def build_feature(
         write_feature_state(state_path, state)
 
     state["current_wave"] = 0
+    e2e = run_e2e_tests(repo_dir=repo_dir)
+    state["e2e_result"] = e2e
+    write_feature_state(state_path, state)
+
+    if e2e["status"] == "failed":
+        state["status"] = "failed"
+        write_feature_state(state_path, state)
+        print_status(format_feature_status(state))
+        return 1
+
     state["final_verification"] = run_final_verification(
         repo_dir=repo_dir,
         test_command=state["profile"]["test_runner"],
