@@ -598,6 +598,8 @@ PLAN_AGENT_TIMEOUT = 300
 FEATURE_STATE_PATH = "docs/Nightshift/feature-build.state.json"
 FEATURE_LOG_DIR = "docs/Nightshift/feature-build"
 FEATURE_VERIFY_TIMEOUT = 600
+MODULE_MAP_PATH = "docs/architecture/MODULE_MAP.md"
+MODULE_MAP_STALE_AFTER_SESSIONS = 5
 
 PROFILER_SKIP_DIRS: set[str] = {
     "node_modules",

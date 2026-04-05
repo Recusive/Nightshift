@@ -17,8 +17,9 @@ Read these files to understand the current state:
 3. Run `python3 -c "from nightshift.costs import cost_analysis; import pprint; pprint.pp(cost_analysis('docs/sessions'))"` -- structured cost trends by task type, model, and outlier session
 4. `docs/tasks/*.md` -- Task queue (scan frontmatter: status, priority, created date)
 5. `docs/vision-tracker/TRACKER.md` -- Progress toward the vision
-6. `docs/learnings/INDEX.md` -- Hard-won knowledge (one-line summaries)
-7. `docs/healer/log.md` -- Your previous observations (read to avoid repeating yourself)
+6. `docs/architecture/MODULE_MAP.md` -- Persistent module inventory (if it exists)
+7. `docs/learnings/INDEX.md` -- Hard-won knowledge (one-line summaries)
+8. `docs/healer/log.md` -- Your previous observations (read to avoid repeating yourself)
 
 Do NOT read the full codebase. Do NOT read every learning file. Skim headers.
 
@@ -33,6 +34,9 @@ Ask yourself these questions. Connect dots across sessions:
   Compare task creation dates to what is actually getting done.
 - **What is about to break?** Is the task queue running dry? Are docs drifting
   from reality? Is a pattern forming that will cause failures?
+- **Is the module map stale?** If `docs/architecture/MODULE_MAP.md` is more than
+  5 sessions behind its `Last updated` header, future builder sessions will
+  start wasting context on rediscovery again.
 - **Is the system getting better or worse?** More merged PRs? Fewer failures?
   Lower cost per feature? Or regressing?
 - **What does the cost analysis say?** Which task types are expensive, which

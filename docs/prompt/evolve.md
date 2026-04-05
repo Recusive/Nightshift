@@ -15,6 +15,7 @@ Key paths:
 - `docs/vision/00-overview.md` — North star. Read this first.
 - `docs/vision/01-loop1-hardening.md` — Loop 1 roadmap and known gaps
 - `docs/vision/02-loop2-feature-builder.md` — Loop 2 design and open questions
+- `docs/architecture/MODULE_MAP.md` — Persistent module inventory and dependency order
 - `docs/vision-tracker/TRACKER.md` — Progress bars for every component. Your scoreboard.
 - `docs/changelog/` — Per-version changelog files. You maintain these.
 - `docs/prompt/feedback/` — Human feedback from prior sessions. Read if it exists.
@@ -86,18 +87,19 @@ Read the handoff first. Go deeper only if needed.
 1. `docs/handoffs/LATEST.md` — what happened last, what's broken, what to build next
 2. `docs/tasks/` — scan for `status: pending` files to find your next task
 3. `docs/learnings/INDEX.md` — scan the one-line summaries. Only open individual learning files when they are relevant to your current task. Do NOT read every file — the index is your lookup table.
+4. `docs/architecture/MODULE_MAP.md` — persistent module inventory and dependency order (if it exists)
 
 **Read if this is the first session ever (no LATEST.md exists):**
-3. `docs/vision/00-overview.md` — the north star
-4. `docs/vision/01-loop1-hardening.md` — Loop 1 roadmap
-5. `docs/vision/02-loop2-feature-builder.md` — Loop 2 design
-6. `docs/vision-tracker/TRACKER.md` — progress scoreboard
+5. `docs/vision/00-overview.md` — the north star
+6. `docs/vision/01-loop1-hardening.md` — Loop 1 roadmap
+7. `docs/vision/02-loop2-feature-builder.md` — Loop 2 design
+8. `docs/vision-tracker/TRACKER.md` — progress scoreboard
 
 **Read if the handoff points you there or you need deeper context:**
-7. `docs/prompt/feedback/` — human feedback (if any exist)
-8. Specific `nightshift/*.py` modules relevant to your task
-9. `CLAUDE.md` — if you're changing project structure
-10. `git log --oneline -10` — if you need more history
+9. `docs/prompt/feedback/` — human feedback (if any exist)
+10. Specific `nightshift/*.py` modules relevant to your task
+11. `CLAUDE.md` — if you're changing project structure
+12. `git log --oneline -10` — if you need more history
 
 Then output your status report:
 
@@ -365,6 +367,21 @@ Vision alignment: [last 5 tasks target: loop1=N, loop2=N, self-maintaining=N, me
 #NNNN: [title] (dimension: [which], vision: [section], priority: [level])
 ...or "No new tasks -- queue already covers what I observed."
 ```
+
+### 6p. Module Map (ALWAYS when touching `nightshift/*.py`)
+
+Refresh the persistent architecture map so future sessions can orient without rescanning every module:
+
+```bash
+python3 -m nightshift module-map --write
+```
+
+Then confirm `docs/architecture/MODULE_MAP.md` reflects:
+- the modules you touched
+- the current dependency order
+- the latest generated date/session header
+
+If you added, removed, or renamed modules, make sure `CLAUDE.md` and `docs/ops/OPERATIONS.md` still match the map.
 
 ## STEP 7 — PRE-PUSH CHECKLIST
 

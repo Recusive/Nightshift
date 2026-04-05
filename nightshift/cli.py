@@ -1,4 +1,4 @@
-"""CLI entry points: run, test, summarize, verify-cycle."""
+"""CLI entry points: run, test, summarize, verify-cycle, module-map."""
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from nightshift.cycle import (
 )
 from nightshift.errors import NightshiftError
 from nightshift.feature import build_feature
+from nightshift.module_map import generate_module_map, render_module_map, write_module_map
 from nightshift.multi import run_multi_shift
 from nightshift.planner import build_plan_prompt, format_plan, parse_plan, run_plan_agent, scope_check
 from nightshift.profiler import profile_repo
@@ -444,6 +445,18 @@ def build_feature_cli(args: argparse.Namespace) -> int:
     )
 
 
+def module_map_cli(args: argparse.Namespace) -> int:
+    """Render or write the persistent architecture module map."""
+    repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
+    snapshot = generate_module_map(repo_dir)
+    if args.write:
+        path = write_module_map(repo_dir, snapshot=snapshot)
+        print(path)
+    else:
+        print(render_module_map(snapshot))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Nightshift orchestrator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -488,6 +501,14 @@ def build_parser() -> argparse.ArgumentParser:
     build_parser_cmd.add_argument("--status", action="store_true", help="Show current feature build status")
     build_parser_cmd.add_argument("--yes", action="store_true", help="Skip the confirmation prompt")
     build_parser_cmd.set_defaults(func=build_feature_cli)
+
+    module_map_parser = subparsers.add_parser(
+        "module-map",
+        parents=[common],
+        help="Render the persistent module map for docs/architecture/MODULE_MAP.md",
+    )
+    module_map_parser.add_argument("--write", action="store_true", help="Write the module map file instead of printing")
+    module_map_parser.set_defaults(func=module_map_cli)
 
     multi_parser = subparsers.add_parser("multi", parents=[common], help="Run shifts on multiple repos")
     multi_parser.add_argument("repos", nargs="+", help="Repository paths to process")

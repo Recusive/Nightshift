@@ -453,6 +453,38 @@ class CostAnalysis(TypedDict):
     recommendations: list[str]
 
 
+# --- Module map types -------------------------------------------------------
+
+
+class ModuleMapEntry(TypedDict):
+    """One row in the persistent architecture module map."""
+
+    module: str
+    lines: int
+    purpose: str
+    key_symbols: list[str]
+    last_changed: str
+
+
+class RecentSessionChange(TypedDict):
+    """One recently merged session shown in the module map."""
+
+    reference: str
+    summary: str
+
+
+class ModuleMapSnapshot(TypedDict):
+    """Structured data used to render docs/architecture/MODULE_MAP.md."""
+
+    generated_on: str
+    session_label: str
+    stale_after_sessions: int
+    module_count: int
+    modules: list[ModuleMapEntry]
+    dependency_order: list[str]
+    recent_changes: list[RecentSessionChange]
+
+
 # --- Cleanup types ----------------------------------------------------------
 
 
