@@ -53,9 +53,12 @@ What to build and why.
 
 ## When the agent finishes a task
 
-The agent does TWO things:
+The agent does THREE things:
 1. Marks the current task `done` with `completed` date
 2. Creates the NEXT task(s) based on what it learned — the vision tracker, the roadmap, or what it discovered while building
+3. Creates follow-up tasks for ANY code review advisory notes, known limitations, or suggestions that weren't fixed before merging
+
+**Rule: review notes must become tasks.** If the code review sub-agent passes but flags issues as "advisory", "known limitation", or "not blocking", each note MUST get a follow-up task with clear acceptance criteria. The task queue is the system's memory — anything not tracked as a task will be forgotten.
 
 This is how the queue stays alive. The agent always leaves work for the next session.
 

@@ -49,6 +49,12 @@ Your answers determine which sections below are mandatory.
 - [ ] If task was too big and you only did part of it: mark done, create follow-up task(s)
 - [ ] Handoff references the next pending task numbers
 
+## Part 2c: Code Review Notes (AFTER sub-agent review)
+
+- [ ] If the review flagged advisory notes, known limitations, or follow-up suggestions: each one has EITHER been fixed before merging OR has a new task in `docs/tasks/` with acceptance criteria
+- [ ] "Known limitation" or "not blocking" is NOT a valid reason to skip creating a task — the task queue tracks deferred work
+- [ ] Handoff "Known Issues" or "Next Session Should" references any new follow-up tasks created from review notes
+
 ---
 
 ## Part 3: Handoff (ALWAYS)
