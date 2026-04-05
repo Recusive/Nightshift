@@ -218,6 +218,7 @@ print(f'{total_cost(\"$COST_FILE\"):.2f}')
             echo ""
             echo "CIRCUIT BREAKER: $MAX_CONSECUTIVE_FAILURES consecutive failures."
             echo "| $(date '+%Y-%m-%d %H:%M') | CIRCUIT-BREAK | - | - | Stopped |" >> "$INDEX_FILE"
+            notify_human "Reviewer circuit breaker tripped" "Reviewer daemon stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures. Check logs in $LOG_DIR."
             break
         fi
 

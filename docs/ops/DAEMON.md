@@ -504,6 +504,46 @@ make strategist
 
 ---
 
+## Human Escalation (`notify_human`)
+
+When the daemon hits a situation that requires human attention, it creates a GitHub issue with the `needs-human` label. This happens automatically for:
+
+- **Circuit breaker tripped** -- 3 consecutive session failures (all daemons)
+- **Budget limit reached** -- cumulative spending exceeds the configured limit (builder)
+- **Healer critical pattern** -- healer detects a system health concern that tasks alone cannot fix
+
+### How it works
+
+`notify_human` is a shell function in `scripts/lib-agent.sh`. It:
+
+1. Creates a GitHub issue titled `[Nightshift] <title>` with the `needs-human` label
+2. If `notification_webhook` is set in `.nightshift.json`, POSTs to that URL (Slack, Discord, etc.)
+3. Fails silently -- never crashes the daemon
+
+### Checking for escalations
+
+```bash
+gh issue list --label needs-human
+```
+
+### Optional webhook
+
+Add a webhook URL to `.nightshift.json` for real-time notifications:
+
+```json
+{
+  "notification_webhook": "https://hooks.slack.com/services/T00/B00/xxx"
+}
+```
+
+The webhook receives a JSON payload: `{"text": "[Nightshift] <title>"}`.
+
+### Manual escalation from the healer
+
+The healer prompt (Step 5) instructs the healer agent to call `notify_human` when it observes critical patterns that require human decision-making. The healer only escalates for issues that cannot be self-fixed by creating builder tasks.
+
+---
+
 ## Files Reference
 
 | File | Purpose |

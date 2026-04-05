@@ -34,5 +34,6 @@
   "claude_model": "claude-opus-4-6",
   "claude_effort": "max",
   "codex_model": "gpt-5.4",
-  "codex_thinking": "extra_high"
+  "codex_thinking": "extra_high",
+  "notification_webhook": null
 }

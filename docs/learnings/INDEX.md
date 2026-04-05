@@ -26,6 +26,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Thread config through callers](2026-04-04-thread-config-through-callers.md) — Pass NightshiftConfig down the call chain, don't read inside builders
 - [Pre-load instructions in runner not agent](2026-04-04-preload-instructions-not-agent-read.md) — Runner reads repo instruction files and injects into prompt
 - [Prompt guard in shared lib](2026-04-04-prompt-guard-in-shared-lib.md) — Cross-cutting daemon concerns go in lib-agent.sh
+- [notify_human must fail silently](2026-04-05-notify-human-silent-failure.md) — Daemon helper functions must use `|| true`; notification is best-effort, not blocking
 - [Healer persistence needs workflow](2026-04-05-healer-persistence-needs-workflow.md) — Daemon sub-agent outputs need branch+PR+merge; git reset wipes uncommitted files
 - [Reuse planner functions](2026-04-03-reuse-existing-functions.md) — Don't reimplement; import from existing modules
 - [Code structure rules work](2026-04-03-code-structure-rules-work.md) — CLAUDE.md structure rules catch real violations at review time

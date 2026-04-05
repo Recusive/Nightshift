@@ -60,6 +60,7 @@ class TestConstants:
             "claude_effort",
             "codex_model",
             "codex_thinking",
+            "notification_webhook",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -361,6 +362,25 @@ class TestMergeConfig:
         assert config["claude_model"] == "claude-opus-4-6"
         assert config["codex_model"] == "gpt-5.4"
         assert config["codex_thinking"] == "extra_high"
+
+    def test_notification_webhook_default_is_none(self, tmp_path):
+        config = nightshift.merge_config(tmp_path)
+        assert config["notification_webhook"] is None
+
+    def test_notification_webhook_from_file(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"notification_webhook": "https://hooks.slack.com/test"}))
+        config = nightshift.merge_config(tmp_path)
+        assert config["notification_webhook"] == "https://hooks.slack.com/test"
+
+    def test_notification_webhook_null_in_file(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"notification_webhook": None}))
+        config = nightshift.merge_config(tmp_path)
+        assert config["notification_webhook"] is None
+
+    def test_notification_webhook_rejects_non_string(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"notification_webhook": 12345}))
+        with pytest.raises(nightshift.NightshiftError, match="notification_webhook"):
+            nightshift.merge_config(tmp_path)
 
 
 class TestInferPackageManager:

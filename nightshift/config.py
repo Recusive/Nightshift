@@ -44,6 +44,11 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         raise NightshiftError(
             f".nightshift.json: 'verify_command' must be a string or null, got {type(verify_command).__name__}"
         )
+    notification_webhook = raw.get("notification_webhook")
+    if notification_webhook is not None and not isinstance(notification_webhook, str):
+        raise NightshiftError(
+            f".nightshift.json: 'notification_webhook' must be a string or null, got {type(notification_webhook).__name__}"
+        )
     return NightshiftConfig(
         agent=agent,
         hours=_require_int(raw, "hours"),
@@ -65,6 +70,7 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         claude_effort=_require_str(raw, "claude_effort"),
         codex_model=_require_str(raw, "codex_model"),
         codex_thinking=_require_str(raw, "codex_thinking"),
+        notification_webhook=notification_webhook,
     )
 
 

@@ -59,6 +59,7 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "claude_effort": "max",
     "codex_model": "gpt-5.4",
     "codex_thinking": "extra_high",
+    "notification_webhook": None,
 }
 
 # --- Diff scoring data -------------------------------------------------------

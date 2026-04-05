@@ -180,6 +180,7 @@ def _infer_test_runner(repo_dir: Path) -> str | None:
         claude_effort=DEFAULT_CONFIG["claude_effort"],
         codex_model=DEFAULT_CONFIG["codex_model"],
         codex_thinking=DEFAULT_CONFIG["codex_thinking"],
+        notification_webhook=DEFAULT_CONFIG["notification_webhook"],
     )
     return infer_verify_command(repo_dir, config)
 

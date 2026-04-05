@@ -28,6 +28,7 @@ class NightshiftConfig(TypedDict):
     claude_effort: str
     codex_model: str
     codex_thinking: str
+    notification_webhook: str | None
 
 
 class DiffScore(TypedDict):

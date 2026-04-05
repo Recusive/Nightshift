@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0028 (Healer meta-layer observer).
+Last updated: 2026-04-05 by agent session #0029 (Human escalation channel).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -12,7 +12,7 @@ This file is the single source of truth for how close Nightshift is to its visio
 NIGHTSHIFT VISION                              ████████████████░░░░  77%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
 ├── Loop 2 — Feature Builder Loop              █████████████░░░░░░░  63%
-├── Self-Maintaining Repo                      ████████████░░░░░░░░  57%
+├── Self-Maintaining Repo                      ████████████░░░░░░░░  59%
 └── Meta-Prompt System                         █████████████░░░░░░░  61%
 ```
 
@@ -72,7 +72,7 @@ Repo profiling, feature planning, task decomposition, sub-agent spawning, wave i
 
 ---
 
-## Self-Maintaining Repo (57%)
+## Self-Maintaining Repo (59%)
 
 The infrastructure that lets the agent manage everything without human intervention.
 
@@ -85,7 +85,7 @@ The infrastructure that lets the agent manage everything without human intervent
 | CLAUDE.md (agent context) | Done | ████████████████████ 100% |
 | CI pipeline (.github/workflows) | Done | ████████████████████ 100% |
 | Local CI (scripts/check.sh) | Done | ████████████████████ 100% |
-| Feedback loop (docs/prompt/feedback/) | In progress | ████████░░░░░░░░░░░░ 40% |
+| Feedback loop (docs/prompt/feedback/) | In progress | ████████████░░░░░░░░ 60% |
 | Auto-release (version bump + gh release) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-changelog update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-tracker update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
