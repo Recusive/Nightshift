@@ -8,7 +8,7 @@
 
 Do NOT start building until you have read the handoff.
 
-4. **Read `docs/learnings/`** — Hard-won knowledge from previous sessions. Gotchas, patterns, failures. Read all files. These prevent you from repeating mistakes.
+4. **Read `docs/learnings/INDEX.md`** — One-line summaries of hard-won knowledge. Only open individual learning files when relevant to your current task. Do NOT read every file — the index tells you what exists.
 
 ## What This Is
 

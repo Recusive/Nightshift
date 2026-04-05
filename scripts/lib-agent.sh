@@ -227,6 +227,35 @@ for e in r['errors']:
 }
 
 # ──────────────────────────────────────────────
+# Task Archival
+#
+# Moves done tasks to archive/ to keep the
+# active directory small.
+# ──────────────────────────────────────────────
+
+# archive_done_tasks TASKS_DIR
+# Moves status: done task files to TASKS_DIR/archive/.
+archive_done_tasks() {
+    local tasks_dir="$1"
+    local archive_dir="$tasks_dir/archive"
+    local count=0
+
+    mkdir -p "$archive_dir"
+
+    for f in "$tasks_dir"/0*.md; do
+        [ -f "$f" ] || continue
+        if head -7 "$f" | grep -q "^status: done" 2>/dev/null; then
+            mv "$f" "$archive_dir/"
+            count=$((count + 1))
+        fi
+    done
+
+    if [ "$count" -gt 0 ]; then
+        echo "  Archived $count done task(s) to archive/"
+    fi
+}
+
+# ──────────────────────────────────────────────
 # Handoff Compaction
 #
 # Compacts numbered handoff files into weekly

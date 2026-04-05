@@ -63,6 +63,14 @@ Check for these specific issues:
 - **Obsolete learnings**: learnings about bugs that were fixed. Delete them.
 - **Missing learnings**: if the session logs show a repeated mistake that has no learning, write one.
 
+### Task Avoidance Detection
+- **Stale tasks**: any pending task that has been pending for 5+ sessions while newer tasks were completed is being AVOIDED. Flag it loudly.
+- **Avoidance pattern**: compare task creation dates vs completion dates. If low-numbered tasks are perpetually skipped while high-numbered tasks get done, the builder is cherry-picking comfortable work.
+- **Integration tasks stuck**: tasks tagged `environment: integration` that have been pending 10+ sessions should be DECOMPOSED into internal subtasks the builder can actually complete. Create the subtasks, mark the original as `status: blocked` with `blocked_reason: environment`.
+- **Weak block reasons**: if tasks are marked `blocked` with vague reasons ("needs clarification", "unclear scope"), challenge them. Either make the block reason specific and verifiable, or unblock the task.
+- **Max attempts**: if a task has been attempted 3+ times and failed each time (check session logs), mark it `status: blocked`, add `needs_human: true`, and exclude it from automatic pickup. The human must intervene.
+- **Handoff skip accountability**: check recent handoffs for "Tasks I Did NOT Pick and Why" sections. If missing, the builder is violating the skip-accountability rule — add a learning.
+
 ### Direction Health
 - **Building in the wrong order**: if Loop 2 modules are being built before Loop 1 is validated on real repos, flag it.
 - **Security before features**: if security tasks exist but features are being prioritized, reprioritize.

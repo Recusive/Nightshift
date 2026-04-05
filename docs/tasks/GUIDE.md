@@ -15,11 +15,22 @@ done
 
 ## Find the next number
 
+Read `docs/tasks/.next-id`. That file contains a single number — the next available task ID. Use it, then increment it and write the new value back. Always commit `.next-id` alongside the new task file.
+
 ```bash
-ls docs/tasks/[0-9]*.md | tail -1
+# Read, use, increment
+NEXT=$(cat docs/tasks/.next-id)
+printf "%04d" "$NEXT"   # your task number, zero-padded
+echo $(( NEXT + 1 )) > docs/tasks/.next-id
 ```
 
-Add 1, zero-pad to 4 digits.
+**Never scan the directory to guess the next number.** That causes collisions when the daemon and a human (or two sessions) create tasks concurrently. The `.next-id` file is the single source of truth.
+
+## Task archival
+
+Completed tasks (`status: done`) are automatically moved to `docs/tasks/archive/` by the daemon's housekeeping step between sessions. This keeps the active directory small — only pending, in-progress, and blocked tasks remain.
+
+The archive is permanent history. Never delete archived tasks.
 
 ## Create the file
 
@@ -48,6 +59,19 @@ What to build and why.
 **status**: `pending` | `in-progress` | `done` | `blocked`
 
 **priority**: `urgent` (jumps queue) | `normal` (number order) | `low` (only if nothing else pending)
+
+**environment**: `internal` | `integration` (optional, defaults to `internal`)
+- `internal`: pure code changes — the builder daemon can complete these autonomously
+- `integration`: requires external resources (repos, network, real environments, human input) — the builder SKIPS these and the overseer decomposes them into internal subtasks
+
+**blocked_reason**: (required when `status: blocked`)
+- `environment`: requires external resources the daemon cannot provide (e.g., clone Phractal, network access)
+- `dependency`: blocked by another task that must complete first
+- `design`: needs architectural decision or human input before proceeding
+
+**needs_human**: `true` (optional) — set by overseer after 3+ failed attempts. Task excluded from automatic pickup until a human intervenes.
+
+**skipped_by**: list of session IDs that read this task and chose not to do it (appended automatically)
 
 **target**: version from `docs/ops/OPERATIONS.md` milestones. Current in-progress if unsure.
 
