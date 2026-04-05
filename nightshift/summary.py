@@ -4,19 +4,19 @@ from __future__ import annotations
 
 from nightshift.types import FeatureState, FeatureSummary
 
-# File extensions that indicate API-related code.
+# Directory segments that indicate API-related code.
 _API_DIR_SEGMENTS = {"api", "routes", "endpoints", "handlers", "controllers", "resolvers"}
 
-# File extensions that indicate CLI code.
+# Directory segments that indicate CLI code.
 _CLI_DIR_SEGMENTS = {"cli", "cmd", "commands"}
 
-# File extensions that indicate configuration.
+# Directory segments that indicate configuration.
 _CONFIG_DIR_SEGMENTS = {"config", "settings", "conf"}
 
-# File extensions that indicate database/model code.
+# Directory segments that indicate database/model code.
 _DB_DIR_SEGMENTS = {"models", "migrations", "db", "database", "schemas"}
 
-# File extensions that indicate test code.
+# Basename substrings that indicate test files.
 _TEST_INDICATORS = {"test_", "_test.", ".test.", "spec.", "_spec."}
 
 
