@@ -117,6 +117,17 @@ while true; do
     git reset --hard origin/main --quiet 2>/dev/null || true
     git clean -fd --quiet 2>/dev/null || true
 
+    # --- Hot reload: re-source lib-agent.sh to pick up new functions ---
+    source "$SCRIPT_DIR/lib-agent.sh"
+
+    # --- Self-restart: if daemon-review.sh changed, exec into new version ---
+    NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon-review.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon-review.sh" 2>/dev/null | cut -d' ' -f1)
+    if [ -n "$_DAEMON_HASH" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
+        echo "  daemon-review.sh changed on main — restarting with new code..."
+        exec bash "$SCRIPT_DIR/daemon-review.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
+    fi
+    export _DAEMON_HASH="$NEW_HASH"
+
     # --- Housekeeping: rotate old logs, prune stale branches, compact handoffs, sync issues ---
     cleanup_old_logs "$LOG_DIR" "$KEEP_LOGS"
     cleanup_orphan_branches

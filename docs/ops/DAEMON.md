@@ -309,6 +309,9 @@ daemon.sh loop iteration
 git fetch + reset --hard origin/main    # clean slate
     |
     v
+source lib-agent.sh + check daemon hash # hot reload (no manual restart needed)
+    |
+    v
 housekeeping                            # rotate logs, prune branches,
   cleanup_old_logs                      #   compact handoffs, archive tasks,
   cleanup_orphan_branches               #   sync GitHub Issues -> task files
