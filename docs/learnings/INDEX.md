@@ -29,6 +29,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Strategist prompt-health reviews need line numbers](2026-04-05-strategist-prompt-health-needs-line-numbers.md) — Prompt-quality audits need `nl -ba` prompt reads or the recommendations lose actionable file:line references
 - [Cost analysis needs tolerant session parsing](2026-04-05-cost-analysis-needs-tolerant-session-parsing.md) — Analytics must handle legacy session-index rows and both Claude `result` logs and Codex final agent messages
 - [Generated docs need session labels](2026-04-05-generated-docs-need-session-labels.md) — Pre-commit generated metadata should label dirty files with the current session, not `working tree`, or the committed doc is stale on merge
+- [Stale doc tasks need a reality check](2026-04-05-stale-doc-tasks-need-reality-check.md) — When docs tasks lag architecture, update the task text first and document the replacement flow, not the removed behavior
 
 ## Code Patterns
 
