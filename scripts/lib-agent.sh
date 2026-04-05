@@ -28,6 +28,7 @@ PROMPT_GUARD_FILES=(
     "docs/prompt/overseer.md"
     "docs/prompt/strategist.md"
     "docs/prompt/harden-daemon.md"
+    "docs/prompt/healer.md"
 )
 
 # Directories to scan for new prompt-like files post-cycle.
@@ -457,4 +458,42 @@ run_agent() {
             ;;
     esac
     set -e
+}
+
+# ──────────────────────────────────────────────
+# Healer Persistence
+#
+# Commits healer-created docs (tasks, log) via
+# a branch+PR+merge cycle. Only docs/ files --
+# cannot break CI. Non-fatal on any failure.
+# ──────────────────────────────────────────────
+
+# persist_healer_changes SESSION_ID
+# Creates a branch, commits healer outputs, pushes, PRs, and merges.
+# Every step fails gracefully -- the daemon continues regardless.
+persist_healer_changes() {
+    local session_id="$1"
+    local changes
+    changes=$(git status --porcelain docs/tasks/ docs/healer/ 2>/dev/null || true)
+    if [ -z "$changes" ]; then
+        return 0
+    fi
+
+    local branch="docs/healer-${session_id}"
+    echo "  Persisting healer observations..."
+
+    git checkout -b "$branch" 2>/dev/null || { echo "  WARN: healer branch failed"; return 0; }
+    git add docs/tasks/0*.md docs/tasks/.next-id docs/healer/ 2>/dev/null || true
+    git diff --cached --quiet 2>/dev/null && { git checkout main 2>/dev/null || true; return 0; }
+    git commit -m "docs: healer observations (${session_id})" 2>/dev/null || { echo "  WARN: healer commit failed"; git checkout main 2>/dev/null || true; return 0; }
+    git push -u origin "$branch" 2>/dev/null || { echo "  WARN: healer push failed"; git checkout main 2>/dev/null || true; return 0; }
+    local pr_url
+    pr_url=$(gh pr create --title "docs: healer observations" --body "Automated healer meta-layer observations." 2>/dev/null) || { echo "  WARN: healer PR failed"; git checkout main 2>/dev/null || true; return 0; }
+    local pr_num
+    pr_num=$(echo "$pr_url" | grep -o '[0-9]*$')
+    gh pr merge "$pr_num" --merge --delete-branch --admin 2>/dev/null || { echo "  WARN: healer merge failed"; git checkout main 2>/dev/null || true; return 0; }
+
+    git checkout main 2>/dev/null || true
+    git reset --hard origin/main 2>/dev/null || true
+    echo "  Healer observations merged."
 }
