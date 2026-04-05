@@ -32,7 +32,7 @@ make strategist  # strategist (runs once, advises human)
 ## Daemons
 
 Four daemons, one runs at a time (shared lockfile). Full guide: `docs/ops/DAEMON.md`
-- **Builder** (`make daemon`): picks up tasks, builds features, PRs, merges. Includes a **healer** step between sessions that observes system health, identifies patterns, and creates follow-up tasks (`docs/prompt/healer.md`).
+- **Builder** (`make daemon`): picks up tasks, builds features, PRs, merges. Includes an **Observe the System** step (Step 6n in evolve.md) within each session that checks system health, spots trends, and writes observations to `docs/healer/log.md`.
 - **Reviewer** (`make review`): reviews code file by file, fixes quality
 - **Overseer** (`make overseer`): audits task queue, fixes priorities, cleans duplicates, catches direction problems
 - **Strategist** (`make strategist`): runs once, reviews big picture, produces report for human

@@ -510,7 +510,7 @@ When the daemon hits a situation that requires human attention, it creates a Git
 
 - **Circuit breaker tripped** -- 3 consecutive session failures (all daemons)
 - **Budget limit reached** -- cumulative spending exceeds the configured limit (builder)
-- **Healer critical pattern** -- healer detects a system health concern that tasks alone cannot fix
+- **Builder health concern** -- the builder's "Observe the System" step (Step 6n in evolve.md) flags system health as "concern" in the handoff
 
 ### How it works
 
@@ -538,9 +538,9 @@ Add a webhook URL to `.nightshift.json` for real-time notifications:
 
 The webhook receives a JSON payload: `{"text": "[Nightshift] <title>"}`.
 
-### Manual escalation from the healer
+### Observation-driven escalation
 
-The healer prompt (Step 5) instructs the healer agent to call `notify_human` when it observes critical patterns that require human decision-making. The healer only escalates for issues that cannot be self-fixed by creating builder tasks.
+The builder's "Observe the System" step (Step 6n in evolve.md) checks system health each session. When health is "concern", the builder notes it prominently in the handoff so the human sees it. Critical patterns that cannot be self-fixed by creating tasks should be escalated via `notify_human` from the daemon scripts.
 
 ---
 
