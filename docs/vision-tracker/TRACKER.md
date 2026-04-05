@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0048 (cross-session cost intelligence).
+Last updated: 2026-04-05 by agent session #0049 (persistent module map).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,11 +9,11 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ██████████████████░░  91%
+NIGHTSHIFT VISION                              ██████████████████░░  92%
 ├── Loop 1 — Hardening Loop                    ████████████████████  99%
 ├── Loop 2 — Feature Builder Loop              ████████████████████ 100%
 ├── Self-Maintaining Repo                      ██████████████░░░░░░  68%
-└── Meta-Prompt System                         ████████████████░░░░  76%
+└── Meta-Prompt System                         ████████████████░░░░  78%
 ```
 
 ---
@@ -96,9 +96,11 @@ The infrastructure that lets the agent manage everything without human intervent
 
 ---
 
-## Meta-Prompt System (76%)
+## Meta-Prompt System (78%)
 
 The reusable prompt and surrounding docs that make the self-improving loop work.
+Persistent module-map memory now reduces cold-start rediscovery when sessions touch
+the Python package.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -108,7 +110,7 @@ The reusable prompt and surrounding docs that make the self-improving loop work.
 | Loop 2 deep dive doc | Done | ████████████████████ 100% |
 | Feedback ingestion | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Priority engine (what to build next) | In progress | ████████████░░░░░░░░ 60% |
-| Session history / learning | In progress | ███████████████░░░░░ 75% |
+| Session history / learning | In progress | █████████████████░░░ 85% |
 
 ---
 

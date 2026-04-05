@@ -10,14 +10,15 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 
 ```
 Nightshift/
-├── nightshift/                  ← THE PRODUCT (Python package, 19 modules)
-├── tests/                       ← TEST SUITE (482 tests)
+├── nightshift/                  ← THE PRODUCT (Python package, 28 modules)
+├── tests/                       ← TEST SUITE (903 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
 │   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)
 │   ├── evaluations/             ← SELF-EVALUATION REPORTS (scored against real repos)
 │   ├── sessions/                ← DAEMON SESSION LOGS (stream-json + index)
 │   ├── tasks/                   ← TASK QUEUE (pending/done/blocked)
+│   ├── architecture/            ← GENERATED MODULE MAP (fast codebase orientation)
 │   ├── vision/                  ← LONG-TERM DIRECTION (where we're going)
 │   ├── vision-tracker/          ← SCOREBOARD (progress bars)
 │   ├── changelog/               ← HISTORY (per-version release notes)
@@ -211,6 +212,31 @@ Every session, after you finish building:
 - Don't inflate progress. If something is half-done, say "In progress" with honest percentage.
 - If you broke something, move it back.
 - "Done" means: code exists, tests pass, it works in a real run.
+
+---
+
+## System 3a: Module Map (`docs/architecture/`)
+
+### What it is
+A generated architecture index for `nightshift/*.py`. It gives future sessions a
+single file with module purposes, key symbols, dependency order, and recent
+shipped-session summaries so they do not have to rediscover the package from
+scratch.
+
+### Files
+| File | Purpose |
+|------|---------|
+| `MODULE_MAP.md` | Generated module inventory, dependency order, and recent merged-session summaries |
+
+### How to use
+- **Read when**: Your task touches `nightshift/*.py` and you need fast orientation before opening individual modules.
+- **Refresh when**: Any session changes `nightshift/*.py`, module exports, or dependency flow.
+- **Command**: `python3 -m nightshift module-map --write`
+
+### Rules
+- Treat `MODULE_MAP.md` as generated output. Refresh it with the CLI command instead of hand-editing rows.
+- If the module count or dependency order changes, update `CLAUDE.md` and any affected ops docs in the same session.
+- The healer treats the map as stale if it goes 5+ sessions without a refresh.
 
 ---
 
