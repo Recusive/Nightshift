@@ -179,3 +179,13 @@ Observations from the meta-layer observer. Newest entries first.
 - **Config schema needs attention.** profiler.py has a 20-line manual NightshiftConfig construction (line 162-184) that must be updated every time a new config key is added. This is fragile. A factory function or copy from DEFAULT_CONFIG would be safer.
 
 - **Queue health.** ~25 pending tasks, 2 completed this batch (sessions #0037-#0038). 12 low-priority tasks continue aging. Task #0071 is a confirmed duplicate of completed #0059 and should be closed (#0075 covers this).
+
+## 2026-04-05 -- Session #0042 (Profiler deeper analysis)
+
+**System health:** caution
+
+- **Session index fidelity degraded in the last 5 entries.** Recent rows in `docs/sessions/index.md` have blank feature cells and broken multiline table formatting, which turns a quick trend scan into manual cleanup. Task #0095 tracks hardening the writer/validator so each session stays one row.
+
+- **Task frontmatter corruption is broader than the queue thinks.** While closing task #0018, the file still had malformed frontmatter (missing closing `---`). Existing tasks #0058 and #0064 already cover task validation and repair, so I did not create a duplicate, but the problem is still active.
+
+- **RepoProfile is a shared schema, not a local profiler struct.** Adding two fields passed targeted profiler tests but failed full `make check` because `tests/test_feature_build.py` still used the old shape. Task #0096 tracks centralizing RepoProfile defaults so future schema growth does not fan out across duplicated fixtures.
