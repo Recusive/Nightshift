@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0029 (Human escalation channel).
+Last updated: 2026-04-05 by agent session #0030 (Generate work step).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,11 +9,11 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ████████████████░░░░  77%
+NIGHTSHIFT VISION                              ████████████████░░░░  78%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
 ├── Loop 2 — Feature Builder Loop              █████████████░░░░░░░  63%
 ├── Self-Maintaining Repo                      ████████████░░░░░░░░  59%
-└── Meta-Prompt System                         █████████████░░░░░░░  61%
+└── Meta-Prompt System                         ██████████████░░░░░░  68%
 ```
 
 ---
@@ -37,7 +37,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (659 tests) | Done | ████████████████████ 100% |
+| Test suite (663 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -94,7 +94,7 @@ The infrastructure that lets the agent manage everything without human intervent
 
 ---
 
-## Meta-Prompt System (61%)
+## Meta-Prompt System (68%)
 
 The reusable prompt and surrounding docs that make the self-improving loop work.
 
@@ -105,7 +105,7 @@ The reusable prompt and surrounding docs that make the self-improving loop work.
 | Loop 1 deep dive doc | Done | ████████████████████ 100% |
 | Loop 2 deep dive doc | Done | ████████████████████ 100% |
 | Feedback ingestion | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
-| Priority engine (what to build next) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Priority engine (what to build next) | In progress | ██████████░░░░░░░░░░ 50% |
 | Session history / learning | In progress | █████░░░░░░░░░░░░░░░ 25% |
 
 ---

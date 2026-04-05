@@ -18,6 +18,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Task selection is mesa-optimization](2026-04-04-task-selection-mesa-optimization.md) — Agent optimizes session success over project progress; queue order is authoritative, handoff is advisory
 - [Merge strategy: --merge never --squash](2026-04-03-merge-never-squash.md) — Always --merge --admin, preserve all commits on main
 - [Turn budget kills good sessions](2026-04-03-turn-budget-kills-sessions.md) — 500 max turns = silent death mid-work; keep context lean
+- [New evolve steps go inside Step 6](2026-04-05-generate-work-placement.md) — Add as subsection (6n, 6o) to avoid renumbering and breaking cross-references
 - [Open PR recovery](2026-04-03-open-pr-recovery.md) — Daemon detects open PRs from crashed sessions and recovers them
 
 ## Code Patterns
