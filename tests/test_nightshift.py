@@ -6460,6 +6460,7 @@ def _make_feature_state_for_summary(**overrides: object) -> nightshift.FeatureSt
                 integration_result=None,
             ),
         ],
+        "e2e_result": None,
         "final_verification": None,
         "readiness": None,
         "summary": None,
@@ -8153,6 +8154,7 @@ def _make_readiness_state(**overrides: object) -> nightshift.FeatureState:
                 integration_result=None,
             ),
         ],
+        "e2e_result": None,
         "final_verification": None,
         "readiness": None,
         "summary": None,
@@ -8647,3 +8649,353 @@ class TestReadinessConstants:
         assert len(nightshift.DEBUG_PRINT_PATTERNS) > 0
         for pattern in nightshift.DEBUG_PRINT_PATTERNS:
             assert hasattr(pattern, "search")
+
+
+# -- E2E Test Runner ----------------------------------------------------------
+
+
+class TestInferTestCommand:
+    def test_detects_makefile_test_target(self, tmp_path: Path) -> None:
+        (tmp_path / "Makefile").write_text("all:\n\techo hi\n\ntest:\n\tpytest\n")
+        assert nightshift.infer_test_command(tmp_path) == "make test"
+
+    def test_skips_makefile_without_test_target(self, tmp_path: Path) -> None:
+        (tmp_path / "Makefile").write_text("all:\n\techo hi\n")
+        assert nightshift.infer_test_command(tmp_path) is None
+
+    def test_makefile_test_target_with_spaces(self, tmp_path: Path) -> None:
+        (tmp_path / "Makefile").write_text("test :\n\tpytest\n")
+        assert nightshift.infer_test_command(tmp_path) == "make test"
+
+    def test_makefile_does_not_match_tests_target(self, tmp_path: Path) -> None:
+        (tmp_path / "Makefile").write_text("tests:\n\tpytest\n")
+        assert nightshift.infer_test_command(tmp_path) is None
+
+    def test_detects_npm_test(self, tmp_path: Path) -> None:
+        import json
+
+        pkg = {"scripts": {"test": "jest"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        (tmp_path / "package-lock.json").write_text("{}")
+        assert nightshift.infer_test_command(tmp_path) == "npm test"
+
+    def test_detects_pnpm_test(self, tmp_path: Path) -> None:
+        import json
+
+        pkg = {"scripts": {"test": "vitest"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        (tmp_path / "pnpm-lock.yaml").write_text("")
+        assert nightshift.infer_test_command(tmp_path) == "pnpm test"
+
+    def test_detects_yarn_test(self, tmp_path: Path) -> None:
+        import json
+
+        pkg = {"scripts": {"test": "jest"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        (tmp_path / "yarn.lock").write_text("")
+        assert nightshift.infer_test_command(tmp_path) == "yarn test"
+
+    def test_detects_bun_test(self, tmp_path: Path) -> None:
+        import json
+
+        pkg = {"scripts": {"test": "bun test"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        (tmp_path / "bun.lockb").write_text("")
+        assert nightshift.infer_test_command(tmp_path) == "bun test"
+
+    def test_skips_package_json_without_test_script(self, tmp_path: Path) -> None:
+        import json
+
+        pkg = {"scripts": {"build": "tsc"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        assert nightshift.infer_test_command(tmp_path) is None
+
+    def test_detects_pytest(self, tmp_path: Path) -> None:
+        (tmp_path / "pyproject.toml").write_text("[tool.pytest]\n")
+        assert nightshift.infer_test_command(tmp_path) == "python3 -m pytest"
+
+    def test_detects_pytest_ini(self, tmp_path: Path) -> None:
+        (tmp_path / "pytest.ini").write_text("[pytest]\n")
+        assert nightshift.infer_test_command(tmp_path) == "python3 -m pytest"
+
+    def test_detects_cargo_test(self, tmp_path: Path) -> None:
+        (tmp_path / "Cargo.toml").write_text("[package]\n")
+        assert nightshift.infer_test_command(tmp_path) == "cargo test"
+
+    def test_detects_go_test(self, tmp_path: Path) -> None:
+        (tmp_path / "go.mod").write_text("module example.com/foo\n")
+        assert nightshift.infer_test_command(tmp_path) == "go test ./..."
+
+    def test_empty_repo_returns_none(self, tmp_path: Path) -> None:
+        assert nightshift.infer_test_command(tmp_path) is None
+
+    def test_makefile_takes_priority_over_package_json(self, tmp_path: Path) -> None:
+        import json
+
+        (tmp_path / "Makefile").write_text("test:\n\tpytest\n")
+        pkg = {"scripts": {"test": "jest"}}
+        (tmp_path / "package.json").write_text(json.dumps(pkg))
+        assert nightshift.infer_test_command(tmp_path) == "make test"
+
+    def test_skips_symlinked_makefile(self, tmp_path: Path) -> None:
+        real = tmp_path / "real" / "Makefile"
+        real.parent.mkdir()
+        real.write_text("test:\n\tpytest\n")
+        link = tmp_path / "Makefile"
+        link.symlink_to(real)
+        assert nightshift.infer_test_command(tmp_path) is None
+
+    def test_skips_symlinked_package_json(self, tmp_path: Path) -> None:
+        import json
+
+        real = tmp_path / "real" / "package.json"
+        real.parent.mkdir()
+        real.write_text(json.dumps({"scripts": {"test": "jest"}}))
+        link = tmp_path / "package.json"
+        link.symlink_to(real)
+        assert nightshift.infer_test_command(tmp_path) is None
+
+    def test_malformed_package_json(self, tmp_path: Path) -> None:
+        (tmp_path / "package.json").write_text("not json")
+        assert nightshift.infer_test_command(tmp_path) is None
+
+
+class TestDetectSmokeTest:
+    def test_finds_scripts_smoke_test_sh(self, tmp_path: Path) -> None:
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (scripts / "smoke-test.sh").write_text("#!/bin/bash\necho ok\n")
+        assert nightshift.detect_smoke_test(tmp_path) == "bash scripts/smoke-test.sh"
+
+    def test_finds_scripts_smoke_test_underscore(self, tmp_path: Path) -> None:
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (scripts / "smoke_test.sh").write_text("#!/bin/bash\necho ok\n")
+        assert nightshift.detect_smoke_test(tmp_path) == "bash scripts/smoke_test.sh"
+
+    def test_finds_root_smoke_test(self, tmp_path: Path) -> None:
+        (tmp_path / "smoke-test.sh").write_text("#!/bin/bash\necho ok\n")
+        assert nightshift.detect_smoke_test(tmp_path) == "bash smoke-test.sh"
+
+    def test_priority_order(self, tmp_path: Path) -> None:
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (scripts / "smoke-test.sh").write_text("#!/bin/bash\n")
+        (tmp_path / "smoke-test.sh").write_text("#!/bin/bash\n")
+        assert nightshift.detect_smoke_test(tmp_path) == "bash scripts/smoke-test.sh"
+
+    def test_returns_none_when_absent(self, tmp_path: Path) -> None:
+        assert nightshift.detect_smoke_test(tmp_path) is None
+
+    def test_skips_symlinked_smoke_test(self, tmp_path: Path) -> None:
+        real = tmp_path / "real" / "smoke.sh"
+        real.parent.mkdir()
+        real.write_text("#!/bin/bash\necho ok\n")
+        link = tmp_path / "smoke-test.sh"
+        link.symlink_to(real)
+        assert nightshift.detect_smoke_test(tmp_path) is None
+
+    def test_skips_directory_named_smoke_test(self, tmp_path: Path) -> None:
+        (tmp_path / "smoke-test.sh").mkdir()
+        assert nightshift.detect_smoke_test(tmp_path) is None
+
+
+class TestRunE2ETests:
+    def test_passes_when_tests_pass(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "nightshift.e2e.run_test_command",
+            lambda cmd, *, cwd, timeout: (0, "all passed"),
+        )
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path, test_command="make test")
+        assert result["status"] == "passed"
+        assert result["test_command"] == "make test"
+        assert result["test_exit_code"] == 0
+        assert result["test_output"] == "all passed"
+        assert result["smoke_test_command"] is None
+
+    def test_fails_when_tests_fail(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "nightshift.e2e.run_test_command",
+            lambda cmd, *, cwd, timeout: (1, "FAILED"),
+        )
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path, test_command="pytest")
+        assert result["status"] == "failed"
+        assert result["test_exit_code"] == 1
+
+    def test_skipped_when_no_command(self, tmp_path: Path) -> None:
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path)
+        assert result["status"] == "skipped"
+        assert result["test_command"] is None
+        assert result["smoke_test_command"] is None
+
+    def test_infers_test_command(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        (tmp_path / "pyproject.toml").write_text("[tool.pytest]\n")
+        monkeypatch.setattr(
+            "nightshift.e2e.run_test_command",
+            lambda cmd, *, cwd, timeout: (0, "ok"),
+        )
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path)
+        assert result["test_command"] == "python3 -m pytest"
+        assert result["status"] == "passed"
+
+    def test_runs_smoke_test(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (scripts / "smoke-test.sh").write_text("#!/bin/bash\necho ok\n")
+
+        calls: list[str] = []
+
+        def fake_run(cmd: str, *, cwd: Path, timeout: int) -> tuple[int, str]:
+            calls.append(cmd)
+            return (0, "ok")
+
+        monkeypatch.setattr("nightshift.e2e.run_test_command", fake_run)
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path, test_command="pytest")
+        assert result["status"] == "passed"
+        assert result["smoke_test_command"] == "bash scripts/smoke-test.sh"
+        assert result["smoke_test_exit_code"] == 0
+        assert len(calls) == 2
+        assert "pytest" in calls
+        assert "bash scripts/smoke-test.sh" in calls
+
+    def test_fails_when_smoke_test_fails(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (scripts / "smoke-test.sh").write_text("#!/bin/bash\nexit 1\n")
+
+        def fake_run(cmd: str, *, cwd: Path, timeout: int) -> tuple[int, str]:
+            if "smoke" in cmd:
+                return (1, "smoke failed")
+            return (0, "tests ok")
+
+        monkeypatch.setattr("nightshift.e2e.run_test_command", fake_run)
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path, test_command="pytest")
+        assert result["status"] == "failed"
+        assert result["test_exit_code"] == 0
+        assert result["smoke_test_exit_code"] == 1
+
+    def test_explicit_command_overrides_inferred(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        (tmp_path / "Makefile").write_text("test:\n\tpytest\n")
+        monkeypatch.setattr(
+            "nightshift.e2e.run_test_command",
+            lambda cmd, *, cwd, timeout: (0, cmd),
+        )
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path, test_command="custom-test")
+        assert result["test_command"] == "custom-test"
+
+    def test_smoke_only_passes(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        (tmp_path / "smoke-test.sh").write_text("#!/bin/bash\necho ok\n")
+        monkeypatch.setattr(
+            "nightshift.e2e.run_test_command",
+            lambda cmd, *, cwd, timeout: (0, "ok"),
+        )
+        result = nightshift.run_e2e_tests(repo_dir=tmp_path)
+        assert result["status"] == "passed"
+        assert result["test_command"] is None
+        assert result["smoke_test_command"] == "bash smoke-test.sh"
+
+
+class TestE2EStateRoundTrip:
+    def test_e2e_result_persists(self, tmp_path: Path) -> None:
+        state = _make_readiness_state()
+        state["e2e_result"] = nightshift.E2EResult(
+            status="passed",
+            test_command="make test",
+            test_exit_code=0,
+            test_output="all ok",
+            smoke_test_command="bash scripts/smoke-test.sh",
+            smoke_test_exit_code=0,
+            smoke_test_output="smoke ok",
+        )
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["e2e_result"] is not None
+        assert loaded["e2e_result"]["status"] == "passed"
+        assert loaded["e2e_result"]["test_command"] == "make test"
+        assert loaded["e2e_result"]["test_exit_code"] == 0
+        assert loaded["e2e_result"]["smoke_test_command"] == "bash scripts/smoke-test.sh"
+
+    def test_e2e_result_none_persists(self, tmp_path: Path) -> None:
+        state = _make_readiness_state()
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["e2e_result"] is None
+
+    def test_backward_compat_missing_e2e_result(self, tmp_path: Path) -> None:
+        """State files written before e2e_result was added load with e2e_result=None."""
+        import json
+
+        state = _make_readiness_state()
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        raw = json.loads(state_path.read_text())
+        del raw["e2e_result"]
+        state_path.write_text(json.dumps(raw))
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["e2e_result"] is None
+
+
+class TestFormatFeatureStatusE2E:
+    def test_displays_e2e_section(self) -> None:
+        state = _make_readiness_state()
+        state["e2e_result"] = nightshift.E2EResult(
+            status="passed",
+            test_command="make test",
+            test_exit_code=0,
+            test_output="all ok",
+            smoke_test_command="bash scripts/smoke-test.sh",
+            smoke_test_exit_code=0,
+            smoke_test_output="smoke ok",
+        )
+        output = nightshift.format_feature_status(state)
+        assert "## E2E Tests" in output
+        assert "Status: passed" in output
+        assert "`make test`" in output
+        assert "`bash scripts/smoke-test.sh`" in output
+
+    def test_hides_e2e_section_when_none(self) -> None:
+        state = _make_readiness_state()
+        output = nightshift.format_feature_status(state)
+        assert "## E2E Tests" not in output
+
+    def test_displays_failed_e2e(self) -> None:
+        state = _make_readiness_state()
+        state["e2e_result"] = nightshift.E2EResult(
+            status="failed",
+            test_command="pytest",
+            test_exit_code=1,
+            test_output="FAIL",
+            smoke_test_command=None,
+            smoke_test_exit_code=0,
+            smoke_test_output="",
+        )
+        output = nightshift.format_feature_status(state)
+        assert "Status: failed" in output
+        assert "`pytest`" in output
+        assert "Smoke test:" not in output
+
+    def test_displays_skipped_e2e(self) -> None:
+        state = _make_readiness_state()
+        state["e2e_result"] = nightshift.E2EResult(
+            status="skipped",
+            test_command=None,
+            test_exit_code=0,
+            test_output="",
+            smoke_test_command=None,
+            smoke_test_exit_code=0,
+            smoke_test_output="",
+        )
+        output = nightshift.format_feature_status(state)
+        assert "Status: skipped" in output
+
+
+class TestE2EConstants:
+    def test_smoke_candidates_exist(self) -> None:
+        assert len(nightshift.E2E_SMOKE_CANDIDATES) > 0
+        for candidate in nightshift.E2E_SMOKE_CANDIDATES:
+            assert isinstance(candidate, str)
+
+    def test_timeout_is_positive(self) -> None:
+        assert nightshift.E2E_TEST_TIMEOUT > 0

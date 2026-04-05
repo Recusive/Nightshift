@@ -329,6 +329,18 @@ class ReadinessReport(TypedDict):
     failed_count: int
 
 
+class E2EResult(TypedDict):
+    """Result of running end-to-end tests after all waves complete."""
+
+    status: str  # "passed" | "failed" | "skipped"
+    test_command: str | None
+    test_exit_code: int
+    test_output: str
+    smoke_test_command: str | None
+    smoke_test_exit_code: int
+    smoke_test_output: str
+
+
 class FeatureState(TypedDict):
     """Persisted state for the Loop 2 feature build orchestrator."""
 
@@ -341,6 +353,7 @@ class FeatureState(TypedDict):
     profile: RepoProfile
     plan: FeaturePlan
     waves: list[FeatureWaveState]
+    e2e_result: E2EResult | None
     final_verification: FinalVerificationResult | None
     readiness: ReadinessReport | None
     summary: FeatureSummary | None
