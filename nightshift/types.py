@@ -272,6 +272,30 @@ class IntegrationResult(TypedDict):
     failure_diagnosis: str
 
 
+# --- Loop 2: Coordination types ---------------------------------------------
+
+
+class FileOverlap(TypedDict):
+    """A file reference mentioned by multiple tasks within a wave."""
+
+    file_pattern: str
+    task_ids: list[int]
+
+
+class FileConflict(TypedDict):
+    """A file touched by multiple completed tasks in a wave."""
+
+    file_path: str
+    task_ids: list[int]
+
+
+class ConflictReport(TypedDict):
+    """Post-wave file conflict analysis result."""
+
+    conflicts: list[FileConflict]
+    has_conflicts: bool
+
+
 # --- Loop 2: Feature build orchestration ------------------------------------
 
 

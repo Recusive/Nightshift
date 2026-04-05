@@ -43,6 +43,7 @@ PACKAGE_FILES=(
   "nightshift/summary.py"
   "nightshift/readiness.py"
   "nightshift/e2e.py"
+  "nightshift/coordination.py"
   "nightshift/feature.py"
   "nightshift/cli.py"
 )

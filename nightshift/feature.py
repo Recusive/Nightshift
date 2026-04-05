@@ -16,6 +16,7 @@ from nightshift.constants import (
     FEATURE_VERIFY_TIMEOUT,
     print_status,
 )
+from nightshift.coordination import coordinate_wave, log_conflicts
 from nightshift.cycle import command_for_agent
 from nightshift.decomposer import decompose_plan
 from nightshift.e2e import run_e2e_tests
@@ -631,14 +632,19 @@ def build_feature(
         wave_state["status"] = "running"
         write_feature_state(state_path, state)
 
+        coordinated_orders = coordinate_wave(work_orders)
+
         wave_log_dir = log_dir / f"wave-{wave_index}"
         wave_result = spawn_wave(
-            work_orders,
+            coordinated_orders,
             agent=effective_agent,
             repo_dir=repo_dir,
             log_dir=wave_log_dir,
             config=config,
         )
+
+        log_conflicts(wave_result)
+
         integration_result = integrate_wave(
             wave_result,
             repo_dir=repo_dir,

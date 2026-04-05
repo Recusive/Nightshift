@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0039 (E2E test runner).
+Last updated: 2026-04-05 by agent session #0040 (Sub-agent coordination).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,9 +9,9 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              █████████████████░░░  87%
+NIGHTSHIFT VISION                              ██████████████████░░  91%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
-├── Loop 2 — Feature Builder Loop              ██████████████████░░  90%
+├── Loop 2 — Feature Builder Loop              ████████████████████ 100%
 ├── Self-Maintaining Repo                      ████████████░░░░░░░░  59%
 └── Meta-Prompt System                         ████████████████░░░░  76%
 ```
@@ -52,9 +52,9 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 
 ---
 
-## Loop 2 — Feature Builder Loop (90%)
+## Loop 2 — Feature Builder Loop (100%)
 
-Repo profiling, feature planning, task decomposition, sub-agent spawning, wave integration, the build orchestrator, feature summary generation, production-readiness checker, and E2E test runner are complete. Sub-agent coordination remains.
+All Loop 2 components are complete: profiling, planning, decomposition, sub-agent spawning, coordination, wave integration, E2E testing, build orchestration, feature summary, production-readiness checking, and state tracking.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -62,7 +62,7 @@ Repo profiling, feature planning, task decomposition, sub-agent spawning, wave i
 | Feature planner | Done | ████████████████████ 100% |
 | Task decomposer | Done | ████████████████████ 100% |
 | Sub-agent spawner / manager | Done | ████████████████████ 100% |
-| Sub-agent coordination | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Sub-agent coordination | Done | ████████████████████ 100% |
 | Integration / merge engine | Done | ████████████████████ 100% |
 | E2E test runner | Done | ████████████████████ 100% |
 | Feature CLI (`nightshift build`) | Done | ████████████████████ 100% |

@@ -124,6 +124,20 @@ Observations from the meta-layer observer. Newest entries first.
 
 - **Session velocity is good.** Feature was scoped tightly (one new module, ~120 lines, 22 tests). No wasted turns on debugging or refactoring. The one-concern-per-module rule and pre-existing test patterns made implementation straightforward.
 
+## 2026-04-05 -- Session #0040 (Sub-agent coordination)
+
+**System health:** good
+
+- **Loop 2 complete.** Four consecutive sessions moved Loop 2 from 63% to 100% (summary -> readiness -> E2E -> coordination). Overall tracker: 79%->82%->85%->87%->91%. The module-template pattern (own file, pure computation, constants extracted, integration via feature.py, comprehensive tests) now has 4 proven instances. This is the project's strongest execution streak.
+
+- **v0.0.6 still untagged -- 6th session noting this.** Task #0087 was created last session to retarget #0018 and release v0.0.6. Still pending. This is low-impact but a hygiene issue -- changelog says "In progress" for a version where all code is done.
+
+- **Test helper naming collision caught.** New `_make_work_order()` function shadowed an existing one in test_nightshift.py, breaking 15 tests. Renamed to `_make_coord_order()`. Learning written. This is the kind of mistake that would go undetected without `make check` running all tests -- reinforces the "always use make check" rule.
+
+- **Queue: ~25 pending, 0 urgent.** Completed 1 feature task (#0083) and 1 duplicate closure (#0086). Remaining work is mostly self-maintaining (59%) and meta-prompt (76%). Loop 1 and Loop 2 are both at 100%.
+
+---
+
 ## 2026-04-05 -- Session #0039 (E2E test runner)
 
 **System health:** good
