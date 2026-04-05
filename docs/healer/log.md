@@ -123,3 +123,15 @@ Observations from the meta-layer observer. Newest entries first.
 - **Queue: 25 pending after completing #0059.** Net -1 this session (1 completed, tasks to be generated). The 12 low-priority tasks continue to age. The next sessions should continue targeting loop2 (#0068 production-readiness checker) to push Loop 2 toward 80%.
 
 - **Session velocity is good.** Feature was scoped tightly (one new module, ~120 lines, 22 tests). No wasted turns on debugging or refactoring. The one-concern-per-module rule and pre-existing test patterns made implementation straightforward.
+
+## 2026-04-05 -- Session #0038 (Production-readiness checker)
+
+**System health:** good
+
+- **Tracker momentum sustained.** Two consecutive sessions moved the tracker: 79%->82%->85%. Loop 2 advanced from 63%->72%->81% in two sessions. Only 2 Loop 2 components remain (sub-agent coordination, E2E test runner).
+
+- **Module template established.** readiness.py followed the same pattern as summary.py: own module, pure computation, constants in constants.py, integration via feature.py, 40 tests. The one-concern-per-module rule makes new modules fast to build (~20 min from plan to green CI).
+
+- **Config schema needs attention.** profiler.py has a 20-line manual NightshiftConfig construction (line 162-184) that must be updated every time a new config key is added. This is fragile. A factory function or copy from DEFAULT_CONFIG would be safer.
+
+- **Queue health.** ~25 pending tasks, 2 completed this batch (sessions #0037-#0038). 12 low-priority tasks continue aging. Task #0071 is a confirmed duplicate of completed #0059 and should be closed (#0075 covers this).

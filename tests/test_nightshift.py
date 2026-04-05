@@ -61,6 +61,7 @@ class TestConstants:
             "codex_model",
             "codex_thinking",
             "notification_webhook",
+            "readiness_checks",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -6460,6 +6461,7 @@ def _make_feature_state_for_summary(**overrides: object) -> nightshift.FeatureSt
             ),
         ],
         "final_verification": None,
+        "readiness": None,
         "summary": None,
     }
     defaults.update(overrides)
@@ -8097,3 +8099,551 @@ class TestHealerInfrastructure:
         """healer.md should be noted as reference doc in PROMPT_GUARD_FILES."""
         content = Path("scripts/lib-agent.sh").read_text()
         assert "healer.md" in content  # commented reference still present
+
+
+# ---------------------------------------------------------------------------
+# Readiness checker tests
+# ---------------------------------------------------------------------------
+
+
+def _make_readiness_state(**overrides: object) -> nightshift.FeatureState:
+    """Build a minimal FeatureState for readiness tests."""
+    plan = _make_feature_plan()
+    profile = nightshift.RepoProfile(
+        languages={"Python": 10},
+        primary_language="Python",
+        frameworks=[],
+        package_manager=None,
+        test_runner="pytest",
+        instruction_files=[],
+        top_level_dirs=["src", "tests"],
+        has_monorepo_markers=False,
+        total_files=20,
+    )
+    defaults: dict[str, object] = {
+        "version": 1,
+        "feature_description": "Add dark mode",
+        "agent": "claude",
+        "status": "completed",
+        "scope_warning": "",
+        "current_wave": 0,
+        "profile": profile,
+        "plan": plan,
+        "waves": [
+            nightshift.FeatureWaveState(
+                wave=1,
+                task_ids=[1],
+                status="passed",
+                wave_result=nightshift.WaveResult(
+                    wave=1,
+                    completed=[
+                        nightshift.TaskCompletion(
+                            task_id=1,
+                            status="done",
+                            files_created=["src/theme.py"],
+                            files_modified=["src/settings.py"],
+                            tests_written=["test theme toggle"],
+                            tests_passed=True,
+                            notes="",
+                        ),
+                    ],
+                    failed=[],
+                    total_tasks=1,
+                ),
+                integration_result=None,
+            ),
+        ],
+        "final_verification": None,
+        "readiness": None,
+        "summary": None,
+    }
+    defaults.update(overrides)
+    return nightshift.FeatureState(**defaults)  # type: ignore[arg-type]
+
+
+def _default_readiness_config() -> nightshift.NightshiftConfig:
+    """Return a NightshiftConfig with all readiness checks enabled."""
+    import json
+
+    return nightshift.NightshiftConfig(
+        **json.loads(json.dumps(nightshift.DEFAULT_CONFIG))  # type: ignore[arg-type]
+    )
+
+
+class TestCollectChangedFiles:
+    def test_basic_collection(self) -> None:
+        state = _make_readiness_state()
+        created, modified = nightshift.collect_changed_files(state)
+        assert created == ["src/theme.py"]
+        assert modified == ["src/settings.py"]
+
+    def test_dedup_across_waves(self) -> None:
+        state = _make_readiness_state(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/a.py"],
+                                files_modified=["src/b.py"],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+                nightshift.FeatureWaveState(
+                    wave=2,
+                    task_ids=[2],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=2,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=2,
+                                status="done",
+                                files_created=["src/a.py"],
+                                files_modified=["src/b.py"],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        created, modified = nightshift.collect_changed_files(state)
+        assert created == ["src/a.py"]
+        assert modified == ["src/b.py"]
+
+    def test_created_wins_over_modified(self) -> None:
+        state = _make_readiness_state(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/new.py"],
+                                files_modified=["src/new.py"],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        created, modified = nightshift.collect_changed_files(state)
+        assert "src/new.py" in created
+        assert "src/new.py" not in modified
+
+    def test_empty_waves(self) -> None:
+        state = _make_readiness_state(waves=[])
+        created, modified = nightshift.collect_changed_files(state)
+        assert created == []
+        assert modified == []
+
+
+class TestCheckSecrets:
+    def test_clean_file(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "app.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("x = 42\n")
+        result = nightshift.check_secrets(["src/app.py"], tmp_path)
+        assert result["passed"] is True
+
+    def test_detects_api_key(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "config.py"
+        src.parent.mkdir(parents=True)
+        src.write_text('api_key = "sk-1234567890abcdefghij"\n')
+        result = nightshift.check_secrets(["src/config.py"], tmp_path)
+        assert result["passed"] is False
+        assert "1 location" in result["details"]
+
+    def test_detects_aws_key(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "aws.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("key = AKIAIOSFODNN7EXAMPLE\n")
+        result = nightshift.check_secrets(["src/aws.py"], tmp_path)
+        assert result["passed"] is False
+
+    def test_detects_github_pat(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "gh.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("token = ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij\n")
+        result = nightshift.check_secrets(["src/gh.py"], tmp_path)
+        assert result["passed"] is False
+
+    def test_skips_non_source_files(self, tmp_path: Path) -> None:
+        md = tmp_path / "docs" / "readme.md"
+        md.parent.mkdir(parents=True)
+        md.write_text('api_key = "sk-1234567890abcdefghij"\n')
+        result = nightshift.check_secrets(["docs/readme.md"], tmp_path)
+        assert result["passed"] is True
+
+    def test_missing_file(self, tmp_path: Path) -> None:
+        result = nightshift.check_secrets(["src/missing.py"], tmp_path)
+        assert result["passed"] is True
+
+    def test_multiple_hits_truncated(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "secrets.py"
+        src.parent.mkdir(parents=True)
+        lines = [f'api_key = "sk-{"a" * 20}_{i}"\n' for i in range(15)]
+        src.write_text("".join(lines))
+        result = nightshift.check_secrets(["src/secrets.py"], tmp_path)
+        assert result["passed"] is False
+        assert "... and" in result["details"]
+
+
+class TestCheckDebugPrints:
+    def test_clean_file(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "app.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("x = 42\n")
+        result = nightshift.check_debug_prints(["src/app.py"], tmp_path)
+        assert result["passed"] is True
+
+    def test_detects_python_print(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "app.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("print('debug')\n")
+        result = nightshift.check_debug_prints(["src/app.py"], tmp_path)
+        assert result["passed"] is False
+        assert "1 location" in result["details"]
+
+    def test_detects_console_log(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "app.js"
+        src.parent.mkdir(parents=True)
+        src.write_text("console.log('debug')\n")
+        result = nightshift.check_debug_prints(["src/app.js"], tmp_path)
+        assert result["passed"] is False
+
+    def test_detects_debugger(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "app.js"
+        src.parent.mkdir(parents=True)
+        src.write_text("debugger\n")
+        result = nightshift.check_debug_prints(["src/app.js"], tmp_path)
+        assert result["passed"] is False
+
+    def test_detects_breakpoint(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "app.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("breakpoint()\n")
+        result = nightshift.check_debug_prints(["src/app.py"], tmp_path)
+        assert result["passed"] is False
+
+    def test_detects_pdb_import(self, tmp_path: Path) -> None:
+        src = tmp_path / "src" / "app.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("import pdb\n")
+        result = nightshift.check_debug_prints(["src/app.py"], tmp_path)
+        assert result["passed"] is False
+
+    def test_skips_test_files(self, tmp_path: Path) -> None:
+        src = tmp_path / "tests" / "test_app.py"
+        src.parent.mkdir(parents=True)
+        src.write_text("print('test output')\n")
+        result = nightshift.check_debug_prints(["tests/test_app.py"], tmp_path)
+        assert result["passed"] is True
+
+    def test_skips_non_source_files(self, tmp_path: Path) -> None:
+        md = tmp_path / "docs" / "guide.md"
+        md.parent.mkdir(parents=True)
+        md.write_text("print('example')\n")
+        result = nightshift.check_debug_prints(["docs/guide.md"], tmp_path)
+        assert result["passed"] is True
+
+
+class TestCheckTestCoverage:
+    def test_all_covered(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "src" / "app.py").write_text("x = 1\n")
+        (tmp_path / "tests" / "test_app.py").write_text("assert True\n")
+        result = nightshift.check_test_coverage(["src/app.py"], [], tmp_path)
+        assert result["passed"] is True
+        assert "1 production" in result["details"]
+
+    def test_uncovered_file(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "app.py").write_text("x = 1\n")
+        result = nightshift.check_test_coverage(["src/app.py"], [], tmp_path)
+        assert result["passed"] is False
+        assert "src/app.py" in result["details"]
+
+    def test_test_file_in_same_dir(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "app.py").write_text("x = 1\n")
+        (tmp_path / "src" / "test_app.py").write_text("assert True\n")
+        result = nightshift.check_test_coverage(["src/app.py"], [], tmp_path)
+        assert result["passed"] is True
+
+    def test_no_production_files(self, tmp_path: Path) -> None:
+        result = nightshift.check_test_coverage([], [], tmp_path)
+        assert result["passed"] is True
+        assert "No production" in result["details"]
+
+    def test_skips_test_files_in_input(self, tmp_path: Path) -> None:
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "test_app.py").write_text("assert True\n")
+        result = nightshift.check_test_coverage(["tests/test_app.py"], [], tmp_path)
+        assert result["passed"] is True
+
+    def test_non_source_files_skipped(self, tmp_path: Path) -> None:
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "guide.md").write_text("# Guide\n")
+        result = nightshift.check_test_coverage(["docs/guide.md"], [], tmp_path)
+        assert result["passed"] is True
+
+    def test_nested_test_dir(self, tmp_path: Path) -> None:
+        (tmp_path / "src" / "api").mkdir(parents=True)
+        (tmp_path / "tests" / "api").mkdir(parents=True)
+        (tmp_path / "src" / "api" / "routes.py").write_text("x = 1\n")
+        (tmp_path / "tests" / "api" / "test_routes.py").write_text("assert True\n")
+        result = nightshift.check_test_coverage(["src/api/routes.py"], [], tmp_path)
+        assert result["passed"] is True
+
+
+class TestCheckProductionReadiness:
+    def test_all_checks_pass(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "src" / "theme.py").write_text("DARK = True\n")
+        (tmp_path / "tests" / "test_theme.py").write_text("assert True\n")
+        state = _make_readiness_state(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/theme.py"],
+                                files_modified=[],
+                                tests_written=["test theme"],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        config = _default_readiness_config()
+        report = nightshift.check_production_readiness(state, tmp_path, config)
+        assert report["verdict"] == "ready"
+        assert report["passed_count"] == 3
+        assert report["failed_count"] == 0
+
+    def test_detects_secret(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "src" / "theme.py").write_text('api_key = "sk-12345678901234567890"\n')
+        (tmp_path / "tests" / "test_theme.py").write_text("assert True\n")
+        state = _make_readiness_state(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/theme.py"],
+                                files_modified=[],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        config = _default_readiness_config()
+        report = nightshift.check_production_readiness(state, tmp_path, config)
+        assert report["verdict"] == "not_ready"
+        assert report["failed_count"] >= 1
+        secrets_check = next(c for c in report["checks"] if c["name"] == "secrets")
+        assert secrets_check["passed"] is False
+
+    def test_configurable_checks(self, tmp_path: Path) -> None:
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "theme.py").write_text("print('debug')\n")
+        state = _make_readiness_state(
+            waves=[
+                nightshift.FeatureWaveState(
+                    wave=1,
+                    task_ids=[1],
+                    status="passed",
+                    wave_result=nightshift.WaveResult(
+                        wave=1,
+                        completed=[
+                            nightshift.TaskCompletion(
+                                task_id=1,
+                                status="done",
+                                files_created=["src/theme.py"],
+                                files_modified=[],
+                                tests_written=[],
+                                tests_passed=True,
+                                notes="",
+                            ),
+                        ],
+                        failed=[],
+                        total_tasks=1,
+                    ),
+                    integration_result=None,
+                ),
+            ],
+        )
+        config = _default_readiness_config()
+        config["readiness_checks"] = ["secrets"]
+        report = nightshift.check_production_readiness(state, tmp_path, config)
+        assert len(report["checks"]) == 1
+        assert report["checks"][0]["name"] == "secrets"
+        assert report["verdict"] == "ready"
+
+    def test_empty_checks_list(self, tmp_path: Path) -> None:
+        state = _make_readiness_state()
+        config = _default_readiness_config()
+        config["readiness_checks"] = []
+        report = nightshift.check_production_readiness(state, tmp_path, config)
+        assert report["verdict"] == "ready"
+        assert report["checks"] == []
+
+    def test_unknown_check_names_ignored(self, tmp_path: Path) -> None:
+        state = _make_readiness_state()
+        config = _default_readiness_config()
+        config["readiness_checks"] = ["nonexistent_check"]
+        report = nightshift.check_production_readiness(state, tmp_path, config)
+        assert report["checks"] == []
+        assert report["verdict"] == "ready"
+
+
+class TestReadinessStateRoundTrip:
+    def test_readiness_persists(self, tmp_path: Path) -> None:
+        state = _make_readiness_state()
+        state["readiness"] = nightshift.ReadinessReport(
+            checks=[
+                nightshift.ReadinessCheck(name="secrets", passed=True, details="clean"),
+                nightshift.ReadinessCheck(name="debug_prints", passed=False, details="found print"),
+            ],
+            verdict="not_ready",
+            passed_count=1,
+            failed_count=1,
+        )
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["readiness"] is not None
+        assert loaded["readiness"]["verdict"] == "not_ready"
+        assert len(loaded["readiness"]["checks"]) == 2
+        assert loaded["readiness"]["checks"][0]["name"] == "secrets"
+        assert loaded["readiness"]["checks"][0]["passed"] is True
+        assert loaded["readiness"]["checks"][1]["passed"] is False
+
+    def test_readiness_none_persists(self, tmp_path: Path) -> None:
+        state = _make_readiness_state()
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["readiness"] is None
+
+    def test_backward_compat_missing_readiness(self, tmp_path: Path) -> None:
+        """State files written before readiness was added should load with readiness=None."""
+        import json
+
+        state = _make_readiness_state()
+        state_path = tmp_path / "state.json"
+        nightshift.write_feature_state(state_path, state)
+        raw = json.loads(state_path.read_text())
+        del raw["readiness"]
+        state_path.write_text(json.dumps(raw))
+        loaded = nightshift.read_feature_state(state_path)
+        assert loaded["readiness"] is None
+
+
+class TestFormatFeatureStatusReadiness:
+    def test_displays_readiness_section(self) -> None:
+        state = _make_readiness_state()
+        state["readiness"] = nightshift.ReadinessReport(
+            checks=[
+                nightshift.ReadinessCheck(name="secrets", passed=True, details="No secrets detected in changed files."),
+                nightshift.ReadinessCheck(
+                    name="debug_prints", passed=False, details="Debug statements found in 2 location(s):\nsrc/app.py:5"
+                ),
+            ],
+            verdict="not_ready",
+            passed_count=1,
+            failed_count=1,
+        )
+        output = nightshift.format_feature_status(state)
+        assert "Production Readiness" in output
+        assert "not_ready" in output
+        assert "[PASS] secrets" in output
+        assert "[FAIL] debug_prints" in output
+
+    def test_no_readiness_section_when_none(self) -> None:
+        state = _make_readiness_state()
+        output = nightshift.format_feature_status(state)
+        assert "Production Readiness" not in output
+
+
+class TestReadinessConstants:
+    def test_default_config_has_readiness_checks(self) -> None:
+        assert "readiness_checks" in nightshift.DEFAULT_CONFIG
+        checks = nightshift.DEFAULT_CONFIG["readiness_checks"]
+        assert "secrets" in checks
+        assert "debug_prints" in checks
+        assert "test_coverage" in checks
+
+    def test_all_default_checks_are_valid(self) -> None:
+        for check in nightshift.DEFAULT_CONFIG["readiness_checks"]:
+            assert check in nightshift.READINESS_ALL_CHECKS
+
+    def test_secret_patterns_are_compiled(self) -> None:
+        assert len(nightshift.SECRET_PATTERNS) > 0
+        for pattern in nightshift.SECRET_PATTERNS:
+            assert hasattr(pattern, "search")
+
+    def test_debug_print_patterns_are_compiled(self) -> None:
+        assert len(nightshift.DEBUG_PRINT_PATTERNS) > 0
+        for pattern in nightshift.DEBUG_PRINT_PATTERNS:
+            assert hasattr(pattern, "search")

@@ -60,7 +60,31 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "codex_model": "gpt-5.4",
     "codex_thinking": "extra_high",
     "notification_webhook": None,
+    "readiness_checks": ["secrets", "debug_prints", "test_coverage"],
 }
+
+# --- Production readiness check patterns -------------------------------------
+
+SECRET_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(
+        r"""(?:api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|private[_-]?key)\s*[=:]\s*['"][^'"]{8,}['"]""",
+        re.IGNORECASE,
+    ),
+    re.compile(r"""(?:password|passwd|pwd)\s*[=:]\s*['"][^'"]+['"]""", re.IGNORECASE),
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"ghp_[A-Za-z0-9]{36}"),
+    re.compile(r"sk-[A-Za-z0-9]{20,}"),
+]
+
+DEBUG_PRINT_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"^\s*print\("),
+    re.compile(r"^\s*console\.\w+\("),
+    re.compile(r"^\s*debugger\b"),
+    re.compile(r"^\s*import\s+pdb"),
+    re.compile(r"^\s*breakpoint\(\)"),
+]
+
+READINESS_ALL_CHECKS: frozenset[str] = frozenset({"secrets", "debug_prints", "test_coverage"})
 
 # --- Diff scoring data -------------------------------------------------------
 

@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0037 (Feature summary generation).
+Last updated: 2026-04-05 by agent session #0038 (Production-readiness checker).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,9 +9,9 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ████████████████░░░░  82%
+NIGHTSHIFT VISION                              █████████████████░░░  85%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
-├── Loop 2 — Feature Builder Loop              ██████████████░░░░░░  72%
+├── Loop 2 — Feature Builder Loop              ████████████████░░░░  81%
 ├── Self-Maintaining Repo                      ████████████░░░░░░░░  59%
 └── Meta-Prompt System                         ████████████████░░░░  76%
 ```
@@ -37,7 +37,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (663 tests) | Done | ████████████████████ 100% |
+| Test suite (725 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -52,9 +52,9 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 
 ---
 
-## Loop 2 — Feature Builder Loop (72%)
+## Loop 2 — Feature Builder Loop (81%)
 
-Repo profiling, feature planning, task decomposition, sub-agent spawning, wave integration, the build orchestrator, and feature summary generation are complete. Sub-agent coordination, E2E test runner, and production-readiness checker remain.
+Repo profiling, feature planning, task decomposition, sub-agent spawning, wave integration, the build orchestrator, feature summary generation, and production-readiness checker are complete. Sub-agent coordination and E2E test runner remain.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -67,7 +67,7 @@ Repo profiling, feature planning, task decomposition, sub-agent spawning, wave i
 | E2E test runner | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Feature CLI (`nightshift build`) | Done | ████████████████████ 100% |
 | Feature state tracking | Done | ████████████████████ 100% |
-| Production-readiness checker | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
+| Production-readiness checker | Done | ████████████████████ 100% |
 | Feature summary generation | Done | ████████████████████ 100% |
 
 ---

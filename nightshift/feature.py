@@ -22,6 +22,7 @@ from nightshift.errors import NightshiftError
 from nightshift.integrator import integrate_wave
 from nightshift.planner import build_plan_prompt, format_plan, parse_plan, scope_check
 from nightshift.profiler import profile_repo
+from nightshift.readiness import check_production_readiness
 from nightshift.shell import command_exists, run_command, run_test_command
 from nightshift.state import load_json, write_json
 from nightshift.subagent import spawn_wave
@@ -36,6 +37,8 @@ from nightshift.types import (
     FrameworkInfo,
     IntegrationResult,
     NightshiftConfig,
+    ReadinessCheck,
+    ReadinessReport,
     RepoProfile,
     TaskCompletion,
     WaveResult,
@@ -237,6 +240,33 @@ def _build_feature_summary(raw: object) -> FeatureSummary | None:
     )
 
 
+def _build_readiness_check(raw: dict[str, Any]) -> ReadinessCheck:
+    return ReadinessCheck(
+        name=str(raw.get("name", "")),
+        passed=bool(raw.get("passed", False)),
+        details=str(raw.get("details", "")),
+    )
+
+
+def _build_readiness_report(raw: object) -> ReadinessReport | None:
+    if not isinstance(raw, dict):
+        return None
+
+    checks: list[ReadinessCheck] = []
+    raw_checks = raw.get("checks")
+    if isinstance(raw_checks, list):
+        for item in raw_checks:
+            if isinstance(item, dict):
+                checks.append(_build_readiness_check(item))
+
+    return ReadinessReport(
+        checks=checks,
+        verdict=str(raw.get("verdict", "not_ready")),
+        passed_count=int(raw.get("passed_count", 0)) if isinstance(raw.get("passed_count"), int) else 0,
+        failed_count=int(raw.get("failed_count", 0)) if isinstance(raw.get("failed_count"), int) else 0,
+    )
+
+
 def read_feature_state(state_path: Path) -> FeatureState:
     """Read and validate persisted feature-build state from disk."""
     raw = load_json(state_path)
@@ -268,6 +298,7 @@ def read_feature_state(state_path: Path) -> FeatureState:
         plan=plan,
         waves=waves,
         final_verification=_build_final_verification(raw.get("final_verification")),
+        readiness=_build_readiness_report(raw.get("readiness")),
         summary=_build_feature_summary(raw.get("summary")),
     )
 
@@ -353,6 +384,7 @@ def new_feature_state(
         plan=plan,
         waves=_build_wave_states(plan, profile),
         final_verification=None,
+        readiness=None,
         summary=None,
     )
 
@@ -404,6 +436,18 @@ def format_feature_status(state: FeatureState) -> str:
             lines.append(f"Tests: exit {final['test_exit_code']} via `{final['test_command']}`")
         if final["lint_command"] is not None:
             lines.append(f"Lint: exit {final['lint_exit_code']} via `{final['lint_command']}`")
+        lines.append("")
+
+    readiness = state["readiness"]
+    if readiness is not None:
+        lines.append("## Production Readiness")
+        lines.append("")
+        lines.append(
+            f"Verdict: **{readiness['verdict']}** ({readiness['passed_count']} passed, {readiness['failed_count']} failed)"
+        )
+        for check in readiness["checks"]:
+            mark = "PASS" if check["passed"] else "FAIL"
+            lines.append(f"  [{mark}] {check['name']}: {check['details'].splitlines()[0]}")
         lines.append("")
 
     summary = state["summary"]
@@ -594,6 +638,7 @@ def build_feature(
     )
     fv = state["final_verification"]
     state["status"] = "completed" if fv is not None and fv["status"] == "passed" else "failed"
+    state["readiness"] = check_production_readiness(state, repo_dir, config)
     state["summary"] = generate_feature_summary(state)
     write_feature_state(state_path, state)
     print_status(format_feature_status(state))

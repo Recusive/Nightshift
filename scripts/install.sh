@@ -41,6 +41,7 @@ PACKAGE_FILES=(
   "nightshift/subagent.py"
   "nightshift/integrator.py"
   "nightshift/summary.py"
+  "nightshift/readiness.py"
   "nightshift/feature.py"
   "nightshift/cli.py"
 )
