@@ -68,11 +68,28 @@ def _remote_branch_names(repo_dir: str) -> list[str]:
 
 
 def _open_pr_branches(repo_dir: str) -> set[str]:
-    """Return the set of branch names that have an open pull request."""
+    """Return the set of branch names that have an open pull request.
+
+    Uses ``check=True`` so that ``gh`` auth failures or network errors raise
+    rather than returning an empty set (which would cause every daemon branch
+    to look orphaned and get deleted).
+    """
     raw = run_capture(
-        ["gh", "pr", "list", "--state", "open", "--json", "headRefName", "--jq", ".[].headRefName"],
+        [
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            "1000",
+            "--json",
+            "headRefName",
+            "--jq",
+            ".[].headRefName",
+        ],
         cwd=Path(repo_dir),
-        check=False,
+        check=True,
         timeout=30,
     )
     return {line.strip() for line in raw.splitlines() if line.strip()}

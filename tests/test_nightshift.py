@@ -6843,6 +6843,20 @@ class TestPruneOrphanBranches:
         assert len(result["errors"]) == 1
         assert "open PRs" in result["errors"][0]
 
+    def test_handles_pr_list_nightshift_error(self, tmp_path: Path) -> None:
+        """NightshiftError from run_capture(check=True) is caught safely."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["feat/x"]),
+            patch(
+                "nightshift.cleanup._open_pr_branches",
+                side_effect=nightshift.NightshiftError("gh auth failed"),
+            ),
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        assert len(result["errors"]) == 1
+        assert "open PRs" in result["errors"][0]
+
     def test_mixed_branches(self, tmp_path: Path) -> None:
         """Mix of daemon/non-daemon and with/without PRs."""
         with (
