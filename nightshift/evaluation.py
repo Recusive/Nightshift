@@ -6,6 +6,7 @@ import contextlib
 import datetime as dt
 import glob
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -50,14 +51,7 @@ def run_test_shift(
     cycle_minutes: int = EVALUATION_DEFAULT_CYCLE_MINUTES,
 ) -> int:
     """Run ``nightshift test`` against *repo_dir*.  Returns the exit code."""
-    env = {
-        "PYTHONPATH": str(nightshift_dir),
-        "PATH": subprocess.check_output(
-            ["bash", "-lc", "echo $PATH"],
-            text=True,
-            timeout=10,
-        ).strip(),
-    }
+    env = {**os.environ, "PYTHONPATH": str(nightshift_dir)}
     result = subprocess.run(
         [
             "python3",
