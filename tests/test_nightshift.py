@@ -6215,3 +6215,352 @@ class TestIntegratorTypes:
         assert result["wave"] == 1
         assert result["status"] == "passed"
         assert result["files_staged"] == ["a.py"]
+
+
+# --- Cost Tracking -----------------------------------------------------------
+
+
+def _make_log_lines(
+    model: str = "claude-opus-4-6",
+    messages: int = 3,
+    input_tokens: int = 10,
+    cache_creation: int = 500,
+    cache_read: int = 2000,
+    output_tokens: int = 100,
+) -> list[str]:
+    """Build minimal stream-json lines that contain usage data."""
+    lines: list[str] = []
+    # System init event (no usage)
+    lines.append(json.dumps({"type": "system", "subtype": "init"}))
+    for i in range(messages):
+        lines.append(json.dumps({
+            "type": "assistant",
+            "message": {
+                "model": model,
+                "role": "assistant",
+                "content": [{"type": "text", "text": f"msg {i}"}],
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "cache_creation_input_tokens": cache_creation,
+                    "cache_read_input_tokens": cache_read,
+                    "output_tokens": output_tokens,
+                },
+            },
+        }))
+    return lines
+
+
+class TestParseSessionTokens:
+    def test_parses_claude_log(self, tmp_path: Path) -> None:
+        log = tmp_path / "session.log"
+        log.write_text("\n".join(_make_log_lines()) + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["model"] == "claude-opus-4-6"
+        assert cost["input_tokens"] == 30  # 10 * 3
+        assert cost["cache_creation_tokens"] == 1500  # 500 * 3
+        assert cost["cache_read_tokens"] == 6000  # 2000 * 3
+        assert cost["output_tokens"] == 300  # 100 * 3
+
+    def test_missing_file_returns_zeros(self) -> None:
+        cost = nightshift.parse_session_tokens("/nonexistent/log.jsonl")
+        assert cost["input_tokens"] == 0
+        assert cost["output_tokens"] == 0
+        assert cost["model"] == ""
+
+    def test_empty_file_returns_zeros(self, tmp_path: Path) -> None:
+        log = tmp_path / "empty.log"
+        log.write_text("")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["input_tokens"] == 0
+        assert cost["output_tokens"] == 0
+
+    def test_malformed_json_lines_skipped(self, tmp_path: Path) -> None:
+        log = tmp_path / "bad.log"
+        lines = ["not json", "{bad json"] + _make_log_lines(messages=1)
+        log.write_text("\n".join(lines) + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["input_tokens"] == 10
+        assert cost["output_tokens"] == 100
+
+    def test_non_assistant_events_ignored(self, tmp_path: Path) -> None:
+        log = tmp_path / "mixed.log"
+        lines = [
+            json.dumps({"type": "system", "subtype": "init"}),
+            json.dumps({"type": "user", "message": {"content": "hi"}}),
+        ] + _make_log_lines(messages=1)
+        log.write_text("\n".join(lines) + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["input_tokens"] == 10
+
+    def test_model_detected_from_first_message(self, tmp_path: Path) -> None:
+        log = tmp_path / "model.log"
+        log.write_text("\n".join(_make_log_lines(model="claude-sonnet-4-6")) + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["model"] == "claude-sonnet-4-6"
+
+    def test_missing_usage_fields_default_zero(self, tmp_path: Path) -> None:
+        log = tmp_path / "partial.log"
+        line = json.dumps({
+            "type": "assistant",
+            "message": {
+                "model": "claude-opus-4-6",
+                "usage": {"output_tokens": 50},
+            },
+        })
+        log.write_text(line + "\n")
+        cost = nightshift.parse_session_tokens(str(log))
+        assert cost["output_tokens"] == 50
+        assert cost["input_tokens"] == 0
+        assert cost["cache_creation_tokens"] == 0
+        assert cost["cache_read_tokens"] == 0
+
+
+class TestCalculateCost:
+    def test_opus_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="claude-opus-4-6",
+            input_tokens=1_000_000,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=0,
+        )
+        assert cost == 15.0  # $15/MTok input
+
+    def test_opus_output_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="claude-opus-4-6",
+            input_tokens=0,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=1_000_000,
+        )
+        assert cost == 75.0  # $75/MTok output
+
+    def test_opus_cache_creation_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="claude-opus-4-6",
+            input_tokens=0,
+            cache_creation_tokens=1_000_000,
+            cache_read_tokens=0,
+            output_tokens=0,
+        )
+        assert cost == 18.75
+
+    def test_opus_cache_read_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="claude-opus-4-6",
+            input_tokens=0,
+            cache_creation_tokens=0,
+            cache_read_tokens=1_000_000,
+            output_tokens=0,
+        )
+        assert cost == 1.5
+
+    def test_sonnet_pricing(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="claude-sonnet-4-6",
+            input_tokens=1_000_000,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=1_000_000,
+        )
+        assert cost == 18.0  # $3 input + $15 output
+
+    def test_unknown_model_returns_zero(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="unknown-model",
+            input_tokens=1_000_000,
+            cache_creation_tokens=1_000_000,
+            cache_read_tokens=1_000_000,
+            output_tokens=1_000_000,
+        )
+        assert cost == 0.0
+
+    def test_zero_tokens_returns_zero(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="claude-opus-4-6",
+            input_tokens=0,
+            cache_creation_tokens=0,
+            cache_read_tokens=0,
+            output_tokens=0,
+        )
+        assert cost == 0.0
+
+    def test_mixed_token_types(self) -> None:
+        cost = nightshift.calculate_cost(
+            model="claude-opus-4-6",
+            input_tokens=100_000,
+            cache_creation_tokens=200_000,
+            cache_read_tokens=500_000,
+            output_tokens=10_000,
+        )
+        # 0.1M * 15 + 0.2M * 18.75 + 0.5M * 1.5 + 0.01M * 75
+        # = 1.5 + 3.75 + 0.75 + 0.75 = 6.75
+        assert cost == 6.75
+
+
+class TestReadWriteLedger:
+    def test_missing_file_returns_empty(self, tmp_path: Path) -> None:
+        ledger = nightshift.read_ledger(str(tmp_path / "missing.json"))
+        assert ledger["total_cost_usd"] == 0.0
+        assert ledger["sessions"] == []
+
+    def test_round_trip(self, tmp_path: Path) -> None:
+        path = str(tmp_path / "costs.json")
+        original: nightshift.CostLedger = {
+            "total_cost_usd": 1.5,
+            "sessions": [{
+                "session_id": "20260404-120000",
+                "agent": "claude",
+                "model": "claude-opus-4-6",
+                "input_tokens": 100,
+                "cache_creation_tokens": 200,
+                "cache_read_tokens": 300,
+                "output_tokens": 400,
+                "total_cost_usd": 1.5,
+            }],
+        }
+        nightshift.write_ledger(path, original)
+        loaded = nightshift.read_ledger(path)
+        assert loaded["total_cost_usd"] == 1.5
+        assert len(loaded["sessions"]) == 1
+        assert loaded["sessions"][0]["session_id"] == "20260404-120000"
+
+    def test_corrupt_file_returns_empty(self, tmp_path: Path) -> None:
+        path = tmp_path / "bad.json"
+        path.write_text("not json")
+        ledger = nightshift.read_ledger(str(path))
+        assert ledger["total_cost_usd"] == 0.0
+        assert ledger["sessions"] == []
+
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        path = str(tmp_path / "deep" / "nested" / "costs.json")
+        nightshift.write_ledger(path, {"total_cost_usd": 0.0, "sessions": []})
+        assert os.path.exists(path)
+
+
+class TestRecordSession:
+    def test_records_and_accumulates(self, tmp_path: Path) -> None:
+        log = tmp_path / "session.log"
+        log.write_text("\n".join(_make_log_lines(messages=2)) + "\n")
+        ledger_path = str(tmp_path / "costs.json")
+
+        entry = nightshift.record_session(
+            str(log), ledger_path, "20260404-120000", "claude",
+        )
+        assert entry["session_id"] == "20260404-120000"
+        assert entry["agent"] == "claude"
+        assert entry["model"] == "claude-opus-4-6"
+        assert entry["input_tokens"] == 20
+        assert entry["output_tokens"] == 200
+        assert entry["total_cost_usd"] > 0
+
+        # Second session accumulates
+        entry2 = nightshift.record_session(
+            str(log), ledger_path, "20260404-130000", "claude",
+        )
+        ledger = nightshift.read_ledger(ledger_path)
+        assert len(ledger["sessions"]) == 2
+        assert ledger["total_cost_usd"] == round(
+            entry["total_cost_usd"] + entry2["total_cost_usd"], 6,
+        )
+
+    def test_missing_log_records_zero_cost(self, tmp_path: Path) -> None:
+        ledger_path = str(tmp_path / "costs.json")
+        entry = nightshift.record_session(
+            "/nonexistent/log.jsonl", ledger_path, "test-session", "claude",
+        )
+        assert entry["total_cost_usd"] == 0.0
+        assert entry["input_tokens"] == 0
+
+
+class TestTotalCost:
+    def test_returns_cumulative(self, tmp_path: Path) -> None:
+        path = str(tmp_path / "costs.json")
+        nightshift.write_ledger(path, {"total_cost_usd": 42.5, "sessions": []})
+        assert nightshift.total_cost(path) == 42.5
+
+    def test_missing_ledger_returns_zero(self, tmp_path: Path) -> None:
+        assert nightshift.total_cost(str(tmp_path / "nope.json")) == 0.0
+
+
+class TestFormatSessionCost:
+    def test_format_output(self) -> None:
+        cost: nightshift.SessionCost = {
+            "session_id": "test",
+            "agent": "claude",
+            "model": "claude-opus-4-6",
+            "input_tokens": 100,
+            "cache_creation_tokens": 500,
+            "cache_read_tokens": 2000,
+            "output_tokens": 50,
+            "total_cost_usd": 0.1234,
+        }
+        result = nightshift.format_session_cost(cost)
+        assert "2,650" in result  # total tokens
+        assert "$0.1234" in result
+        assert "in=100" in result
+        assert "out=50" in result
+
+    def test_zero_cost_format(self) -> None:
+        cost: nightshift.SessionCost = {
+            "session_id": "test",
+            "agent": "claude",
+            "model": "",
+            "input_tokens": 0,
+            "cache_creation_tokens": 0,
+            "cache_read_tokens": 0,
+            "output_tokens": 0,
+            "total_cost_usd": 0.0,
+        }
+        result = nightshift.format_session_cost(cost)
+        assert "$0.0000" in result
+
+
+class TestDefaultLedgerPath:
+    def test_constructs_path(self) -> None:
+        result = nightshift.default_ledger_path("/foo/sessions")
+        assert result == "/foo/sessions/costs.json"
+
+
+class TestCostConstants:
+    def test_model_pricing_has_opus(self) -> None:
+        assert "claude-opus-4-6" in nightshift.MODEL_PRICING
+        pricing = nightshift.MODEL_PRICING["claude-opus-4-6"]
+        assert "input" in pricing
+        assert "output" in pricing
+        assert "cache_creation" in pricing
+        assert "cache_read" in pricing
+
+    def test_model_pricing_has_sonnet(self) -> None:
+        assert "claude-sonnet-4-6" in nightshift.MODEL_PRICING
+
+    def test_model_pricing_has_haiku(self) -> None:
+        assert "claude-haiku-4-5-20251001" in nightshift.MODEL_PRICING
+
+    def test_cost_ledger_filename(self) -> None:
+        assert nightshift.COST_LEDGER_FILENAME == "costs.json"
+
+
+class TestCostTypes:
+    def test_session_cost_fields(self) -> None:
+        cost = nightshift.SessionCost(
+            session_id="test",
+            agent="claude",
+            model="claude-opus-4-6",
+            input_tokens=100,
+            cache_creation_tokens=200,
+            cache_read_tokens=300,
+            output_tokens=400,
+            total_cost_usd=1.5,
+        )
+        assert cost["session_id"] == "test"
+        assert cost["total_cost_usd"] == 1.5
+
+    def test_cost_ledger_fields(self) -> None:
+        ledger = nightshift.CostLedger(
+            total_cost_usd=10.0,
+            sessions=[],
+        )
+        assert ledger["total_cost_usd"] == 10.0
+        assert ledger["sessions"] == []

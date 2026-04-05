@@ -10,7 +10,7 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 
 ```
 Nightshift/
-├── nightshift/                  ← THE PRODUCT (Python package, 18 modules)
+├── nightshift/                  ← THE PRODUCT (Python package, 19 modules)
 ├── tests/                       ← TEST SUITE (482 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
@@ -271,6 +271,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | `worktree.py` | Git worktree lifecycle | `ensure_worktree()`, `ensure_shift_log()`, `sync_shift_log()`, `revert_cycle()`, `cleanup_safe_artifacts()` |
 | `cycle.py` | Per-cycle logic | `build_prompt()`, `command_for_agent()`, `verify_cycle()`, `evaluate_baseline()`, `extract_json()`, `blocked_file()` |
 | `scoring.py` | Post-cycle diff scoring | `score_diff()`, `diff_line_score()`, `has_test_files()` |
+| `costs.py` | Session cost tracking | `record_session()`, `parse_session_tokens()`, `calculate_cost()`, `read_ledger()`, `write_ledger()`, `total_cost()`, `format_session_cost()`, `default_ledger_path()` |
 | `multi.py` | Multi-repo orchestration | `run_multi_shift()`, `validate_repos()`, `format_multi_summary()` |
 | `profiler.py` | Repo analysis for Loop 2 | `profile_repo()` |
 | `planner.py` | Feature planning for Loop 2 | `build_plan_prompt()`, `validate_plan()`, `parse_plan()`, `execution_order()`, `format_plan()`, `scope_check()` |
@@ -283,7 +284,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 
 ### Dependency flow
 ```
-types → constants → errors → shell → config/state → worktree → cycle → scoring → multi → profiler → planner → decomposer → subagent → integrator → cli
+types → constants → errors → shell → config/state → worktree → cycle → scoring → costs → multi → profiler → planner → decomposer → subagent → integrator → cli
 ```
 No circular imports. Each module only imports from modules to its left. `multi.py` receives the `run_nightshift` callable from `cli.py` via dependency injection to avoid circular deps.
 
