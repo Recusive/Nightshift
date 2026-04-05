@@ -73,6 +73,7 @@ def read_repo_instructions(repo_dir: Path) -> str:
 
     Scans for known instruction file names (CLAUDE.md, AGENTS.md, etc.)
     and returns the content of all that exist, labeled by filename.
+    Symlinks are rejected with a warning to prevent path-traversal attacks.
     Files exceeding MAX_INSTRUCTION_FILE_BYTES are truncated with a warning.
     Total combined content is capped at MAX_INSTRUCTION_TOTAL_BYTES.
     Returns an empty string if no instruction files are found.
@@ -81,6 +82,11 @@ def read_repo_instructions(repo_dir: Path) -> str:
     total_bytes = 0
     for name in INSTRUCTION_FILE_NAMES:
         file_path = repo_dir / name
+        if file_path.is_symlink():
+            sections.append(
+                f"--- {name} ---\n[WARNING: {name} is a symlink -- skipped for security]\n--- end {name} ---"
+            )
+            continue
         if file_path.is_file():
             try:
                 content = file_path.read_text(encoding="utf-8").strip()

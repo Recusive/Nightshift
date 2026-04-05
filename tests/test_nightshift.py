@@ -1514,6 +1514,62 @@ class TestReadRepoInstructionsTruncation:
         assert content_bytes <= MAX_INSTRUCTION_TOTAL_BYTES + 500  # generous margin for markers
 
 
+# --- Read Repo Instructions (symlink rejection) --------------------------------
+
+
+class TestReadRepoInstructionsSymlink:
+    def test_symlink_rejected_with_warning(self, tmp_path: Path) -> None:
+        """Symlinked instruction files are skipped with a security warning."""
+        target = tmp_path / "secret.txt"
+        target.write_text("sensitive content")
+        link = tmp_path / "CLAUDE.md"
+        link.symlink_to(target)
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "is a symlink -- skipped for security" in result
+        assert "sensitive content" not in result
+
+    def test_symlink_does_not_count_against_budget(self, tmp_path: Path) -> None:
+        """Skipped symlinks do not consume the total byte budget."""
+        target = tmp_path / "big.txt"
+        target.write_text("x" * 20000)
+        link = tmp_path / "CLAUDE.md"
+        link.symlink_to(target)
+        (tmp_path / "AGENTS.md").write_text("real content")
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "is a symlink" in result
+        assert "real content" in result
+
+    def test_regular_file_still_read(self, tmp_path: Path) -> None:
+        """Regular (non-symlink) files are read normally alongside symlink rejection."""
+        target = tmp_path / "elsewhere.md"
+        target.write_text("secret")
+        (tmp_path / "CLAUDE.md").symlink_to(target)
+        (tmp_path / "AGENTS.md").write_text("Normal content here")
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "is a symlink" in result
+        assert "Normal content here" in result
+        assert "secret" not in result
+
+    def test_broken_symlink_rejected(self, tmp_path: Path) -> None:
+        """A dangling symlink is still detected and rejected."""
+        link = tmp_path / "CLAUDE.md"
+        link.symlink_to(tmp_path / "nonexistent")
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "is a symlink -- skipped for security" in result
+
+    def test_nested_symlink_rejected(self, tmp_path: Path) -> None:
+        """Symlinks in nested paths (e.g. .github/) are also rejected."""
+        github_dir = tmp_path / ".github"
+        github_dir.mkdir()
+        target = tmp_path / "secret.txt"
+        target.write_text("secret")
+        (github_dir / "copilot-instructions.md").symlink_to(target)
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "copilot-instructions.md" in result
+        assert "is a symlink" in result
+        assert "secret" not in result
+
+
 # --- Wrap Repo Instructions --------------------------------------------------
 
 
@@ -7012,3 +7068,110 @@ class TestCleanupTypes:
         assert result["pruned"] == ["feat/old"]
         assert result["skipped"] == ["experiment"]
         assert result["errors"] == []
+
+
+# --- Prompt Guard (bash) ------------------------------------------------------
+
+
+class TestPromptGuardNewFileDetection:
+    """Tests for new-file detection in the bash prompt guard (lib-agent.sh)."""
+
+    @staticmethod
+    def _run_guard(repo_dir: Path) -> tuple[int, str]:
+        """Source lib-agent.sh, snapshot, create new files, then check integrity.
+
+        Returns (exit_code, combined_stdout_stderr).
+        """
+        lib_path = Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh"
+        script = f"""
+set -e
+source "{lib_path}"
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+
+# Simulate agent creating a new file in docs/prompt/
+mkdir -p "{repo_dir}/docs/prompt"
+echo "injected" > "{repo_dir}/docs/prompt/evil-injection.md"
+
+# Check integrity
+set +e
+check_prompt_integrity "{repo_dir}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode, result.stdout + result.stderr
+
+    def test_detects_new_file_in_prompt_dir(self, tmp_path: Path) -> None:
+        """Guard detects a new file created in docs/prompt/ post-snapshot."""
+        prompt_dir = tmp_path / "docs" / "prompt"
+        prompt_dir.mkdir(parents=True)
+        (prompt_dir / "evolve.md").write_text("original")
+        rc, output = self._run_guard(tmp_path)
+        assert rc == 1, f"Expected non-zero exit, got {rc}: {output}"
+        assert "NEW FILES in docs/prompt/" in output
+        assert "evil-injection.md" in output
+
+    def test_detects_new_file_when_dir_was_empty(self, tmp_path: Path) -> None:
+        """Guard detects new files even if docs/prompt/ was initially empty."""
+        prompt_dir = tmp_path / "docs" / "prompt"
+        prompt_dir.mkdir(parents=True)
+        rc, output = self._run_guard(tmp_path)
+        assert rc == 1
+        assert "evil-injection.md" in output
+
+    def test_no_alert_when_no_new_files(self, tmp_path: Path) -> None:
+        """Guard returns 0 when no files change."""
+        prompt_dir = tmp_path / "docs" / "prompt"
+        prompt_dir.mkdir(parents=True)
+        (prompt_dir / "evolve.md").write_text("original")
+        lib_path = Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh"
+        script = f"""
+set -e
+source "{lib_path}"
+SNAP=$(save_prompt_snapshots "{tmp_path}")
+set +e
+check_prompt_integrity "{tmp_path}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "SELF-MODIFICATION" not in result.stdout
+
+    def test_detects_new_dir_created_during_cycle(self, tmp_path: Path) -> None:
+        """Guard detects when docs/prompt/ itself is created during the cycle."""
+        # docs/prompt/ does not exist at snapshot time
+        lib_path = Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh"
+        script = f"""
+set -e
+source "{lib_path}"
+SNAP=$(save_prompt_snapshots "{tmp_path}")
+
+# Simulate agent creating the directory and a file
+mkdir -p "{tmp_path}/docs/prompt"
+echo "injected" > "{tmp_path}/docs/prompt/malicious.md"
+
+set +e
+check_prompt_integrity "{tmp_path}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 1
+        assert "NEW DIRECTORY docs/prompt/" in result.stdout
+        assert "malicious.md" in result.stdout
