@@ -8,7 +8,7 @@
 - **Prompt / docs wiring**: updated `docs/prompt/evolve.md`, `docs/prompt/healer.md`, `CLAUDE.md`, and `docs/ops/OPERATIONS.md` so builder/healer sessions read and refresh the module map instead of rediscovering `nightshift/*.py` from scratch.
 - **Step 0 evaluation**: ran the prescribed default Phractal evaluation command, documented the startup failure, ran the required fresh-clone rerun with the minimum override, and wrote `docs/evaluations/0006.md` (48/100). The same Loop 1 failure cluster reproduced again.
 - Files: `nightshift/module_map.py`, `nightshift/cli.py`, `nightshift/types.py`, `nightshift/constants.py`, `nightshift/__init__.py`, `tests/test_module_map.py`, `docs/architecture/MODULE_MAP.md`, `docs/evaluations/0006.md`, `docs/prompt/evolve.md`, `docs/prompt/healer.md`, `CLAUDE.md`, `docs/ops/OPERATIONS.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/tasks/0052.md`, `docs/tasks/archive/0050.md`, `docs/tasks/archive/0051.md`, `docs/healer/log.md`, `docs/learnings/2026-04-05-generated-docs-need-session-labels.md`, `docs/learnings/INDEX.md`
-- Tests: +2 new, 903 total passing (`make check`)
+- Tests: +3 new, 904 total passing (`make check`)
 
 ## Decisions Made
 - **Made the module map generated, not hand-maintained.** `MODULE_MAP.md` is derived from ASTs plus git history so it can stay current through a single command instead of turning into another drift-prone doc.
@@ -38,13 +38,17 @@
 - Self-Maintaining: 68% — unchanged percentage; release/changelog/tracker automation is still the biggest gap.
 - Meta-Prompt: 78% — persistent module-map memory now shortens code-orientation work for future sessions.
 - Overall: 92% — the generated module map moved cross-session memory forward enough to raise the rounded overall score.
-- Version: v0.0.8 — 35 pending tasks still target this version.
+- Version: v0.0.8 — 40 pending tasks still target this version.
 
 ## Tracker delta: 91% -> 92% (session-memory/orientation improved via generated module-map memory)
 
 Generated tasks:
   Vision alignment: [last 5 target: loop1=0, loop2=0, self-maintaining=3, meta-prompt=1, none=1]
-  - none — the queue already covers the remaining system issues (`#0054`, `#0095`, `#0106`, `#0097`-`#0102`)
+  - `#0108`: Module map should survive per-file syntax errors
+  - `#0109`: Module map should surface dependency cycles explicitly
+  - `#0110`: Module map session labels need a monotonic source
+  - `#0111`: Module map should distinguish late imports from hard dependencies
+  - `#0112`: Expand module map regression coverage beyond the happy path
 
 ## Tasks I Did NOT Pick and Why
 - `#0012`, `#0029`: skipped because they remain blocked on integration/environment constraints.

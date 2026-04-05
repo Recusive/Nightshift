@@ -20,7 +20,7 @@ def module_map_path(repo_dir: Path) -> Path:
 def generate_module_map(repo_dir: Path) -> ModuleMapSnapshot:
     """Collect module metadata, dependency order, and recent-session summaries."""
     package_dir = repo_dir / "nightshift"
-    module_paths = sorted(package_dir.glob("*.py"))
+    module_paths = _module_paths(package_dir)
     parsed = {path.stem: ast.parse(path.read_text(encoding="utf-8")) for path in module_paths}
     dependency_order = _dependency_order(parsed)
 
@@ -111,6 +111,23 @@ def _module_entry(repo_dir: Path, path: Path, tree: ast.Module) -> ModuleMapEntr
         key_symbols=_key_symbols(tree),
         last_changed=_last_changed_label(repo_dir, path),
     )
+
+
+def _module_paths(package_dir: Path) -> list[Path]:
+    """Return safe top-level package modules, excluding symlinks and escaped paths."""
+    resolved_dir = package_dir.resolve()
+    paths: list[Path] = []
+    for path in sorted(package_dir.glob("*.py")):
+        if path.is_symlink() or not path.is_file():
+            continue
+        try:
+            resolved_path = path.resolve(strict=True)
+        except OSError:
+            continue
+        if resolved_path.parent != resolved_dir:
+            continue
+        paths.append(path)
+    return paths
 
 
 def _module_purpose(tree: ast.Module, path: Path) -> str:

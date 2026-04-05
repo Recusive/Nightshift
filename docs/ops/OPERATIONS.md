@@ -11,7 +11,7 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 ```
 Nightshift/
 ├── nightshift/                  ← THE PRODUCT (Python package, 28 modules)
-├── tests/                       ← TEST SUITE (903 tests)
+├── tests/                       ← TEST SUITE (904 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
 │   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)

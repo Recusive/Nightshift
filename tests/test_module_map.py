@@ -1,20 +1,12 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import nightshift
 
 
 def _run_git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        capture_output=True,
-        check=True,
-        text=True,
-    )
-    return result.stdout.strip()
+    return nightshift.git(repo, *args)
 
 
 def _commit_all(repo: Path, message: str) -> None:
@@ -108,3 +100,15 @@ class TestModuleMap:
         assert output_path.exists()
         assert "## Modules (4)" in content
         assert "| `cycle.py` |" in content
+
+    def test_generate_module_map_skips_symlinked_python_files(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+        outside = tmp_path / "outside.py"
+        outside.write_text('"""Outside."""\n', encoding="utf-8")
+        (repo / "nightshift" / "escape.py").symlink_to(outside)
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        modules = {entry["module"] for entry in snapshot["modules"]}
+        assert "escape.py" not in modules
+        assert snapshot["module_count"] == 4
