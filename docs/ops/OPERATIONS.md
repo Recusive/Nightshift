@@ -281,12 +281,14 @@ The prompt the human pastes at the start of each session. It tells you (the agen
 | File | Purpose |
 |------|---------|
 | `evolve.md` | The authoritative builder prompt. It defines the full session lifecycle, including evaluation, observation, releases, and reporting. |
+| `pentest.md` | Read-only red-team preflight prompt injected by the builder daemon before each main fixer session. |
 | `healer.md` | Reference notes for the builder-side healer workflow. This is documentation, not an executable control file. |
 | `feedback/README.md` | Guide for the human on how to write feedback |
 | `feedback/YYYY-MM-DD.md` | Human feedback files (if any) |
 
 ### How to use
 - The human pastes `evolve.md` content into Claude Code. You follow it.
+- `scripts/daemon.sh` prepends `pentest.md`, runs that red-team pass first, then injects its handoff into the main builder prompt.
 - If you learn something that would help future sessions, add it to `evolve.md`.
 
 ### How to update
@@ -488,7 +490,7 @@ The file Claude Code always loads at session start. Contains project description
 | `scripts/run.sh` | Sets PYTHONPATH, runs `python3 -m nightshift run "$@"` |
 | `scripts/test.sh` | Sets PYTHONPATH, runs `python3 -m nightshift test "$@"` |
 | `scripts/install.sh` | Downloads entire package to `~/.codex/skills/nightshift/` and `~/.claude/skills/nightshift/` |
-| `scripts/daemon.sh` | Builder daemon. Loops forever, picks up tasks, ships features. |
+| `scripts/daemon.sh` | Builder daemon. Loops forever, runs a pentest preflight, then fixes/builds and ships features. |
 | `scripts/daemon-review.sh` | Reviewer daemon. Loops forever, reviews code file by file, fixes quality. |
 | `scripts/daemon-overseer.sh` | Overseer daemon. Loops forever, audits task queue, fixes priorities, cleans duplicates, catches direction problems. |
 | `scripts/daemon-strategist.sh` | Strategist. Runs once, reviews big picture, advises human. |
@@ -515,6 +517,7 @@ Only one daemon runs at a time (shared lockfile).
 | Function | Purpose |
 |------|---------|
 | `run_agent()` | Normalized Claude/Codex invocation with JSONL logging |
+| `extract_result_summary()` | Pulls a bounded handoff out of a stream-json log so one agent run can brief the next |
 | `cleanup_old_logs()` | Rotates stale daemon log files via `nightshift.cleanup.rotate_logs()` |
 | `cleanup_healer_log()` | Rotates older healer entries into `docs/healer/archive/` via `nightshift.cleanup.rotate_healer_log()` |
 | `cleanup_orphan_branches()` | Removes remote Nightshift branches that no longer have open PRs |
@@ -532,6 +535,7 @@ of the normal session workflow.
 ### How to update
 - If you add a new Python module, add it to the `PACKAGE_FILES` list in `scripts/install.sh`
 - Shell scripts are thin wrappers — almost never need editing
+- If you change the builder's pentest/fixer handshake, update both `docs/prompt/pentest.md` and `docs/ops/DAEMON.md`
 - Always run `bash -n scripts/script.sh` to syntax-check after editing
 
 ---

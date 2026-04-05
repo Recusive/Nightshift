@@ -21,7 +21,7 @@
 
 ## This repo maintains itself
 
-Most of the code in this repository was written, tested, reviewed, and merged by AI agents -- not humans. The 4 daemon system runs autonomously: the **Builder** ships features, the **Reviewer** audits code quality, the **Overseer** audits the process itself, and the **Strategist** advises the human on what to change.
+Most of the code in this repository was written, tested, reviewed, and merged by AI agents -- not humans. The 4 daemon system runs autonomously: the **Builder** ships features, the **Reviewer** audits code quality, the **Overseer** audits the process itself, and the **Strategist** advises the human on what to change. The builder now starts each session with an internal red-team / pentest preflight so exploit paths and brittle automation edges are surfaced before the fixer begins writing code.
 
 The human's role is to start the daemon, monitor it, and occasionally course-correct. The agents do the engineering.
 
@@ -81,7 +81,7 @@ The self-maintaining layer. Each daemon has a single purpose, a dedicated prompt
 
 ### Builder (`make daemon`)
 
-Picks up tasks from the queue (`docs/tasks/`), builds features, writes tests, runs the full test suite, creates a branch, opens a PR, spawns a sub-agent for code review, merges on pass, writes the handoff. Loops every 60 seconds.
+Picks up tasks from the queue (`docs/tasks/`), runs a short read-only pentest preflight, injects that handoff into the main session, builds features, writes tests, runs the full test suite, creates a branch, opens a PR, spawns a sub-agent for code review, merges on pass, writes the handoff. Loops every 60 seconds.
 
 In one overnight run: 19 PRs shipped across 12 sessions. Tests grew from 145 to 482. Three versions released.
 
@@ -155,11 +155,11 @@ Nightshift reads instruction files from target repos (CLAUDE.md, AGENTS.md, .cur
 
 ### Self-modification guard
 
-Before every cycle, 7 control files are snapshotted. After the cycle, every file is diffed against its snapshot. If any control file was modified: full diff logged, alert file written, session flagged, next cycle alerted.
+Before every cycle, 8 control files are snapshotted. After the cycle, every file is diffed against its snapshot. If any control file was modified: full diff logged, alert file written, session flagged, next cycle alerted. The same guard also wraps the builder's pre-session pentest pass, and the repo is hard-reset back to `origin/main` before the fixer starts.
 
 ### Cost tracking
 
-Session costs are parsed from stream-json logs in real time. Per-session and per-shift budget ceilings halt the daemon if spending exceeds the limit.
+Session costs are parsed from stream-json logs in real time. The builder session cost now includes both the pentest preflight and the main fixer pass, so budget checks reflect the full autonomous loop. Per-session and per-shift budget ceilings halt the daemon if spending exceeds the limit.
 
 ---
 
@@ -254,6 +254,9 @@ make daemon
 
 # Or specify directly
 tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+
+# Optional: use a different agent for the pentest preflight
+NIGHTSHIFT_PENTEST_AGENT=codex tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
 
 # Monitor
 tmux capture-pane -t nightshift -p -S -15   # daemon output
