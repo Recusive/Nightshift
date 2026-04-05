@@ -497,3 +497,46 @@ persist_healer_changes() {
     git reset --hard origin/main 2>/dev/null || true
     echo "  Healer observations merged."
 }
+
+# ──────────────────────────────────────────────
+# Human Escalation
+#
+# Creates a GitHub issue (and optionally fires a
+# webhook) when the system needs human attention.
+# Fails silently -- never crashes the daemon.
+# ──────────────────────────────────────────────
+
+# notify_human TITLE BODY
+# Creates a GitHub issue with the "needs-human" label.
+# If .nightshift.json contains "notification_webhook", also POSTs there.
+notify_human() {
+    local title="$1"
+    local body="${2:-No additional details.}"
+
+    # Always: create GitHub issue
+    gh issue create \
+        --title "[Nightshift] $title" \
+        --label "needs-human" \
+        --body "$body" 2>/dev/null || true
+
+    # Optional: webhook (Slack, Discord, etc.)
+    local webhook
+    webhook=$(python3 -c "
+import json, pathlib
+p = pathlib.Path('${REPO_DIR:-.}') / '.nightshift.json'
+if p.exists():
+    cfg = json.loads(p.read_text())
+    print(cfg.get('notification_webhook', ''))
+" 2>/dev/null || true)
+    if [ -n "$webhook" ]; then
+        local payload
+        payload=$(python3 -c "
+import json, sys
+print(json.dumps({'text': '[Nightshift] ' + sys.argv[1]}))
+" "$title" 2>/dev/null) || payload='{"text":"[Nightshift] notification"}'
+        curl -s -X POST \
+            -H 'Content-Type: application/json' \
+            -d "$payload" \
+            "$webhook" >/dev/null 2>&1 || true
+    fi
+}

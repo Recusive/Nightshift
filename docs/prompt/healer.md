@@ -109,7 +109,23 @@ completed:
 - Run tests or make check
 - Create tasks for things already tracked as pending tasks
 
-## Step 5 -- Report
+## Step 5 -- Escalate (if critical)
+
+If system health is **concern**, escalate to the human by running:
+
+```bash
+source scripts/lib-agent.sh
+notify_human "Healer: [brief title]" "Details of the critical pattern or trend."
+```
+
+Only escalate for patterns that need HUMAN decision-making:
+- Repeated failures with no self-fix possible
+- Cost spiraling beyond what tasks alone can address
+- System drifting in a direction that requires strategic redirection
+
+Do NOT escalate for issues that can be fixed by creating a builder task.
+
+## Step 6 -- Report
 
 End with exactly this format:
 

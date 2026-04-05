@@ -205,6 +205,7 @@ print(f'{total_cost(\"$COST_FILE\"):.2f}')
             echo ""
             echo "BUDGET LIMIT REACHED: \$$CUMULATIVE spent (limit: \$$BUDGET)"
             echo "| $(date '+%Y-%m-%d %H:%M') | BUDGET-STOP | - | - | \$$CUMULATIVE | Budget limit reached (\$$BUDGET) |" >> "$INDEX_FILE"
+            notify_human "Reviewer budget limit reached" "Reviewer daemon stopped after spending \$$CUMULATIVE (limit: \$$BUDGET). Review spending at docs/sessions/costs.json."
             break
         fi
     fi
@@ -218,6 +219,7 @@ print(f'{total_cost(\"$COST_FILE\"):.2f}')
             echo ""
             echo "CIRCUIT BREAKER: $MAX_CONSECUTIVE_FAILURES consecutive failures."
             echo "| $(date '+%Y-%m-%d %H:%M') | CIRCUIT-BREAK | - | - | Stopped |" >> "$INDEX_FILE"
+            notify_human "Reviewer circuit breaker tripped" "Reviewer daemon stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures. Check logs in $LOG_DIR."
             break
         fi
 
