@@ -14,6 +14,7 @@ from nightshift.subagent import spawn_task
 from nightshift.types import (
     FixAttempt,
     IntegrationResult,
+    NightshiftConfig,
     TaskCompletion,
     WaveResult,
     WorkOrder,
@@ -141,6 +142,7 @@ def integrate_wave(
     test_command: str | None,
     agent: str,
     log_dir: Path,
+    config: NightshiftConfig,
     schema_path: str = "schemas/task.schema.json",
     max_fix_attempts: int = INTEGRATOR_MAX_FIX_ATTEMPTS,
     test_timeout: int = INTEGRATOR_TEST_TIMEOUT,
@@ -236,6 +238,7 @@ def integrate_wave(
             repo_dir=repo_dir,
             log_dir=log_dir,
             timeout_seconds=test_timeout,
+            config=config,
         )
 
         fix_notes = ""

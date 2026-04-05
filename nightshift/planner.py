@@ -19,6 +19,7 @@ from nightshift.shell import command_exists, run_command
 from nightshift.types import (
     ArchitectureDoc,
     FeaturePlan,
+    NightshiftConfig,
     PlanTask,
     RepoProfile,
     TestPlan,
@@ -401,7 +402,7 @@ def scope_check(plan: FeaturePlan) -> str | None:
     return None
 
 
-def plan_command_for_agent(agent: str, prompt: str) -> list[str]:
+def plan_command_for_agent(agent: str, prompt: str, config: NightshiftConfig) -> list[str]:
     """Build the CLI command to invoke an agent for plan generation.
 
     Unlike the cycle command_for_agent, this does not require schema or
@@ -411,8 +412,11 @@ def plan_command_for_agent(agent: str, prompt: str) -> list[str]:
         return [
             "codex",
             "exec",
+            "--dangerously-bypass-approvals-and-sandbox",
+            "--model",
+            config["codex_model"],
             "-c",
-            'approval_policy="never"',
+            f'reasoning_effort="{config["codex_thinking"]}"',
             prompt,
         ]
     if agent == "claude":
@@ -422,6 +426,10 @@ def plan_command_for_agent(agent: str, prompt: str) -> list[str]:
             prompt,
             "--max-turns",
             str(PLAN_AGENT_MAX_TURNS),
+            "--model",
+            config["claude_model"],
+            "--effort",
+            config["claude_effort"],
             "--verbose",
         ]
     raise NightshiftError(f"Unsupported agent: {agent}")
@@ -432,6 +440,7 @@ def run_plan_agent(
     feature_description: str,
     agent: str,
     profile: RepoProfile,
+    config: NightshiftConfig,
 ) -> FeaturePlan:
     """Invoke an agent to generate a feature plan and return the parsed result.
 
@@ -445,7 +454,7 @@ def run_plan_agent(
         raise NightshiftError(f"`{agent}` is not installed or not on PATH.")
 
     prompt = build_plan_prompt(profile, feature_description)
-    cmd = plan_command_for_agent(agent, prompt)
+    cmd = plan_command_for_agent(agent, prompt, config)
 
     print_status(f"Running {agent} to generate feature plan...")
     exit_code, raw_output = run_command(

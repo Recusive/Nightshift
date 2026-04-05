@@ -56,6 +56,10 @@ class TestConstants:
             "test_incentive_cycle",
             "backend_forcing_cycle",
             "category_balancing_cycle",
+            "claude_model",
+            "claude_effort",
+            "codex_model",
+            "codex_thinking",
         }
         assert set(nightshift.DEFAULT_CONFIG.keys()) == expected
 
@@ -317,6 +321,46 @@ class TestMergeConfig:
         (tmp_path / ".nightshift.json").write_text(json.dumps({"blocked_paths": ["injected/"]}))
         nightshift.merge_config(tmp_path)
         assert nightshift.DEFAULT_CONFIG["blocked_paths"] == original
+
+    def test_model_config_defaults(self, tmp_path):
+        config = nightshift.merge_config(tmp_path)
+        assert config["claude_model"] == "claude-opus-4-6"
+        assert config["claude_effort"] == "max"
+        assert config["codex_model"] == "gpt-5.4"
+        assert config["codex_thinking"] == "extra_high"
+
+    def test_model_config_from_file(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(
+            json.dumps({"claude_model": "claude-sonnet-4-6", "codex_model": "o3"})
+        )
+        config = nightshift.merge_config(tmp_path)
+        assert config["claude_model"] == "claude-sonnet-4-6"
+        assert config["codex_model"] == "o3"
+        assert config["claude_effort"] == "max"  # default preserved
+
+    def test_env_var_overrides_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("NIGHTSHIFT_CLAUDE_MODEL", "claude-haiku-4-5-20251001")
+        monkeypatch.setenv("NIGHTSHIFT_CODEX_MODEL", "o4-mini")
+        monkeypatch.setenv("NIGHTSHIFT_CODEX_THINKING", "high")
+        config = nightshift.merge_config(tmp_path)
+        assert config["claude_model"] == "claude-haiku-4-5-20251001"
+        assert config["codex_model"] == "o4-mini"
+        assert config["codex_thinking"] == "high"
+
+    def test_config_file_wins_over_env_var(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("NIGHTSHIFT_CLAUDE_MODEL", "env-model")
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"claude_model": "file-model"}))
+        config = nightshift.merge_config(tmp_path)
+        assert config["claude_model"] == "file-model"
+
+    def test_env_var_not_set_uses_default(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("NIGHTSHIFT_CLAUDE_MODEL", raising=False)
+        monkeypatch.delenv("NIGHTSHIFT_CODEX_MODEL", raising=False)
+        monkeypatch.delenv("NIGHTSHIFT_CODEX_THINKING", raising=False)
+        config = nightshift.merge_config(tmp_path)
+        assert config["claude_model"] == "claude-opus-4-6"
+        assert config["codex_model"] == "gpt-5.4"
+        assert config["codex_thinking"] == "extra_high"
 
 
 class TestInferPackageManager:
@@ -894,6 +938,7 @@ class TestCommandForAgent:
             cwd=tmp_path,
             schema_path=schema,
             message_path=message,
+            config=nightshift.DEFAULT_CONFIG,
         )
         assert cmd[0] == "codex"
         assert "exec" in cmd
@@ -901,6 +946,9 @@ class TestCommandForAgent:
         assert "--output-schema" in cmd
         assert str(schema) in cmd
         assert "do stuff" in cmd
+        assert "--dangerously-bypass-approvals-and-sandbox" in cmd
+        assert "--model" in cmd
+        assert "gpt-5.4" in cmd
 
     def test_claude_command(self, tmp_path):
         cmd = nightshift.command_for_agent(
@@ -909,12 +957,17 @@ class TestCommandForAgent:
             cwd=tmp_path,
             schema_path=tmp_path / "s.json",
             message_path=tmp_path / "m.json",
+            config=nightshift.DEFAULT_CONFIG,
         )
         assert cmd[0] == "claude"
         assert "-p" in cmd
         assert "do stuff" in cmd
         assert "--max-turns" in cmd
         assert "50" in cmd
+        assert "--model" in cmd
+        assert "claude-opus-4-6" in cmd
+        assert "--effort" in cmd
+        assert "max" in cmd
 
     def test_unsupported_agent(self, tmp_path):
         with pytest.raises(nightshift.NightshiftError, match="Unsupported agent"):
@@ -924,7 +977,51 @@ class TestCommandForAgent:
                 cwd=tmp_path,
                 schema_path=tmp_path / "s",
                 message_path=tmp_path / "m",
+                config=nightshift.DEFAULT_CONFIG,
             )
+
+    def test_codex_uses_custom_model(self, tmp_path):
+        config = dict(nightshift.DEFAULT_CONFIG)
+        config["codex_model"] = "o3"
+        config["codex_thinking"] = "high"
+        cmd = nightshift.command_for_agent(
+            agent="codex",
+            prompt="do stuff",
+            cwd=tmp_path,
+            schema_path=tmp_path / "s.json",
+            message_path=tmp_path / "m.json",
+            config=config,
+        )
+        assert "o3" in cmd
+        assert 'reasoning_effort="high"' in cmd
+
+    def test_claude_uses_custom_model(self, tmp_path):
+        config = dict(nightshift.DEFAULT_CONFIG)
+        config["claude_model"] = "claude-sonnet-4-6"
+        config["claude_effort"] = "low"
+        cmd = nightshift.command_for_agent(
+            agent="claude",
+            prompt="do stuff",
+            cwd=tmp_path,
+            schema_path=tmp_path / "s.json",
+            message_path=tmp_path / "m.json",
+            config=config,
+        )
+        assert "claude-sonnet-4-6" in cmd
+        assert "low" in cmd
+
+    def test_codex_no_old_approval_policy(self, tmp_path):
+        cmd = nightshift.command_for_agent(
+            agent="codex",
+            prompt="do stuff",
+            cwd=tmp_path,
+            schema_path=tmp_path / "s.json",
+            message_path=tmp_path / "m.json",
+            config=nightshift.DEFAULT_CONFIG,
+        )
+        assert 'approval_policy="never"' not in cmd
+        assert "-s" not in cmd
+        assert "workspace-write" not in cmd
 
 
 # --- State Summary -----------------------------------------------------------
@@ -4125,22 +4222,27 @@ class TestPlanFeatureCLI:
 
 class TestPlanCommandForAgent:
     def test_claude_command(self) -> None:
-        cmd = nightshift.plan_command_for_agent("claude", "Plan something")
+        cmd = nightshift.plan_command_for_agent("claude", "Plan something", nightshift.DEFAULT_CONFIG)
         assert cmd[0] == "claude"
         assert "-p" in cmd
         assert "Plan something" in cmd
         max_turns_idx = cmd.index("--max-turns")
         assert cmd[max_turns_idx + 1] == str(nightshift.PLAN_AGENT_MAX_TURNS)
+        assert "--model" in cmd
+        assert "claude-opus-4-6" in cmd
+        assert "--effort" in cmd
 
     def test_codex_command(self) -> None:
-        cmd = nightshift.plan_command_for_agent("codex", "Plan something")
+        cmd = nightshift.plan_command_for_agent("codex", "Plan something", nightshift.DEFAULT_CONFIG)
         assert cmd[0] == "codex"
         assert "exec" in cmd
         assert "Plan something" in cmd
+        assert "--dangerously-bypass-approvals-and-sandbox" in cmd
+        assert "--model" in cmd
 
     def test_unsupported_agent_raises(self) -> None:
         with pytest.raises(nightshift.NightshiftError, match="Unsupported agent"):
-            nightshift.plan_command_for_agent("gpt4", "Plan something")
+            nightshift.plan_command_for_agent("gpt4", "Plan something", nightshift.DEFAULT_CONFIG)
 
 
 class TestRunPlanAgent:
@@ -4162,7 +4264,7 @@ class TestRunPlanAgent:
             patch("nightshift.planner.command_exists", return_value=False),
             pytest.raises(nightshift.NightshiftError, match="not installed"),
         ):
-            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile())
+            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile(), nightshift.DEFAULT_CONFIG)
 
     def test_agent_nonzero_exit_raises(self, tmp_path: Path) -> None:
         with (
@@ -4170,7 +4272,7 @@ class TestRunPlanAgent:
             patch("nightshift.planner.run_command", return_value=(1, "error output")),
             pytest.raises(nightshift.NightshiftError, match="exited with code 1"),
         ):
-            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile())
+            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile(), nightshift.DEFAULT_CONFIG)
 
     def test_agent_unparseable_output_raises(self, tmp_path: Path) -> None:
         with (
@@ -4178,7 +4280,7 @@ class TestRunPlanAgent:
             patch("nightshift.planner.run_command", return_value=(0, "not valid json")),
             pytest.raises(nightshift.NightshiftError, match="could not be parsed"),
         ):
-            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile())
+            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile(), nightshift.DEFAULT_CONFIG)
 
     def test_agent_success_returns_plan(self, tmp_path: Path) -> None:
         plan_dict = _make_valid_plan_dict()
@@ -4187,7 +4289,9 @@ class TestRunPlanAgent:
             patch("nightshift.planner.command_exists", return_value=True),
             patch("nightshift.planner.run_command", return_value=(0, raw_output)),
         ):
-            plan = nightshift.run_plan_agent(tmp_path, "Add dark mode", "claude", self._fake_profile())
+            plan = nightshift.run_plan_agent(
+                tmp_path, "Add dark mode", "claude", self._fake_profile(), nightshift.DEFAULT_CONFIG
+            )
         assert plan["feature"] == "Add dark mode"
         assert len(plan["tasks"]) == 2
 
@@ -4198,7 +4302,9 @@ class TestRunPlanAgent:
             patch("nightshift.planner.command_exists", return_value=True),
             patch("nightshift.planner.run_command", return_value=(0, raw_output)) as mock_run,
         ):
-            nightshift.run_plan_agent(tmp_path, "Add dark mode", "claude", self._fake_profile())
+            nightshift.run_plan_agent(
+                tmp_path, "Add dark mode", "claude", self._fake_profile(), nightshift.DEFAULT_CONFIG
+            )
         _, kwargs = mock_run.call_args
         assert kwargs["cwd"] == tmp_path
 
@@ -4209,7 +4315,9 @@ class TestRunPlanAgent:
             patch("nightshift.planner.command_exists", return_value=True),
             patch("nightshift.planner.run_command", return_value=(0, raw_output)) as mock_run,
         ):
-            nightshift.run_plan_agent(tmp_path, "Add dark mode", "claude", self._fake_profile())
+            nightshift.run_plan_agent(
+                tmp_path, "Add dark mode", "claude", self._fake_profile(), nightshift.DEFAULT_CONFIG
+            )
         _, kwargs = mock_run.call_args
         assert kwargs["timeout_seconds"] == nightshift.PLAN_AGENT_TIMEOUT
 
@@ -4904,6 +5012,7 @@ class TestBuildSubagentCommand:
             cwd=Path("/tmp/repo"),
             message_path=Path("/tmp/logs/task-1.msg.json"),
             schema_path="schemas/task.schema.json",
+            config=nightshift.DEFAULT_CONFIG,
         )
         assert cmd[0] == "codex"
         assert "exec" in cmd
@@ -4911,6 +5020,8 @@ class TestBuildSubagentCommand:
         assert "--output-schema" in cmd
         assert str(Path("/tmp/repo/schemas/task.schema.json")) in cmd
         assert "Build X" in cmd
+        assert "--dangerously-bypass-approvals-and-sandbox" in cmd
+        assert "--model" in cmd
 
     def test_claude_command(self) -> None:
         from nightshift.subagent import _build_subagent_command
@@ -4921,11 +5032,14 @@ class TestBuildSubagentCommand:
             cwd=Path("/tmp/repo"),
             message_path=Path("/tmp/logs/task-1.msg.json"),
             schema_path="schemas/task.schema.json",
+            config=nightshift.DEFAULT_CONFIG,
         )
         assert cmd[0] == "claude"
         assert "-p" in cmd
         assert "Build X" in cmd
         assert "--max-turns" in cmd
+        assert "--model" in cmd
+        assert "--effort" in cmd
 
     def test_claude_uses_configured_max_turns(self) -> None:
         from nightshift.subagent import _build_subagent_command
@@ -4936,6 +5050,7 @@ class TestBuildSubagentCommand:
             cwd=Path("/tmp/repo"),
             message_path=Path("/tmp/logs/task-1.msg.json"),
             schema_path="schemas/task.schema.json",
+            config=nightshift.DEFAULT_CONFIG,
         )
         turns_idx = cmd.index("--max-turns")
         assert cmd[turns_idx + 1] == str(nightshift.SUBAGENT_MAX_TURNS)
@@ -4950,6 +5065,7 @@ class TestBuildSubagentCommand:
                 cwd=Path("/tmp/repo"),
                 message_path=Path("/tmp/logs/task-1.msg.json"),
                 schema_path="schemas/task.schema.json",
+                config=nightshift.DEFAULT_CONFIG,
             )
 
     def test_codex_message_path(self) -> None:
@@ -4962,6 +5078,7 @@ class TestBuildSubagentCommand:
             cwd=Path("/tmp/repo"),
             message_path=msg,
             schema_path="schemas/task.schema.json",
+            config=nightshift.DEFAULT_CONFIG,
         )
         assert "--output-last-message" in cmd
         assert str(msg) in cmd
@@ -4975,6 +5092,7 @@ class TestBuildSubagentCommand:
             cwd=Path("/tmp/repo"),
             message_path=Path("/tmp/logs/task-1.msg.json"),
             schema_path="custom/schema.json",
+            config=nightshift.DEFAULT_CONFIG,
         )
         assert str(Path("/tmp/repo/custom/schema.json")) in cmd
 
@@ -5134,6 +5252,7 @@ class TestSpawnTask:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result is not None
@@ -5150,6 +5269,7 @@ class TestSpawnTask:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result is None
@@ -5165,6 +5285,7 @@ class TestSpawnTask:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result is not None
@@ -5181,6 +5302,7 @@ class TestSpawnTask:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result is not None
@@ -5196,6 +5318,7 @@ class TestSpawnTask:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert log_dir.exists()
@@ -5210,6 +5333,7 @@ class TestSpawnTask:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 timeout_seconds=120,
             )
 
@@ -5226,6 +5350,7 @@ class TestSpawnTask:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         _, kwargs = mock_run.call_args
@@ -5244,6 +5369,7 @@ class TestSpawnTask:
                 agent="codex",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result is not None
@@ -5286,6 +5412,7 @@ class TestSpawnWave:
                     agent="claude",
                     repo_dir=tmp_path,
                     log_dir=log_dir,
+                    config=nightshift.DEFAULT_CONFIG,
                 )
 
         assert result["wave"] == 1
@@ -5327,6 +5454,7 @@ class TestSpawnWave:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert len(result["completed"]) == 1
@@ -5359,6 +5487,7 @@ class TestSpawnWave:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 max_retries=3,
             )
 
@@ -5375,6 +5504,7 @@ class TestSpawnWave:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 max_retries=2,
             )
 
@@ -5406,6 +5536,7 @@ class TestSpawnWave:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 max_retries=3,
             )
 
@@ -5418,6 +5549,7 @@ class TestSpawnWave:
             agent="claude",
             repo_dir=tmp_path,
             log_dir=tmp_path / "logs",
+            config=nightshift.DEFAULT_CONFIG,
         )
         assert result["wave"] == 0
         assert result["total_tasks"] == 0
@@ -5440,6 +5572,7 @@ class TestSpawnWave:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert call_count == nightshift.DECOMPOSER_MAX_RETRIES
@@ -5464,6 +5597,7 @@ class TestSpawnWave:
                 agent="claude",
                 repo_dir=tmp_path,
                 log_dir=tmp_path / "logs",
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result["wave"] == 3
@@ -5759,6 +5893,7 @@ class TestIntegrateWave:
                 test_command="pytest",
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result["status"] == "passed"
@@ -5780,6 +5915,7 @@ class TestIntegrateWave:
                 test_command=None,
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result["status"] == "no_test_runner"
@@ -5807,6 +5943,7 @@ class TestIntegrateWave:
                 test_command="pytest",
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 max_fix_attempts=2,
             )
 
@@ -5846,6 +5983,7 @@ class TestIntegrateWave:
                 test_command="pytest",
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 max_fix_attempts=3,
             )
 
@@ -5870,6 +6008,7 @@ class TestIntegrateWave:
                 test_command="pytest",
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 max_fix_attempts=3,
             )
 
@@ -5892,6 +6031,7 @@ class TestIntegrateWave:
                 test_command="pytest",
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert result["status"] == "passed"
@@ -5916,6 +6056,7 @@ class TestIntegrateWave:
                 test_command="pytest",
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
             )
 
         assert "exists.py" in result["files_staged"]
@@ -5946,6 +6087,7 @@ class TestIntegrateWave:
                 test_command="pytest",
                 agent="claude",
                 log_dir=log_dir,
+                config=nightshift.DEFAULT_CONFIG,
                 max_fix_attempts=5,
             )
 
