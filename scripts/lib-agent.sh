@@ -30,8 +30,14 @@ PROMPT_GUARD_FILES=(
     "docs/prompt/harden-daemon.md"
 )
 
+# Directories to scan for new prompt-like files post-cycle.
+PROMPT_GUARD_DIRS=(
+    "docs/prompt"
+)
+
 # save_prompt_snapshots REPO_DIR
 # Copies all prompt files to a temp directory for comparison after the cycle.
+# Also saves a directory listing of watched directories to detect new files.
 # Outputs the temp directory path.
 save_prompt_snapshots() {
     local repo_dir="$1"
@@ -43,6 +49,15 @@ save_prompt_snapshots() {
             local dst="$snap_dir/$f"
             mkdir -p "$(dirname "$dst")"
             cp "$src" "$dst"
+        fi
+    done
+    # Save directory listings for new-file detection
+    for d in "${PROMPT_GUARD_DIRS[@]}"; do
+        local src_dir="$repo_dir/$d"
+        if [ -d "$src_dir" ]; then
+            local listing="$snap_dir/${d}.filelist"
+            mkdir -p "$(dirname "$listing")"
+            LC_ALL=C ls -1 "$src_dir" 2>/dev/null | LC_ALL=C sort > "$listing"
         fi
     done
     echo "$snap_dir"
@@ -92,6 +107,50 @@ check_prompt_integrity() {
             echo "DELETED: $f"
             alert_body="${alert_body}DELETED: ${f}"$'\n\n'
             changed=1
+        fi
+    done
+
+    # Detect new files in watched directories
+    for d in "${PROMPT_GUARD_DIRS[@]}"; do
+        local current_dir="$repo_dir/$d"
+        local listing="$snap_dir/${d}.filelist"
+        if [ -d "$current_dir" ] && [ -f "$listing" ]; then
+            local current_listing
+            current_listing=$(LC_ALL=C ls -1 "$current_dir" 2>/dev/null | LC_ALL=C sort)
+            local new_files
+            new_files=$(comm -13 "$listing" <(printf '%s\n' "$current_listing"))
+            if [ -n "$new_files" ]; then
+                if [ "$changed" -eq 0 ]; then
+                    echo ""
+                    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                    echo "  PROMPT SELF-MODIFICATION DETECTED"
+                    echo "  The agent modified files that control its behavior."
+                    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                fi
+                echo ""
+                echo "NEW FILES in $d/:"
+                echo "$new_files"
+                alert_body="${alert_body}NEW FILES in ${d}/:"$'\n'"${new_files}"$'\n\n'
+                changed=1
+            fi
+        elif [ -d "$current_dir" ] && [ ! -f "$listing" ]; then
+            # Directory was created during the cycle (did not exist at snapshot time)
+            local new_files
+            new_files=$(ls -1 "$current_dir" 2>/dev/null)
+            if [ -n "$new_files" ]; then
+                if [ "$changed" -eq 0 ]; then
+                    echo ""
+                    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                    echo "  PROMPT SELF-MODIFICATION DETECTED"
+                    echo "  The agent modified files that control its behavior."
+                    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                fi
+                echo ""
+                echo "NEW DIRECTORY $d/ with files:"
+                echo "$new_files"
+                alert_body="${alert_body}NEW DIRECTORY ${d}/ with files:"$'\n'"${new_files}"$'\n\n'
+                changed=1
+            fi
         fi
     done
 
