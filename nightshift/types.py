@@ -333,3 +333,22 @@ class CostLedger(TypedDict):
 
     total_cost_usd: float
     sessions: list[SessionCost]
+
+
+# --- Cleanup types ----------------------------------------------------------
+
+
+class LogRotationResult(TypedDict):
+    """Outcome of rotating old session logs."""
+
+    deleted: list[str]
+    kept: int
+    errors: list[str]
+
+
+class BranchPruneResult(TypedDict):
+    """Outcome of pruning orphan remote branches."""
+
+    pruned: list[str]
+    skipped: list[str]
+    errors: list[str]

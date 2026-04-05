@@ -125,6 +125,49 @@ cleanup_prompt_snapshots() {
 }
 
 # ──────────────────────────────────────────────
+# Cleanup: Log Rotation + Orphan Branch Pruning
+#
+# Called at the start of each daemon cycle to
+# bound disk usage and clean up stale branches.
+# ──────────────────────────────────────────────
+
+# cleanup_old_logs LOG_DIR KEEP_DAYS
+# Deletes .log files older than KEEP_DAYS days.
+cleanup_old_logs() {
+    local log_dir="$1"
+    local keep_days="${2:-7}"
+    local result
+    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
+from nightshift.cleanup import rotate_logs
+r = rotate_logs('$log_dir', $keep_days)
+if r['deleted']:
+    print(f\"  Rotated {len(r['deleted'])} old log(s) (>${keep_days}d)\")
+for e in r['errors']:
+    print(f\"  Log rotation error: {e}\")
+" 2>/dev/null) || true
+    if [ -n "$result" ]; then
+        echo "$result"
+    fi
+}
+
+# cleanup_orphan_branches
+# Prunes remote branches from nightshift that have no open PR.
+cleanup_orphan_branches() {
+    local result
+    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
+from nightshift.cleanup import prune_orphan_branches
+r = prune_orphan_branches('$REPO_DIR')
+if r['pruned']:
+    print(f\"  Pruned {len(r['pruned'])} orphan branch(es): {', '.join(r['pruned'])}\")
+for e in r['errors']:
+    print(f\"  Branch prune error: {e}\")
+" 2>/dev/null) || true
+    if [ -n "$result" ]; then
+        echo "$result"
+    fi
+}
+
+# ──────────────────────────────────────────────
 # Agent Configuration
 # ──────────────────────────────────────────────
 
