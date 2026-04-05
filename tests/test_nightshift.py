@@ -7494,6 +7494,8 @@ class TestCostConstants:
     def test_agent_default_models(self) -> None:
         assert nightshift.AGENT_DEFAULT_MODELS["codex"] == "gpt-5.4"
         assert nightshift.AGENT_DEFAULT_MODELS["claude"] == "claude-opus-4-6"
+        assert nightshift.AGENT_DEFAULT_MODELS["codex"] == nightshift.DEFAULT_CONFIG["codex_model"]
+        assert nightshift.AGENT_DEFAULT_MODELS["claude"] == nightshift.DEFAULT_CONFIG["claude_model"]
 
     def test_cost_ledger_filename(self) -> None:
         assert nightshift.COST_LEDGER_FILENAME == "costs.json"

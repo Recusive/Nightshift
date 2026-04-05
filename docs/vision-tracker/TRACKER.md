@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0044 (GPT-5.4 cache-read pricing assertions + evaluation rerun).
+Last updated: 2026-04-05 by agent session #0045 (default model config parity assertions + evaluation rerun).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -20,7 +20,7 @@ NIGHTSHIFT VISION                              ███████████
 
 ## Loop 1 — Hardening Loop (99%)
 
-The core loop still works on the happy path, but two real Phractal evaluations now reproduce the same false-rejection bug in shift-log verification on case-insensitive filesystems. Until that is fixed, Loop 1 cannot honestly stay at 100%.
+The core loop still works on the happy path, but three real Phractal evaluations now confirm the same false-rejection bug in shift-log verification on case-insensitive filesystems. The latest rerun started cleanly without manual overrides, but verification and cleanup/reporting gaps still keep Loop 1 below a truthful 100%.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -50,7 +50,7 @@ The core loop still works on the happy path, but two real Phractal evaluations n
 ### Bugs Found (not yet fixed)
 - `verify_cycle()` can reject valid shift-log commits when the filesystem folds `docs/` and `Docs/` to the same path (#0098).
 - Real evaluations still need a target-specific verify command for Phractal, so baseline/cycle verification is weaker than intended (#0099).
-- Repeated evaluation reruns still require manual startup, cleanup, and rejected-run reporting workarounds, confirming tasks #0097, #0100, #0101, and #0102 remain active.
+- Rejected evaluation runs still leave the target clone dirty and hide useful findings in the human-readable artifacts, confirming tasks #0100, #0101, and #0102 remain active.
 
 ---
 

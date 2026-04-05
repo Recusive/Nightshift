@@ -25,6 +25,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Vision alignment reveals drift](2026-04-05-vision-alignment-prevents-drift.md) — Last 5 tasks all targeted self-maintaining/meta-prompt, zero loop2; explicit section counting catches invisible clustering
 - [Open PR recovery](2026-04-03-open-pr-recovery.md) — Daemon detects open PRs from crashed sessions and recovers them
 - [Evaluation reruns should reuse existing tasks](2026-04-05-evaluation-reruns-reuse-existing-tasks.md) — Repeated low-scoring eval dimensions can duplicate queue entries; reference existing pending tasks instead of minting another copy
+- [Default eval run before overrides](2026-04-05-evaluation-default-run-before-overrides.md) — Tool/env behavior drifts; score the prescribed evaluation command first and only use temporary overrides in a fresh rerun when the default run fails
 
 ## Code Patterns
 
