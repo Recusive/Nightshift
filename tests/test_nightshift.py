@@ -1420,6 +1420,100 @@ class TestReadRepoInstructions:
         assert "Copilot rules here" in result
 
 
+# --- Read Repo Instructions (truncation) -------------------------------------
+
+
+class TestReadRepoInstructionsTruncation:
+    def test_file_within_limit_not_truncated(self, tmp_path: Path) -> None:
+        content = "a" * 100
+        (tmp_path / "CLAUDE.md").write_text(content)
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "[WARNING" not in result
+        assert content in result
+
+    def test_file_exceeding_per_file_limit_truncated(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES
+
+        content = "x" * (MAX_INSTRUCTION_FILE_BYTES + 5000)
+        (tmp_path / "CLAUDE.md").write_text(content)
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "[WARNING: CLAUDE.md truncated from" in result
+        assert f"to {MAX_INSTRUCTION_FILE_BYTES:,} bytes]" in result
+        # Content should be shorter than original
+        lines = result.split("\n")
+        body = "\n".join(lines[1:-1])  # strip header/footer
+        assert len(body.encode("utf-8")) < len(content.encode("utf-8"))
+
+    def test_total_cap_truncates_later_files(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES
+
+        # 3 files just under per-file limit fill most of the total budget;
+        # the 4th file triggers total-cap truncation on the remaining bytes.
+        file_size = MAX_INSTRUCTION_FILE_BYTES - 40
+        (tmp_path / "CLAUDE.md").write_text("c" * file_size)
+        (tmp_path / "AGENTS.md").write_text("a" * file_size)
+        (tmp_path / ".cursorrules").write_text("r" * file_size)
+        (tmp_path / "CONTRIBUTING.md").write_text("x" * 5000)
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "--- CONTRIBUTING.md ---" in result
+        assert "total instruction size cap" in result
+
+    def test_total_cap_skips_file_when_budget_exhausted(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES
+
+        # 3 files at exactly per-file limit fill the total budget
+        # (3 * 10240 = 30720 = MAX_INSTRUCTION_TOTAL_BYTES).
+        (tmp_path / "CLAUDE.md").write_text("c" * MAX_INSTRUCTION_FILE_BYTES)
+        (tmp_path / "AGENTS.md").write_text("a" * MAX_INSTRUCTION_FILE_BYTES)
+        (tmp_path / ".cursorrules").write_text("r" * MAX_INSTRUCTION_FILE_BYTES)
+        (tmp_path / "CONTRIBUTING.md").write_text("x" * 100)
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert "CONTRIBUTING.md skipped" in result
+        assert "total instruction size cap" in result
+
+    def test_truncation_preserves_valid_utf8(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES
+
+        # Multi-byte chars: truncation at byte boundary should not produce
+        # broken UTF-8 (decode with errors="ignore" drops partial chars).
+        content = "\u00e9" * (MAX_INSTRUCTION_FILE_BYTES + 100)
+        (tmp_path / "CLAUDE.md").write_text(content)
+        result = nightshift.read_repo_instructions(tmp_path)
+        # Should not raise and should contain the warning
+        assert "[WARNING: CLAUDE.md truncated from" in result
+        # Result should be valid UTF-8 (no UnicodeDecodeError)
+        result.encode("utf-8")
+
+    def test_multiple_files_both_truncated(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES
+
+        big = "z" * (MAX_INSTRUCTION_FILE_BYTES + 1000)
+        (tmp_path / "CLAUDE.md").write_text(big)
+        (tmp_path / "AGENTS.md").write_text(big)
+        result = nightshift.read_repo_instructions(tmp_path)
+        assert result.count("[WARNING:") >= 2
+
+    def test_total_content_bytes_within_budget(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES, MAX_INSTRUCTION_TOTAL_BYTES
+
+        # Fill 3 files just under per-file limit + a 4th that triggers total-cap.
+        # The total content (including warnings) must stay within budget.
+        file_size = MAX_INSTRUCTION_FILE_BYTES - 40
+        (tmp_path / "CLAUDE.md").write_text("c" * file_size)
+        (tmp_path / "AGENTS.md").write_text("a" * file_size)
+        (tmp_path / ".cursorrules").write_text("r" * file_size)
+        (tmp_path / "CONTRIBUTING.md").write_text("x" * 5000)
+        result = nightshift.read_repo_instructions(tmp_path)
+        # Strip section markers (--- name --- / --- end name ---) to measure
+        # only the content tracked by the total budget.
+        content_bytes = 0
+        for section in result.split("\n\n"):
+            for line in section.split("\n"):
+                if not line.startswith("--- ") or not line.endswith(" ---"):
+                    content_bytes += len(line.encode("utf-8")) + 1  # +1 for newline
+        assert content_bytes <= MAX_INSTRUCTION_TOTAL_BYTES + 500  # generous margin for markers
+
+
 # --- Wrap Repo Instructions --------------------------------------------------
 
 
