@@ -62,6 +62,14 @@ labeled "task" into docs/tasks/ files before your session starts. If you
 see tasks with `source: github-issue-N` in frontmatter, the human created
 them via GitHub Issues. Treat them like any other task.
 
+RELEASE RULE: Step 11 is NOT optional. After every merge, check for untagged
+changelog versions. Releasing is part of the build cycle — you do not need a
+task to tell you to release. If a version's changelog has entries and no pending
+tasks target it, tag and release it. Release older versions first (v0.0.6
+before v0.0.7). Multiple releases per session is fine. This prevents the
+pattern where versions fall behind because "release" tasks keep getting
+deprioritized by lower-numbered feature tasks.
+
 All other steps remain the same. Follow the evolve prompt exactly.
 
 DAEMON CONTEXT: You are running inside `scripts/daemon.sh` via tmux.
