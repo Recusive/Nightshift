@@ -35,5 +35,6 @@
   "claude_effort": "max",
   "codex_model": "gpt-5.4",
   "codex_thinking": "extra_high",
-  "notification_webhook": null
+  "notification_webhook": null,
+  "readiness_checks": ["secrets", "debug_prints", "test_coverage"]
 }

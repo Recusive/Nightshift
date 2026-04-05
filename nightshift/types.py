@@ -29,6 +29,7 @@ class NightshiftConfig(TypedDict):
     codex_model: str
     codex_thinking: str
     notification_webhook: str | None
+    readiness_checks: list[str]
 
 
 class DiffScore(TypedDict):
@@ -311,6 +312,23 @@ class FeatureSummary(TypedDict):
     description: str
 
 
+class ReadinessCheck(TypedDict):
+    """Result of a single production-readiness check."""
+
+    name: str
+    passed: bool
+    details: str
+
+
+class ReadinessReport(TypedDict):
+    """Aggregate production-readiness report for a feature build."""
+
+    checks: list[ReadinessCheck]
+    verdict: str  # "ready" | "not_ready"
+    passed_count: int
+    failed_count: int
+
+
 class FeatureState(TypedDict):
     """Persisted state for the Loop 2 feature build orchestrator."""
 
@@ -324,6 +342,7 @@ class FeatureState(TypedDict):
     plan: FeaturePlan
     waves: list[FeatureWaveState]
     final_verification: FinalVerificationResult | None
+    readiness: ReadinessReport | None
     summary: FeatureSummary | None
 
 
