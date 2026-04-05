@@ -397,6 +397,8 @@ PLAN_PROMPT_TEMPLATE = """You are a senior software architect planning a feature
 
 - **Primary language**: {primary_language}
 - **Frameworks**: {frameworks}
+- **Dependencies**: {dependencies}
+- **Conventions**: {conventions}
 - **Package manager**: {package_manager}
 - **Test runner**: {test_runner}
 - **Instruction files**: {instruction_files}
@@ -470,6 +472,8 @@ WORK_ORDER_PROMPT_TEMPLATE = """You are a software engineer executing a specific
 
 - **Primary language**: {primary_language}
 - **Frameworks**: {frameworks}
+- **Dependencies**: {dependencies}
+- **Conventions**: {conventions}
 - **Package manager**: {package_manager}
 - **Test runner**: {test_runner}
 - **Instruction files**: {instruction_files}

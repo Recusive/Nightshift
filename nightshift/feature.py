@@ -92,10 +92,14 @@ def _build_profile(raw: dict[str, Any]) -> RepoProfile:
 
     instruction_files = raw.get("instruction_files")
     top_level_dirs = raw.get("top_level_dirs")
+    dependencies = raw.get("dependencies")
+    conventions = raw.get("conventions")
     return RepoProfile(
         languages=languages,
         primary_language=str(raw.get("primary_language", "Unknown")),
         frameworks=frameworks,
+        dependencies=[item for item in dependencies if isinstance(item, str)] if isinstance(dependencies, list) else [],
+        conventions=[item for item in conventions if isinstance(item, str)] if isinstance(conventions, list) else [],
         package_manager=str(raw["package_manager"]) if isinstance(raw.get("package_manager"), str) else None,
         test_runner=str(raw["test_runner"]) if isinstance(raw.get("test_runner"), str) else None,
         instruction_files=[item for item in instruction_files if isinstance(item, str)]

@@ -39,6 +39,11 @@ def _format_frameworks(profile: RepoProfile) -> str:
     return ", ".join(parts)
 
 
+def _format_list(items: list[str]) -> str:
+    """Format a profile list for prompt output."""
+    return ", ".join(items) if items else "none detected"
+
+
 def build_plan_prompt(profile: RepoProfile, feature_description: str) -> str:
     """Build a planning prompt from a repo profile and feature description.
 
@@ -47,6 +52,8 @@ def build_plan_prompt(profile: RepoProfile, feature_description: str) -> str:
     return PLAN_PROMPT_TEMPLATE.format(
         primary_language=profile["primary_language"],
         frameworks=_format_frameworks(profile),
+        dependencies=_format_list(profile["dependencies"]),
+        conventions=_format_list(profile["conventions"]),
         package_manager=profile["package_manager"] or "none detected",
         test_runner=profile["test_runner"] or "none detected",
         instruction_files=", ".join(profile["instruction_files"]) or "none",

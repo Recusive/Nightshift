@@ -3263,6 +3263,8 @@ class TestFrameworkInfoType:
             languages={"Python": 10},
             primary_language="Python",
             frameworks=[],
+            dependencies=[],
+            conventions=[],
             package_manager=None,
             test_runner=None,
             instruction_files=[],
@@ -3448,6 +3450,20 @@ class TestDetectFrameworksByPackage:
         (tmp_path / "package.json").write_text("not json")
         assert _detect_frameworks_by_package(tmp_path) == []
 
+    def test_scans_nested_package_json_files(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_frameworks_by_package
+
+        web = tmp_path / "apps" / "web"
+        web.mkdir(parents=True)
+        pkg = {"dependencies": {"react": "^18.2.0"}}
+        (web / "package.json").write_text(json.dumps(pkg))
+
+        found = _detect_frameworks_by_package(tmp_path)
+
+        assert len(found) == 1
+        assert found[0]["name"] == "React"
+        assert found[0]["version"] == "^18.2.0"
+
 
 class TestDetectFrameworks:
     def test_combines_marker_and_package(self, tmp_path: Path) -> None:
@@ -3469,6 +3485,51 @@ class TestDetectFrameworks:
         found = _detect_frameworks(tmp_path)
         express_count = sum(1 for fw in found if fw["name"] == "Express")
         assert express_count == 1
+
+
+class TestDetectDependencies:
+    def test_detects_requirements_txt_dependencies(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_dependencies
+
+        (tmp_path / "requirements.txt").write_text("fastapi>=0.110\npytest==8.2.0\n")
+
+        deps = _detect_dependencies(tmp_path)
+
+        assert "fastapi" in deps
+        assert "pytest" in deps
+
+    def test_detects_pyproject_dependencies(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_dependencies
+
+        (tmp_path / "pyproject.toml").write_text(
+            """
+[project]
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+""".strip()
+        )
+
+        deps = _detect_dependencies(tmp_path)
+
+        assert "fastapi" in deps
+        assert "uvicorn" in deps
+        assert "pytest" in deps
+
+    def test_detects_nested_package_json_dependencies(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_dependencies
+
+        pkg_dir = tmp_path / "packages" / "ui"
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / "package.json").write_text(json.dumps({"dependencies": {"react": "^18.2.0"}}))
+
+        deps = _detect_dependencies(tmp_path)
+
+        assert "react" in deps
 
 
 # --- Profiler Instruction Files -----------------------------------------------
@@ -3595,6 +3656,34 @@ class TestCountTotalFiles:
         assert _count_total_files(tmp_path) == 1
 
 
+class TestDetectConventions:
+    def test_detects_python_naming_and_absolute_imports(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_conventions
+
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "user_service.py").write_text("from app.core import run\n")
+        (src / "billing_service.py").write_text("import pathlib\n")
+
+        conventions = _detect_conventions(tmp_path, "Python")
+
+        assert "Naming: snake_case filenames" in conventions
+        assert "Imports: mostly absolute" in conventions
+
+    def test_detects_typescript_pascal_case_and_path_aliases(self, tmp_path: Path) -> None:
+        from nightshift.profiler import _detect_conventions
+
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "ThemeToggle.tsx").write_text('import { theme } from "@/lib/theme"\n')
+        (src / "UserCard.tsx").write_text('import { user } from "@/lib/user"\n')
+
+        conventions = _detect_conventions(tmp_path, "TypeScript")
+
+        assert "Naming: PascalCase filenames" in conventions
+        assert "Imports: path aliases" in conventions
+
+
 # --- Profiler Integration (profile_repo) --------------------------------------
 
 
@@ -3602,16 +3691,20 @@ class TestProfileRepo:
     def test_python_project(self, tmp_path: Path) -> None:
         (tmp_path / "src").mkdir()
         (tmp_path / "tests").mkdir()
-        (tmp_path / "src" / "app.py").write_text("x = 1")
-        (tmp_path / "src" / "utils.py").write_text("y = 2")
+        (tmp_path / "src" / "app_service.py").write_text("from app.core import run\n")
+        (tmp_path / "src" / "utils_helper.py").write_text("import pathlib\n")
         (tmp_path / "tests" / "test_app.py").write_text("def test(): pass")
         (tmp_path / "pyproject.toml").write_text("[tool.pytest]")
+        (tmp_path / "requirements.txt").write_text("pytest==8.2.0\n")
         (tmp_path / "CLAUDE.md").write_text("# Instructions")
 
         profile = nightshift.profile_repo(tmp_path)
 
         assert profile["primary_language"] == "Python"
         assert profile["languages"]["Python"] == 3
+        assert "pytest" in profile["dependencies"]
+        assert "Naming: snake_case filenames" in profile["conventions"]
+        assert "Imports: mostly absolute" in profile["conventions"]
         assert profile["test_runner"] == "python3 -m pytest"
         assert "CLAUDE.md" in profile["instruction_files"]
         assert "src" in profile["top_level_dirs"]
@@ -3644,12 +3737,17 @@ class TestProfileRepo:
     def test_monorepo_project(self, tmp_path: Path) -> None:
         (tmp_path / "packages").mkdir()
         (tmp_path / "apps").mkdir()
+        app = tmp_path / "apps" / "web"
+        app.mkdir(parents=True)
         (tmp_path / "turbo.json").write_text("{}")
         (tmp_path / "pnpm-workspace.yaml").write_text("packages: ['packages/*']")
+        (app / "package.json").write_text(json.dumps({"dependencies": {"react": "^18.2.0"}}))
 
         profile = nightshift.profile_repo(tmp_path)
 
         assert profile["has_monorepo_markers"] is True
+        assert "react" in profile["dependencies"]
+        assert "React" in {fw["name"] for fw in profile["frameworks"]}
 
     def test_empty_dir(self, tmp_path: Path) -> None:
         profile = nightshift.profile_repo(tmp_path)
@@ -3657,6 +3755,8 @@ class TestProfileRepo:
         assert profile["primary_language"] == "Unknown"
         assert profile["languages"] == {}
         assert profile["frameworks"] == []
+        assert profile["dependencies"] == []
+        assert profile["conventions"] == []
         assert profile["package_manager"] is None
         assert profile["test_runner"] is None
         assert profile["instruction_files"] == []
@@ -3694,6 +3794,8 @@ def _make_profile(**overrides: object) -> nightshift.RepoProfile:
         "languages": {"Python": 10},
         "primary_language": "Python",
         "frameworks": [],
+        "dependencies": [],
+        "conventions": [],
         "package_manager": "pip",
         "test_runner": "pytest",
         "instruction_files": ["CLAUDE.md"],
@@ -3773,6 +3875,18 @@ class TestBuildPlanPrompt:
         profile = _make_profile(frameworks=[])
         prompt = nightshift.build_plan_prompt(profile, "Add auth")
         assert "none detected" in prompt
+
+    def test_includes_dependencies(self) -> None:
+        profile = _make_profile(dependencies=["fastapi", "pytest"])
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "fastapi" in prompt
+        assert "pytest" in prompt
+
+    def test_includes_conventions(self) -> None:
+        profile = _make_profile(conventions=["Naming: snake_case filenames", "Imports: mostly absolute"])
+        prompt = nightshift.build_plan_prompt(profile, "Add auth")
+        assert "Naming: snake_case filenames" in prompt
+        assert "Imports: mostly absolute" in prompt
 
     def test_includes_package_manager(self) -> None:
         profile = _make_profile(package_manager="pnpm")
@@ -4424,6 +4538,8 @@ class TestRunPlanAgent:
             languages={"Python": 10},
             primary_language="Python",
             frameworks=[],
+            dependencies=[],
+            conventions=[],
             package_manager=None,
             test_runner=None,
             instruction_files=[],
@@ -4672,6 +4788,22 @@ class TestBuildWorkOrderPrompt:
         task = plan["tasks"][0]
         prompt = nightshift.build_work_order_prompt(task, plan, profile)
         assert "none detected" in prompt
+
+    def test_includes_dependencies(self) -> None:
+        profile = _make_profile(dependencies=["react", "next"])
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "react" in prompt
+        assert "next" in prompt
+
+    def test_includes_conventions(self) -> None:
+        profile = _make_profile(conventions=["Naming: PascalCase filenames", "Imports: path aliases"])
+        plan = _make_feature_plan()
+        task = plan["tasks"][0]
+        prompt = nightshift.build_work_order_prompt(task, plan, profile)
+        assert "Naming: PascalCase filenames" in prompt
+        assert "Imports: path aliases" in prompt
 
     def test_includes_test_runner(self) -> None:
         profile = _make_profile(test_runner="jest")
@@ -6400,6 +6532,8 @@ def _make_feature_state_for_summary(**overrides: object) -> nightshift.FeatureSt
         languages={"Python": 10},
         primary_language="Python",
         frameworks=[],
+        dependencies=[],
+        conventions=[],
         package_manager=None,
         test_runner="pytest",
         instruction_files=[],
@@ -8116,6 +8250,8 @@ def _make_readiness_state(**overrides: object) -> nightshift.FeatureState:
         languages={"Python": 10},
         primary_language="Python",
         frameworks=[],
+        dependencies=[],
+        conventions=[],
         package_manager=None,
         test_runner="pytest",
         instruction_files=[],

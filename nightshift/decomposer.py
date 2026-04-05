@@ -29,6 +29,11 @@ def _format_frameworks(profile: RepoProfile) -> str:
     return ", ".join(parts)
 
 
+def _format_list(items: list[str]) -> str:
+    """Format a profile list for prompt output."""
+    return ", ".join(items) if items else "none detected"
+
+
 def _format_acceptance_criteria(criteria: list[str]) -> str:
     """Format acceptance criteria as a numbered list."""
     return "\n".join(f"{i}. {c}" for i, c in enumerate(criteria, 1))
@@ -68,6 +73,8 @@ def build_work_order_prompt(
     return WORK_ORDER_PROMPT_TEMPLATE.format(
         primary_language=profile["primary_language"],
         frameworks=_format_frameworks(profile),
+        dependencies=_format_list(profile["dependencies"]),
+        conventions=_format_list(profile["conventions"]),
         package_manager=profile["package_manager"] or "none detected",
         test_runner=profile["test_runner"] or "none detected",
         instruction_files=", ".join(profile["instruction_files"]) or "none",

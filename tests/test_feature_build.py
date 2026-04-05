@@ -18,6 +18,8 @@ def _make_profile(**overrides: object) -> nightshift.RepoProfile:
         "languages": {"Python": 12},
         "primary_language": "Python",
         "frameworks": [],
+        "dependencies": [],
+        "conventions": [],
         "package_manager": None,
         "test_runner": "python3 -m pytest",
         "instruction_files": ["CLAUDE.md"],

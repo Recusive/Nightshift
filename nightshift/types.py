@@ -148,6 +148,8 @@ class RepoProfile(TypedDict):
     languages: dict[str, int]
     primary_language: str
     frameworks: list[FrameworkInfo]
+    dependencies: list[str]
+    conventions: list[str]
     package_manager: str | None
     test_runner: str | None
     instruction_files: list[str]

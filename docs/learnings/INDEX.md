@@ -29,6 +29,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 
 - [Escalation pattern for prompt directives](2026-04-03-escalation-pattern.md) — Standalone function returns directive string; build_prompt() assembles
 - [Thread config through callers](2026-04-04-thread-config-through-callers.md) — Pass NightshiftConfig down the call chain, don't read inside builders
+- [RepoProfile schema changes cascade into feature fixtures](2026-04-05-repoprofile-schema-cascade.md) — Expanding RepoProfile means updating feature.py rebuild logic and test fixture helpers, not just profiler.py
 - [Pre-load instructions in runner not agent](2026-04-04-preload-instructions-not-agent-read.md) — Runner reads repo instruction files and injects into prompt
 - [Prompt guard in shared lib](2026-04-04-prompt-guard-in-shared-lib.md) — Cross-cutting daemon concerns go in lib-agent.sh
 - [notify_human must fail silently](2026-04-05-notify-human-silent-failure.md) — Daemon helper functions must use `|| true`; notification is best-effort, not blocking
