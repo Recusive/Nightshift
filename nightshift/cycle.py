@@ -19,6 +19,8 @@ from nightshift.constants import (
     FRONTEND_EXTENSIONS,
     HIGH_SIGNAL_PATH_CANDIDATES,
     INSTRUCTION_FILE_NAMES,
+    MAX_INSTRUCTION_FILE_BYTES,
+    MAX_INSTRUCTION_TOTAL_BYTES,
     UNTRUSTED_INSTRUCTIONS_PREAMBLE,
     UNTRUSTED_INSTRUCTIONS_SUFFIX,
     print_status,
@@ -71,16 +73,47 @@ def read_repo_instructions(repo_dir: Path) -> str:
 
     Scans for known instruction file names (CLAUDE.md, AGENTS.md, etc.)
     and returns the content of all that exist, labeled by filename.
+    Files exceeding MAX_INSTRUCTION_FILE_BYTES are truncated with a warning.
+    Total combined content is capped at MAX_INSTRUCTION_TOTAL_BYTES.
     Returns an empty string if no instruction files are found.
     """
     sections: list[str] = []
+    total_bytes = 0
     for name in INSTRUCTION_FILE_NAMES:
         file_path = repo_dir / name
         if file_path.is_file():
             try:
                 content = file_path.read_text(encoding="utf-8").strip()
-                if content:
-                    sections.append(f"--- {name} ---\n{content}\n--- end {name} ---")
+                if not content:
+                    continue
+                content_bytes = len(content.encode("utf-8"))
+                if content_bytes > MAX_INSTRUCTION_FILE_BYTES:
+                    content = (
+                        content.encode("utf-8")[:MAX_INSTRUCTION_FILE_BYTES].decode("utf-8", errors="ignore").rstrip()
+                    )
+                    content += (
+                        f"\n\n[WARNING: {name} truncated from {content_bytes:,} bytes"
+                        f" to {MAX_INSTRUCTION_FILE_BYTES:,} bytes]"
+                    )
+                    content_bytes = MAX_INSTRUCTION_FILE_BYTES
+                remaining = MAX_INSTRUCTION_TOTAL_BYTES - total_bytes
+                if remaining <= 0:
+                    sections.append(
+                        f"--- {name} ---\n"
+                        f"[WARNING: {name} skipped -- total instruction size cap"
+                        f" ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]"
+                        f"\n--- end {name} ---"
+                    )
+                    continue
+                if content_bytes > remaining:
+                    content = content.encode("utf-8")[:remaining].decode("utf-8", errors="ignore").rstrip()
+                    content += (
+                        f"\n\n[WARNING: {name} truncated -- total instruction size cap"
+                        f" ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]"
+                    )
+                    content_bytes = remaining
+                total_bytes += content_bytes
+                sections.append(f"--- {name} ---\n{content}\n--- end {name} ---")
             except OSError:
                 continue
     return "\n\n".join(sections)
