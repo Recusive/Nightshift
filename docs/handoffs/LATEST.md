@@ -26,9 +26,9 @@
 - Real evaluation gaps remain confirmed by `docs/evaluations/0001.md` and `docs/evaluations/0002.md`: Claude startup/env friction, case-insensitive shift-log verification, missing Phractal verify command, dirty eval cleanup, rejected-cycle reporting gap, and rejected-cycle scoring blind spots (tasks `#0097`-`#0102`).
 
 ## Learnings Applied
-- "Task selection is a mesa-optimization problem" ([docs/learnings/2026-04-04-task-selection-mesa-optimization.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/learnings/2026-04-04-task-selection-mesa-optimization.md))
+- "Task selection is a mesa-optimization problem" (`docs/learnings/2026-04-04-task-selection-mesa-optimization.md`)
   Affects my approach: after completing the required evaluation, I ignored the advisory handoff recommendation and picked the actual lowest-numbered eligible pending internal task (`#0041`).
-- "Evaluation reruns should reuse existing tasks" ([docs/learnings/2026-04-05-evaluation-reruns-reuse-existing-tasks.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/learnings/2026-04-05-evaluation-reruns-reuse-existing-tasks.md))
+- "Evaluation reruns should reuse existing tasks" (`docs/learnings/2026-04-05-evaluation-reruns-reuse-existing-tasks.md`)
   Affects my approach: I reused `#0097`-`#0102` for the repeated Phractal failures and updated the prompt/docs so future reruns add evidence instead of queue duplicates.
 
 ## Current State
