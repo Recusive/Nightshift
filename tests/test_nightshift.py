@@ -8238,6 +8238,17 @@ class TestHealerInfrastructure:
         assert "healer.md" in content  # commented reference still present
 
 
+class TestShellScripts:
+    def test_shell_scripts_are_ascii_only(self) -> None:
+        """Shell scripts should stay ASCII-only for portability and repo conventions."""
+        violations: list[str] = []
+        for path in sorted(Path("scripts").glob("*.sh")):
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if any(ord(ch) > 127 for ch in line):
+                    violations.append(f"{path}:{lineno}: {line}")
+        assert not violations, "Non-ASCII shell script content found:\n" + "\n".join(violations)
+
+
 # ---------------------------------------------------------------------------
 # Readiness checker tests
 # ---------------------------------------------------------------------------

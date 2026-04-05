@@ -1,5 +1,5 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Shared agent invocation for all daemons.
 # Source this file, then call run_agent.
 #
@@ -10,15 +10,15 @@
 #   NIGHTSHIFT_CLAUDE_MODEL   (default: opus)
 #   NIGHTSHIFT_CODEX_MODEL    (default: o3)
 #   NIGHTSHIFT_CODEX_THINKING (default: extra_high)
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Prompt Self-Modification Guard
 #
 # Detects if the agent modified prompt/control files during a cycle.
 # These files control agent behavior -- unauthorized changes could
 # corrupt all future sessions.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 PROMPT_GUARD_FILES=(
     "CLAUDE.md"
@@ -184,12 +184,12 @@ cleanup_prompt_snapshots() {
     fi
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Cleanup: Log Rotation + Orphan Branch Pruning
 #
 # Called at the start of each daemon cycle to
 # bound disk usage and clean up stale branches.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # cleanup_old_logs LOG_DIR KEEP_DAYS
 # Deletes .log files older than KEEP_DAYS days.
@@ -227,12 +227,12 @@ for e in r['errors']:
     fi
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Task Archival
 #
 # Moves done tasks to archive/ to keep the
 # active directory small.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # archive_done_tasks TASKS_DIR
 # Moves status: done task files to TASKS_DIR/archive/.
@@ -256,12 +256,12 @@ archive_done_tasks() {
     fi
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Handoff Compaction
 #
 # Compacts numbered handoff files into weekly
 # summaries when 7+ files accumulate.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # compact_handoffs HANDOFFS_DIR
 # Runs Python-backed compaction on numbered handoff files.
@@ -282,13 +282,13 @@ for e in r['errors']:
     fi
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # GitHub Issues -> Task Sync
 #
 # Converts GitHub Issues labeled "task" into
 # docs/tasks/ files. Humans create issues, the
 # daemon converts them to task files on startup.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # sync_github_tasks TASKS_DIR
 # Syncs GitHub Issues labeled "task" to docs/tasks/ files.
@@ -424,13 +424,13 @@ for task_num, issue_num, title in created_files:
     fi
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Self-Evaluation
 #
 # Runs nightshift against a test target every N
 # sessions to score quality and create follow-up
 # tasks for low-scoring dimensions.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # should_evaluate SESSION_COUNT
 # Returns 0 (true) if it's time for an evaluation.
@@ -484,21 +484,21 @@ if r['tasks_created']:
     echo "$result"
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Agent Configuration
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # Configurable models -- override via environment
 CLAUDE_MODEL="${NIGHTSHIFT_CLAUDE_MODEL:-claude-opus-4-6}"
 CODEX_MODEL="${NIGHTSHIFT_CODEX_MODEL:-gpt-5.4}"
 CODEX_THINKING="${NIGHTSHIFT_CODEX_THINKING:-extra_high}"
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Interactive Setup
 #
 # Prompts user for agent and duration when daemon
 # is run without arguments. Sets global variables.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # interactive_setup DAEMON_LABEL
 # Prompts for agent choice and duration, then confirms.
@@ -608,9 +608,9 @@ interactive_setup_strategist() {
     read -r
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Agent Runner
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # run_agent AGENT PROMPT LOG_FILE MAX_TURNS
 # Sets EXIT_CODE as a side effect.
@@ -662,13 +662,13 @@ run_agent() {
     set -e
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Human Escalation
 #
 # Creates a GitHub issue (and optionally fires a
 # webhook) when the system needs human attention.
 # Fails silently -- never crashes the daemon.
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 # notify_human TITLE BODY
 # Creates a GitHub issue with the "needs-human" label.

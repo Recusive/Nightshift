@@ -1,5 +1,5 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Nightshift Daemon -- Self-Improving Loop
 #
 # Usage:
@@ -11,7 +11,7 @@
 # Budget: set NIGHTSHIFT_BUDGET=50 to stop after $50 spent
 #
 # Stop: Ctrl+C or kill the process
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -uo pipefail
 
@@ -125,7 +125,7 @@ while true; do
     # --- Self-restart: if daemon.sh changed, exec into new version ---
     NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon.sh" 2>/dev/null | cut -d' ' -f1)
     if [ -n "${_DAEMON_HASH:-}" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
-        echo "  daemon.sh changed on main — restarting with new code..."
+        echo "  daemon.sh changed on main -- restarting with new code..."
         exec bash "$SCRIPT_DIR/daemon.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
     fi
     export _DAEMON_HASH="$NEW_HASH"

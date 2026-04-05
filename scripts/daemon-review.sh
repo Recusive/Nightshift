@@ -1,5 +1,5 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Nightshift Review Daemon -- Code Quality Loop
 #
 # Separate from the feature daemon. This one reads code
@@ -15,7 +15,7 @@
 #
 # Stop: Ctrl+C or kill the process
 # Cannot run simultaneously with daemon.sh (shared lockfile).
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -uo pipefail
 
@@ -123,7 +123,7 @@ while true; do
     # --- Self-restart: if daemon-review.sh changed, exec into new version ---
     NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon-review.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon-review.sh" 2>/dev/null | cut -d' ' -f1)
     if [ -n "${_DAEMON_HASH:-}" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
-        echo "  daemon-review.sh changed on main — restarting with new code..."
+        echo "  daemon-review.sh changed on main -- restarting with new code..."
         exec bash "$SCRIPT_DIR/daemon-review.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
     fi
     export _DAEMON_HASH="$NEW_HASH"

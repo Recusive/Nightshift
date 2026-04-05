@@ -1,13 +1,13 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
-# Rollback — Revert a merged PR cleanly
+# ----------------------------------------------
+# Rollback -- Revert a merged PR cleanly
 #
 # Creates a revert branch, revert commit, and new PR.
 #
 # Usage:
 #   ./scripts/rollback.sh <merge-commit-hash>
 #   ./scripts/rollback.sh <PR-number>
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -euo pipefail
 

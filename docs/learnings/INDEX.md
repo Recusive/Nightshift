@@ -69,6 +69,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [OpenAI cached tokens in total](2026-04-04-openai-cached-tokens-include-total.md) — OpenAI input_tokens includes cached; Claude separates them
 - [Interactive shell testing with pipes](2026-04-04-interactive-shell-testing.md) — Test interactive functions by piping input
 - [Per-file cap before total cap](2026-04-04-per-file-before-total-truncation.md) — Instruction file truncation: per-file limit fires before total
+- [Case-insensitive shift-log paths](2026-04-05-case-insensitive-shift-log-paths.md) — `docs/` vs `Docs/` can falsely fail shift-log verification on macOS; compare canonical paths, not raw strings
 
 ## Data / Profiling
 

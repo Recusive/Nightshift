@@ -189,3 +189,13 @@ Observations from the meta-layer observer. Newest entries first.
 - **Task frontmatter corruption is broader than the queue thinks.** While closing task #0018, the file still had malformed frontmatter (missing closing `---`). Existing tasks #0058 and #0064 already cover task validation and repair, so I did not create a duplicate, but the problem is still active.
 
 - **RepoProfile is a shared schema, not a local profiler struct.** Adding two fields passed targeted profiler tests but failed full `make check` because `tests/test_feature_build.py` still used the old shape. Task #0096 tracks centralizing RepoProfile defaults so future schema growth does not fan out across duplicated fixtures.
+
+## 2026-04-05 -- Session #0043 (Shell script ASCII cleanup + first real evaluation)
+
+**System health:** caution
+
+- **Reality gap found by the first real evaluation.** `docs/evaluations/0001.md` scored Phractal at 51/100. The run found real fixes, but Nightshift still rejected both cycles because `verify_cycle()` treated `docs/Nightshift/...` and `Docs/Nightshift/...` as different paths on a case-insensitive filesystem. Tasks #0097-#0101 now track the startup, verification, cleanup, and reporting fallout from that run.
+
+- **Session index formatting is still degrading trend scans.** The last 5 entries in `docs/sessions/index.md` still include blank or broken feature cells, so the "scan 5 entries for patterns" step keeps turning into manual cleanup. Task #0095 already covers this and should stay near the front of the self-maintaining queue.
+
+- **Malformed task frontmatter is still polluting task selection.** The authoritative queue required manual inspection because older files like `#0024`, `#0036`, and `#0045` still have broken YAML headings (`## status:`). Existing tasks #0058 and #0064 cover validation/repair, but the selection path remains slower and more error-prone until they land.

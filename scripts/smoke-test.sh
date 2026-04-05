@@ -1,6 +1,6 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
-# Smoke Test — Run Nightshift against a real repo
+# ----------------------------------------------
+# Smoke Test -- Run Nightshift against a real repo
 #
 # Clones the test target, runs a 1-cycle test shift,
 # and verifies the system actually works end-to-end.
@@ -8,7 +8,7 @@
 # Usage:
 #   ./scripts/smoke-test.sh                    # default: Phractal repo
 #   ./scripts/smoke-test.sh https://github.com/user/repo.git
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -euo pipefail
 

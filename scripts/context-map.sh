@@ -1,5 +1,5 @@
 #!/bin/bash
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Context Map Generator
 #
 # Generates a slim context file that agents can read
@@ -10,7 +10,7 @@
 # - Test count per module
 #
 # Output: docs/context-map.md (auto-generated, not committed)
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 
 set -uo pipefail
 
