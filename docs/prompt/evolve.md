@@ -67,7 +67,7 @@ Before doing anything else, check if the previous session left work that needs e
 4. Read the shift log, state file, and runner log
 5. Score across 10 dimensions (see `docs/evaluations/README.md` for the scorecard)
 6. Write evaluation report: `docs/evaluations/NNNN.md` (next sequential number)
-7. For any dimension scoring below 6/10: create a task in `docs/tasks/` (read `docs/tasks/GUIDE.md` for format)
+7. For any dimension scoring below 6/10: create a task in `docs/tasks/` (read `docs/tasks/GUIDE.md` for format). If a pending task already covers that exact failure, reference the existing task in the report instead of creating a duplicate.
 8. Clean up the clone
 
 You are evaluating code YOU DID NOT WRITE. Be honest. The previous session's agent is not you — grade it objectively.

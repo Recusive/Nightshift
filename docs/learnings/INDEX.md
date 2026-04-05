@@ -24,6 +24,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Learnings verification needs three touchpoints](2026-04-05-learnings-verification-scope.md) — Process enforcement requires production, persistence, AND verification points; missing any one makes it toothless
 - [Vision alignment reveals drift](2026-04-05-vision-alignment-prevents-drift.md) — Last 5 tasks all targeted self-maintaining/meta-prompt, zero loop2; explicit section counting catches invisible clustering
 - [Open PR recovery](2026-04-03-open-pr-recovery.md) — Daemon detects open PRs from crashed sessions and recovers them
+- [Evaluation reruns should reuse existing tasks](2026-04-05-evaluation-reruns-reuse-existing-tasks.md) — Repeated low-scoring eval dimensions can duplicate queue entries; reference existing pending tasks instead of minting another copy
 
 ## Code Patterns
 

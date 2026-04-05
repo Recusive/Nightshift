@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0043 (Shell script ASCII cleanup + first real evaluation).
+Last updated: 2026-04-05 by agent session #0044 (GPT-5.4 cache-read pricing assertions + evaluation rerun).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -9,8 +9,8 @@ This file is the single source of truth for how close Nightshift is to its visio
 ## Overall Progress
 
 ```
-NIGHTSHIFT VISION                              ██████████████████░░  89%
-├── Loop 1 — Hardening Loop                    ███████████████████░  95%
+NIGHTSHIFT VISION                              ██████████████████░░  90%
+├── Loop 1 — Hardening Loop                    ████████████████████  99%
 ├── Loop 2 — Feature Builder Loop              ████████████████████ 100%
 ├── Self-Maintaining Repo                      ████████████░░░░░░░░  60%
 └── Meta-Prompt System                         ████████████████░░░░  76%
@@ -18,9 +18,9 @@ NIGHTSHIFT VISION                              ███████████
 
 ---
 
-## Loop 1 — Hardening Loop (95%)
+## Loop 1 — Hardening Loop (99%)
 
-The core loop still works on the happy path, but the first real Phractal evaluation exposed a false-rejection bug in shift-log verification on case-insensitive filesystems. Until that is fixed, Loop 1 cannot honestly stay at 100%.
+The core loop still works on the happy path, but two real Phractal evaluations now reproduce the same false-rejection bug in shift-log verification on case-insensitive filesystems. Until that is fixed, Loop 1 cannot honestly stay at 100%.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -50,6 +50,7 @@ The core loop still works on the happy path, but the first real Phractal evaluat
 ### Bugs Found (not yet fixed)
 - `verify_cycle()` can reject valid shift-log commits when the filesystem folds `docs/` and `Docs/` to the same path (#0098).
 - Real evaluations still need a target-specific verify command for Phractal, so baseline/cycle verification is weaker than intended (#0099).
+- Repeated evaluation reruns still require manual startup, cleanup, and rejected-run reporting workarounds, confirming tasks #0097, #0100, #0101, and #0102 remain active.
 
 ---
 
