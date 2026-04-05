@@ -33,7 +33,7 @@ python3 -m nightshift module-map --write   # refresh docs/architecture/MODULE_MA
 ## Daemons
 
 Four daemons, one runs at a time (shared lockfile). Full guide: `docs/ops/DAEMON.md`
-- **Builder** (`make daemon`): picks up tasks, builds features, PRs, merges. Includes an **Observe the System** step (Step 6n in evolve.md) within each session that checks system health, spots trends, and writes observations to `docs/healer/log.md`.
+- **Builder** (`make daemon`): picks up tasks, builds features, PRs, merges. Includes an **Observe the System** step (Step 6n in evolve.md) within each session that checks system health, spots trends, and writes observations to `docs/healer/log.md`. Daemon housekeeping rotates older healer entries into `docs/healer/archive/` so the live log stays readable.
 - **Reviewer** (`make review`): reviews code file by file, fixes quality
 - **Overseer** (`make overseer`): audits task queue, fixes priorities, cleans duplicates, catches direction problems
 - **Strategist** (`make strategist`): runs once, reviews big picture, produces report for human

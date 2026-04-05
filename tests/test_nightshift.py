@@ -7778,6 +7778,38 @@ class TestCostTypes:
 # --- Cleanup: Log Rotation ---------------------------------------------------
 
 
+def _write_healer_log_fixture(log_path: Path, entries: list[tuple[str, str]]) -> None:
+    """Write a healer log with the given (date, session_label) entries."""
+    blocks = []
+    for date, session_label in entries:
+        blocks.append(
+            "\n".join(
+                [
+                    f"## {date} -- {session_label}",
+                    "",
+                    "**System health:** good",
+                    "",
+                    f"- Observation for {session_label}",
+                ]
+            )
+        )
+
+    content = "\n".join(
+        [
+            "# Healer Log",
+            "",
+            "Observations from the meta-layer observer. Newest entries first.",
+            "",
+            "---",
+            "",
+            "\n\n".join(blocks),
+            "",
+        ]
+    )
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(content)
+
+
 class TestRotateLogs:
     def test_deletes_old_logs(self, tmp_path: Path) -> None:
         """Logs older than keep_days are deleted."""
@@ -7898,6 +7930,167 @@ class TestRotateLogs:
         # Call without explicit keep_days
         result = nightshift.rotate_logs(str(tmp_path))
         assert len(result["deleted"]) == 1
+
+
+class TestRotateHealerLog:
+    def test_archives_old_entries_by_month(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        _write_healer_log_fixture(
+            log,
+            [
+                ("2026-02-14", "Session #0097"),
+                ("2026-03-30", "Session #0098"),
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=2)
+
+        assert result["rotated_entries"] == 2
+        assert result["kept_entries"] == 2
+        assert result["errors"] == []
+        assert sorted(Path(path).name for path in result["archived_files"]) == ["2026-02.md", "2026-03.md"]
+
+        live_content = log.read_text()
+        assert "Session #0097" not in live_content
+        assert "Session #0098" not in live_content
+        assert "Session #0099" in live_content
+        assert "Session #0100" in live_content
+
+        march_archive = (log.parent / "archive" / "2026-03.md").read_text()
+        february_archive = (log.parent / "archive" / "2026-02.md").read_text()
+        assert "Session #0098" in march_archive
+        assert "Session #0097" in february_archive
+
+    def test_keeps_log_unchanged_when_under_threshold(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        _write_healer_log_fixture(
+            log,
+            [
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+        original = log.read_text()
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=5)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 2
+        assert result["errors"] == []
+        assert log.read_text() == original
+        assert not (log.parent / "archive").exists()
+
+    def test_appends_newer_entries_to_existing_archive(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        archive_dir = log.parent / "archive"
+        _write_healer_log_fixture(
+            log,
+            [
+                ("2026-04-02", "Session #0098"),
+                ("2026-04-03", "Session #0099"),
+                ("2026-04-04", "Session #0100"),
+            ],
+        )
+        archive_dir.mkdir(parents=True)
+        _write_healer_log_fixture(
+            archive_dir / "2026-04.md",
+            [("2026-04-01", "Session #0090")],
+        )
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=1)
+
+        assert result["rotated_entries"] == 2
+        archive_content = (archive_dir / "2026-04.md").read_text()
+        pos_0098 = archive_content.find("Session #0098")
+        pos_0099 = archive_content.find("Session #0099")
+        pos_0090 = archive_content.find("Session #0090")
+        assert pos_0098 != -1
+        assert pos_0099 != -1
+        assert pos_0090 != -1
+        assert pos_0090 < pos_0098 < pos_0099
+
+    def test_rejects_symlinked_live_log(self, tmp_path: Path) -> None:
+        real_log = tmp_path / "real-log.md"
+        _write_healer_log_fixture(
+            real_log,
+            [
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+        log = tmp_path / "docs" / "healer" / "log.md"
+        log.parent.mkdir(parents=True)
+        log.symlink_to(real_log)
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=1)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 0
+        assert "log_path is a symlink" in result["errors"][0]
+
+    def test_rejects_symlinked_archive_dir(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        _write_healer_log_fixture(
+            log,
+            [
+                ("2026-04-03", "Session #0098"),
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+        original = log.read_text()
+        real_archive = tmp_path / "real-archive"
+        real_archive.mkdir()
+        archive_link = log.parent / "archive"
+        archive_link.symlink_to(real_archive, target_is_directory=True)
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=1)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 3
+        assert "archive_dir is a symlink" in result["errors"][0]
+        assert log.read_text() == original
+
+    def test_rejects_symlinked_archive_file(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        archive_dir = log.parent / "archive"
+        _write_healer_log_fixture(
+            log,
+            [
+                ("2026-04-03", "Session #0098"),
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+        original = log.read_text()
+        archive_dir.mkdir(parents=True)
+        real_archive_file = tmp_path / "real-2026-04.md"
+        _write_healer_log_fixture(real_archive_file, [("2026-04-01", "Session #0090")])
+        (archive_dir / "2026-04.md").symlink_to(real_archive_file)
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=1)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 3
+        assert "archive file is a symlink" in result["errors"][0]
+        assert log.read_text() == original
+
+    def test_rejects_invalid_keep_entries(self, tmp_path: Path) -> None:
+        log = tmp_path / "docs" / "healer" / "log.md"
+        _write_healer_log_fixture(log, [("2026-04-05", "Session #0100")])
+
+        result = nightshift.rotate_healer_log(str(log), keep_entries=0)
+
+        assert result["archived_files"] == []
+        assert result["rotated_entries"] == 0
+        assert result["kept_entries"] == 0
+        assert result["errors"] == ["keep_entries must be >= 1: 0"]
 
 
 # --- Cleanup: Branch Pruning --------------------------------------------------
@@ -8070,6 +8263,9 @@ class TestCleanupConstants:
     def test_default_keep_logs_days(self) -> None:
         assert nightshift.DEFAULT_KEEP_LOGS_DAYS == 7
 
+    def test_default_keep_healer_entries(self) -> None:
+        assert nightshift.DEFAULT_KEEP_HEALER_ENTRIES == 50
+
     def test_daemon_branch_prefixes(self) -> None:
         prefixes = nightshift.DAEMON_BRANCH_PREFIXES
         assert "feat/" in prefixes
@@ -8097,6 +8293,18 @@ class TestCleanupTypes:
         )
         assert result["deleted"] == ["/tmp/old.log"]
         assert result["kept"] == 3
+        assert result["errors"] == []
+
+    def test_healer_rotation_result_fields(self) -> None:
+        result = nightshift.HealerRotationResult(
+            archived_files=["/tmp/archive/2026-04.md"],
+            rotated_entries=2,
+            kept_entries=50,
+            errors=[],
+        )
+        assert result["archived_files"] == ["/tmp/archive/2026-04.md"]
+        assert result["rotated_entries"] == 2
+        assert result["kept_entries"] == 50
         assert result["errors"] == []
 
     def test_branch_prune_result_fields(self) -> None:
@@ -8522,6 +8730,51 @@ class TestHealerInfrastructure:
         """persist_healer_changes must be removed from lib-agent.sh."""
         content = Path("scripts/lib-agent.sh").read_text()
         assert "persist_healer_changes()" not in content
+
+    def test_looping_daemons_rotate_healer_log_in_housekeeping(self) -> None:
+        """All looping daemons should rotate healer history during housekeeping."""
+        for path in (
+            Path("scripts/daemon.sh"),
+            Path("scripts/daemon-overseer.sh"),
+            Path("scripts/daemon-review.sh"),
+        ):
+            content = path.read_text()
+            assert 'cleanup_healer_log "$REPO_DIR/docs/healer/log.md" "$KEEP_HEALER_ENTRIES"' in content
+
+
+class TestCleanupHealerLogHelper:
+    def test_helper_archives_old_entries(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        healer_log = tmp_path / "docs" / "healer" / "log.md"
+        _write_healer_log_fixture(
+            healer_log,
+            [
+                ("2026-04-03", "Session #0098"),
+                ("2026-04-04", "Session #0099"),
+                ("2026-04-05", "Session #0100"),
+            ],
+        )
+
+        script = f"""
+set -e
+REPO_DIR="{repo_root}"
+source "{lib_path}"
+cleanup_healer_log "{healer_log}" 2
+"""
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "Archived 1 healer entry" in result.stdout
+        assert (healer_log.parent / "archive" / "2026-04.md").exists()
+        live_content = healer_log.read_text()
+        assert "Session #0099" in live_content
+        assert "Session #0100" in live_content
+        assert "Session #0098" not in live_content
 
     def test_healer_prompt_guard_comment(self) -> None:
         """healer.md should be noted as reference doc in PROMPT_GUARD_FILES."""

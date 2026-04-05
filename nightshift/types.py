@@ -496,6 +496,15 @@ class LogRotationResult(TypedDict):
     errors: list[str]
 
 
+class HealerRotationResult(TypedDict):
+    """Outcome of rotating archived healer-log entries."""
+
+    archived_files: list[str]
+    rotated_entries: int
+    kept_entries: int
+    errors: list[str]
+
+
 class BranchPruneResult(TypedDict):
     """Outcome of pruning orphan remote branches."""
 

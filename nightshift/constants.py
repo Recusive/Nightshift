@@ -65,6 +65,8 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "eval_target_repo": "https://github.com/fazxes/Phractal",
 }
 
+DEFAULT_KEEP_HEALER_ENTRIES = 50
+
 # --- Production readiness check patterns -------------------------------------
 
 SECRET_PATTERNS: list[re.Pattern[str]] = [
