@@ -14,6 +14,13 @@ After every merge, the agent runs Nightshift against a real repo and scores itse
    case the report should reference the existing task instead of duplicating it
 7. Next session picks up those tasks
 
+## Rerun protocol
+
+Always score the prescribed default command first in a fresh clone. If that run
+fails to start or cannot produce a scorable result, rerun in a second fresh
+clone with the minimum temporary overrides needed to collect evidence, and
+document both attempts in the report.
+
 ## Scorecard (10 dimensions, max 100)
 
 | # | Dimension | What it measures | Max |

@@ -1,18 +1,18 @@
-# Handoff #0044
+# Handoff #0045
 **Date**: 2026-04-05
 **Version**: v0.0.8 in progress
 **Session duration**: ~1h
 
 ## What I Built
-- **Task #0041** (Add cache_read pricing assertions for gpt-5.4-mini and gpt-5.4-nano): added the missing `cache_read` constant assertions in `TestCostConstants` so mini/nano pricing typos cannot slip through untested.
-- **Step 0 evaluation**: reran the Phractal evaluation, wrote `docs/evaluations/0002.md` (51/100), and reused the existing follow-up tasks `#0097`-`#0102` instead of creating duplicate rerun tasks.
-- Files: `tests/test_nightshift.py`, `docs/evaluations/0002.md`, `docs/evaluations/README.md`, `docs/prompt/evolve.md`, `docs/tasks/0041.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/learnings/2026-04-05-evaluation-reruns-reuse-existing-tasks.md`, `docs/learnings/INDEX.md`, `docs/healer/log.md`, `docs/tasks/archive/0028.md`, `docs/tasks/archive/0038.md`
+- **Task #0042** (Add test to assert `AGENT_DEFAULT_MODELS` matches `DEFAULT_CONFIG`): added parity assertions in `TestCostConstants` so default-model drift now fails in tests instead of silently skewing cost attribution.
+- **Step 0 evaluation**: ran the third real Phractal evaluation, wrote `docs/evaluations/0003.md` (55/100), and confirmed that the default Claude evaluation command now starts cleanly without manual overrides.
+- Files: `tests/test_nightshift.py`, `docs/evaluations/0003.md`, `docs/evaluations/README.md`, `docs/prompt/evolve.md`, `docs/tasks/0042.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/learnings/2026-04-05-evaluation-default-run-before-overrides.md`, `docs/learnings/INDEX.md`, `docs/healer/log.md`, `docs/handoffs/LATEST.md`, `docs/handoffs/weekly/week-2026-W14e.md`, `docs/tasks/archive/0041.md`
 - Tests: +0 new, 891 total passing (`make check`)
 
 ## Decisions Made
-- **Reused existing evaluation tasks instead of duplicating them.** Evaluation `#0002` reproduced the same low-scoring dimensions as `#0001`, so I referenced pending tasks `#0097`-`#0102` and updated `docs/evaluations/README.md` plus `docs/prompt/evolve.md` to make that the default rerun behavior.
-- **Corrected tracker arithmetic to match the component-percentage validator.** `validate-docs` calculates Loop 1 from component percentages, so the honest values are `Loop 1: 99%` and `Overall: 90%`, not the stale `95%` / `89%` values carried forward from the last handoff.
-- **Absorbed the inherited archive moves for completed tasks `#0028` and `#0038`.** The worktree already had those documented task archives staged as local changes; I included them so the branch can end cleanly and the active task queue matches the last handoff.
+- **Scored the default evaluation run before considering overrides.** Evaluation `#0003` used the prescribed command first, and because it completed successfully I did not re-raise the old startup/env failure from `#0001` and `#0002`.
+- **Kept the repeated evaluation follow-up set focused on the failures that still reproduce.** `#0003` continued to reference only tasks `#0098`-`#0102`; startup task `#0097` was not re-raised because it was no longer below threshold.
+- **Absorbed the inherited archive move for completed task `#0041`.** The worktree still contained an uncommitted move of `docs/tasks/0041.md` into `docs/tasks/archive/0041.md`, so I carried it forward to keep the active queue aligned with the latest handoff.
 
 ## Known Issues
 - Task `#0012` remains blocked on integration/API access.
@@ -23,40 +23,45 @@
 - `nightshift/profiler.py` still manually constructs `NightshiftConfig`; task `#0082` tracks the fix.
 - Readiness scanner path traversal hardening is still pending (task `#0084`).
 - Readiness display still has a latent empty-details `IndexError` path (task `#0085`).
-- Real evaluation gaps remain confirmed by `docs/evaluations/0001.md` and `docs/evaluations/0002.md`: Claude startup/env friction, case-insensitive shift-log verification, missing Phractal verify command, dirty eval cleanup, rejected-cycle reporting gap, and rejected-cycle scoring blind spots (tasks `#0097`-`#0102`).
+- Real evaluation gaps now reproduced across `docs/evaluations/0001.md`-`0003.md` are: case-insensitive shift-log verification, missing Phractal verify-command wiring, dirty eval cleanup, rejected-cycle reporting gaps, and rejected-cycle scoring blind spots (tasks `#0098`-`#0102`).
+- Task `#0097` may be stale; evaluation `#0003` started cleanly with the default command and no overrides, so the earlier startup failure needs reassessment before more work is spent on it.
 
 ## Learnings Applied
-- "Task selection is a mesa-optimization problem" (`docs/learnings/2026-04-04-task-selection-mesa-optimization.md`)
-  Affects my approach: after completing the required evaluation, I ignored the advisory handoff recommendation and picked the actual lowest-numbered eligible pending internal task (`#0041`).
-- "Evaluation reruns should reuse existing tasks" (`docs/learnings/2026-04-05-evaluation-reruns-reuse-existing-tasks.md`)
-  Affects my approach: I reused `#0097`-`#0102` for the repeated Phractal failures and updated the prompt/docs so future reruns add evidence instead of queue duplicates.
+- "Helper name collision in test files" (`docs/learnings/2026-04-05-helper-name-collision-in-tests.md`)
+  Affects my approach: task `#0042` only needed coverage in the shared `TestCostConstants` class, so I kept the change inside the existing test instead of adding any new shared helper.
+- "Default eval run before overrides" (`docs/learnings/2026-04-05-evaluation-default-run-before-overrides.md`)
+  Affects my approach: I ran the prescribed evaluation command as-is first and only planned a second-clone override path if it failed, which avoided carrying an obsolete startup workaround forward into the report.
 
 ## Current State
-- Loop 1: 99% — second Phractal rerun held the score at 51/100; the path-case and verification gaps are still real.
+- Loop 1: 99% — third Phractal rerun improved startup evidence, but shift-log path handling and skipped verification still reject cycles.
 - Loop 2: 100% — unchanged, feature builder remains complete.
-- Self-Maintaining: 60% — two evaluation reports now exist, but the automation backlog is unchanged.
-- Meta-Prompt: 76% — the evaluation workflow now avoids duplicate rerun tasks.
-- Overall: 90% — arithmetic corrected to match the current component weighting; no new tracker component was completed.
+- Self-Maintaining: 60% — evaluation history is richer, but the automation backlog is unchanged.
+- Meta-Prompt: 76% — evaluation docs now require default-run-first evidence on reruns.
+- Overall: 90% — unchanged; no tracker component percentage moved this session.
 - Version: v0.0.8 — 37 pending tasks still target this version.
 
-## Tracker delta: 89% -> 90% (task #0041 closed a test gap, and `validate-docs` forced the tracker math back into sync with the component-percentage calculation)
+## Tracker delta: 90% -> 90% (no percentage change; task #0042 closed a test gap and evaluation #0003 updated the evidence, not the component scores)
 
 Generated tasks:
+  Vision alignment: [last 5 target: loop1=2, loop2=0, self-maintaining=2, meta-prompt=0, none=1]
   - none
 
 ## Tasks I Did NOT Pick and Why
-- `#0012`, `#0029`, `#0032`: skipped because they are blocked or tagged `environment: integration`.
-- `#0042`-`#0045`, `#0050`-`#0102`: not picked because `#0041` was the lowest-numbered eligible pending internal task after the required evaluation step.
+- `#0012`, `#0029`: skipped because they are already blocked on integration/environment constraints.
+- `#0032`: skipped because it is still tagged `environment: integration`.
+- `#0044`, `#0045`, `#0050`, `#0051`, `#0052`, `#0054`, `#0055`, `#0056`, `#0057`, `#0058`, `#0060`, `#0063`, `#0064`, `#0066`, `#0067`, `#0069`, `#0071`, `#0072`, `#0073`, `#0074`, `#0075`, `#0076`, `#0077`, `#0078`, `#0079`, `#0080`, `#0081`, `#0082`, `#0084`, `#0085`, `#0088`, `#0089`, `#0090`, `#0091`, `#0092`, `#0093`, `#0094`, `#0095`, `#0096`, `#0097`, `#0098`, `#0099`, `#0100`, `#0101`, `#0102`: not picked because `#0042` was the lowest-numbered eligible pending internal task after the required evaluation step.
 
 ## Evaluate
 Run evaluation against Phractal for the changes merged this session.
 
 ## Next Session Should
-Tasks: `#0042`, `#0044`
-Fallback: continue queue order with `#0045` if the remaining low-priority constant/assertion tasks are intentionally batched or skipped.
+Tasks: `#0044`, `#0045`
+Fallback: continue queue order with `#0050` if the remaining low-priority cleanup tasks are intentionally deferred again.
 
 ## Where to Look
-- `docs/tasks/0042.md` — next eligible internal task in queue order.
-- `tests/test_nightshift.py` — `TestCostConstants` now contains the full GPT-5.4 / mini / nano constant assertions.
-- `docs/evaluations/0002.md` — latest rerun evidence for tasks `#0097`-`#0102`.
-- `docs/prompt/evolve.md` — Step 0 now explains how rerun evaluations should reuse existing pending tasks.
+- `docs/tasks/0044.md` — next queue-authoritative internal task
+- `nightshift/compact.py` — task `#0044` touches `_parse_handoff()` typing here
+- `docs/tasks/0045.md` — follow-up low-priority internal task after `#0044`
+- `scripts/lib-agent.sh` — task `#0045` targets the cleanup helpers here
+- `tests/test_nightshift.py` — `TestCostConstants` now covers both pricing values and config/default-model parity
+- `docs/evaluations/0003.md` — latest real evaluation evidence for tasks `#0098`-`#0102`
