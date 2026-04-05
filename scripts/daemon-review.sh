@@ -27,6 +27,7 @@ LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index-review.md"
 REVIEW_PROMPT="$REPO_DIR/docs/prompt/review.md"
 LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
+PROMPT_ALERT="$LOG_DIR/prompt-alert.md"
 MAX_TURNS=200
 CYCLE=0
 CONSECUTIVE_FAILURES=0
@@ -100,11 +101,32 @@ while true; do
     git reset --hard origin/main --quiet 2>/dev/null || true
     git clean -fd --quiet 2>/dev/null || true
 
+    # --- Prompt guard: snapshot before cycle ---
+    SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
+
     # Read prompt fresh each cycle
     PROMPT=$(cat "$REVIEW_PROMPT")
 
+    # --- Prompt guard: inject alert from previous cycle ---
+    if [ -f "$PROMPT_ALERT" ]; then
+        PROMPT="$(cat "$PROMPT_ALERT")
+
+---
+
+${PROMPT}"
+        rm "$PROMPT_ALERT"
+        echo "  Injected prompt modification alert from previous cycle."
+    fi
+
     # --- Run the agent ---
     run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
+
+    # --- Prompt guard: check for self-modification ---
+    PROMPT_TAMPERED=""
+    if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+        PROMPT_TAMPERED=" [PROMPT MODIFIED]"
+    fi
+    cleanup_prompt_snapshots "$SNAP_DIR"
 
     END_TIME=$(date +%s)
     DURATION=$(( END_TIME - START_TIME ))
@@ -135,7 +157,7 @@ print('-')
     else
         ST="failed"
     fi
-    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | $REVIEWED |" >> "$INDEX_FILE"
+    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | ${REVIEWED}${PROMPT_TAMPERED} |" >> "$INDEX_FILE"
 
     # --- Circuit breaker ---
     if [ "$EXIT_CODE" -ne 0 ]; then

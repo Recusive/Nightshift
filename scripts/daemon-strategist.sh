@@ -21,6 +21,7 @@ source "$SCRIPT_DIR/lib-agent.sh"
 AGENT="${1:-claude}"
 LOG_DIR="$REPO_DIR/docs/sessions"
 STRATEGIST_PROMPT="$REPO_DIR/docs/prompt/strategist.md"
+PROMPT_ALERT="$LOG_DIR/prompt-alert.md"
 MAX_TURNS=200
 
 mkdir -p "$LOG_DIR"
@@ -40,9 +41,29 @@ cd "$REPO_DIR"
 git checkout main --quiet 2>/dev/null || true
 git pull origin main --quiet 2>/dev/null || true
 
+# --- Prompt guard: snapshot before run ---
+SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
+
 PROMPT=$(cat "$STRATEGIST_PROMPT")
 
+# --- Prompt guard: inject alert from previous session ---
+if [ -f "$PROMPT_ALERT" ]; then
+    PROMPT="$(cat "$PROMPT_ALERT")
+
+---
+
+${PROMPT}"
+    rm "$PROMPT_ALERT"
+    echo "  Injected prompt modification alert from previous session."
+fi
+
 run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
+
+# --- Prompt guard: check for self-modification ---
+if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+    echo "WARNING: Strategist modified prompt files. See alert above."
+fi
+cleanup_prompt_snapshots "$SNAP_DIR"
 
 echo ""
 echo "=================================================="

@@ -24,6 +24,7 @@ INDEX_FILE="$LOG_DIR/index.md"
 AUTO_PREFIX="$REPO_DIR/docs/prompt/evolve-auto.md"
 EVOLVE_PROMPT="$REPO_DIR/docs/prompt/evolve.md"
 LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
+PROMPT_ALERT="$LOG_DIR/prompt-alert.md"
 MAX_TURNS=500
 CYCLE=0
 CONSECUTIVE_FAILURES=0
@@ -102,6 +103,9 @@ while true; do
     git reset --hard origin/main --quiet 2>/dev/null || true
     git clean -fd --quiet 2>/dev/null || true
 
+    # --- Prompt guard: snapshot before cycle ---
+    SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
+
     # --- Check for open PRs from previous sessions ---
     OPEN_PR=""
     OPEN_PR_INFO=$(gh pr list --state open --json number,title,headRefName --jq '.[0] // empty' 2>/dev/null || true)
@@ -117,6 +121,18 @@ while true; do
 
     # Rebuild prompt each cycle
     PROMPT=$(build_prompt)
+
+    # --- Prompt guard: inject alert from previous cycle ---
+    if [ -f "$PROMPT_ALERT" ]; then
+        PROMPT="$(cat "$PROMPT_ALERT")
+
+---
+
+${PROMPT}"
+        rm "$PROMPT_ALERT"
+        echo "  Injected prompt modification alert from previous cycle."
+    fi
+
     if [ -n "$OPEN_PR" ]; then
         PROMPT="${OPEN_PR}
 
@@ -125,6 +141,13 @@ ${PROMPT}"
 
     # --- Run the agent ---
     run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
+
+    # --- Prompt guard: check for self-modification ---
+    PROMPT_TAMPERED=""
+    if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+        PROMPT_TAMPERED=" [PROMPT MODIFIED]"
+    fi
+    cleanup_prompt_snapshots "$SNAP_DIR"
 
     END_TIME=$(date +%s)
     DURATION=$(( END_TIME - START_TIME ))
@@ -171,7 +194,7 @@ for line in open('$LOG_FILE'):
 print('-')
 " 2>/dev/null || echo "-")
 
-    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | $STATUS | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
+    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
 
     # --- Circuit breaker ---
     if [ "$EXIT_CODE" -ne 0 ]; then
