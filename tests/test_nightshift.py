@@ -3956,6 +3956,163 @@ class TestPlanFeatureCLI:
             args.func(args)
 
 
+class TestPlanCommandForAgent:
+    def test_claude_command(self) -> None:
+        cmd = nightshift.plan_command_for_agent("claude", "Plan something")
+        assert cmd[0] == "claude"
+        assert "-p" in cmd
+        assert "Plan something" in cmd
+        max_turns_idx = cmd.index("--max-turns")
+        assert cmd[max_turns_idx + 1] == str(nightshift.PLAN_AGENT_MAX_TURNS)
+
+    def test_codex_command(self) -> None:
+        cmd = nightshift.plan_command_for_agent("codex", "Plan something")
+        assert cmd[0] == "codex"
+        assert "exec" in cmd
+        assert "Plan something" in cmd
+
+    def test_unsupported_agent_raises(self) -> None:
+        with pytest.raises(nightshift.NightshiftError, match="Unsupported agent"):
+            nightshift.plan_command_for_agent("gpt4", "Plan something")
+
+
+class TestRunPlanAgent:
+    def _fake_profile(self) -> nightshift.RepoProfile:
+        return nightshift.RepoProfile(
+            languages={"Python": 10},
+            primary_language="Python",
+            frameworks=[],
+            package_manager=None,
+            test_runner=None,
+            instruction_files=[],
+            top_level_dirs=["src"],
+            has_monorepo_markers=False,
+            total_files=10,
+        )
+
+    def test_agent_not_installed_raises(self, tmp_path: Path) -> None:
+        with (
+            patch("nightshift.planner.command_exists", return_value=False),
+            pytest.raises(nightshift.NightshiftError, match="not installed"),
+        ):
+            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile())
+
+    def test_agent_nonzero_exit_raises(self, tmp_path: Path) -> None:
+        with (
+            patch("nightshift.planner.command_exists", return_value=True),
+            patch("nightshift.planner.run_command", return_value=(1, "error output")),
+            pytest.raises(nightshift.NightshiftError, match="exited with code 1"),
+        ):
+            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile())
+
+    def test_agent_unparseable_output_raises(self, tmp_path: Path) -> None:
+        with (
+            patch("nightshift.planner.command_exists", return_value=True),
+            patch("nightshift.planner.run_command", return_value=(0, "not valid json")),
+            pytest.raises(nightshift.NightshiftError, match="could not be parsed"),
+        ):
+            nightshift.run_plan_agent(tmp_path, "Add auth", "claude", self._fake_profile())
+
+    def test_agent_success_returns_plan(self, tmp_path: Path) -> None:
+        plan_dict = _make_valid_plan_dict()
+        raw_output = json.dumps(plan_dict)
+        with (
+            patch("nightshift.planner.command_exists", return_value=True),
+            patch("nightshift.planner.run_command", return_value=(0, raw_output)),
+        ):
+            plan = nightshift.run_plan_agent(tmp_path, "Add dark mode", "claude", self._fake_profile())
+        assert plan["feature"] == "Add dark mode"
+        assert len(plan["tasks"]) == 2
+
+    def test_agent_invoked_with_correct_cwd(self, tmp_path: Path) -> None:
+        plan_dict = _make_valid_plan_dict()
+        raw_output = json.dumps(plan_dict)
+        with (
+            patch("nightshift.planner.command_exists", return_value=True),
+            patch("nightshift.planner.run_command", return_value=(0, raw_output)) as mock_run,
+        ):
+            nightshift.run_plan_agent(tmp_path, "Add dark mode", "claude", self._fake_profile())
+        _, kwargs = mock_run.call_args
+        assert kwargs["cwd"] == tmp_path
+
+    def test_agent_invoked_with_timeout(self, tmp_path: Path) -> None:
+        plan_dict = _make_valid_plan_dict()
+        raw_output = json.dumps(plan_dict)
+        with (
+            patch("nightshift.planner.command_exists", return_value=True),
+            patch("nightshift.planner.run_command", return_value=(0, raw_output)) as mock_run,
+        ):
+            nightshift.run_plan_agent(tmp_path, "Add dark mode", "claude", self._fake_profile())
+        _, kwargs = mock_run.call_args
+        assert kwargs["timeout_seconds"] == nightshift.PLAN_AGENT_TIMEOUT
+
+
+class TestPlanFeatureCLIWithAgent:
+    def test_agent_invokes_and_displays_plan(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        plan_dict = _make_valid_plan_dict()
+        raw_output = json.dumps(plan_dict)
+        with (
+            patch("nightshift.planner.command_exists", return_value=True),
+            patch("nightshift.planner.run_command", return_value=(0, raw_output)),
+        ):
+            parser = nightshift.build_parser()
+            args = parser.parse_args(["plan", "Add dark mode", "--agent", "claude"])
+            result = args.func(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Add dark mode" in captured.out
+        assert "Wave 1" in captured.out
+
+    def test_agent_displays_scope_warning(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        plan_dict = _make_valid_plan_dict()
+        tasks = list(plan_dict["tasks"])  # type: ignore[arg-type]
+        task = dict(tasks[0])  # type: ignore[arg-type]
+        task["estimated_files"] = 60
+        tasks[0] = task
+        plan_dict["tasks"] = tasks
+        raw_output = json.dumps(plan_dict)
+        with (
+            patch("nightshift.planner.command_exists", return_value=True),
+            patch("nightshift.planner.run_command", return_value=(0, raw_output)),
+        ):
+            parser = nightshift.build_parser()
+            args = parser.parse_args(["plan", "Add dark mode", "--agent", "claude"])
+            result = args.func(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "WARNING" in captured.out
+
+    def test_dry_run_skips_agent(self, capsys: pytest.CaptureFixture[str]) -> None:
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["plan", "Add auth", "--agent", "claude", "--dry-run"])
+        result = args.func(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        # dry-run prints the prompt, not a formatted plan
+        assert "Feature Request" in captured.out
+
+    def test_result_file_takes_precedence_over_agent(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        plan_dict = _make_valid_plan_dict()
+        result_file = tmp_path / "plan.json"
+        result_file.write_text(json.dumps(plan_dict), encoding="utf-8")
+        parser = nightshift.build_parser()
+        args = parser.parse_args(
+            [
+                "plan",
+                "Add dark mode",
+                "--agent",
+                "claude",
+                "--result-file",
+                str(result_file),
+            ]
+        )
+        # No mocking needed -- result-file path is checked before agent path
+        result = args.func(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Wave 1" in captured.out
+
+
 # ---------------------------------------------------------------------------
 # Task Decomposer
 # ---------------------------------------------------------------------------
