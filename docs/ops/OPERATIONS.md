@@ -11,7 +11,7 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 ```
 Nightshift/
 ├── nightshift/                  ← THE PRODUCT (Python package, 28 modules)
-├── tests/                       ← TEST SUITE (921 tests)
+├── tests/                       ← TEST SUITE (927 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
 │   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)
@@ -30,6 +30,7 @@ Nightshift/
 ├── scripts/
 │   ├── daemon.sh                ← SELF-IMPROVING DAEMON (see docs/ops/DAEMON.md)
 │   ├── run.sh / test.sh         ← THIN SHELL WRAPPERS
+│   ├── list-tasks.sh            ← TASK QUEUE SUMMARY
 │   ├── install.sh               ← ONE-LINER INSTALLER
 │   └── check.sh                 ← LOCAL CI SCRIPT
 ├── CLAUDE.md                    ← AGENT INSTRUCTIONS (always loaded)
@@ -489,6 +490,7 @@ The file Claude Code always loads at session start. Contains project description
 |------|---------|
 | `scripts/run.sh` | Sets PYTHONPATH, runs `python3 -m nightshift run "$@"` |
 | `scripts/test.sh` | Sets PYTHONPATH, runs `python3 -m nightshift test "$@"` |
+| `scripts/list-tasks.sh` | Summarizes active tasks and flags malformed task files |
 | `scripts/install.sh` | Downloads entire package to `~/.codex/skills/nightshift/` and `~/.claude/skills/nightshift/` |
 | `scripts/daemon.sh` | Builder daemon. Loops forever, runs a pentest preflight, then fixes/builds and ships features. |
 | `scripts/daemon-review.sh` | Reviewer daemon. Loops forever, reviews code file by file, fixes quality. |

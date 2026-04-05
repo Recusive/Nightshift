@@ -26,10 +26,9 @@ python3 -c "import json, pathlib; json.loads(pathlib.Path('nightshift.schema.jso
 python3 -c "import json, pathlib; json.loads(pathlib.Path('.nightshift.json.example').read_text())"
 
 echo "=== shell syntax ==="
-bash -n scripts/run.sh
-bash -n scripts/test.sh
-bash -n scripts/install.sh
-bash -n scripts/check.sh
+for script in scripts/*.sh; do
+    bash -n "$script"
+done
 
 echo "=== no non-ASCII in source ==="
 python3 -c "
@@ -37,7 +36,8 @@ import re, sys
 from pathlib import Path
 non_ascii = re.compile(r'[^\x00-\x7E]')
 files = list(Path('nightshift').rglob('*.py')) + list(Path('tests').rglob('*.py'))
-files += [Path(f) for f in ['scripts/check.sh', 'scripts/install.sh', 'scripts/run.sh', 'scripts/test.sh', 'pyproject.toml']]
+files += sorted(Path('scripts').glob('*.sh'))
+files += [Path('pyproject.toml')]
 found = []
 for f in sorted(files):
     for i, line in enumerate(f.read_text().splitlines(), 1):

@@ -1,4 +1,4 @@
-.PHONY: test check dry-run lint typecheck validate clean release daemon
+.PHONY: test check dry-run lint typecheck validate clean release daemon tasks
 
 # Run the full test suite
 test:
@@ -11,6 +11,10 @@ check:
 # Preview the cycle prompt without spawning agents
 dry-run:
 	python3 -m nightshift run --dry-run --agent codex
+
+# Show the active task queue
+tasks:
+	bash scripts/list-tasks.sh
 
 # Run a quick validation shift (2 cycles, ~10 min)
 quick-test:
