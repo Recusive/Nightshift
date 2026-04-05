@@ -199,3 +199,9 @@ Observations from the meta-layer observer. Newest entries first.
 - **Session index formatting is still degrading trend scans.** The last 5 entries in `docs/sessions/index.md` still include blank or broken feature cells, so the "scan 5 entries for patterns" step keeps turning into manual cleanup. Task #0095 already covers this and should stay near the front of the self-maintaining queue.
 
 - **Malformed task frontmatter is still polluting task selection.** The authoritative queue required manual inspection because older files like `#0024`, `#0036`, and `#0045` still have broken YAML headings (`## status:`). Existing tasks #0058 and #0064 cover validation/repair, but the selection path remains slower and more error-prone until they land.
+
+## 2026-04-05 -- Session #0044 (GPT-5.4 cache-read pricing assertions)
+**System health:** caution
+- **The second real Phractal evaluation did not improve the score.** `docs/evaluations/0002.md` reran the same 2-cycle test and landed at 51/100 again. The same low dimensions remain: startup still needs manual `CLAUDECODE` stripping, shift-log verification still rejects `Docs/` vs `docs/`, verification is still skipped with `verify_command: null`, and rejected runs still leave the clone dirty.
+- **Queue order is working, but value inversion is visible.** With no pending urgent internal task, the daemon correctly picked low-priority task `#0041` before the higher-value evaluation repairs in `#0097`-`#0102`. That is consistent with the current rules, but it means proven evaluation failures will persist unless they are reprioritized.
+- **Malformed task frontmatter still slows selection.** Picking `#0041` still required manual inspection because older active files like `#0045` are malformed and some older completed files still lingered unarchived in the worktree. Existing tasks `#0058` and `#0064` already cover repair/validation, so no duplicate task was created.

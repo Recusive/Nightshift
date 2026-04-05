@@ -10,6 +10,8 @@ After every merge, the agent runs Nightshift against a real repo and scores itse
 4. Agent scores across 10 dimensions (see scorecard below)
 5. Agent writes an evaluation report here: `docs/evaluations/NNNN.md`
 6. For any dimension scoring below 6/10, agent creates a task in `docs/tasks/`
+   unless an existing pending task already covers that exact failure; in that
+   case the report should reference the existing task instead of duplicating it
 7. Next session picks up those tasks
 
 ## Scorecard (10 dimensions, max 100)
@@ -64,7 +66,9 @@ After every merge, the agent runs Nightshift against a real repo and scores itse
 
 ## Threshold
 
-Any dimension scoring **below 6/10** gets a task created. The task references this evaluation and describes exactly what failed and what to fix.
+Any dimension scoring **below 6/10** needs follow-up task coverage. Create a
+new task when the failure is new; if a pending task already tracks that exact
+gap, reference the existing task in the report instead of creating a duplicate.
 
 ## History
 

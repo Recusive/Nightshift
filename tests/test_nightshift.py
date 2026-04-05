@@ -7481,12 +7481,14 @@ class TestCostConstants:
         assert "gpt-5.4-mini" in nightshift.MODEL_PRICING
         pricing = nightshift.MODEL_PRICING["gpt-5.4-mini"]
         assert pricing["input"] == 0.75
+        assert pricing["cache_read"] == 0.075
         assert pricing["output"] == 4.50
 
     def test_model_pricing_has_gpt54_nano(self) -> None:
         assert "gpt-5.4-nano" in nightshift.MODEL_PRICING
         pricing = nightshift.MODEL_PRICING["gpt-5.4-nano"]
         assert pricing["input"] == 0.20
+        assert pricing["cache_read"] == 0.02
         assert pricing["output"] == 1.25
 
     def test_agent_default_models(self) -> None:

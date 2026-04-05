@@ -81,14 +81,15 @@ tmux kill-session -t nightshift             # immediate
 tmux has-session -t nightshift 2>&1 && echo "RUNNING" || echo "NOT RUNNING"
 
 # If RUNNING: use a worktree (safe — isolated copy, daemon unaffected)
-git worktree add /tmp/nightshift-work origin/main -b docs/my-change
+CHANGE_NAME="example-change"
+git worktree add /tmp/nightshift-work origin/main -b "docs/$CHANGE_NAME"
 # ... make changes in /tmp/nightshift-work/ ...
-cd /tmp/nightshift-work && git add . && git commit -m "..." && git push origin docs/my-change
-gh pr create --head docs/my-change && gh pr merge --merge --delete-branch --admin
+cd /tmp/nightshift-work && git add . && git commit -m "..." && git push origin "docs/$CHANGE_NAME"
+gh pr create --head "docs/$CHANGE_NAME" && gh pr merge --merge --delete-branch --admin
 git worktree remove /tmp/nightshift-work
 
 # If NOT RUNNING: work directly in the repo as normal
-git checkout -b docs/my-change
+git checkout -b "docs/$CHANGE_NAME"
 # ... make changes ...
 ```
 
