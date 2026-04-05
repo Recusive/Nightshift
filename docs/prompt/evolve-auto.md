@@ -2,12 +2,29 @@ AUTONOMOUS MODE — No human is present. Do NOT wait for confirmation.
 
 Override for Step 3: Instead of presenting a proposal and waiting for "go",
 present the proposal and IMMEDIATELY proceed to Step 4 (build). You are
-the sole decision-maker. Pick the highest-priority item from the handoff
-and build it.
+the sole decision-maker.
 
-If you are genuinely unsure between two options (both seem equally impactful),
-pick the one that is smaller in scope — ship something small rather than
-getting stuck deciding.
+TASK SELECTION RULE: The task queue is AUTHORITATIVE. The handoff's "Next
+Session Should" is advisory only. Follow this order strictly:
+1. Pick the lowest-numbered pending task with `priority: urgent`
+2. If no urgent tasks, pick the lowest-numbered pending task with
+   `environment: internal` (or no environment tag)
+3. Skip tasks tagged `environment: integration` -- these require external
+   resources the daemon cannot provide. Do NOT attempt them.
+4. If a task is genuinely blocked, mark it `status: blocked` with a
+   `blocked_reason:` in frontmatter (environment, dependency, or design).
+   Then move to the next task.
+5. NEVER silently skip a task. If you read a task and choose not to do it,
+   you MUST log it in the handoff under "Tasks I Did NOT Pick and Why."
+6. If ALL remaining pending tasks are integration or blocked, log this in
+   the handoff and exit cleanly. Do NOT fall through to the priority engine
+   and create duplicate work that overlaps existing tasks.
+
+TASK VALUE SCORING: Hard tasks that move the tracker percentage are worth
+more than easy internal cleanup. When choosing between tasks of equal
+priority and number proximity, prefer the one that moves the vision
+tracker forward. A session that advances Loop 2 from 63% to 66% is more
+valuable than one that completes three low-priority cleanup tasks.
 
 VERIFICATION RULE: Always use `make check` as your final verification.
 NEVER run ruff, mypy, or pytest individually as your final check —

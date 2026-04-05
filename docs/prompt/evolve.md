@@ -85,7 +85,7 @@ Read the handoff first. Go deeper only if needed.
 **Always read:**
 1. `docs/handoffs/LATEST.md` — what happened last, what's broken, what to build next
 2. `docs/tasks/` — scan for `status: pending` files to find your next task
-3. `docs/learnings/` — all files. Hard-won knowledge from previous sessions. Gotchas, patterns, failures. These prevent you from repeating mistakes.
+3. `docs/learnings/INDEX.md` — scan the one-line summaries. Only open individual learning files when they are relevant to your current task. Do NOT read every file — the index is your lookup table.
 
 **Read if this is the first session ever (no LATEST.md exists):**
 3. `docs/vision/00-overview.md` — the north star
@@ -131,11 +131,20 @@ Open feedback: [from docs/prompt/feedback/ or "none"]
 Check the task queue first, then fall back to the priority engine.
 
 **Task queue** (`docs/tasks/`):
-1. Read all `.md` files in `docs/tasks/` (skip README.md)
+1. Read all `.md` files in `docs/tasks/` (skip README.md, skip archive/)
 2. Filter to `status: pending`
-3. If any have `priority: urgent`, pick those first
-4. Otherwise pick the lowest-numbered pending task
-5. That's your task. Set it to `status: in-progress` before building.
+3. Skip tasks tagged `environment: integration` — these require external resources
+4. If any remaining have `priority: urgent`, pick those first
+5. Otherwise pick the lowest-numbered pending task
+6. That's your task. Set it to `status: in-progress` before building.
+7. If a task is blocked, mark it `status: blocked` with `blocked_reason:` (environment | dependency | design) and move to the next one.
+
+**Creating new tasks**: Read `docs/tasks/.next-id` for the next task number. Use it, then increment and write back. Always commit `.next-id` with the new task file. NEVER scan the directory to guess the next number — that causes ID collisions.
+
+**Task selection scoring** — when choosing between tasks of equal priority:
+- Prefer tasks that move the vision tracker percentage (high project value)
+- Staleness multiplier: tasks pending 5+ sessions while newer tasks complete get 2x priority weight
+- The handoff's "Next Session Should" is ADVISORY — the queue order is AUTHORITATIVE
 
 **If no pending tasks**, fall back to this priority:
 ```
@@ -222,6 +231,10 @@ Then create follow-up tasks for what comes next. Read `docs/tasks/GUIDE.md` for 
 ### 6b. Handoff (ALWAYS)
 Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact format in `docs/handoffs/README.md`. Include: what you built, decisions made, known issues (carry forward unresolved ones from previous handoff), current state with percentages. The "Next Session Should" section references task numbers from `docs/tasks/`. Copy to `docs/handoffs/LATEST.md`. If 7+ numbered files exist, compact into weekly.
 
+**Required sections in every handoff:**
+- "Tracker delta: XX% -> XX%" (makes project progress visible)
+- "Tasks I did NOT pick and why:" (skip accountability — list every pending task you read and chose not to build, with the reason)
+
 ### 6c. Changelog (ALWAYS except docs-only changes)
 Read `docs/changelog/README.md` to find the current version file. Add your changes under the correct section (Added/Changed/Fixed/Removed/Internal). Tag each entry. Describe WHAT and WHY.
 
@@ -264,6 +277,8 @@ Write at least one learning to `docs/learnings/YYYY-MM-DD-topic.md`. Ask yoursel
 - Did a tool or approach work unexpectedly well? (pattern)
 
 See `docs/learnings/README.md` for format. One learning per file, under 30 lines. Be specific — "mypy is strict" is useless. "mypy rejects .get() on required TypedDict fields" is useful.
+
+**IMPORTANT: Update `docs/learnings/INDEX.md`** — add a one-line entry for your new learning in the correct category. The index is what future sessions read, not the individual files.
 
 ### 6m. Version Assessment
 Check `docs/ops/OPERATIONS.md` version milestones:
@@ -425,7 +440,12 @@ Release: [vX.X.X released / not a release milestone]
 Manual test suggestion:
   - [How the human can verify on a real repo]
 
-Next session should build:
+Tracker delta: [XX% -> XX%] (or "no change" if cleanup only)
+
+Tasks I did NOT pick and why:
+  - #NNNN: [reason — blocked-environment, blocked-dependency, or explicit justification]
+
+Next session should build (ADVISORY — queue order is authoritative):
   - [Your recommendation for the next highest-impact feature]
 
 Version status:

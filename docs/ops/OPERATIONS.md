@@ -80,25 +80,34 @@ The work queue. Numbered task files. The agent picks up the lowest-numbered `pen
 ### Files
 | File | Purpose |
 |------|---------|
-| `README.md` | Format spec, status values, rules |
+| `GUIDE.md` | Full format spec, field definitions, rules |
+| `.next-id` | Next available task number (atomic ID allocation) |
 | `NNNN.md` | Individual task files (0001.md, 0002.md, ...) |
+| `archive/` | Completed tasks (auto-moved by daemon housekeeping) |
 
 ### How to use (human)
-1. Check latest number: `ls docs/tasks/*.md | tail -1`
-2. Create next file with `status: pending` in frontmatter
-3. Done. The agent picks it up.
+1. Read `.next-id` for the next number. Use it, increment, write back.
+2. Create the task file with `status: pending` in frontmatter
+3. Done. The agent picks it up. **Never scan the directory to guess the next number.**
 
 ### How to use (agent)
-1. Read all `.md` files in `docs/tasks/` (skip README.md)
-2. Filter to `status: pending`, sort by number
-3. Pick the lowest-numbered pending task (urgent priority first)
-4. Set `status: in-progress` when starting, `status: done` when finished
-5. If no pending tasks, fall back to the priority engine in `evolve.md`
+1. Read all `.md` files in `docs/tasks/` (skip GUIDE.md, README.md, archive/)
+2. Filter to `status: pending`
+3. Skip tasks tagged `environment: integration` (require external resources)
+4. Pick the lowest-numbered pending task (urgent priority first)
+5. Set `status: in-progress` when starting, `status: done` when finished
+6. If blocked, set `status: blocked` with `blocked_reason:` (environment | dependency | design)
+7. If no pending internal tasks, fall back to the priority engine in `evolve.md`
+8. If ALL remaining tasks are integration or blocked, log in handoff and exit cleanly
+
+### Task fields
+See `docs/tasks/GUIDE.md` for full field definitions: `status`, `priority`, `environment`, `blocked_reason`, `needs_human`, `skipped_by`, `target`
 
 ### How to update
 - When you finish a task: set `status: done`, add `completed: YYYY-MM-DD`
-- Never delete task files — done tasks are history
+- Done tasks are auto-archived to `archive/` by daemon housekeeping
 - If a task is too big: mark it done with a note, create follow-up tasks
+- When creating tasks: use `.next-id`, commit it alongside the task file
 
 ---
 
@@ -467,7 +476,7 @@ rm -f docs/Nightshift/YYYY-MM-DD.state.json docs/Nightshift/YYYY-MM-DD.runner.lo
 4. Push:             git push origin feat/diff-scorer
 5. Create PR:        gh pr create --title "feat: add diff scorer" --body "..."
 6. Review:           spawn a sub-agent to review the diff (see below)
-7. Merge:            gh pr merge --squash (if review passes)
+7. Merge:            gh pr merge --merge --delete-branch --admin (if review passes)
 8. Clean up:         git checkout main && git pull && git branch -d feat/diff-scorer
 ```
 

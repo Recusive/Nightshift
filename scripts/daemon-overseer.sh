@@ -121,6 +121,7 @@ while true; do
     cleanup_old_logs "$LOG_DIR" "$KEEP_LOGS"
     cleanup_orphan_branches
     compact_handoffs "$REPO_DIR/docs/handoffs"
+    archive_done_tasks "$REPO_DIR/docs/tasks"
 
     # --- Prompt guard: snapshot before cycle ---
     SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
