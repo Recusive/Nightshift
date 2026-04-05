@@ -37,3 +37,25 @@ Observations from the meta-layer observer. Newest entries first.
 - **Cost per session is moderate.** Last 4 sessions averaged ~$27 (range $16-$35). No concerning trend yet, but the budget tracking now makes this visible.
 
 - **Ghost sessions remain unexplained.** 6 sessions on 04/04 00:56-02:00 plus 2 more at 21:14 and 22:10 have no feature name or PR. Previous observation already noted this. Cost tracking was not in place for the earlier batch. The later two had cost tracking but were logged without feature extraction. Not actionable without more data -- just monitoring.
+
+---
+
+## 2026-04-05 -- Post-session #0032 (Healer standalone run)
+
+**System health:** good
+
+### Observations
+
+- **5 consecutive meta-prompt sessions on 04/05.** Sessions 20260405-003749 through 20260405-015845 all targeted meta-prompt work (healer, notify_human, generate-work, vision-alignment, healer fix). This is the longest single-dimension streak in the project's history. The vision-alignment check (#0031) should break this pattern by detecting 3+ sessions clustering on the same section -- first real test will be the next builder session.
+
+- **Malformed YAML in completed tasks #0024 and #0036.** Both have `## status: done` (markdown heading prefix leaking into YAML frontmatter) instead of `status: done`. This has been noted in handoffs since session #0032 but no task tracks the fix. Any automated task queue parsing will misclassify these as pending. Additionally, both are completed but not archived -- they remain in `docs/tasks/` instead of `docs/tasks/archive/`, inflating active queue counts.
+
+- **Vision-section tags mostly missing.** Only 2 of 21 pending tasks have `vision_section` fields (#0059 and #0063, both loop2). Task #0060 covers backfilling the rest, but until that's done the vision-alignment steering mechanism (#0031) operates on incomplete data. The next sessions may still cluster because the check can't see which sections most tasks target.
+
+- **Cost trend is flat and healthy.** Last 5 sessions averaged $27.62 (range $16.72-$34.17). No escalation needed. For reference, sessions prior to cost tracking (04/03 through 04/04 21:00) have unknown spend -- at least 20 sessions with no cost data.
+
+- **Queue ratio: 12 low, 11 normal, 0 urgent, 3 blocked.** No urgent work remains. The 12 low-priority tasks (all v0.0.8/v0.0.9) risk becoming stale if never prioritized. The overseer daemon should audit whether any can be closed or promoted.
+
+### Actions taken
+
+- Created task #0064: Fix malformed YAML in #0024/#0036 and archive completed tasks
