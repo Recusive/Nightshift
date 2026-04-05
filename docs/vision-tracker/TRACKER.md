@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0040 (Sub-agent coordination).
+Last updated: 2026-04-05 by agent session #0041 (Self-evaluation loop).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -12,7 +12,7 @@ This file is the single source of truth for how close Nightshift is to its visio
 NIGHTSHIFT VISION                              ██████████████████░░  91%
 ├── Loop 1 — Hardening Loop                    ████████████████████ 100%
 ├── Loop 2 — Feature Builder Loop              ████████████████████ 100%
-├── Self-Maintaining Repo                      ████████████░░░░░░░░  59%
+├── Self-Maintaining Repo                      ████████████░░░░░░░░  60%
 └── Meta-Prompt System                         ████████████████░░░░  76%
 ```
 
@@ -37,7 +37,7 @@ The core loop works end-to-end. The orchestrator, agent adapters, verification, 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (767 tests) | Done | ████████████████████ 100% |
+| Test suite (880 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -72,7 +72,7 @@ All Loop 2 components are complete: profiling, planning, decomposition, sub-agen
 
 ---
 
-## Self-Maintaining Repo (59%)
+## Self-Maintaining Repo (60%)
 
 The infrastructure that lets the agent manage everything without human intervention.
 
@@ -85,7 +85,7 @@ The infrastructure that lets the agent manage everything without human intervent
 | CLAUDE.md (agent context) | Done | ████████████████████ 100% |
 | CI pipeline (.github/workflows) | Done | ████████████████████ 100% |
 | Local CI (scripts/check.sh) | Done | ████████████████████ 100% |
-| Feedback loop (docs/prompt/feedback/) | In progress | ████████████░░░░░░░░ 60% |
+| Feedback loop (docs/prompt/feedback/) | In progress | ████████████████░░░░ 80% |
 | Auto-release (version bump + gh release) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-changelog update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-tracker update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

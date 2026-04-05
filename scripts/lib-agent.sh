@@ -425,6 +425,66 @@ for task_num, issue_num, title in created_files:
 }
 
 # ──────────────────────────────────────────────
+# Self-Evaluation
+#
+# Runs nightshift against a test target every N
+# sessions to score quality and create follow-up
+# tasks for low-scoring dimensions.
+# ──────────────────────────────────────────────
+
+# should_evaluate SESSION_COUNT
+# Returns 0 (true) if it's time for an evaluation.
+# Reads eval_frequency from .nightshift.json (default 5, 0=disabled).
+should_evaluate() {
+    local session_count="${1:-0}"
+    local freq
+    freq=$(PYTHONPATH="$REPO_DIR" python3 -c "
+from nightshift.config import merge_config
+from pathlib import Path
+c = merge_config(Path('${REPO_DIR:-.}'))
+print(c['eval_frequency'])
+" 2>/dev/null) || freq="5"
+
+    if [ "$freq" = "0" ] || [ -z "$freq" ]; then
+        return 1  # disabled
+    fi
+
+    if [ "$session_count" -gt 0 ] && [ $(( session_count % freq )) -eq 0 ]; then
+        return 0  # time to evaluate
+    fi
+    return 1
+}
+
+# run_evaluation AGENT [AFTER_TASK]
+# Runs a self-evaluation cycle. Non-blocking: logs errors and returns 0.
+run_evaluation() {
+    local agent="$1"
+    local after_task="${2:-}"
+    echo "  Running self-evaluation..."
+    local result
+    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
+import json
+from pathlib import Path
+from nightshift.evaluation import evaluate
+from nightshift.config import merge_config
+
+cfg = merge_config(Path('${REPO_DIR:-.}'))
+r = evaluate(
+    target_repo=cfg['eval_target_repo'],
+    agent='$agent',
+    nightshift_dir=Path('${REPO_DIR:-.}'),
+    eval_dir=Path('${REPO_DIR:-.}/docs/evaluations'),
+    task_dir=Path('${REPO_DIR:-.}/docs/tasks'),
+    after_task='$after_task',
+)
+print(f\"  Evaluation #{r['evaluation_id']:04d}: {r['total_score']}/{r['max_total']}\")
+if r['tasks_created']:
+    print(f\"  Created {len(r['tasks_created'])} follow-up task(s)\")
+" 2>/dev/null) || result="  Evaluation failed (non-blocking)"
+    echo "$result"
+}
+
+# ──────────────────────────────────────────────
 # Agent Configuration
 # ──────────────────────────────────────────────
 

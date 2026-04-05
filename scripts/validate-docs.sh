@@ -96,7 +96,16 @@ if [ -f "$REPO_DIR/docs/vision-tracker/TRACKER.md" ]; then
         total_count=$(echo "$total_count" | tr -dc '0-9')
         total_count=${total_count:-0}
         if [ "$total_count" -gt 0 ]; then
-            expected=$((done_count * 100 / total_count))
+            # Sum partial progress from "In progress" items (e.g., "60%" -> 60)
+            in_progress_pct_sum=0
+            while IFS= read -r pct_line; do
+                pct_val=$(echo "$pct_line" | tr -dc '0-9')
+                if [ -n "$pct_val" ] && [ "$pct_val" -gt 0 ] 2>/dev/null; then
+                    in_progress_pct_sum=$((in_progress_pct_sum + pct_val))
+                fi
+            done <<< "$(awk "/## $section/,/^---/" "$REPO_DIR/docs/vision-tracker/TRACKER.md" \
+                | grep "In progress" | grep -oE '[0-9]+%')"
+            expected=$(( (done_count * 100 + in_progress_pct_sum) / total_count ))
             # Extract claimed percentage from the section header
             claimed=$(grep "## $section" "$REPO_DIR/docs/vision-tracker/TRACKER.md" \
                 | grep -oE '[0-9]+%' | head -1 | tr -d '%' || true)

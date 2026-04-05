@@ -36,5 +36,7 @@
   "codex_model": "gpt-5.4",
   "codex_thinking": "extra_high",
   "notification_webhook": null,
-  "readiness_checks": ["secrets", "debug_prints", "test_coverage"]
+  "readiness_checks": ["secrets", "debug_prints", "test_coverage"],
+  "eval_frequency": 5,
+  "eval_target_repo": "https://github.com/fazxes/Phractal"
 }

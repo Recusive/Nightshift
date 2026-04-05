@@ -182,6 +182,8 @@ def _infer_test_runner(repo_dir: Path) -> str | None:
         codex_thinking=DEFAULT_CONFIG["codex_thinking"],
         notification_webhook=DEFAULT_CONFIG["notification_webhook"],
         readiness_checks=list(DEFAULT_CONFIG["readiness_checks"]),
+        eval_frequency=DEFAULT_CONFIG["eval_frequency"],
+        eval_target_repo=DEFAULT_CONFIG["eval_target_repo"],
     )
     return infer_verify_command(repo_dir, config)
 

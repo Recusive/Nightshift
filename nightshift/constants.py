@@ -61,6 +61,8 @@ DEFAULT_CONFIG: NightshiftConfig = {
     "codex_thinking": "extra_high",
     "notification_webhook": None,
     "readiness_checks": ["secrets", "debug_prints", "test_coverage"],
+    "eval_frequency": 5,
+    "eval_target_repo": "https://github.com/fazxes/Phractal",
 }
 
 # --- Production readiness check patterns -------------------------------------
@@ -702,3 +704,34 @@ DAEMON_BRANCH_PREFIXES = (
 
 # Branches that are never pruned, regardless of prefix or PR status.
 PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "staging", "production"})
+
+# --- Evaluation data --------------------------------------------------------
+
+# Names of the 10 scoring dimensions (order matches docs/evaluations/README.md).
+EVALUATION_DIMENSIONS: list[str] = [
+    "Startup",
+    "Discovery",
+    "Fix quality",
+    "Shift log",
+    "State file",
+    "Verification",
+    "Guard rails",
+    "Clean state",
+    "Breadth",
+    "Usefulness",
+]
+
+# Maximum score per dimension.
+EVALUATION_MAX_PER_DIMENSION = 10
+
+# Dimensions scoring below this threshold generate follow-up tasks.
+EVALUATION_SCORE_THRESHOLD = 6
+
+# Default number of cycles to run per evaluation.
+EVALUATION_DEFAULT_CYCLES = 2
+
+# Default cycle duration in minutes for evaluations.
+EVALUATION_DEFAULT_CYCLE_MINUTES = 5
+
+# Timeout in seconds for the entire evaluation shift subprocess.
+EVALUATION_SHIFT_TIMEOUT = 900
