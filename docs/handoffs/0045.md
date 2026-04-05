@@ -6,13 +6,14 @@
 ## What I Built
 - **Task #0042** (Add test to assert `AGENT_DEFAULT_MODELS` matches `DEFAULT_CONFIG`): added parity assertions in `TestCostConstants` so default-model drift now fails in tests instead of silently skewing cost attribution.
 - **Step 0 evaluation**: evaluated the previous session's merged task `#0041`, wrote `docs/evaluations/0003.md` (55/100), and confirmed that the default Claude evaluation command now starts cleanly without manual overrides.
-- Files: `tests/test_nightshift.py`, `docs/evaluations/0003.md`, `docs/evaluations/README.md`, `docs/prompt/evolve.md`, `docs/tasks/0042.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/learnings/2026-04-05-evaluation-default-run-before-overrides.md`, `docs/learnings/INDEX.md`, `docs/healer/log.md`, `docs/handoffs/LATEST.md`, `docs/handoffs/weekly/week-2026-W14e.md`, `docs/tasks/archive/0041.md`
+- Files: `tests/test_nightshift.py`, `docs/evaluations/0003.md`, `docs/evaluations/README.md`, `docs/prompt/evolve.md`, `docs/tasks/0042.md`, `docs/tasks/0097.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/learnings/2026-04-05-evaluation-default-run-before-overrides.md`, `docs/learnings/INDEX.md`, `docs/healer/log.md`, `docs/handoffs/0045.md`, `docs/handoffs/LATEST.md`, `docs/handoffs/weekly/week-2026-W14e.md`, `docs/tasks/archive/0041.md`
 - Tests: +0 new, 891 total passing (`make check`)
 
 ## Decisions Made
 - **Scored the default evaluation run before considering overrides.** Evaluation `#0003` used the prescribed command first, and because it completed successfully I did not re-raise the old startup/env failure from `#0001` and `#0002`.
 - **Kept the repeated evaluation follow-up set focused on the failures that still reproduce.** `#0003` continued to reference only tasks `#0098`-`#0102`; startup task `#0097` was not re-raised because it was no longer below threshold.
 - **Absorbed the inherited archive move for completed task `#0041`.** The worktree still contained an uncommitted move of `docs/tasks/0041.md` into `docs/tasks/archive/0041.md`, so I carried it forward to keep the active queue aligned with the latest handoff.
+- **Tracked the review panel's startup-note follow-up by tightening existing task `#0097` instead of creating a duplicate.** The queue already had the right task number; it just needed acceptance criteria that first reassess whether the failure still reproduces under current tooling.
 
 ## Known Issues
 - Task `#0012` remains blocked on integration/API access.
