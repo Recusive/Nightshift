@@ -515,11 +515,13 @@ Do not wait for a task to tell you to release — releasing is part of the build
 3. For each changelog version that has NO matching tag (oldest first):
    a. Read the changelog file — does it have real entries under Added/Changed/Fixed?
    b. Check: are there pending tasks in `docs/tasks/` targeting this version? (`target: vX.X.X` in frontmatter)
-   c. If entries exist AND no pending tasks target it → **release it**:
+   c. If pending tasks target it, check their priority:
+      - If ALL remaining tasks are `low` or `normal` priority nice-to-haves (not core functionality): **retarget them** to the next version and proceed to release. A low-priority enhancement should not block a release indefinitely.
+      - If any remaining task is `urgent` or is core to the version's theme: skip, note in handoff "vX.X.X has N tasks remaining"
+   d. If entries exist AND no pending tasks target it (or all were retargeted) → **release it**:
       - Update the changelog status from "In progress" to "Released" with today's date
       - Run: `make release VERSION=X.X.X CODENAME="[codename from changelog title]"`
       - Create the next version's changelog skeleton if it doesn't exist
-   d. If pending tasks still target it → skip, note in handoff "vX.X.X has N tasks remaining"
 4. Release versions in order (v0.0.6 before v0.0.7) — never skip ahead.
 
 **Codename:** Use the subtitle from the changelog title (e.g., `# v0.0.6 -- Loop 2 Foundation` → codename is "Loop 2 Foundation").
