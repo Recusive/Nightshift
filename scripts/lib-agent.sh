@@ -133,6 +133,101 @@ CLAUDE_MODEL="${NIGHTSHIFT_CLAUDE_MODEL:-claude-opus-4-6}"
 CODEX_MODEL="${NIGHTSHIFT_CODEX_MODEL:-gpt-5.4}"
 CODEX_THINKING="${NIGHTSHIFT_CODEX_THINKING:-extra_high}"
 
+# ──────────────────────────────────────────────
+# Interactive Setup
+#
+# Prompts user for agent and duration when daemon
+# is run without arguments. Sets global variables.
+# ──────────────────────────────────────────────
+
+# interactive_setup DAEMON_LABEL
+# Prompts for agent choice and duration, then confirms.
+# Sets globals: AGENT, MAX_SESSIONS
+# Skipped when the daemon is called with positional args.
+interactive_setup() {
+    local daemon_label="${1:-daemon}"
+    local agent_choice
+    local duration_choice
+    local hours
+
+    echo ""
+    echo "Which agent should run this shift?"
+    echo "  1) claude"
+    echo "  2) codex"
+    printf "Enter choice [1]: "
+    read -r agent_choice
+    case "${agent_choice:-1}" in
+        1) AGENT="claude" ;;
+        2) AGENT="codex" ;;
+        *) echo "Invalid choice. Using claude."; AGENT="claude" ;;
+    esac
+
+    echo ""
+    echo "How long should the daemon run?"
+    echo "  1) 2 hours"
+    echo "  2) 4 hours"
+    echo "  3) 6 hours"
+    echo "  4) 8 hours (overnight)"
+    echo "  5) Unlimited (until you stop it)"
+    printf "Enter choice [4]: "
+    read -r duration_choice
+    case "${duration_choice:-4}" in
+        1) hours=2 ;;
+        2) hours=4 ;;
+        3) hours=6 ;;
+        4) hours=8 ;;
+        5) hours=0 ;;
+        *) echo "Invalid choice. Using 8 hours."; hours=8 ;;
+    esac
+
+    if [ "$hours" -gt 0 ]; then
+        MAX_SESSIONS=$(( hours * 2 ))
+        local est_label="${hours} hours (~${MAX_SESSIONS} sessions)"
+    else
+        MAX_SESSIONS=0
+        local est_label="Unlimited (until you stop it)"
+    fi
+
+    echo ""
+    echo "Starting Nightshift ${daemon_label}:"
+    echo "  Agent:    $AGENT"
+    echo "  Duration: $est_label"
+    echo ""
+    printf "Press Enter to start or Ctrl+C to cancel. "
+    read -r
+}
+
+# interactive_setup_strategist
+# Prompts for agent choice only (strategist runs once).
+# Sets global: AGENT
+interactive_setup_strategist() {
+    local agent_choice
+
+    echo ""
+    echo "Which agent should run this review?"
+    echo "  1) claude"
+    echo "  2) codex"
+    printf "Enter choice [1]: "
+    read -r agent_choice
+    case "${agent_choice:-1}" in
+        1) AGENT="claude" ;;
+        2) AGENT="codex" ;;
+        *) echo "Invalid choice. Using claude."; AGENT="claude" ;;
+    esac
+
+    echo ""
+    echo "Starting Nightshift strategist:"
+    echo "  Agent: $AGENT"
+    echo "  Mode:  single run (advisory)"
+    echo ""
+    printf "Press Enter to start or Ctrl+C to cancel. "
+    read -r
+}
+
+# ──────────────────────────────────────────────
+# Agent Runner
+# ──────────────────────────────────────────────
+
 # run_agent AGENT PROMPT LOG_FILE MAX_TURNS
 # Sets EXIT_CODE as a side effect.
 run_agent() {

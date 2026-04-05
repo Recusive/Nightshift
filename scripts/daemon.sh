@@ -3,7 +3,7 @@
 # Nightshift Daemon -- Self-Improving Loop
 #
 # Usage:
-#   ./scripts/daemon.sh                    # claude, 60s pause, unlimited
+#   ./scripts/daemon.sh                    # interactive setup (prompts for agent + duration)
 #   ./scripts/daemon.sh codex              # codex agent
 #   ./scripts/daemon.sh claude 120         # 120s pause between sessions
 #   ./scripts/daemon.sh claude 60 10       # stop after 10 sessions
@@ -16,9 +16,14 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib-agent.sh"
-AGENT="${1:-claude}"
-PAUSE="${2:-60}"
-MAX_SESSIONS="${3:-0}"
+if [ $# -eq 0 ]; then
+    PAUSE=60
+    interactive_setup "builder daemon"
+else
+    AGENT="${1:-claude}"
+    PAUSE="${2:-60}"
+    MAX_SESSIONS="${3:-0}"
+fi
 LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index.md"
 AUTO_PREFIX="$REPO_DIR/docs/prompt/evolve-auto.md"
