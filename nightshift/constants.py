@@ -560,3 +560,32 @@ def now_local() -> dt.datetime:
 
 def print_status(message: str) -> None:
     print(message, flush=True)
+
+
+# --- Cost tracking data ------------------------------------------------------
+
+# Pricing in USD per million tokens. Keys match model IDs from stream-json logs.
+# Update when Anthropic or OpenAI change pricing.
+MODEL_PRICING: dict[str, dict[str, float]] = {
+    "claude-opus-4-6": {
+        "input": 15.0,
+        "cache_creation": 18.75,
+        "cache_read": 1.50,
+        "output": 75.0,
+    },
+    "claude-sonnet-4-6": {
+        "input": 3.0,
+        "cache_creation": 3.75,
+        "cache_read": 0.30,
+        "output": 15.0,
+    },
+    "claude-haiku-4-5-20251001": {
+        "input": 0.80,
+        "cache_creation": 1.00,
+        "cache_read": 0.08,
+        "output": 4.0,
+    },
+}
+
+# Filename for the cost ledger (stored in docs/sessions/).
+COST_LEDGER_FILENAME = "costs.json"

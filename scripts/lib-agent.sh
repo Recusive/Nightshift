@@ -188,10 +188,34 @@ interactive_setup() {
         local est_label="Unlimited (until you stop it)"
     fi
 
+    local budget_choice
+    echo ""
+    echo "Set a spending limit? (USD, stops daemon when reached)"
+    echo "  1) \$25"
+    echo "  2) \$50"
+    echo "  3) \$100"
+    echo "  4) No limit"
+    printf "Enter choice [4]: "
+    read -r budget_choice
+    case "${budget_choice:-4}" in
+        1) BUDGET=25 ;;
+        2) BUDGET=50 ;;
+        3) BUDGET=100 ;;
+        4) BUDGET=0 ;;
+        *) echo "Invalid choice. No limit set."; BUDGET=0 ;;
+    esac
+
+    if [ "$BUDGET" != "0" ]; then
+        local budget_label="\$$BUDGET"
+    else
+        local budget_label="Unlimited"
+    fi
+
     echo ""
     echo "Starting Nightshift ${daemon_label}:"
     echo "  Agent:    $AGENT"
     echo "  Duration: $est_label"
+    echo "  Budget:   $budget_label"
     echo ""
     printf "Press Enter to start or Ctrl+C to cancel. "
     read -r

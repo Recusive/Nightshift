@@ -310,3 +310,26 @@ class FeatureState(TypedDict):
     plan: FeaturePlan
     waves: list[FeatureWaveState]
     final_verification: FinalVerificationResult | None
+
+
+# --- Cost tracking types ----------------------------------------------------
+
+
+class SessionCost(TypedDict):
+    """Token usage and estimated cost for a single daemon session."""
+
+    session_id: str
+    agent: str
+    model: str
+    input_tokens: int
+    cache_creation_tokens: int
+    cache_read_tokens: int
+    output_tokens: int
+    total_cost_usd: float
+
+
+class CostLedger(TypedDict):
+    """Cumulative cost tracking across daemon sessions."""
+
+    total_cost_usd: float
+    sessions: list[SessionCost]

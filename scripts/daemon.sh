@@ -8,6 +8,8 @@
 #   ./scripts/daemon.sh claude 120         # 120s pause between sessions
 #   ./scripts/daemon.sh claude 60 10       # stop after 10 sessions
 #
+# Budget: set NIGHTSHIFT_BUDGET=50 to stop after $50 spent
+#
 # Stop: Ctrl+C or kill the process
 # ──────────────────────────────────────────────
 
@@ -19,10 +21,12 @@ source "$SCRIPT_DIR/lib-agent.sh"
 if [ $# -eq 0 ]; then
     PAUSE=60
     interactive_setup "builder daemon"
+    # BUDGET set by interactive_setup
 else
     AGENT="${1:-claude}"
     PAUSE="${2:-60}"
     MAX_SESSIONS="${3:-0}"
+    BUDGET="${NIGHTSHIFT_BUDGET:-0}"
 fi
 LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index.md"
@@ -30,6 +34,7 @@ AUTO_PREFIX="$REPO_DIR/docs/prompt/evolve-auto.md"
 EVOLVE_PROMPT="$REPO_DIR/docs/prompt/evolve.md"
 LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
 PROMPT_ALERT="$LOG_DIR/prompt-alert.md"
+COST_FILE="$LOG_DIR/costs.json"
 MAX_TURNS=500
 CYCLE=0
 CONSECUTIVE_FAILURES=0
@@ -61,8 +66,8 @@ if [ ! -f "$INDEX_FILE" ]; then
     {
         echo "# Session Index"
         echo ""
-        echo "| Timestamp | Session | Exit | Duration | Status | Feature | PR |"
-        echo "|-----------|---------|------|----------|--------|---------|-----|"
+        echo "| Timestamp | Session | Exit | Duration | Cost | Status | Feature | PR |"
+        echo "|-----------|---------|------|----------|------|--------|---------|-----|"
     } > "$INDEX_FILE"
 fi
 
@@ -80,6 +85,11 @@ if [ "$MAX_SESSIONS" -gt 0 ]; then
     echo "  Max sessions: $MAX_SESSIONS"
 else
     echo "  Max sessions: unlimited"
+fi
+if [ "$BUDGET" != "0" ]; then
+    echo "  Budget:      \$$BUDGET"
+else
+    echo "  Budget:      unlimited"
 fi
 echo "  Circuit:     stops after $MAX_CONSECUTIVE_FAILURES consecutive failures"
 echo "  Logs:        $LOG_DIR"
@@ -161,6 +171,20 @@ ${PROMPT}"
     echo ""
     echo "-- Session $CYCLE done (exit: $EXIT_CODE, ${DURATION_MIN}m) --- $(date '+%H:%M') --"
 
+    # --- Cost tracking ---
+    SESSION_COST=$(PYTHONPATH="$REPO_DIR" python3 -c "
+from nightshift.costs import record_session, format_session_cost, total_cost
+entry = record_session('$LOG_FILE', '$COST_FILE', '$SESSION_ID', '$AGENT')
+cumulative = total_cost('$COST_FILE')
+print(f\"{entry['total_cost_usd']:.4f}\")
+print(f\"  Cost: \${entry['total_cost_usd']:.4f} (cumulative: \${cumulative:.2f})\")
+print(format_session_cost(entry))
+" 2>/dev/null || echo "0.0000")
+
+    # First line is the numeric cost, rest is human-readable
+    COST_USD=$(echo "$SESSION_COST" | head -1)
+    echo "$SESSION_COST" | tail -n +2
+
     # --- Session index entry ---
     if [ "$EXIT_CODE" -eq 0 ]; then
         STATUS="success"
@@ -199,7 +223,22 @@ for line in open('$LOG_FILE'):
 print('-')
 " 2>/dev/null || echo "-")
 
-    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
+    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
+
+    # --- Budget check ---
+    if [ "$BUDGET" != "0" ]; then
+        CUMULATIVE=$(PYTHONPATH="$REPO_DIR" python3 -c "
+from nightshift.costs import total_cost
+print(f'{total_cost(\"$COST_FILE\"):.2f}')
+" 2>/dev/null || echo "0.00")
+        OVER_BUDGET=$(python3 -c "print('yes' if float('$CUMULATIVE') >= float('$BUDGET') else 'no')" 2>/dev/null || echo "no")
+        if [ "$OVER_BUDGET" = "yes" ]; then
+            echo ""
+            echo "BUDGET LIMIT REACHED: \$$CUMULATIVE spent (limit: \$$BUDGET)"
+            echo "| $(date '+%Y-%m-%d %H:%M') | BUDGET-STOP | - | - | \$$CUMULATIVE | Budget limit reached (\$$BUDGET) |" >> "$INDEX_FILE"
+            break
+        fi
+    fi
 
     # --- Circuit breaker ---
     if [ "$EXIT_CODE" -ne 0 ]; then
