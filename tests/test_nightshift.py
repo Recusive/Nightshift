@@ -7594,3 +7594,75 @@ class TestCompactHandoffs:
         weekly = Path(result["weekly_file"])
         # 2026-04-03 is ISO week 14
         assert "W14" in weekly.name
+
+
+# --- Healer Infrastructure ---------------------------------------------------
+
+
+class TestHealerInfrastructure:
+    """Verify the healer meta-layer observer is wired correctly."""
+
+    def test_healer_prompt_exists(self) -> None:
+        """Healer prompt file must exist."""
+        prompt = Path("docs/prompt/healer.md")
+        assert prompt.exists(), "docs/prompt/healer.md missing"
+
+    def test_healer_prompt_has_required_sections(self) -> None:
+        """Healer prompt must instruct reading key system files."""
+        content = Path("docs/prompt/healer.md").read_text()
+        assert "docs/handoffs/LATEST.md" in content
+        assert "docs/sessions/index.md" in content
+        assert "docs/vision-tracker/TRACKER.md" in content
+        assert "docs/tasks/" in content
+        assert "docs/healer/log.md" in content
+
+    def test_healer_prompt_has_boundaries(self) -> None:
+        """Healer prompt must define what it does NOT do."""
+        content = Path("docs/prompt/healer.md").read_text()
+        assert "DO NOT" in content
+        assert ".next-id" in content
+
+    def test_healer_log_exists(self) -> None:
+        """Healer log directory and file must exist."""
+        log = Path("docs/healer/log.md")
+        assert log.exists(), "docs/healer/log.md missing"
+        content = log.read_text()
+        assert "Healer Log" in content
+
+    def test_daemon_references_healer(self) -> None:
+        """daemon.sh must call the healer between housekeeping and builder."""
+        content = Path("scripts/daemon.sh").read_text()
+        assert "docs/prompt/healer.md" in content
+        assert "healer" in content.lower()
+        assert "persist_healer_changes" in content
+
+    def test_daemon_healer_before_prompt_guard(self) -> None:
+        """Healer must run before the prompt guard snapshot in daemon.sh."""
+        content = Path("scripts/daemon.sh").read_text()
+        healer_pos = content.find("Running healer")
+        guard_pos = content.find("save_prompt_snapshots")
+        assert healer_pos > 0, "Healer call not found in daemon.sh"
+        assert guard_pos > 0, "Prompt guard not found in daemon.sh"
+        assert healer_pos < guard_pos, "Healer must run before prompt guard"
+
+    def test_prompt_guard_includes_healer(self) -> None:
+        """lib-agent.sh PROMPT_GUARD_FILES must include healer.md."""
+        content = Path("scripts/lib-agent.sh").read_text()
+        assert "docs/prompt/healer.md" in content
+
+    def test_persist_healer_changes_in_lib(self) -> None:
+        """lib-agent.sh must define persist_healer_changes function."""
+        content = Path("scripts/lib-agent.sh").read_text()
+        assert "persist_healer_changes()" in content
+
+    def test_healer_max_turns_is_low(self) -> None:
+        """Healer must use low max-turns to stay fast and cheap."""
+        content = Path("scripts/daemon.sh").read_text()
+        # Find the HEALER_MAX_TURNS assignment
+        for line in content.splitlines():
+            if "HEALER_MAX_TURNS=" in line:
+                val = line.split("=")[1].strip()
+                turns = int(val)
+                assert turns <= 20, f"Healer max turns {turns} > 20"
+                return
+        pytest.fail("HEALER_MAX_TURNS not found in daemon.sh")
