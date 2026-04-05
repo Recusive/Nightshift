@@ -529,9 +529,14 @@ if p.exists():
     print(cfg.get('notification_webhook', ''))
 " 2>/dev/null || true)
     if [ -n "$webhook" ]; then
+        local payload
+        payload=$(python3 -c "
+import json, sys
+print(json.dumps({'text': '[Nightshift] ' + sys.argv[1]}))
+" "$title" 2>/dev/null) || payload='{"text":"[Nightshift] notification"}'
         curl -s -X POST \
             -H 'Content-Type: application/json' \
-            -d "{\"text\":\"[Nightshift] $title\"}" \
+            -d "$payload" \
             "$webhook" >/dev/null 2>&1 || true
     fi
 }

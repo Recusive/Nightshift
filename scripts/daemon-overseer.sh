@@ -205,6 +205,7 @@ print(f'{total_cost(\"$COST_FILE\"):.2f}')
             echo ""
             echo "BUDGET LIMIT REACHED: \$$CUMULATIVE spent (limit: \$$BUDGET)"
             echo "| $(date '+%Y-%m-%d %H:%M') | BUDGET-STOP | - | - | \$$CUMULATIVE | Budget limit reached (\$$BUDGET) |" >> "$INDEX_FILE"
+            notify_human "Overseer budget limit reached" "Overseer daemon stopped after spending \$$CUMULATIVE (limit: \$$BUDGET). Review spending at docs/sessions/costs.json."
             break
         fi
     fi
