@@ -431,13 +431,38 @@ gh pr create --title "[type]: description" --body "$(cat <<'EOF'
 EOF
 )"
 
-# 5. Review with sub-agent
-#    The reviewer reads .claude/agents/code-reviewer.md for repo-specific rules,
+# 5. Review with sub-agents (scaled by complexity)
+#
+#    First, determine review depth from `gh pr diff --stat`:
+#
+#    DOCS-ONLY (.md only, no .py/.sh/.json/.toml):
+#      -> 1 agent: code-reviewer (fast path -- reports PASS immediately)
+#
+#    SMALL (<100 lines changed, <3 files):
+#      -> 1 agent: code-reviewer
+#
+#    MEDIUM (100-300 lines, OR new .py module, OR new dependency):
+#      -> 3 agents in parallel: code-reviewer + safety-reviewer + docs-reviewer
+#
+#    COMPLEX (>300 lines, OR 5+ files, OR touches scripts/ or docs/prompt/):
+#      -> 4-5 agents in parallel: code-reviewer + safety-reviewer
+#         + docs-reviewer + architecture-reviewer
+#         + meta-reviewer (only if PR touches scripts/, docs/prompt/, .claude/agents/)
+#
+#    Each agent reads its definition from .claude/agents/<name>.md,
 #    then reads the diff with `gh pr diff <number>`.
 #    Reports PASS or FAIL with specific file:line references.
+#    Spawn all agents in parallel. ALL must PASS to merge.
+#
+#    Agent definitions:
+#      .claude/agents/code-reviewer.md       -- structure, types, registration, tests
+#      .claude/agents/safety-reviewer.md      -- security, secrets, subprocess, destructive ops
+#      .claude/agents/docs-reviewer.md        -- changelog, CLAUDE.md, tracker, handoff consistency
+#      .claude/agents/architecture-reviewer.md -- dependency flow, module boundaries, design
+#      .claude/agents/meta-reviewer.md         -- daemon scripts, prompt, autonomous pipeline
 
 # 5b. REVIEW NOTES MUST BECOME TASKS
-#     If the review PASSes but flags advisory notes, known limitations,
+#     If ANY reviewer PASSes but flags advisory notes, known limitations,
 #     or follow-up suggestions: you MUST create a follow-up task in
 #     docs/tasks/ for EACH note, with clear acceptance criteria.
 #     "Known limitation" is NOT a valid reason to skip creating a task.
