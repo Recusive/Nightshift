@@ -469,6 +469,7 @@ def build_prompt(
 {prior_lines}
 
         Required behavior:
+        - Do not read or write files outside this isolated worktree, except for commands that operate on the current git metadata inside the worktree itself.
         - If a fix would exceed the limits, log the issue instead of editing.
         - If baseline verification is failing, do not make code changes; update the shift log with logged issues only.
         - One commit per accepted fix. Stage the shift log alongside your fix files so both ship in the same commit: `git add <fix-files> {shift_log_relative} && git commit`. If co-committing is not possible, make a separate shift-log-only commit immediately after.
@@ -478,8 +479,9 @@ def build_prompt(
         - Every fix entry must include `Impact` and `Verification`.
         - Do not run the repo's full verification or lint commands yourself. The Nightshift runner already executed baseline verification and will run final verification after your cycle.
         - If you need extra confidence, only run narrow, file-scoped checks that do not require background IPC servers or long-lived watchers.
-        - Avoid package-manager test commands like `npm test`, `pnpm test`, `yarn test`, or `bun test` inside the cycle unless they are clearly file-scoped and sandbox-safe. Many JavaScript test runners spawn IPC servers and will fail under sandboxing even when the runner's own verification succeeds.
+        - Avoid repo-wide package-manager commands like `npm test`, `npm run lint`, `npm run build`, `pnpm test`, `pnpm lint`, `pnpm build`, `yarn test`, or `bun test` inside the cycle unless they are clearly file-scoped and sandbox-safe. Many JavaScript toolchains spawn IPC servers or duplicate the runner's own final verification.
         - Do not add dependencies, do not delete files, and do not edit CI/deploy/generated artifacts.
+        - Do not access personal memory systems, home-directory notes, sibling repositories, or any path outside the target repo. If more context seems necessary, log the gap instead of leaving the worktree boundary.
         - Do not invoke Nightshift recursively. Never run `nightshift.py`, `run.sh`, `test.sh`, `codex exec`, or `claude -p` from inside this cycle.
 
         Category mix guidance:
@@ -490,7 +492,7 @@ def build_prompt(
 
         {"This is a short validation run. Finish quickly. Prefer exactly one small fix or one logged issue. Prefer a 1-2 file fix in auth/session/http/parser/api helper code before choosing log-only. If nothing clearly safe is found within a few minutes, log one issue and stop." if test_mode else ""}
 
-        {"Final cycle instructions: wrap up the Summary and Recommendations sections, make sure commit hashes are correct, and run the full verification command one last time." if is_final else "Do not rewrite the final Summary yet unless there is less than one cycle left."}
+        {"Final cycle instructions: wrap up the Summary and Recommendations sections, make sure commit hashes are correct, and leave full verification to the Nightshift runner." if is_final else "Do not rewrite the final Summary yet unless there is less than one cycle left."}
 
         End your work with a single JSON object and nothing else. The JSON must satisfy the provided schema exactly.
         """

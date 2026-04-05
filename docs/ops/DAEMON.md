@@ -10,7 +10,7 @@ Nightshift has four daemons, each with a different role:
 
 | Daemon | Script | Prompt | Loops? | Purpose |
 |--------|--------|--------|--------|---------|
-| **Builder** | `scripts/daemon.sh` | `evolve-auto.md` + `evolve.md` | Yes, forever | Picks up tasks, builds features, ships code |
+| **Builder** | `scripts/daemon.sh` | `pentest.md` + `evolve-auto.md` + `evolve.md` | Yes, forever | Runs a red-team preflight, then fixes/builds and ships code |
 | **Reviewer** | `scripts/daemon-review.sh` | `review.md` | Yes, forever | Reviews code file by file, fixes quality issues |
 | **Overseer** | `scripts/daemon-overseer.sh` | `overseer.md` | Yes, forever | Audits task queue, fixes priorities, cleans duplicates, catches direction problems |
 | **Strategist** | `scripts/daemon-strategist.sh` | `strategist.md` | No, runs once | Reviews the big picture, advises human on what to change |
@@ -28,7 +28,7 @@ make strategist   # Strategist — runs once, produces a report
 
 ### Typical workflow
 
-1. Run `make daemon` overnight — it builds features from the task queue
+1. Run `make daemon` overnight — it red-teams the system, then builds features from the task queue
 2. Run `make overseer` after a build run — it audits what was built, fixes task priorities, cleans duplicates, catches direction problems
 3. Run `make strategist` when you want a human-readable big picture review
 4. Run `make review` to harden what was built
@@ -40,7 +40,13 @@ Or: builder during the day, overseer + reviewer overnight.
 
 ## Builder Daemon (`scripts/daemon.sh`)
 
-The primary daemon. Picks up tasks, builds features, tests, PRs, merges. Each session:
+The primary daemon. Each session:
+1. hard-resets to `origin/main`
+2. runs housekeeping
+3. runs a short read-only pentest preflight with `docs/prompt/pentest.md`
+4. hard-resets again to discard any accidental pentest edits
+5. injects the pentest handoff into the main builder prompt
+6. builds, tests, opens PRs, reviews, and merges
 
 ---
 
@@ -75,6 +81,7 @@ Lock acquired. PID XXXXX.
 ==================================================
   NIGHTSHIFT DAEMON
   Agent:       claude
+  Pentest:     claude (120 turns)
   Pause:       60s between sessions
   Max sessions: unlimited
   Circuit:     stops after 3 consecutive failures
@@ -91,6 +98,15 @@ Lock acquired. PID XXXXX.
 # Run 10 sessions then stop (good for overnight runs with a budget)
 tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60 10"
 ```
+
+### With a dedicated pentest agent
+
+```bash
+NIGHTSHIFT_PENTEST_AGENT=codex tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+```
+
+By default the pentest preflight uses the same agent as the builder. Override it
+with `NIGHTSHIFT_PENTEST_AGENT`. Tune its budget with `NIGHTSHIFT_PENTEST_MAX_TURNS`.
 
 ### Using make
 
@@ -324,7 +340,14 @@ housekeeping                            # rotate logs, prune branches,
 check gh pr list --state open           # open-PR recovery
     |
     v
+run pentest.md preflight               # read-only red-team pass
+    |
+    v
+reset --hard origin/main again         # discard any pentest-side edits
+    |
+    v
 build prompt (evolve-auto.md + evolve.md)
+with injected pentest handoff
     |
     v
 claude -p --max-turns 500               # the autonomous session
@@ -355,6 +378,8 @@ next iteration
 | Pause between sessions | 60s | 2nd arg: `./scripts/daemon.sh claude 120` |
 | Max sessions | unlimited (0) | 3rd arg: `./scripts/daemon.sh claude 60 10` |
 | Max turns per session | 500 | Edit `MAX_TURNS` in `scripts/daemon.sh` |
+| Pentest agent | same as builder | Set `NIGHTSHIFT_PENTEST_AGENT=codex` |
+| Pentest max turns | 120 | Set `NIGHTSHIFT_PENTEST_MAX_TURNS=80` |
 | Circuit breaker threshold | 3 failures | Edit `MAX_CONSECUTIVE_FAILURES` in `scripts/daemon.sh` |
 | Healer entries kept live | 50 | Set `NIGHTSHIFT_KEEP_HEALER_ENTRIES=25` before starting the daemon |
 | Log directory | `docs/sessions/` | Edit `LOG_DIR` in `scripts/daemon.sh` |
@@ -366,6 +391,7 @@ next iteration
 | File | Purpose |
 |------|---------|
 | `scripts/daemon.sh` | The daemon script |
+| `docs/prompt/pentest.md` | Read-only pre-builder red-team prompt |
 | `docs/prompt/evolve.md` | The session lifecycle prompt (11 steps) |
 | `docs/prompt/evolve-auto.md` | Autonomous override (skip human confirmation) |
 | `docs/sessions/*.log` | Stream-json logs (one per session) |

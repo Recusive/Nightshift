@@ -94,6 +94,7 @@ from nightshift.costs import (
     parse_session_tokens,
     read_ledger,
     record_session,
+    record_session_bundle,
     total_cost,
     write_ledger,
 )
@@ -482,6 +483,7 @@ __all__ = [
     "read_state",
     "recent_hot_files",
     "record_session",
+    "record_session_bundle",
     "render_module_map",
     "resolve_agent",
     "revert_cycle",

@@ -1348,6 +1348,11 @@ class TestBuildPrompt:
         assert "5 files per fix" in prompt
         assert "12 total files" in prompt
 
+    def test_forbids_leaving_worktree_boundary(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Do not read or write files outside this isolated worktree" in prompt
+        assert "Do not access personal memory systems" in prompt
+
     def test_contains_blocked_paths(self):
         prompt = nightshift.build_prompt(**self._base_args())
         assert ".github/" in prompt
@@ -1362,6 +1367,8 @@ class TestBuildPrompt:
         args["is_final"] = True
         prompt = nightshift.build_prompt(**args)
         assert "Final cycle" in prompt or "wrap up" in prompt.lower()
+        assert "leave full verification to the Nightshift runner" in prompt
+        assert "run the full verification command one last time" not in prompt
 
     def test_test_mode_instructions(self):
         args = self._base_args()
@@ -1383,7 +1390,12 @@ class TestBuildPrompt:
 
     def test_warns_about_package_manager_test_commands(self):
         prompt = nightshift.build_prompt(**self._base_args())
-        assert "Avoid package-manager test commands like `npm test`" in prompt
+        assert "Avoid repo-wide package-manager commands like `npm test`" in prompt
+
+    def test_warns_about_repo_wide_lint_and_build_commands(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "`npm run lint`" in prompt
+        assert "`npm run build`" in prompt
 
     def test_includes_high_signal_focus_hints(self):
         prompt = nightshift.build_prompt(**self._base_args())
@@ -7405,6 +7417,54 @@ class TestRecordSession:
         assert entry["total_cost_usd"] == 0.0
         assert entry["input_tokens"] == 0
 
+    def test_records_bundle_as_single_session(self, tmp_path: Path) -> None:
+        pentest_log = tmp_path / "pentest.log"
+        builder_log = tmp_path / "builder.log"
+        pentest_log.write_text("\n".join(_make_log_lines(messages=1, input_tokens=5, output_tokens=20)) + "\n")
+        builder_log.write_text("\n".join(_make_log_lines(messages=2, input_tokens=7, output_tokens=30)) + "\n")
+        ledger_path = str(tmp_path / "costs.json")
+
+        entry = nightshift.record_session_bundle(
+            [str(pentest_log), str(builder_log)],
+            ledger_path,
+            "20260405-010203",
+            "claude",
+        )
+
+        assert entry["session_id"] == "20260405-010203"
+        assert entry["model"] == "claude-opus-4-6"
+        assert entry["input_tokens"] == 19
+        assert entry["output_tokens"] == 80
+        ledger = nightshift.read_ledger(ledger_path)
+        assert len(ledger["sessions"]) == 1
+        assert ledger["sessions"][0]["session_id"] == "20260405-010203"
+        assert ledger["total_cost_usd"] == entry["total_cost_usd"]
+
+    def test_bundle_marks_mixed_models(self, tmp_path: Path) -> None:
+        claude_log = tmp_path / "claude.log"
+        codex_log = tmp_path / "codex.log"
+        claude_log.write_text("\n".join(_make_log_lines(messages=1, input_tokens=10, output_tokens=40)) + "\n")
+        codex_log.write_text(
+            "\n".join(_make_codex_log_lines(turns=1, input_tokens=500, cached_input_tokens=400, output_tokens=25))
+            + "\n"
+        )
+        ledger_path = str(tmp_path / "costs.json")
+
+        entry = nightshift.record_session_bundle(
+            [str(claude_log), str(codex_log)],
+            ledger_path,
+            "20260405-030405",
+            "claude",
+            part_agents=["claude", "codex"],
+        )
+
+        assert entry["model"] == "mixed:claude-opus-4-6,gpt-5.4"
+        assert entry["input_tokens"] == 110
+        assert entry["cache_creation_tokens"] == 500
+        assert entry["cache_read_tokens"] == 2400
+        assert entry["output_tokens"] == 65
+        assert entry["total_cost_usd"] > 0
+
 
 class TestTotalCost:
     def test_returns_cumulative(self, tmp_path: Path) -> None:
@@ -8780,6 +8840,52 @@ cleanup_healer_log "{healer_log}" 2
         """healer.md should be noted as reference doc in PROMPT_GUARD_FILES."""
         content = Path("scripts/lib-agent.sh").read_text()
         assert "healer.md" in content  # commented reference still present
+
+
+class TestPentestInfrastructure:
+    def test_pentest_prompt_exists(self) -> None:
+        prompt = Path("docs/prompt/pentest.md")
+        assert prompt.exists(), "docs/prompt/pentest.md missing"
+
+    def test_pentest_prompt_is_guarded(self) -> None:
+        content = Path("scripts/lib-agent.sh").read_text()
+        assert "docs/prompt/pentest.md" in content
+
+    def test_builder_daemon_runs_pentest_preflight(self) -> None:
+        content = Path("scripts/daemon.sh").read_text()
+        assert 'PENTEST_PROMPT_FILE="$REPO_DIR/docs/prompt/pentest.md"' in content
+        assert 'PENTEST_LOG_FILE="$LOG_DIR/${SESSION_ID}-pentest.log"' in content
+        assert "Pentest preflight" in content
+        assert "PENTEST REPORT FROM PRE-BUILD RED TEAM" in content
+
+
+class TestExtractResultSummaryHelper:
+    def test_extracts_last_result_block(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        first = {"type": "result", "result": "ignore me"}
+        second = {
+            "type": "result",
+            "result": "PENTEST REPORT\n==============\nFix now:\n- quote the path\n- reset after probe\n",
+        }
+        log.write_text("\n".join([json.dumps(first), "not json", json.dumps(second)]) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_result_summary "{log}" 200 6
+"""
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert result.stdout.strip().startswith("PENTEST REPORT")
+        assert "quote the path" in result.stdout
+        assert "ignore me" not in result.stdout
 
 
 class TestStrategistPrompt:

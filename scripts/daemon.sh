@@ -34,10 +34,12 @@ LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index.md"
 AUTO_PREFIX="$REPO_DIR/docs/prompt/evolve-auto.md"
 EVOLVE_PROMPT="$REPO_DIR/docs/prompt/evolve.md"
+PENTEST_PROMPT_FILE="$REPO_DIR/docs/prompt/pentest.md"
 LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
 PROMPT_ALERT="$LOG_DIR/prompt-alert.md"
 COST_FILE="$LOG_DIR/costs.json"
 MAX_TURNS=500
+PENTEST_MAX_TURNS="${NIGHTSHIFT_PENTEST_MAX_TURNS:-120}"
 CYCLE=0
 CONSECUTIVE_FAILURES=0
 MAX_CONSECUTIVE_FAILURES=3
@@ -78,10 +80,22 @@ build_prompt() {
     cat "$EVOLVE_PROMPT"
 }
 
+build_pentest_prompt() {
+    cat "$PENTEST_PROMPT_FILE"
+}
+
+reset_repo_state() {
+    git fetch origin --quiet 2>/dev/null || true
+    git checkout main --quiet 2>/dev/null || true
+    git reset --hard origin/main --quiet 2>/dev/null || true
+    git clean -fd --quiet 2>/dev/null || true
+}
+
 echo ""
 echo "=================================================="
 echo "  NIGHTSHIFT DAEMON"
 echo "  Agent:       $AGENT"
+echo "  Pentest:     ${NIGHTSHIFT_PENTEST_AGENT:-$AGENT} (${PENTEST_MAX_TURNS} turns)"
 echo "  Pause:       ${PAUSE}s between sessions"
 if [ "$MAX_SESSIONS" -gt 0 ]; then
     echo "  Max sessions: $MAX_SESSIONS"
@@ -115,10 +129,7 @@ while true; do
 
     # --- Clean slate: hard reset to origin/main ---
     cd "$REPO_DIR"
-    git fetch origin --quiet 2>/dev/null || true
-    git checkout main --quiet 2>/dev/null || true
-    git reset --hard origin/main --quiet 2>/dev/null || true
-    git clean -fd --quiet 2>/dev/null || true
+    reset_repo_state
 
     # --- Hot reload: re-source lib-agent.sh to pick up new functions ---
     source "$SCRIPT_DIR/lib-agent.sh"
@@ -139,9 +150,6 @@ while true; do
     archive_done_tasks "$REPO_DIR/docs/tasks"
     sync_github_tasks "$REPO_DIR/docs/tasks"
 
-    # --- Prompt guard: snapshot before cycle ---
-    SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
-
     # --- Check for open PRs from previous sessions ---
     OPEN_PR=""
     OPEN_PR_INFO=$(gh pr list --state open --json number,title,headRefName --jq '.[0] // empty' 2>/dev/null || true)
@@ -155,10 +163,44 @@ while true; do
         fi
     fi
 
+    PENTEST_AGENT="${NIGHTSHIFT_PENTEST_AGENT:-$AGENT}"
+    PENTEST_LOG_FILE="$LOG_DIR/${SESSION_ID}-pentest.log"
+    PENTEST_PROMPT=$(build_pentest_prompt)
+
+    if [ -n "$OPEN_PR" ]; then
+        PENTEST_PROMPT="${OPEN_PR}
+
+---
+
+${PENTEST_PROMPT}"
+    fi
+
+    # --- Pentest preflight: red-team before the builder starts ---
+    PENTEST_REPORT=""
+    PENTEST_STATUS=""
+    SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
+    echo "  Pentest preflight (${PENTEST_AGENT})..."
+    run_agent "$PENTEST_AGENT" "$PENTEST_PROMPT" "$PENTEST_LOG_FILE" "$PENTEST_MAX_TURNS"
+    PENTEST_EXIT_CODE=$EXIT_CODE
+    if [ "$PENTEST_EXIT_CODE" -eq 0 ]; then
+        PENTEST_STATUS="success"
+    else
+        PENTEST_STATUS="failed (exit $PENTEST_EXIT_CODE)"
+    fi
+    PENTEST_REPORT=$(extract_result_summary "$PENTEST_LOG_FILE")
+    if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+        echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
+    fi
+    cleanup_prompt_snapshots "$SNAP_DIR"
+    reset_repo_state
+
     # Rebuild prompt each cycle
     PROMPT=$(build_prompt)
 
-    # --- Prompt guard: inject alert from previous cycle ---
+    # --- Prompt guard: snapshot before builder cycle ---
+    SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
+
+    # --- Prompt guard: inject alert from previous cycle or pentest preflight ---
     if [ -f "$PROMPT_ALERT" ]; then
         PROMPT="$(cat "$PROMPT_ALERT")
 
@@ -166,7 +208,7 @@ while true; do
 
 ${PROMPT}"
         rm "$PROMPT_ALERT"
-        echo "  Injected prompt modification alert from previous cycle."
+        echo "  Injected prompt modification alert."
     fi
 
     if [ -n "$OPEN_PR" ]; then
@@ -175,7 +217,25 @@ ${PROMPT}"
 ${PROMPT}"
     fi
 
-    # --- Run the agent ---
+    if [ -n "$PENTEST_REPORT" ]; then
+        PROMPT="PENTEST REPORT FROM PRE-BUILD RED TEAM (${PENTEST_STATUS})
+====================================================
+${PENTEST_REPORT}
+
+Treat the Fix now / Builder handoff items above as your highest-priority internal work.
+Validate them, fix what is real, and explicitly explain any false positives in the handoff.
+
+${PROMPT}"
+    else
+        PROMPT="PENTEST REPORT FROM PRE-BUILD RED TEAM (${PENTEST_STATUS})
+====================================================
+No structured pentest report was produced. Spend a few minutes validating the most fragile
+automation paths yourself before taking on lower-priority work.
+
+${PROMPT}"
+    fi
+
+    # --- Run the builder/fixer agent ---
     run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
 
     # --- Prompt guard: check for self-modification ---
@@ -194,8 +254,14 @@ ${PROMPT}"
 
     # --- Cost tracking ---
     SESSION_COST=$(PYTHONPATH="$REPO_DIR" python3 -c "
-from nightshift.costs import record_session, format_session_cost, total_cost
-entry = record_session('$LOG_FILE', '$COST_FILE', '$SESSION_ID', '$AGENT')
+from nightshift.costs import format_session_cost, record_session_bundle, total_cost
+entry = record_session_bundle(
+    ['$PENTEST_LOG_FILE', '$LOG_FILE'],
+    '$COST_FILE',
+    '$SESSION_ID',
+    '$AGENT',
+    part_agents=['$PENTEST_AGENT', '$AGENT'],
+)
 cumulative = total_cost('$COST_FILE')
 print(f\"{entry['total_cost_usd']:.4f}\")
 print(f\"  Cost: \${entry['total_cost_usd']:.4f} (cumulative: \${cumulative:.2f})\")
@@ -208,9 +274,9 @@ print(format_session_cost(entry))
 
     # --- Session index entry ---
     if [ "$EXIT_CODE" -eq 0 ]; then
-        STATUS="success"
+        STATUS="success (pentest: ${PENTEST_STATUS})"
     else
-        STATUS="failed (exit $EXIT_CODE)"
+        STATUS="failed (exit $EXIT_CODE; pentest: ${PENTEST_STATUS})"
     fi
 
     # Extract feature name and PR from log (best-effort)
