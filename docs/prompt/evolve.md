@@ -344,6 +344,13 @@ EOF
 #    then reads the diff with `gh pr diff <number>`.
 #    Reports PASS or FAIL with specific file:line references.
 
+# 5b. REVIEW NOTES MUST BECOME TASKS
+#     If the review PASSes but flags advisory notes, known limitations,
+#     or follow-up suggestions: you MUST create a follow-up task in
+#     docs/tasks/ for EACH note, with clear acceptance criteria.
+#     "Known limitation" is NOT a valid reason to skip creating a task.
+#     The task queue is the system's memory -- anything not tracked is forgotten.
+
 # 6. If PASS: merge (always --merge to preserve all commits, --admin since you are sole maintainer)
 gh pr merge --merge --delete-branch --admin
 

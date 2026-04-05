@@ -478,6 +478,8 @@ Report: PASS (merge it) or FAIL (list what needs fixing).
 ```
 If the review says FAIL, fix the issues, push again, re-review. Only merge on PASS.
 
+**Review notes MUST become tasks.** If the review passes but flags advisory notes, known limitations, or follow-up suggestions, you MUST either fix them before merging OR create follow-up tasks in `docs/tasks/` with the exact issue and acceptance criteria. "Known limitation" is not a valid disposition — the task queue exists to track deferred work. Dismissing a review note without a task means it disappears from the system's memory.
+
 ### Merge strategy
 - **Always use regular merge** (`--merge`), never `--squash`. Every commit on the branch must be preserved on main. If you made 10 commits, all 10 appear in main's history.
 - **Always use `--admin` flag** when merging PRs. The agent is the sole creator, maintainer, and admin of this repo. No human review approval is required. The sub-agent code review replaces human review.
