@@ -314,6 +314,7 @@ You are not a task runner. You are the engineer who owns this system. Before end
 - **Max 5 tasks per session.** Quality over quantity. Do not flood the queue.
 - **Check for duplicates first.** Scan all pending tasks in `docs/tasks/`. If a task already covers your idea, skip it or update the existing task instead.
 - **Span multiple dimensions.** If you create 3 tasks, they should not all be "code quality." Spread across at least 2 different dimensions.
+- **Vision alignment check.** Before creating tasks, read the last 5 task files (by number). Check their `vision_section` field. If 3+ target the same section, your new tasks MUST prioritize a different section. Check `docs/vision-tracker/TRACKER.md` — lower-percentage sections need more attention. Set `vision_section` in every new task's frontmatter (`loop1`, `loop2`, `self-maintaining`, `meta-prompt`, or `none`). Exception: if a section has urgent bugs or blockers, alignment can be overridden — explain why in the task description.
 - **Specific acceptance criteria required.** "Improve error handling" is not a task. "Add structured error types to config.py with specific messages for each validation failure" is.
 - **Honest priority.** Not everything is urgent. Most generated tasks are `normal` or `low`.
 - **Use `.next-id`** for task numbering (same as always -- read, use, increment, commit).
@@ -322,8 +323,9 @@ You are not a task runner. You are the engineer who owns this system. Before end
 ```
 GENERATED TASKS
 ===============
-#NNNN: [title] (dimension: [which], priority: [level])
-#NNNN: [title] (dimension: [which], priority: [level])
+Vision alignment: [last 5 tasks target: loop1=N, loop2=N, self-maintaining=N, meta-prompt=N, none=N]
+#NNNN: [title] (dimension: [which], vision: [section], priority: [level])
+#NNNN: [title] (dimension: [which], vision: [section], priority: [level])
 ...or "No new tasks -- queue already covers what I observed."
 ```
 
@@ -484,7 +486,8 @@ Manual test suggestion:
 Tracker delta: [XX% -> XX%] (or "no change" if cleanup only)
 
 Generated tasks:
-  - #NNNN: [title] (dimension: [which])
+  Vision alignment: [last 5 target: loop1=N, loop2=N, self-maintaining=N, meta-prompt=N, none=N]
+  - #NNNN: [title] (dimension: [which], vision: [section])
   ...or "No new tasks"
 
 Tasks I did NOT pick and why:
