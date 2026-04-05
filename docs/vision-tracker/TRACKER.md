@@ -116,7 +116,7 @@ The reusable prompt and surrounding docs that make the self-improving loop work.
 
 **Progress bars**: `█` = done, `░` = not done. 20 chars = 100%.
 
-**Percentages**: Calculated as (done components / total components) per section. Overall is weighted: Loop 1 (40%), Loop 2 (30%), Self-Maintaining (15%), Meta-Prompt (15%).
+**Percentages**: Calculated as the average of component percentages within each section (`Done` = 100, `Not started` = 0, `In progress` = listed percentage). Overall is the weighted average: Loop 1 (40%), Loop 2 (30%), Self-Maintaining (15%), Meta-Prompt (15%).
 
 **"Done" means**: Code exists, tests pass, it works in a real run. Not "planned" or "partially implemented".
 
@@ -129,7 +129,7 @@ Every session, after you finish building:
 1. Read this file
 2. Check each component against the actual code (`nightshift/`, `tests/`, `docs/`)
 3. Update status and progress bars for anything that changed
-4. Recalculate section percentages
+4. Recalculate section percentages from the component percentages
 5. Recalculate overall percentage
 6. Update the "Last updated" date at the top
 7. Commit this file alongside your other changes
