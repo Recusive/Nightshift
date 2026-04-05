@@ -487,8 +487,11 @@ persist_healer_changes() {
     git diff --cached --quiet 2>/dev/null && { git checkout main 2>/dev/null || true; return 0; }
     git commit -m "docs: healer observations (${session_id})" 2>/dev/null || { echo "  WARN: healer commit failed"; git checkout main 2>/dev/null || true; return 0; }
     git push -u origin "$branch" 2>/dev/null || { echo "  WARN: healer push failed"; git checkout main 2>/dev/null || true; return 0; }
-    gh pr create --title "docs: healer observations" --body "Automated healer meta-layer observations." 2>/dev/null || { echo "  WARN: healer PR failed"; git checkout main 2>/dev/null || true; return 0; }
-    gh pr merge --merge --delete-branch --admin 2>/dev/null || { echo "  WARN: healer merge failed"; git checkout main 2>/dev/null || true; return 0; }
+    local pr_url
+    pr_url=$(gh pr create --title "docs: healer observations" --body "Automated healer meta-layer observations." 2>/dev/null) || { echo "  WARN: healer PR failed"; git checkout main 2>/dev/null || true; return 0; }
+    local pr_num
+    pr_num=$(echo "$pr_url" | grep -o '[0-9]*$')
+    gh pr merge "$pr_num" --merge --delete-branch --admin 2>/dev/null || { echo "  WARN: healer merge failed"; git checkout main 2>/dev/null || true; return 0; }
 
     git checkout main 2>/dev/null || true
     git reset --hard origin/main 2>/dev/null || true
