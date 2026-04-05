@@ -301,9 +301,13 @@ Before generating tasks, observe the system like a human checking in. This repla
    - Sessions getting slower or more expensive?
    - Same task appearing in handoffs repeatedly without getting done?
    - Consecutive failures?
-2. Read `docs/healer/log.md` -- your previous observations. Don't repeat yourself.
-3. Check the task queue -- any tasks pending 5+ sessions? Any blocked with weak reasons?
-4. Check the vision tracker -- has it moved? Or are sessions doing work that doesn't advance it?
+2. Run `python3 -c "from nightshift.costs import cost_analysis; import pprint; pprint.pp(cost_analysis('docs/sessions'))"` and use it for cost claims.
+   - Which task types are expensive vs cheap?
+   - Which model is buying tests or tracker progress per dollar?
+   - Which sessions are clear cost outliers?
+3. Read `docs/healer/log.md` -- your previous observations. Don't repeat yourself.
+4. Check the task queue -- any tasks pending 5+ sessions? Any blocked with weak reasons?
+5. Check the vision tracker -- has it moved? Or are sessions doing work that doesn't advance it?
 
 Think in **trends**, not point failures. "Test count wrong" is a point failure. "Builder has shipped 3 sessions without updating the tracker" is a trend.
 

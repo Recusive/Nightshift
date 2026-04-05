@@ -37,6 +37,7 @@ docs/handoffs/LATEST.md
 docs/evaluations/ (all files)
 docs/learnings/ (all files)
 docs/sessions/index.md
+python3 -c "from nightshift.costs import cost_analysis; import pprint; pprint.pp(cost_analysis('docs/sessions'))"
 docs/sessions/index-review.md (if exists)
 docs/vision-tracker/TRACKER.md
 docs/tasks/ (scan pending vs done ratio)
@@ -48,6 +49,9 @@ Also check:
 - Are evaluation scores trending up or down?
 - Is the task queue growing or shrinking?
 - Are learnings being repeated (same mistake multiple times)?
+- Which task types cost the most?
+- Which model buys the most tests or tracker progress per dollar?
+- Which sessions were clear cost outliers, and were they worth it?
 
 ### Prompt effectiveness evidence
 
@@ -81,7 +85,7 @@ You are also auditing whether the system prompt is actually helping.
 
 ## STEP 2 — DIAGNOSE
 
-Organize your findings into four buckets:
+Organize your findings into five buckets:
 
 ### What's Working
 Things the system is doing well. Be specific — which processes, which prompts, which checks are actually catching problems or producing good output.
@@ -92,8 +96,16 @@ Things that are broken, slow, wasteful, or producing bad results. Reference the 
 ### What's Missing
 Gaps in the system that no current process addresses. Things that a human CTO would notice but the automated system can't see.
 
+### Cost Intelligence
+Add a dedicated section on cost effectiveness:
+
+- Which task types have the highest and lowest average cost?
+- Which models have the best cost-per-test-added and cost-per-tracker-delta ratios?
+- Which sessions were 2x+ more expensive than peer sessions of the same task type?
+- Use `nightshift.costs.cost_analysis('docs/sessions')` plus session evidence; do not hand-wave spend claims.
+
 ### Prompt Health
-Add a fourth diagnostic section for prompt effectiveness:
+Add a fifth diagnostic section for prompt effectiveness:
 
 - Which prompt instructions clearly improved outcomes?
 - Which instructions were routinely ignored?
@@ -150,6 +162,10 @@ Save to `docs/strategy/YYYY-MM-DD.md`:
 
 ## What's Missing
 1. [gap with explanation]
+
+## Cost Intelligence
+1. [task-type or model efficiency insight with evidence]
+2. [outlier or trend with evidence]
 
 ## Prompt Health
 
