@@ -469,6 +469,7 @@ def build_prompt(
 {prior_lines}
 
         Required behavior:
+        - Do not read or write files outside this isolated worktree, except for commands that operate on the current git metadata inside the worktree itself.
         - If a fix would exceed the limits, log the issue instead of editing.
         - If baseline verification is failing, do not make code changes; update the shift log with logged issues only.
         - One commit per accepted fix. Stage the shift log alongside your fix files so both ship in the same commit: `git add <fix-files> {shift_log_relative} && git commit`. If co-committing is not possible, make a separate shift-log-only commit immediately after.
@@ -480,6 +481,7 @@ def build_prompt(
         - If you need extra confidence, only run narrow, file-scoped checks that do not require background IPC servers or long-lived watchers.
         - Avoid repo-wide package-manager commands like `npm test`, `npm run lint`, `npm run build`, `pnpm test`, `pnpm lint`, `pnpm build`, `yarn test`, or `bun test` inside the cycle unless they are clearly file-scoped and sandbox-safe. Many JavaScript toolchains spawn IPC servers or duplicate the runner's own final verification.
         - Do not add dependencies, do not delete files, and do not edit CI/deploy/generated artifacts.
+        - Do not access personal memory systems, home-directory notes, sibling repositories, or any path outside the target repo. If more context seems necessary, log the gap instead of leaving the worktree boundary.
         - Do not invoke Nightshift recursively. Never run `nightshift.py`, `run.sh`, `test.sh`, `codex exec`, or `claude -p` from inside this cycle.
 
         Category mix guidance:

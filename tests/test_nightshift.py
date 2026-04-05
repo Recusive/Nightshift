@@ -1348,6 +1348,11 @@ class TestBuildPrompt:
         assert "5 files per fix" in prompt
         assert "12 total files" in prompt
 
+    def test_forbids_leaving_worktree_boundary(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "Do not read or write files outside this isolated worktree" in prompt
+        assert "Do not access personal memory systems" in prompt
+
     def test_contains_blocked_paths(self):
         prompt = nightshift.build_prompt(**self._base_args())
         assert ".github/" in prompt
