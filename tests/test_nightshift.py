@@ -6276,7 +6276,7 @@ class TestParseSessionTokens:
 
     def test_malformed_json_lines_skipped(self, tmp_path: Path) -> None:
         log = tmp_path / "bad.log"
-        lines = ["not json", "{bad json"] + _make_log_lines(messages=1)
+        lines = ["not json", "{bad json", *_make_log_lines(messages=1)]
         log.write_text("\n".join(lines) + "\n")
         cost = nightshift.parse_session_tokens(str(log))
         assert cost["input_tokens"] == 10
@@ -6287,7 +6287,8 @@ class TestParseSessionTokens:
         lines = [
             json.dumps({"type": "system", "subtype": "init"}),
             json.dumps({"type": "user", "message": {"content": "hi"}}),
-        ] + _make_log_lines(messages=1)
+            *_make_log_lines(messages=1),
+        ]
         log.write_text("\n".join(lines) + "\n")
         cost = nightshift.parse_session_tokens(str(log))
         assert cost["input_tokens"] == 10
