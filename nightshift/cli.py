@@ -27,7 +27,7 @@ from nightshift.cycle import (
 from nightshift.errors import NightshiftError
 from nightshift.feature import build_feature
 from nightshift.multi import run_multi_shift
-from nightshift.planner import build_plan_prompt, format_plan, parse_plan, scope_check
+from nightshift.planner import build_plan_prompt, format_plan, parse_plan, run_plan_agent, scope_check
 from nightshift.profiler import profile_repo
 from nightshift.scoring import score_diff
 from nightshift.shell import command_exists, git, run_command
@@ -378,6 +378,16 @@ def plan_feature(args: argparse.Namespace) -> int:
         plan = parse_plan(raw_output)
         if plan is None:
             raise NightshiftError("Could not parse a valid feature plan from the result file.")
+        warning = scope_check(plan)
+        if warning:
+            print_status(f"WARNING: {warning}")
+            print_status("")
+        print(format_plan(plan))
+        return 0
+
+    # If --agent is provided, invoke the agent to generate the plan
+    if args.agent:
+        plan = run_plan_agent(repo_dir, feature_description, args.agent, profile)
         warning = scope_check(plan)
         if warning:
             print_status(f"WARNING: {warning}")

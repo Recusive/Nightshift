@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from nightshift.constants import (
+    PLAN_AGENT_MAX_TURNS,
+    PLAN_AGENT_TIMEOUT,
     PLAN_MAX_FILES_PER_TASK,
     PLAN_MAX_TASKS,
     PLAN_MAX_TOTAL_FILES,
     PLAN_PROMPT_TEMPLATE,
+    print_status,
 )
 from nightshift.cycle import extract_json
+from nightshift.errors import NightshiftError
+from nightshift.shell import command_exists, run_command
 from nightshift.types import (
     ArchitectureDoc,
     FeaturePlan,
@@ -392,3 +399,69 @@ def scope_check(plan: FeaturePlan) -> str | None:
             "Consider breaking this feature into phases."
         )
     return None
+
+
+def plan_command_for_agent(agent: str, prompt: str) -> list[str]:
+    """Build the CLI command to invoke an agent for plan generation.
+
+    Unlike the cycle command_for_agent, this does not require schema or
+    message paths since the plan agent only produces text output.
+    """
+    if agent == "codex":
+        return [
+            "codex",
+            "exec",
+            "-c",
+            'approval_policy="never"',
+            prompt,
+        ]
+    if agent == "claude":
+        return [
+            "claude",
+            "-p",
+            prompt,
+            "--max-turns",
+            str(PLAN_AGENT_MAX_TURNS),
+            "--verbose",
+        ]
+    raise NightshiftError(f"Unsupported agent: {agent}")
+
+
+def run_plan_agent(
+    repo_dir: Path,
+    feature_description: str,
+    agent: str,
+    profile: RepoProfile,
+) -> FeaturePlan:
+    """Invoke an agent to generate a feature plan and return the parsed result.
+
+    Profiles the repo, builds the planning prompt, runs the agent, and parses
+    the output into a validated FeaturePlan.
+
+    Raises NightshiftError if the agent is not installed, fails, or produces
+    unparseable output.
+    """
+    if not command_exists(agent):
+        raise NightshiftError(f"`{agent}` is not installed or not on PATH.")
+
+    prompt = build_plan_prompt(profile, feature_description)
+    cmd = plan_command_for_agent(agent, prompt)
+
+    print_status(f"Running {agent} to generate feature plan...")
+    exit_code, raw_output = run_command(
+        cmd,
+        cwd=repo_dir,
+        timeout_seconds=PLAN_AGENT_TIMEOUT,
+    )
+
+    if exit_code != 0:
+        raise NightshiftError(f"Agent `{agent}` exited with code {exit_code}. Check the output above for details.")
+
+    plan = parse_plan(raw_output)
+    if plan is None:
+        raise NightshiftError(
+            "Agent produced output but it could not be parsed into a valid feature plan. "
+            "The output may not contain valid JSON or may be missing required fields."
+        )
+
+    return plan

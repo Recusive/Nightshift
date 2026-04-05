@@ -490,6 +490,14 @@ INTEGRATOR_MAX_FIX_ATTEMPTS = 3
 # Timeout for running the test suite during integration (seconds).
 INTEGRATOR_TEST_TIMEOUT = 300
 
+# --- Plan agent data ---------------------------------------------------------
+
+# Max turns for plan-generation agent invocations (planning produces JSON, not code).
+PLAN_AGENT_MAX_TURNS = 10
+
+# Timeout in seconds for a plan-generation agent invocation.
+PLAN_AGENT_TIMEOUT = 300
+
 # --- Feature build orchestration ---------------------------------------------
 
 FEATURE_STATE_PATH = "docs/Nightshift/feature-build.state.json"
