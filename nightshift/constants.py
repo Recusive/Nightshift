@@ -630,6 +630,9 @@ COST_LEDGER_FILENAME = "costs.json"
 # Default number of days to keep session logs before rotation.
 DEFAULT_KEEP_LOGS_DAYS = 7
 
+# Number of numbered handoff files that triggers auto-compaction.
+HANDOFF_COMPACTION_THRESHOLD = 7
+
 # Branch name prefixes created by nightshift daemons -- only these are
 # candidates for orphan pruning. Other branches are left untouched.
 DAEMON_BRANCH_PREFIXES = (

@@ -273,6 +273,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | `scoring.py` | Post-cycle diff scoring | `score_diff()`, `diff_line_score()`, `has_test_files()` |
 | `costs.py` | Session cost tracking | `record_session()`, `parse_session_tokens()`, `calculate_cost()`, `read_ledger()`, `write_ledger()`, `total_cost()`, `format_session_cost()`, `default_ledger_path()` |
 | `cleanup.py` | Daemon housekeeping | `rotate_logs()`, `prune_orphan_branches()` |
+| `compact.py` | Handoff compaction | `compact_handoffs()` |
 | `multi.py` | Multi-repo orchestration | `run_multi_shift()`, `validate_repos()`, `format_multi_summary()` |
 | `profiler.py` | Repo analysis for Loop 2 | `profile_repo()` |
 | `planner.py` | Feature planning for Loop 2 | `build_plan_prompt()`, `validate_plan()`, `parse_plan()`, `execution_order()`, `format_plan()`, `scope_check()` |

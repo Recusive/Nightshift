@@ -13,6 +13,7 @@ from nightshift.cli import (
     summarize,
     verify_cycle_cli,
 )
+from nightshift.compact import compact_handoffs
 from nightshift.config import (
     infer_install_command,
     infer_lint_command,
@@ -41,6 +42,7 @@ from nightshift.constants import (
     FORBIDDEN_CYCLE_COMMANDS,
     FRONTEND_DIR_NAMES,
     FRONTEND_EXTENSIONS,
+    HANDOFF_COMPACTION_THRESHOLD,
     INTEGRATOR_MAX_FIX_ATTEMPTS,
     INTEGRATOR_TEST_TIMEOUT,
     MODEL_PRICING,
@@ -155,6 +157,7 @@ from nightshift.types import (
     ArchitectureDoc,
     Baseline,
     BranchPruneResult,
+    CompactionResult,
     CostLedger,
     Counters,
     CycleEntry,
@@ -217,6 +220,7 @@ __all__ = [
     "FORBIDDEN_CYCLE_COMMANDS",
     "FRONTEND_DIR_NAMES",
     "FRONTEND_EXTENSIONS",
+    "HANDOFF_COMPACTION_THRESHOLD",
     "INTEGRATOR_MAX_FIX_ATTEMPTS",
     "INTEGRATOR_TEST_TIMEOUT",
     "MODEL_PRICING",
@@ -234,6 +238,7 @@ __all__ = [
     "ArchitectureDoc",
     "Baseline",
     "BranchPruneResult",
+    "CompactionResult",
     "CostLedger",
     "Counters",
     "CycleEntry",
@@ -280,6 +285,7 @@ __all__ = [
     "collect_wave_files",
     "command_exists",
     "command_for_agent",
+    "compact_handoffs",
     "confirm_feature_build",
     "decompose_plan",
     "default_ledger_path",
