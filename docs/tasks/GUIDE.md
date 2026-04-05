@@ -41,6 +41,7 @@ The archive is permanent history. Never delete archived tasks.
 status: pending
 priority: normal
 target: v0.0.X
+vision_section: loop2
 created: YYYY-MM-DD
 completed:
 ---
@@ -74,6 +75,21 @@ What to build and why.
 **skipped_by**: list of session IDs that read this task and chose not to do it (appended automatically)
 
 **target**: version from `docs/ops/OPERATIONS.md` milestones. Current in-progress if unsure.
+
+**vision_section**: (optional) Which tracker section this task advances: `loop1` | `loop2` | `self-maintaining` | `meta-prompt` | `none`. Set this when creating tasks so future sessions can check alignment. If omitted, the task is assumed to be `none` (internal cleanup).
+
+## Vision-alignment rule
+
+The task queue can drift — all tasks end up targeting the same vision section while other sections stagnate. Before creating new tasks, check alignment:
+
+1. Read the last 5 tasks created (by number, regardless of status)
+2. Count how many target each `vision_section`
+3. If 3 or more of the last 5 target the **same** section, your new tasks **must** prioritize a different section
+4. Check `docs/vision-tracker/TRACKER.md` — sections with lower percentages need more tasks
+
+**How to flag:** If you notice the queue is skewed (e.g., 4 of last 5 tasks are all `meta-prompt`), note it in the handoff under "Vision alignment" so the next session is aware.
+
+**Exception:** If a section genuinely has urgent work (bugs, blockers), alignment can be overridden — but you must explain why in the task description.
 
 ## When the agent finishes a task
 
