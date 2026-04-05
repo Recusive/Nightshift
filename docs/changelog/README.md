@@ -47,3 +47,5 @@ Beta period (`0.x.x`): breaking changes can happen in any release.
 | [v0.0.3](v0.0.3.md) | 2026-04-03 | Intelligence | Released | Diff scorer, state injection, test incentives, backend forcing, Phractal validation |
 | [v0.0.4](v0.0.4.md) | 2026-04-03 | Agent Quality | Released | Category balancing, shift-log tolerance, PR #13 hardening, focus path improvements |
 | [v0.0.5](v0.0.5.md) | 2026-04-03 | Multi-Repo | Released | Multi-repo support, Loop 1 complete at 100% |
+| [v0.0.6](v0.0.6.md) | TBD | Loop 2 Foundation | In progress | Profiler, planner, decomposer, sub-agent, integrator, build CLI |
+| [v0.0.7](v0.0.7.md) | TBD | Security Hardening | In progress | Prompt injection protection for target repos |

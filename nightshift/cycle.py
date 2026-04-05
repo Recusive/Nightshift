@@ -18,6 +18,9 @@ from nightshift.constants import (
     FRONTEND_DIR_NAMES,
     FRONTEND_EXTENSIONS,
     HIGH_SIGNAL_PATH_CANDIDATES,
+    INSTRUCTION_FILE_NAMES,
+    UNTRUSTED_INSTRUCTIONS_PREAMBLE,
+    UNTRUSTED_INSTRUCTIONS_SUFFIX,
     print_status,
 )
 from nightshift.errors import NightshiftError
@@ -61,6 +64,36 @@ def extract_json(text: str) -> dict[str, Any] | None:
         if isinstance(loaded, dict) and payload[index + end_index :].strip() == "":
             return loaded
     return None
+
+
+def read_repo_instructions(repo_dir: Path) -> str:
+    """Read instruction files from a target repo and return their combined content.
+
+    Scans for known instruction file names (CLAUDE.md, AGENTS.md, etc.)
+    and returns the content of all that exist, labeled by filename.
+    Returns an empty string if no instruction files are found.
+    """
+    sections: list[str] = []
+    for name in INSTRUCTION_FILE_NAMES:
+        file_path = repo_dir / name
+        if file_path.is_file():
+            try:
+                content = file_path.read_text(encoding="utf-8").strip()
+                if content:
+                    sections.append(f"--- {name} ---\n{content}\n--- end {name} ---")
+            except OSError:
+                continue
+    return "\n\n".join(sections)
+
+
+def wrap_repo_instructions(raw_instructions: str) -> str:
+    """Wrap raw instruction file content in an untrusted context block.
+
+    Returns an empty string if the input is empty.
+    """
+    if not raw_instructions.strip():
+        return ""
+    return f"{UNTRUSTED_INSTRUCTIONS_PREAMBLE}\n{raw_instructions}\n\n{UNTRUSTED_INSTRUCTIONS_SUFFIX}"
 
 
 def command_for_agent(
@@ -330,6 +363,7 @@ def build_prompt(
     test_mode: bool,
     backend_escalation: str = "",
     category_balancing: str = "",
+    repo_instructions: str = "",
 ) -> str:
     hot_files_lines = "\n".join(f"- `{entry}`" for entry in hot_files[:10]) or "- None"
     prior_paths = "\n".join(f"- `{entry}`" for entry in prior_path_bias[-2:]) or "- None"
@@ -357,13 +391,17 @@ def build_prompt(
     if category_balancing:
         indented_category = textwrap.indent(category_balancing, "        ")
         category_block = f"\n        Category balancing directive:\n{indented_category}\n"
+    instructions_block = ""
+    if repo_instructions:
+        wrapped = wrap_repo_instructions(repo_instructions)
+        indented_instructions = textwrap.indent(wrapped, "        ")
+        instructions_block = f"\n{indented_instructions}\n"
     return textwrap.dedent(
         f"""
         You are Nightshift running inside an isolated git worktree. Do not create a worktree, do not switch branches, and do not touch the user's original checkout.
 
-        Read these first:
-        1. The repo's AGENTS.md / CLAUDE.md / equivalent instructions.
-        2. The existing shift log at `{shift_log_relative}`.
+        Read the existing shift log at `{shift_log_relative}` before starting.
+{instructions_block}
 
         Cycle context:
         - Cycle: {cycle}

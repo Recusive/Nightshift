@@ -21,6 +21,7 @@ from nightshift.cycle import (
     extract_json,
     high_signal_focus_paths,
     parse_cycle_result,
+    read_repo_instructions,
     recent_hot_files,
     verify_cycle,
 )
@@ -83,6 +84,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         cycle_minutes = int(config["cycle_minutes"])
 
     blocked_summary = "\n".join(f"- `{entry}`" for entry in [*config["blocked_paths"], *config["blocked_globs"]])
+    target_repo_instructions = read_repo_instructions(repo_dir)
     dry_run_cycle = len(state["cycles"]) + 1
     dry_run_final = total_cycles is not None and dry_run_cycle == total_cycles
     dry_run_hot_files = recent_hot_files(repo_dir)
@@ -110,6 +112,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         test_mode=test_mode,
         backend_escalation=backend_esc,
         category_balancing=category_esc,
+        repo_instructions=target_repo_instructions,
     )
     if args.dry_run:
         print(prompt)
@@ -188,6 +191,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             test_mode=test_mode,
             backend_escalation=backend_esc,
             category_balancing=category_esc,
+            repo_instructions=target_repo_instructions,
         )
 
         message_path = docs_dir / f"{today}.cycle-{cycle_number}.json"
