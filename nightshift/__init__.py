@@ -23,6 +23,7 @@ from nightshift.config import (
     resolve_agent,
 )
 from nightshift.constants import (
+    AGENT_DEFAULT_MODELS,
     BACKEND_DIR_NAMES,
     BACKEND_EXTENSIONS,
     CATEGORY_ORDER,
@@ -198,6 +199,7 @@ from nightshift.worktree import (
 )
 
 __all__ = [
+    "AGENT_DEFAULT_MODELS",
     "BACKEND_DIR_NAMES",
     "BACKEND_EXTENSIONS",
     "CATEGORY_ORDER",

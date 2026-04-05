@@ -6,15 +6,28 @@ import json
 import os
 from pathlib import Path
 
-from nightshift.constants import COST_LEDGER_FILENAME, MODEL_PRICING
+from nightshift.constants import AGENT_DEFAULT_MODELS, COST_LEDGER_FILENAME, MODEL_PRICING
 from nightshift.types import CostLedger, SessionCost
 
 
-def parse_session_tokens(log_path: str) -> SessionCost:
+def parse_session_tokens(log_path: str, *, model_hint: str = "") -> SessionCost:
     """Parse a stream-json session log and sum token usage across all messages.
 
-    Extracts usage data from Claude's ``message.usage`` fields. For unknown
-    log formats the returned counts are all zero.
+    Supports two log formats:
+
+    * **Claude** (``type: "assistant"``): usage nested under ``message.usage``
+      with ``input_tokens``, ``cache_creation_input_tokens``,
+      ``cache_read_input_tokens``, and ``output_tokens``.
+    * **Codex/OpenAI** (``type: "turn.completed"``): usage at the event top
+      level with ``input_tokens`` (total, including cached),
+      ``cached_input_tokens``, and ``output_tokens``.
+
+    For Codex events, ``input_tokens`` includes cached tokens.  The parser
+    subtracts ``cached_input_tokens`` so the returned ``input_tokens`` field
+    reflects only non-cached input (charged at full rate).
+
+    *model_hint* is used as the model when the log itself does not contain a
+    model identifier (common for Codex logs).
     """
     input_tokens = 0
     cache_creation_tokens = 0
@@ -24,7 +37,7 @@ def parse_session_tokens(log_path: str) -> SessionCost:
 
     path = Path(log_path)
     if not path.exists():
-        return _empty_cost("", "", "")
+        return _empty_cost("", "", model_hint or "")
 
     with path.open() as fh:
         for line in fh:
@@ -36,29 +49,50 @@ def parse_session_tokens(log_path: str) -> SessionCost:
             except (json.JSONDecodeError, ValueError):
                 continue
 
-            if event.get("type") != "assistant":
-                continue
+            event_type = event.get("type")
 
-            msg = event.get("message")
-            if not isinstance(msg, dict):
-                continue
+            # --- Claude format: type="assistant", usage under message ---
+            if event_type == "assistant":
+                msg = event.get("message")
+                if not isinstance(msg, dict):
+                    continue
 
-            # Capture model from the first assistant message that has one.
-            if not model:
-                msg_model = msg.get("model", "")
-                if isinstance(msg_model, str) and msg_model:
-                    model = msg_model
+                if not model:
+                    msg_model = msg.get("model", "")
+                    if isinstance(msg_model, str) and msg_model:
+                        model = msg_model
 
-            usage = msg.get("usage")
-            if not isinstance(usage, dict):
-                continue
+                usage = msg.get("usage")
+                if not isinstance(usage, dict):
+                    continue
 
-            input_tokens += _int(usage.get("input_tokens"))
-            cache_creation_tokens += _int(usage.get("cache_creation_input_tokens"))
-            cache_read_tokens += _int(usage.get("cache_read_input_tokens"))
-            output_tokens += _int(usage.get("output_tokens"))
+                input_tokens += _int(usage.get("input_tokens"))
+                cache_creation_tokens += _int(usage.get("cache_creation_input_tokens"))
+                cache_read_tokens += _int(usage.get("cache_read_input_tokens"))
+                output_tokens += _int(usage.get("output_tokens"))
 
-    return _empty_cost("", "", model, input_tokens, cache_creation_tokens, cache_read_tokens, output_tokens)
+            # --- Codex/OpenAI format: type="turn.completed", usage at top ---
+            elif event_type == "turn.completed":
+                usage = event.get("usage")
+                if not isinstance(usage, dict):
+                    continue
+
+                raw_input = _int(usage.get("input_tokens"))
+                cached = _int(usage.get("cached_input_tokens"))
+                input_tokens += max(0, raw_input - cached)
+                cache_read_tokens += cached
+                output_tokens += _int(usage.get("output_tokens"))
+
+    resolved_model = model or model_hint
+    return _empty_cost(
+        "",
+        "",
+        resolved_model,
+        input_tokens,
+        cache_creation_tokens,
+        cache_read_tokens,
+        output_tokens,
+    )
 
 
 def calculate_cost(
@@ -124,7 +158,8 @@ def record_session(
     agent: str,
 ) -> SessionCost:
     """Parse a session log, calculate cost, append to the ledger, and return the cost entry."""
-    tokens = parse_session_tokens(log_path)
+    model_hint = AGENT_DEFAULT_MODELS.get(agent, "")
+    tokens = parse_session_tokens(log_path, model_hint=model_hint)
     cost_usd = calculate_cost(
         tokens["model"],
         tokens["input_tokens"],
