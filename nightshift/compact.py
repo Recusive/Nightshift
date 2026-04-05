@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 from pathlib import Path
+from typing import TypedDict
 
 from nightshift.constants import HANDOFF_COMPACTION_THRESHOLD
 from nightshift.types import CompactionResult
@@ -25,6 +26,18 @@ _VERSION_RE = re.compile(r"\*\*Version\*\*:\s*(.+)")
 _SESSION_RE = re.compile(r"^#\s+Handoff\s+#(\d+)")
 
 
+class _ParsedHandoff(TypedDict):
+    """Internal schema extracted from numbered handoff files."""
+
+    session: str
+    date: str
+    version: str
+    built: str
+    decisions: str
+    known_issues: str
+    state: str
+
+
 def _numbered_handoff_files(handoffs_dir: Path) -> list[Path]:
     """Return numbered handoff files sorted by name."""
     files: list[Path] = []
@@ -37,14 +50,14 @@ def _numbered_handoff_files(handoffs_dir: Path) -> list[Path]:
     return files
 
 
-def _parse_handoff(path: Path) -> dict[str, str]:
+def _parse_handoff(path: Path) -> _ParsedHandoff:
     """Extract key fields from a handoff file.
 
     Returns a dict with keys: session, date, version, built, decisions,
     known_issues, state.  Missing sections default to empty string.
     """
     text = path.read_text(encoding="utf-8")
-    result: dict[str, str] = {
+    result: _ParsedHandoff = {
         "session": "",
         "date": "",
         "version": "",
@@ -152,7 +165,7 @@ def _unique_weekly_path(weekly_dir: Path, week_str: str) -> Path:
 
 
 def _build_weekly_summary(
-    parsed: list[dict[str, str]],
+    parsed: list[_ParsedHandoff],
     first_session: str,
     last_session: str,
 ) -> str:
@@ -259,7 +272,7 @@ def compact_handoffs(
         return {"compacted": [], "weekly_file": "", "errors": []}
 
     # Parse all files
-    parsed: list[dict[str, str]] = []
+    parsed: list[_ParsedHandoff] = []
     for f in files:
         try:
             parsed.append(_parse_handoff(f))
@@ -274,7 +287,7 @@ def compact_handoffs(
     last_session = files[-1].stem
 
     # Determine week from the first file's date
-    first_date = parsed[0].get("date", "")
+    first_date = parsed[0]["date"]
     week_str = _iso_week_string(first_date) if first_date else "unknown"
 
     # Write weekly summary
