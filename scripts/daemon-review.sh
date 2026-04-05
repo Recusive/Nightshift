@@ -6,7 +6,7 @@
 # file by file and makes it better. No features, just quality.
 #
 # Usage:
-#   ./scripts/daemon-review.sh              # claude, 60s pause, unlimited
+#   ./scripts/daemon-review.sh              # interactive setup (prompts for agent + duration)
 #   ./scripts/daemon-review.sh codex        # codex agent
 #   ./scripts/daemon-review.sh claude 120   # 120s pause
 #   ./scripts/daemon-review.sh claude 60 10 # stop after 10 sessions
@@ -20,9 +20,14 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib-agent.sh"
-AGENT="${1:-claude}"
-PAUSE="${2:-60}"
-MAX_SESSIONS="${3:-0}"
+if [ $# -eq 0 ]; then
+    PAUSE=60
+    interactive_setup "review daemon"
+else
+    AGENT="${1:-claude}"
+    PAUSE="${2:-60}"
+    MAX_SESSIONS="${3:-0}"
+fi
 LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index-review.md"
 REVIEW_PROMPT="$REPO_DIR/docs/prompt/review.md"

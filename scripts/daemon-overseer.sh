@@ -6,7 +6,7 @@
 # direction. Fixes systemic issues the builder can't see.
 #
 # Usage:
-#   ./scripts/daemon-overseer.sh              # claude, 120s pause, unlimited
+#   ./scripts/daemon-overseer.sh              # interactive setup (prompts for agent + duration)
 #   ./scripts/daemon-overseer.sh codex        # codex agent
 #   ./scripts/daemon-overseer.sh claude 300   # 5min pause between audits
 #   ./scripts/daemon-overseer.sh claude 120 5 # stop after 5 audits
@@ -20,9 +20,14 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib-agent.sh"
-AGENT="${1:-claude}"
-PAUSE="${2:-120}"
-MAX_SESSIONS="${3:-0}"
+if [ $# -eq 0 ]; then
+    PAUSE=120
+    interactive_setup "overseer daemon"
+else
+    AGENT="${1:-claude}"
+    PAUSE="${2:-120}"
+    MAX_SESSIONS="${3:-0}"
+fi
 LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index-overseer.md"
 OVERSEER_PROMPT="$REPO_DIR/docs/prompt/overseer.md"

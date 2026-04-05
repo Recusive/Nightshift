@@ -49,7 +49,7 @@ The primary daemon. Picks up tasks, builds features, tests, PRs, merges. Each se
 ### Quick start (run in foreground)
 
 ```bash
-./scripts/daemon.sh              # claude agent, 60s pause, unlimited sessions
+./scripts/daemon.sh              # interactive setup (prompts for agent + duration)
 ./scripts/daemon.sh codex        # codex agent
 ./scripts/daemon.sh claude 120   # 120s pause between sessions
 ./scripts/daemon.sh claude 60 5  # stop after 5 sessions
@@ -419,7 +419,7 @@ Loops forever like the builder, but with a different mission: code quality.
 
 ```bash
 # Foreground
-./scripts/daemon-review.sh              # claude, 60s pause, unlimited
+./scripts/daemon-review.sh              # interactive setup (prompts for agent + duration)
 ./scripts/daemon-review.sh claude 60 5  # stop after 5 sessions
 
 # tmux (recommended)
@@ -458,7 +458,7 @@ Runs ONCE. Not a loop. Produces a strategy report for the human.
 ### Running it
 
 ```bash
-./scripts/daemon-strategist.sh          # claude
+./scripts/daemon-strategist.sh          # interactive setup (prompts for agent)
 ./scripts/daemon-strategist.sh codex    # codex
 
 # make

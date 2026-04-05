@@ -7,8 +7,8 @@
 # and presents it to the human for decisions.
 #
 # Run it when you want to check on the system:
-#   ./scripts/daemon-strategist.sh
-#   ./scripts/daemon-strategist.sh codex
+#   ./scripts/daemon-strategist.sh           # interactive setup (prompts for agent)
+#   ./scripts/daemon-strategist.sh codex     # skip prompts, use codex
 #
 # It does NOT loop. It does NOT build. It advises.
 # ──────────────────────────────────────────────
@@ -18,7 +18,11 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib-agent.sh"
-AGENT="${1:-claude}"
+if [ $# -eq 0 ]; then
+    interactive_setup_strategist
+else
+    AGENT="${1:-claude}"
+fi
 LOG_DIR="$REPO_DIR/docs/sessions"
 STRATEGIST_PROMPT="$REPO_DIR/docs/prompt/strategist.md"
 PROMPT_ALERT="$LOG_DIR/prompt-alert.md"
