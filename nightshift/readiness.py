@@ -70,6 +70,8 @@ def check_secrets(
     all_hits: list[str] = []
     for rel_path in files:
         abs_path = repo_dir / rel_path
+        if abs_path.is_symlink():
+            continue
         if not abs_path.is_file():
             continue
         if not _is_source_file(rel_path):
@@ -94,6 +96,8 @@ def check_debug_prints(
     all_hits: list[str] = []
     for rel_path in files:
         abs_path = repo_dir / rel_path
+        if abs_path.is_symlink():
+            continue
         if not abs_path.is_file():
             continue
         if not _is_source_file(rel_path):
@@ -156,7 +160,7 @@ def check_test_coverage(
     uncovered: list[str] = []
     for rel_path in production_files:
         candidates = _test_file_candidates(rel_path)
-        found = any((repo_dir / c).is_file() for c in candidates)
+        found = any((repo_dir / c).is_file() and not (repo_dir / c).is_symlink() for c in candidates)
         if not found:
             uncovered.append(rel_path)
 
