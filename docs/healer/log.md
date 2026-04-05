@@ -71,3 +71,17 @@ Observations from the meta-layer observer. Newest entries first.
 - **Queue health is stable.** 1 task completed (#0033), 2 new tasks to be generated. Active pending count should stay roughly flat. No urgent items remain. The 12 low-priority tasks continue to age without attention.
 
 - **Learnings verification now closes the loop.** Prior to this session, learnings were write-only -- agents wrote them but nothing verified they were read. Now there's a production point (Step 1 status report), persistence point (handoff), and verification point (pre-push checklist). First real test will be the next daemon session.
+
+---
+
+## 2026-04-05 -- Session #0034 (CONTRIBUTING.md)
+
+**System health:** good
+
+- **Meta-prompt clustering broken.** This session (#0034, CONTRIBUTING.md) is the first non-meta-prompt session since session #0032's healer fix. 7 consecutive meta-prompt sessions are over. The task queue drove the break -- #0040 was the lowest-numbered normal-priority pending task and targets no specific vision section.
+
+- **Queue discipline holding.** Followed queue order (#0040) despite the handoff advising #0059 (loop2). The "task selection is mesa-optimization" learning is working -- agents are respecting queue authority over value scoring.
+
+- **Incomplete task archiving from between-session cleanup.** Tasks #0031, #0033, #0061 were deleted from docs/tasks/ and copies exist in docs/tasks/archive/, but the deletions were never committed. The daemon's housekeeping step ran but didn't persist. This session will commit the cleanup. Not a trend yet, but worth watching -- if archiving keeps failing, the active queue count will inflate.
+
+- **Cost data not available for this session.** Running as interactive Claude Code, not via daemon.sh. No stream-json log to parse. Sessions outside the daemon loop don't get cost tracking.
