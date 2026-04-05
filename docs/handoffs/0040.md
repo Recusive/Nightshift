@@ -53,6 +53,8 @@ Learnings applied: "Readiness checks as pure file scanners" + "Thread config thr
 Generated tasks:
   Vision alignment: [last 5 target: loop2=2, self-maintaining=1, none=2]
   - #0088: Auto-changelog from PR metadata (self-maintaining)
+  - #0089: Update OPERATIONS.md module table (review advisory, low)
+  - #0090: Include failed tasks in detect_file_conflicts scan (review advisory, low)
 
 ## Tasks I Did NOT Pick and Why
 - #0012: environment: integration (needs API access)
