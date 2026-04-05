@@ -100,6 +100,23 @@ E2E_SMOKE_CANDIDATES: list[str] = [
 # Timeout in seconds for each E2E test command invocation.
 E2E_TEST_TIMEOUT = 300
 
+# --- Sub-agent coordination data ---------------------------------------------
+
+# Regex to extract file-path-like references from natural language text.
+# Matches strings with at least one `/` separator and optional extension,
+# e.g. "src/api/auth.py", ".github/workflows/ci.yml", "components/Button".
+# Uses lookarounds instead of \b so that dot-prefixed paths are matched.
+FILE_REFERENCE_PATTERN: re.Pattern[str] = re.compile(r"(?<!\w)(\.?[\w.-]+(?:/[\w.-]+)+(?:\.[\w]{1,10})?)(?!\w)")
+
+# Template appended to work order prompts when coordination hints exist.
+COORDINATION_HINT_TEMPLATE = (
+    "\n\n## Coordination Notice\n\n"
+    "Other tasks in this wave are also working on shared files. "
+    "Coordinate your changes carefully:\n\n{hints}\n\n"
+    "To avoid conflicts: make minimal, targeted changes to shared files. "
+    "Prefer adding new code over modifying existing shared code."
+)
+
 # --- Diff scoring data -------------------------------------------------------
 
 SECURITY_PATTERNS: list[tuple[re.Pattern[str], int]] = [

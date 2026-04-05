@@ -54,6 +54,8 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [ruff BLE001 requires specific exceptions](2026-04-04-ble001-specific-exceptions.md) — Catch specific exception types, not bare Exception
 - [Per-commit verification rejects valid work](2026-04-03-per-commit-vs-per-cycle-verification.md) — Per-cycle verification is more reliable than per-commit
 
+- [Helper name collision in tests](2026-04-05-helper-name-collision-in-tests.md) -- Module-level helpers with same name silently shadow each other; grep before adding
+
 ## Agent / Tool Quirks
 
 - [CI detached HEAD breaks tests](2026-04-03-ci-detached-head-breaks-tests.md) — PR checkouts use detached HEAD; git tests that assume a branch name fail

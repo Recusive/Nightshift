@@ -8999,3 +8999,537 @@ class TestE2EConstants:
 
     def test_timeout_is_positive(self) -> None:
         assert nightshift.E2E_TEST_TIMEOUT > 0
+
+
+# --- Coordination Module Tests -----------------------------------------------
+
+
+def _make_coord_order(
+    task_id: int,
+    prompt: str,
+    *,
+    wave: int = 1,
+    acceptance_criteria: list[str] | None = None,
+) -> nightshift.WorkOrder:
+    """Helper to create a WorkOrder for coordination tests."""
+    return nightshift.WorkOrder(
+        task_id=task_id,
+        wave=wave,
+        title=f"Task {task_id}",
+        prompt=prompt,
+        acceptance_criteria=acceptance_criteria or [],
+        estimated_files=3,
+        depends_on=[],
+        schema_path="schemas/task.schema.json",
+    )
+
+
+class TestExtractFileReferences:
+    def test_extracts_simple_paths(self) -> None:
+        text = "Modify the file at src/api/auth.py to add login"
+        refs = nightshift.extract_file_references(text)
+        assert "src/api/auth.py" in refs
+
+    def test_extracts_multiple_paths(self) -> None:
+        text = "Create src/models/user.py and update tests/test_user.py"
+        refs = nightshift.extract_file_references(text)
+        assert "src/models/user.py" in refs
+        assert "tests/test_user.py" in refs
+
+    def test_extracts_paths_without_extension(self) -> None:
+        text = "Work in the components/ui/Button directory"
+        refs = nightshift.extract_file_references(text)
+        assert "components/ui/Button" in refs
+
+    def test_extracts_tsx_jsx_extensions(self) -> None:
+        text = "Modify components/Header.tsx and pages/Home.jsx"
+        refs = nightshift.extract_file_references(text)
+        assert "components/Header.tsx" in refs
+        assert "pages/Home.jsx" in refs
+
+    def test_deduplicates_preserving_order(self) -> None:
+        text = "Read src/api/auth.py then modify src/api/auth.py"
+        refs = nightshift.extract_file_references(text)
+        assert refs.count("src/api/auth.py") == 1
+
+    def test_empty_text_returns_empty(self) -> None:
+        assert nightshift.extract_file_references("") == []
+
+    def test_no_paths_returns_empty(self) -> None:
+        assert nightshift.extract_file_references("Just a plain description") == []
+
+    def test_ignores_single_component_names(self) -> None:
+        text = "Use the auth module and config.py file"
+        refs = nightshift.extract_file_references(text)
+        # "config.py" has no slash, should not match
+        assert "config.py" not in refs
+
+    def test_nested_paths(self) -> None:
+        text = "The handler lives at src/api/v2/handlers/auth.py"
+        refs = nightshift.extract_file_references(text)
+        assert "src/api/v2/handlers/auth.py" in refs
+
+    def test_dotted_directory_names(self) -> None:
+        text = "Check the config at .github/workflows/ci.yml"
+        refs = nightshift.extract_file_references(text)
+        assert ".github/workflows/ci.yml" in refs
+
+
+class TestDetectOverlaps:
+    def test_no_overlaps_for_single_order(self) -> None:
+        wave = [_make_coord_order(1, "Modify src/api/auth.py")]
+        assert nightshift.detect_overlaps(wave) == []
+
+    def test_no_overlaps_for_disjoint_tasks(self) -> None:
+        wave = [
+            _make_coord_order(1, "Modify src/api/auth.py"),
+            _make_coord_order(2, "Modify src/models/user.py"),
+        ]
+        assert nightshift.detect_overlaps(wave) == []
+
+    def test_detects_shared_file_in_prompts(self) -> None:
+        wave = [
+            _make_coord_order(1, "Add login to src/api/routes.py"),
+            _make_coord_order(2, "Add logout to src/api/routes.py"),
+        ]
+        overlaps = nightshift.detect_overlaps(wave)
+        assert len(overlaps) == 1
+        assert overlaps[0]["file_pattern"] == "src/api/routes.py"
+        assert sorted(overlaps[0]["task_ids"]) == [1, 2]
+
+    def test_detects_overlaps_in_acceptance_criteria(self) -> None:
+        wave = [
+            _make_coord_order(
+                1,
+                "Add auth middleware",
+                acceptance_criteria=["Tests pass in tests/test_api.py"],
+            ),
+            _make_coord_order(
+                2,
+                "Add rate limiting",
+                acceptance_criteria=["Tests pass in tests/test_api.py"],
+            ),
+        ]
+        overlaps = nightshift.detect_overlaps(wave)
+        assert len(overlaps) == 1
+        assert overlaps[0]["file_pattern"] == "tests/test_api.py"
+
+    def test_multiple_overlaps(self) -> None:
+        wave = [
+            _make_coord_order(1, "Modify src/api/routes.py and src/models/user.py"),
+            _make_coord_order(2, "Update src/api/routes.py and src/models/user.py"),
+        ]
+        overlaps = nightshift.detect_overlaps(wave)
+        assert len(overlaps) == 2
+        patterns = {o["file_pattern"] for o in overlaps}
+        assert patterns == {"src/api/routes.py", "src/models/user.py"}
+
+    def test_three_way_overlap(self) -> None:
+        wave = [
+            _make_coord_order(1, "Read src/config.ts"),
+            _make_coord_order(2, "Write src/config.ts"),
+            _make_coord_order(3, "Update src/config.ts"),
+        ]
+        overlaps = nightshift.detect_overlaps(wave)
+        assert len(overlaps) == 1
+        assert sorted(overlaps[0]["task_ids"]) == [1, 2, 3]
+
+    def test_empty_wave_returns_empty(self) -> None:
+        assert nightshift.detect_overlaps([]) == []
+
+    def test_overlaps_sorted_by_file_pattern(self) -> None:
+        wave = [
+            _make_coord_order(1, "Modify src/z.py and src/a.py"),
+            _make_coord_order(2, "Modify src/z.py and src/a.py"),
+        ]
+        overlaps = nightshift.detect_overlaps(wave)
+        patterns = [o["file_pattern"] for o in overlaps]
+        assert patterns == sorted(patterns)
+
+
+class TestGenerateCoordinationHints:
+    def test_empty_overlaps_returns_empty(self) -> None:
+        assert nightshift.generate_coordination_hints([]) == {}
+
+    def test_generates_hints_for_overlapping_tasks(self) -> None:
+        overlaps = [
+            nightshift.FileOverlap(file_pattern="src/api/routes.py", task_ids=[1, 2]),
+        ]
+        hints = nightshift.generate_coordination_hints(overlaps)
+        assert 1 in hints
+        assert 2 in hints
+        assert any("src/api/routes.py" in h for h in hints[1])
+        assert any("Task 1" in h for h in hints[2])
+
+    def test_multiple_overlaps_aggregate(self) -> None:
+        overlaps = [
+            nightshift.FileOverlap(file_pattern="src/a.py", task_ids=[1, 2]),
+            nightshift.FileOverlap(file_pattern="src/b.py", task_ids=[1, 3]),
+        ]
+        hints = nightshift.generate_coordination_hints(overlaps)
+        # Task 1 should have hints for both files
+        assert len(hints[1]) == 2
+
+    def test_hint_mentions_other_tasks(self) -> None:
+        overlaps = [
+            nightshift.FileOverlap(file_pattern="src/shared.py", task_ids=[5, 10]),
+        ]
+        hints = nightshift.generate_coordination_hints(overlaps)
+        # Task 5 hint should mention Task 10
+        assert any("Task 10" in h for h in hints[5])
+        # Task 10 hint should mention Task 5
+        assert any("Task 5" in h for h in hints[10])
+
+
+class TestInjectHints:
+    def test_no_hints_returns_copy(self) -> None:
+        wave = [_make_coord_order(1, "Do something")]
+        result = nightshift.inject_hints(wave, {})
+        assert len(result) == 1
+        assert result[0]["prompt"] == "Do something"
+
+    def test_injects_hint_into_prompt(self) -> None:
+        wave = [
+            _make_coord_order(1, "Original prompt"),
+            _make_coord_order(2, "Other prompt"),
+        ]
+        hints = {1: ["- `src/a.py` is also being modified by Task 2"]}
+        result = nightshift.inject_hints(wave, hints)
+        assert "Coordination Notice" in result[0]["prompt"]
+        assert "src/a.py" in result[0]["prompt"]
+        # Task 2 should be unchanged
+        assert result[1]["prompt"] == "Other prompt"
+
+    def test_preserves_original_fields(self) -> None:
+        wave = [_make_coord_order(1, "prompt", acceptance_criteria=["criterion"])]
+        hints = {1: ["- hint"]}
+        result = nightshift.inject_hints(wave, hints)
+        assert result[0]["task_id"] == 1
+        assert result[0]["wave"] == 1
+        assert result[0]["acceptance_criteria"] == ["criterion"]
+        assert result[0]["schema_path"] == "schemas/task.schema.json"
+
+    def test_multiple_hints_concatenated(self) -> None:
+        wave = [_make_coord_order(1, "prompt")]
+        hints = {1: ["- hint A", "- hint B"]}
+        result = nightshift.inject_hints(wave, hints)
+        assert "hint A" in result[0]["prompt"]
+        assert "hint B" in result[0]["prompt"]
+
+
+class TestDetectFileConflicts:
+    def test_no_conflicts_with_disjoint_files(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=["a.py"],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="done",
+                    files_created=["b.py"],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert not report["has_conflicts"]
+        assert report["conflicts"] == []
+
+    def test_detects_conflict_on_modified_file(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=[],
+                    files_modified=["shared.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="done",
+                    files_created=[],
+                    files_modified=["shared.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert report["has_conflicts"]
+        assert len(report["conflicts"]) == 1
+        assert report["conflicts"][0]["file_path"] == "shared.py"
+        assert sorted(report["conflicts"][0]["task_ids"]) == [1, 2]
+
+    def test_detects_conflict_between_create_and_modify(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=["new.py"],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="done",
+                    files_created=[],
+                    files_modified=["new.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert report["has_conflicts"]
+
+    def test_no_completed_tasks(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[],
+            failed=[],
+            total_tasks=0,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert not report["has_conflicts"]
+
+    def test_multiple_conflicts(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=[],
+                    files_modified=["a.py", "b.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="done",
+                    files_created=[],
+                    files_modified=["a.py", "b.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert len(report["conflicts"]) == 2
+
+    def test_conflicts_sorted_by_path(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=[],
+                    files_modified=["z.py", "a.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="done",
+                    files_created=[],
+                    files_modified=["z.py", "a.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        paths = [c["file_path"] for c in report["conflicts"]]
+        assert paths == sorted(paths)
+
+
+class TestFormatConflictReport:
+    def test_no_conflicts_message(self) -> None:
+        report = nightshift.ConflictReport(conflicts=[], has_conflicts=False)
+        assert nightshift.format_conflict_report(report) == "No file conflicts detected."
+
+    def test_formats_single_conflict(self) -> None:
+        report = nightshift.ConflictReport(
+            conflicts=[
+                nightshift.FileConflict(file_path="shared.py", task_ids=[1, 2]),
+            ],
+            has_conflicts=True,
+        )
+        result = nightshift.format_conflict_report(report)
+        assert "WARNING" in result
+        assert "1 file conflict(s)" in result
+        assert "shared.py" in result
+        assert "Task 1" in result
+        assert "Task 2" in result
+
+    def test_formats_multiple_conflicts(self) -> None:
+        report = nightshift.ConflictReport(
+            conflicts=[
+                nightshift.FileConflict(file_path="a.py", task_ids=[1, 2]),
+                nightshift.FileConflict(file_path="b.py", task_ids=[2, 3]),
+            ],
+            has_conflicts=True,
+        )
+        result = nightshift.format_conflict_report(report)
+        assert "2 file conflict(s)" in result
+
+
+class TestCoordinateWave:
+    def test_no_overlaps_returns_copy(self) -> None:
+        wave = [_make_coord_order(1, "Modify src/a.py")]
+        result = nightshift.coordinate_wave(wave)
+        assert len(result) == 1
+        assert result[0]["prompt"] == wave[0]["prompt"]
+
+    def test_injects_hints_when_overlaps_exist(self) -> None:
+        wave = [
+            _make_coord_order(1, "Modify src/shared/config.py for auth"),
+            _make_coord_order(2, "Update src/shared/config.py for logging"),
+        ]
+        result = nightshift.coordinate_wave(wave)
+        assert "Coordination Notice" in result[0]["prompt"]
+        assert "Coordination Notice" in result[1]["prompt"]
+
+    def test_disjoint_tasks_unchanged(self) -> None:
+        wave = [
+            _make_coord_order(1, "Modify src/auth.py"),
+            _make_coord_order(2, "Modify src/logging.py"),
+        ]
+        result = nightshift.coordinate_wave(wave)
+        assert result[0]["prompt"] == wave[0]["prompt"]
+        assert result[1]["prompt"] == wave[1]["prompt"]
+
+    def test_empty_wave(self) -> None:
+        assert nightshift.coordinate_wave([]) == []
+
+
+class TestCoordinationConstants:
+    def test_file_reference_pattern_exists(self) -> None:
+        import re
+
+        assert isinstance(nightshift.FILE_REFERENCE_PATTERN, re.Pattern)
+
+    def test_coordination_hint_template_has_placeholder(self) -> None:
+        assert "{hints}" in nightshift.COORDINATION_HINT_TEMPLATE
+
+    def test_coordination_hint_template_renders(self) -> None:
+        rendered = nightshift.COORDINATION_HINT_TEMPLATE.format(hints="- src/a.py shared with Task 2")
+        assert "Coordination Notice" in rendered
+        assert "src/a.py" in rendered
+
+
+class TestCoordinationStateRoundTrip:
+    """Verify coordination types serialize and deserialize correctly."""
+
+    def test_file_overlap_round_trip(self) -> None:
+        import json
+
+        overlap = nightshift.FileOverlap(
+            file_pattern="src/api/routes.py",
+            task_ids=[1, 2, 3],
+        )
+        raw = json.loads(json.dumps(overlap))
+        assert raw["file_pattern"] == "src/api/routes.py"
+        assert raw["task_ids"] == [1, 2, 3]
+
+    def test_file_conflict_round_trip(self) -> None:
+        import json
+
+        conflict = nightshift.FileConflict(
+            file_path="shared.py",
+            task_ids=[5, 10],
+        )
+        raw = json.loads(json.dumps(conflict))
+        assert raw["file_path"] == "shared.py"
+        assert raw["task_ids"] == [5, 10]
+
+    def test_conflict_report_round_trip(self) -> None:
+        import json
+
+        report = nightshift.ConflictReport(
+            conflicts=[
+                nightshift.FileConflict(file_path="a.py", task_ids=[1, 2]),
+            ],
+            has_conflicts=True,
+        )
+        raw = json.loads(json.dumps(report))
+        assert raw["has_conflicts"] is True
+        assert len(raw["conflicts"]) == 1
+
+
+class TestLogConflicts:
+    def test_no_conflicts_returns_clean_report(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[],
+            failed=[],
+            total_tasks=0,
+        )
+        report = nightshift.log_conflicts(wave_result)
+        assert not report["has_conflicts"]
+
+    def test_conflicts_returns_report(self) -> None:
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=[],
+                    files_modified=["shared.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="done",
+                    files_created=[],
+                    files_modified=["shared.py"],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[],
+            total_tasks=2,
+        )
+        report = nightshift.log_conflicts(wave_result)
+        assert report["has_conflicts"]
+        assert len(report["conflicts"]) == 1
