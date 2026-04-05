@@ -77,6 +77,7 @@ Full daemon operations guide with troubleshooting: `docs/ops/DAEMON.md`
 - **Never push to main directly.** Branch, PR, sub-agent review, merge.
 - Branch naming: `feat/`, `fix/`, `docs/`, `refactor/`, `release/`
 - **Review notes MUST become tasks.** If the code review sub-agent flags advisory notes, known limitations, or follow-up items but still passes, you MUST create follow-up tasks in `docs/tasks/` before merging. "Known limitation" is not a valid reason to skip — the task queue tracks deferred work.
+- **If CI fails after merge:** create a `fix/` branch and PR. Never push directly to main, even for "trivial" fixes.
 - Full workflow: `docs/ops/OPERATIONS.md` under "Git Workflow"
 
 ## Environment
@@ -86,6 +87,8 @@ Full daemon operations guide with troubleshooting: `docs/ops/DAEMON.md`
 - Test target: `https://github.com/fazxes/Phractal`
 
 ## Code Quality Rules
+
+**Always use `make check` for verification.** Never run ruff, mypy, or pytest individually as your final check — `make check` runs all of them against both `nightshift/` and `tests/`. Partial checks miss things.
 
 These are enforced by CI. Non-negotiable.
 

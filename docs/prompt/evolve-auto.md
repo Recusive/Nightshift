@@ -9,6 +9,12 @@ If you are genuinely unsure between two options (both seem equally impactful),
 pick the one that is smaller in scope — ship something small rather than
 getting stuck deciding.
 
+VERIFICATION RULE: Always use `make check` as your final verification.
+NEVER run ruff, mypy, or pytest individually as your final check —
+`make check` covers both nightshift/ AND tests/. Partial checks miss things.
+Running `ruff check nightshift/` without `tests/` is how lint errors
+reach main. Run `make check`. Every time. No exceptions.
+
 PRODUCTION-READINESS RULE: Do NOT push anything you are not 100% certain
 works in production. This means:
 - Every code change has tests. No exceptions.
@@ -23,6 +29,10 @@ works in production. This means:
 
 If after 3 attempts something still doesn't work, log it as a known issue
 in the handoff and move on to the next priority. Do not push broken code.
+
+CI FAILURE RULE: If CI fails AFTER you merge a PR, create a `fix/` branch
+and PR for the fix. NEVER push directly to main, not even for "trivial"
+lint fixes. The branch-PR-merge workflow exists for a reason.
 
 REVIEW NOTES RULE: When the code review sub-agent PASSes but flags advisory
 notes, known limitations, or follow-up suggestions — you MUST create a
