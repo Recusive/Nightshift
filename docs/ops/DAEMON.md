@@ -309,6 +309,14 @@ daemon.sh loop iteration
 git fetch + reset --hard origin/main    # clean slate
     |
     v
+housekeeping                            # rotate logs, prune branches,
+  cleanup_old_logs                      #   compact handoffs, archive tasks,
+  cleanup_orphan_branches               #   sync GitHub Issues -> task files
+  compact_handoffs
+  archive_done_tasks
+  sync_github_tasks
+    |
+    v
 check gh pr list --state open           # open-PR recovery
     |
     v

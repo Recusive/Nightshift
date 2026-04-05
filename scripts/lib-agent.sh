@@ -283,6 +283,148 @@ for e in r['errors']:
 }
 
 # ──────────────────────────────────────────────
+# GitHub Issues -> Task Sync
+#
+# Converts GitHub Issues labeled "task" into
+# docs/tasks/ files. Humans create issues, the
+# daemon converts them to task files on startup.
+# ──────────────────────────────────────────────
+
+# sync_github_tasks TASKS_DIR
+# Syncs GitHub Issues labeled "task" to docs/tasks/ files.
+# Closes each issue with a "Converted to task #NNNN" comment.
+# Fails silently on all errors -- never crashes the daemon.
+sync_github_tasks() {
+    local tasks_dir="$1"
+    local next_id_file="$tasks_dir/.next-id"
+    local count=0
+
+    # Bail if gh is not available or not authenticated
+    if ! command -v gh >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Fetch open issues labeled "task" as JSON
+    local issues_json
+    issues_json=$(gh issue list --label "task" --state open --json number,title,body,labels --limit 50 2>/dev/null) || return 0
+
+    # Check if there are any issues
+    local issue_count
+    issue_count=$(printf '%s' "$issues_json" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null) || return 0
+    if [ "$issue_count" = "0" ] || [ -z "$issue_count" ]; then
+        return 0
+    fi
+
+    # Process each issue via Python (handles JSON safely, avoids shell expansion)
+    local new_files
+    new_files=$(printf '%s' "$issues_json" | _TASKS_DIR="$tasks_dir" _NEXT_ID_FILE="$next_id_file" python3 -c "
+import json, os, sys, datetime
+
+tasks_dir = os.environ['_TASKS_DIR']
+next_id_file = os.environ['_NEXT_ID_FILE']
+issues = json.load(sys.stdin)
+today = datetime.date.today().isoformat()
+created_files = []
+
+for issue in issues:
+    # Read next-id
+    try:
+        with open(next_id_file) as f:
+            next_id = int(f.read().strip())
+    except (FileNotFoundError, ValueError):
+        next_id = 1
+
+    task_num = f'{next_id:04d}'
+    task_file = os.path.join(tasks_dir, f'{task_num}.md')
+
+    # Guard: skip if task file already exists (stale .next-id)
+    if os.path.exists(task_file):
+        continue
+
+    # Map labels to frontmatter fields
+    label_names = [lb.get('name', '') for lb in issue.get('labels', [])]
+
+    priority = 'normal'
+    if 'urgent' in label_names:
+        priority = 'urgent'
+    elif 'low' in label_names:
+        priority = 'low'
+
+    environment = ''
+    if 'integration' in label_names:
+        environment = 'integration'
+
+    vision_section = ''
+    for vs in ('loop1', 'loop2', 'self-maintaining', 'meta-prompt'):
+        if vs in label_names:
+            vision_section = vs
+            break
+
+    # Build frontmatter
+    fm_lines = [
+        '---',
+        'status: pending',
+        f'priority: {priority}',
+        'target:',
+    ]
+    if environment:
+        fm_lines.append(f'environment: {environment}')
+    if vision_section:
+        fm_lines.append(f'vision_section: {vision_section}')
+    fm_lines.extend([
+        f'created: {today}',
+        f'source: github-issue-{issue[\"number\"]}',
+        'completed:',
+        '---',
+    ])
+
+    # Build body
+    title = issue.get('title', 'Untitled')
+    body = issue.get('body', '') or ''
+
+    content = '\\n'.join(fm_lines) + f'\\n\\n# {title}\\n'
+    if body.strip():
+        content += f'\\n{body.strip()}\\n'
+
+    # Write task file
+    with open(task_file, 'w') as f:
+        f.write(content)
+
+    # Increment next-id
+    with open(next_id_file, 'w') as f:
+        f.write(str(next_id + 1) + '\\n')
+
+    created_files.append((task_num, issue['number'], title))
+
+for task_num, issue_num, title in created_files:
+    print(f'{task_num}:{issue_num}:{title}')
+" 2>/dev/null) || return 0
+
+    if [ -z "$new_files" ]; then
+        return 0
+    fi
+
+    # Close each issue with a comment and commit the task files
+    local task_files_to_add=""
+    while IFS=: read -r task_num issue_num title; do
+        [ -z "$task_num" ] && continue
+        gh issue comment "$issue_num" --body "Converted to task #${task_num}" 2>/dev/null || true
+        gh issue close "$issue_num" 2>/dev/null || true
+        task_files_to_add="$task_files_to_add $tasks_dir/${task_num}.md"
+        count=$((count + 1))
+    done <<< "$new_files"
+
+    # Commit the new task files (on main, before the session starts)
+    if [ "$count" -gt 0 ] && [ -n "$task_files_to_add" ]; then
+        # shellcheck disable=SC2086
+        git add $task_files_to_add "$next_id_file" 2>/dev/null || true
+        git commit -m "task: sync $count GitHub issue(s) to task files" --quiet 2>/dev/null || true
+        git push origin main --quiet 2>/dev/null || true
+        echo "  Synced $count GitHub issue(s) to task files"
+    fi
+}
+
+# ──────────────────────────────────────────────
 # Agent Configuration
 # ──────────────────────────────────────────────
 

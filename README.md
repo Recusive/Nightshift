@@ -122,6 +122,14 @@ Real examples from this repo's memory:
 
 Numbered markdown files with status, priority, and acceptance criteria. The builder picks up the lowest-numbered pending task. When it finishes, it creates follow-up tasks based on what it learned. The queue feeds itself.
 
+**Adding tasks as a human:** Create a GitHub Issue with the `task` label. The daemon converts it to a task file automatically.
+
+```bash
+gh issue create --title "Add dark mode" --label "task"          # normal priority
+gh issue create --title "Fix CI" --label "task,urgent"          # urgent
+gh issue create --title "Build webhook" --label "task,loop2"    # with vision section
+```
+
 ---
 
 ## Guard rails

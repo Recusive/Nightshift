@@ -57,6 +57,11 @@ follow-up task in docs/tasks/ for EACH note with clear acceptance criteria.
 "Known limitation" is NOT a valid reason to skip creating a task. The task
 queue is the system's memory. Anything not tracked as a task is forgotten.
 
+GITHUB ISSUES SYNC: The daemon's housekeeping step converts GitHub Issues
+labeled "task" into docs/tasks/ files before your session starts. If you
+see tasks with `source: github-issue-N` in frontmatter, the human created
+them via GitHub Issues. Treat them like any other task.
+
 All other steps remain the same. Follow the evolve prompt exactly.
 
 DAEMON CONTEXT: You are running inside `scripts/daemon.sh` via tmux.

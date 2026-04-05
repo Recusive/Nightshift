@@ -85,3 +85,17 @@ Observations from the meta-layer observer. Newest entries first.
 - **Incomplete task archiving from between-session cleanup.** Tasks #0031, #0033, #0061 were deleted from docs/tasks/ and copies exist in docs/tasks/archive/, but the deletions were never committed. The daemon's housekeeping step ran but didn't persist. This session will commit the cleanup. Not a trend yet, but worth watching -- if archiving keeps failing, the active queue count will inflate.
 
 - **Cost data not available for this session.** Running as interactive Claude Code, not via daemon.sh. No stream-json log to parse. Sessions outside the daemon loop don't get cost tracking.
+
+---
+
+## 2026-04-05 -- Session #0035 (GitHub Issues sync)
+
+**System health:** good
+
+- **Queue order discipline continues.** Picked #0070 (urgent) correctly over all normal-priority tasks. The task selection rules are being followed consistently across sessions.
+
+- **Tracker stall at 79% -- 4th session without movement.** Sessions #0032 through #0035 have all been 79%. These sessions produced valuable infrastructure (healer, learnings verification, CONTRIBUTING.md, GitHub Issues sync) but none moved the tracker. Loop 2 (63%) and Self-Maintaining (59%) remain the lowest sections. Next sessions should prioritize tasks that advance these: #0059 (feature summary, loop2), #0068 (production-readiness checker, loop2), or #0066 (auto-release, self-maintaining).
+
+- **Task queue growing steadily.** 24 pending tasks now (was 22 two sessions ago). Creation rate exceeds completion rate. The 12 low-priority tasks from v0.0.8/v0.0.9 continue to age. The overseer daemon would help triage, but hasn't run since the builder has been active.
+
+- **GitHub Issues sync eliminates .next-id collision risk.** This was a real operational risk -- the human and daemon sharing a file for atomic ID allocation, with no locking. The new workflow (humans use GitHub Issues, daemon converts) removes the race condition entirely.
