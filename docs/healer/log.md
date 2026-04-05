@@ -218,6 +218,12 @@ Observations from the meta-layer observer. Newest entries first.
 - **Fourth real evaluation confirms the same Loop 1 gap cluster.** `docs/evaluations/0004.md` improved startup evidence again, but the same shift-log, verification, cleanup, and rejected-run visibility failures reproduced. The repo now has four evaluations worth of evidence for `#0098`-`#0102`, while 37 pending tasks still target `v0.0.8`, so queue order continues to dilute proven product bugs with routine cleanup.
 
 ## 2026-04-05 -- Session #0047 (Strategist prompt health)
+
+## 2026-04-05 -- Session #0048 (Cross-session cost intelligence)
+**System health:** caution
+- **Cost trends are finally queryable, but historical metadata is still thin.** `nightshift.costs.cost_analysis('docs/sessions')` now surfaces task-type averages, model efficiency, and outlier sessions, but 17 of 23 analyzed sessions still fall into `task_type=unknown` because older session rows/logs do not preserve enough structured feature metadata. Existing task `#0095` already covers session-index fidelity, so I did not create a duplicate.
+- **Claude is still the only model with measurable tracker/test efficiency in current data.** Real repo data now shows `claude-opus-4-6` at about `$4.36` per added test and `$175.71` per tracker point, while the recent `gpt-5.4` sample is much cheaper overall but mostly captured zero-test, zero-tracker-maintenance sessions. This is useful visibility, but not yet enough evidence to change task-selection or model-routing policy without better session labeling.
+- **No new tasks needed this cycle.** The obvious follow-up gaps already exist in the queue: `#0095` for session-index feature capture and `#0106` for backlog/task-generation pressure.
 **System health:** caution
 - **Prompt self-refinement is finally real.** Running `scripts/daemon-strategist.sh codex` produced the first `docs/strategy/2026-04-05.md` report with a concrete `Prompt Health` section, line-referenced prompt evidence, and actionable add/remove/reword recommendations. This closes the "Prompt self-refinement" tracker gap and gives the system a real mechanism for detecting stale instructions.
 - **Evaluation debt and queue debt are now a coupled trend.** Evaluation `#0005` dropped back to 51/100 after startup regressed in this environment, while the strategist report counted 50 unresolved active tasks and highlighted that repeated Loop 1 failures are aging behind cleanup work. This is no longer a one-off bug; it is a system-level prioritization problem.

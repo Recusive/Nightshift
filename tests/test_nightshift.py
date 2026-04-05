@@ -7455,6 +7455,213 @@ class TestDefaultLedgerPath:
         assert result == "/foo/sessions/costs.json"
 
 
+def _session_index_markdown(rows: list[str]) -> str:
+    return "\n".join(
+        [
+            "# Session Index",
+            "",
+            "| Timestamp | Session | Exit | Duration | Cost | Status | Feature | PR |",
+            "|-----------|---------|------|----------|------|--------|---------|-----|",
+            *rows,
+            "",
+        ]
+    )
+
+
+def _legacy_index_row(
+    timestamp: str,
+    session_id: str,
+    duration: str,
+    status: str,
+    feature: str,
+    pr: str = "-",
+) -> str:
+    return f"| {timestamp} | {session_id} | 0 | {duration} | {status} | {feature} | {pr} |"
+
+
+def _cost_index_row(
+    timestamp: str,
+    session_id: str,
+    duration: str,
+    cost: str,
+    status: str,
+    feature: str,
+    pr: str = "-",
+) -> str:
+    return f"| {timestamp} | {session_id} | 0 | {duration} | {cost} | {status} | {feature} | {pr} |"
+
+
+def _write_session_summary_log(path: Path, report_text: str, *, task_type: str, use_result: bool) -> None:
+    lines = [
+        json.dumps(
+            {
+                "type": "item.completed",
+                "item": {
+                    "id": "item_1",
+                    "type": "command_execution",
+                    "command": f"/bin/zsh -lc 'git commit -m \"{task_type}: sample change\"'",
+                },
+            }
+        )
+    ]
+    if use_result:
+        lines.append(json.dumps({"type": "result", "result": report_text}))
+    else:
+        lines.append(
+            json.dumps(
+                {
+                    "type": "item.completed",
+                    "item": {
+                        "id": "item_2",
+                        "type": "agent_message",
+                        "text": report_text,
+                    },
+                }
+            )
+        )
+    path.write_text("\n".join(lines) + "\n")
+
+
+class TestCostAnalysis:
+    def test_groups_task_types_models_and_outliers(self, tmp_path: Path) -> None:
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+
+        ledger: nightshift.CostLedger = {
+            "total_cost_usd": 46.0,
+            "sessions": [
+                {
+                    "session_id": "20260405-100000",
+                    "agent": "codex",
+                    "model": "gpt-5.4",
+                    "input_tokens": 0,
+                    "cache_creation_tokens": 0,
+                    "cache_read_tokens": 0,
+                    "output_tokens": 0,
+                    "total_cost_usd": 4.0,
+                },
+                {
+                    "session_id": "20260405-110000",
+                    "agent": "codex",
+                    "model": "gpt-5.4",
+                    "input_tokens": 0,
+                    "cache_creation_tokens": 0,
+                    "cache_read_tokens": 0,
+                    "output_tokens": 0,
+                    "total_cost_usd": 12.0,
+                },
+                {
+                    "session_id": "20260405-120000",
+                    "agent": "claude",
+                    "model": "claude-opus-4-6",
+                    "input_tokens": 0,
+                    "cache_creation_tokens": 0,
+                    "cache_read_tokens": 0,
+                    "output_tokens": 0,
+                    "total_cost_usd": 30.0,
+                },
+            ],
+        }
+        nightshift.write_ledger(str(sessions_dir / "costs.json"), ledger)
+
+        index_rows = [
+            _legacy_index_row(
+                "2026-04-05 10:00",
+                "20260405-100000",
+                "10m",
+                "success",
+                "Feature planner follow-up",
+            ),
+            _cost_index_row(
+                "2026-04-05 11:00",
+                "20260405-110000",
+                "20m",
+                "$12.0000",
+                "success",
+                "Wave coordination fix",
+            ),
+            _cost_index_row(
+                "2026-04-05 12:00",
+                "20260405-120000",
+                "25m",
+                "$30.0000",
+                "success",
+                "Prompt docs cleanup",
+            ),
+        ]
+        (sessions_dir / "index.md").write_text(_session_index_markdown(index_rows))
+
+        _write_session_summary_log(
+            sessions_dir / "20260405-100000.log",
+            "Tests: +8 new, 100 total, all passing\nTracker delta: 80% -> 82%",
+            task_type="feat",
+            use_result=True,
+        )
+        _write_session_summary_log(
+            sessions_dir / "20260405-110000.log",
+            "**Session Complete**\n\nTests: +2 new, 110 total, all passing\nTracker delta: 82% -> 83%",
+            task_type="feat",
+            use_result=False,
+        )
+        _write_session_summary_log(
+            sessions_dir / "20260405-120000.log",
+            "**Session Complete**\n\nTests: +0 new, 110 total, all passing\nTracker delta: 83% -> 83%",
+            task_type="docs",
+            use_result=False,
+        )
+
+        analysis = nightshift.cost_analysis(str(sessions_dir))
+
+        assert analysis["total_cost_usd"] == 46.0
+        assert analysis["sessions_analyzed"] == 3
+
+        feat_stats = next(item for item in analysis["task_type_breakdown"] if item["task_type"] == "feat")
+        assert feat_stats["sessions"] == 2
+        assert feat_stats["average_cost_usd"] == 8.0
+        assert feat_stats["average_duration_minutes"] == 15.0
+
+        model_stats = next(item for item in analysis["model_efficiency"] if item["model"] == "gpt-5.4")
+        assert model_stats["sessions"] == 2
+        assert model_stats["tests_added"] == 10
+        assert model_stats["tracker_delta_points"] == 3.0
+        assert model_stats["cost_per_test_added_usd"] == 1.6
+        assert model_stats["cost_per_tracker_delta_usd"] == 5.3333
+
+        assert len(analysis["outliers"]) == 1
+        assert analysis["outliers"][0]["session_id"] == "20260405-110000"
+        assert analysis["outliers"][0]["ratio_to_peer_average"] == 3.0
+        assert any("outlier session 20260405-110000" in item for item in analysis["recommendations"])
+
+    def test_missing_index_or_logs_still_returns_analysis(self, tmp_path: Path) -> None:
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+
+        nightshift.write_ledger(
+            str(sessions_dir / "costs.json"),
+            {
+                "total_cost_usd": 2.5,
+                "sessions": [
+                    {
+                        "session_id": "20260405-130000",
+                        "agent": "codex",
+                        "model": "gpt-5.4",
+                        "input_tokens": 0,
+                        "cache_creation_tokens": 0,
+                        "cache_read_tokens": 0,
+                        "output_tokens": 0,
+                        "total_cost_usd": 2.5,
+                    }
+                ],
+            },
+        )
+
+        analysis = nightshift.cost_analysis(str(sessions_dir))
+        assert analysis["sessions_analyzed"] == 1
+        assert analysis["task_type_breakdown"][0]["task_type"] == "unknown"
+        assert analysis["model_efficiency"][0]["cost_per_test_added_usd"] is None
+        assert analysis["outliers"] == []
+
+
 class TestCostConstants:
     def test_model_pricing_has_opus(self) -> None:
         assert "claude-opus-4-6" in nightshift.MODEL_PRICING
@@ -7523,6 +7730,49 @@ class TestCostTypes:
         )
         assert ledger["total_cost_usd"] == 10.0
         assert ledger["sessions"] == []
+
+    def test_cost_analysis_fields(self) -> None:
+        analysis = nightshift.CostAnalysis(
+            total_cost_usd=10.0,
+            sessions_analyzed=2,
+            task_type_breakdown=[],
+            model_efficiency=[],
+            outliers=[],
+            recommendations=[],
+        )
+        assert analysis["sessions_analyzed"] == 2
+
+    def test_task_type_cost_stats_fields(self) -> None:
+        stats = nightshift.TaskTypeCostStats(
+            task_type="feat",
+            sessions=3,
+            average_cost_usd=4.5,
+            average_duration_minutes=18.0,
+        )
+        assert stats["task_type"] == "feat"
+
+    def test_model_efficiency_fields(self) -> None:
+        model = nightshift.ModelEfficiency(
+            model="gpt-5.4",
+            sessions=4,
+            total_cost_usd=12.0,
+            tests_added=8,
+            tracker_delta_points=3.0,
+            cost_per_test_added_usd=1.5,
+            cost_per_tracker_delta_usd=4.0,
+        )
+        assert model["model"] == "gpt-5.4"
+
+    def test_cost_outlier_fields(self) -> None:
+        outlier = nightshift.CostOutlier(
+            session_id="20260405-120000",
+            task_type="feat",
+            feature="Feature planner follow-up",
+            cost_usd=12.0,
+            peer_average_cost_usd=4.0,
+            ratio_to_peer_average=3.0,
+        )
+        assert outlier["ratio_to_peer_average"] == 3.0
 
 
 # --- Cleanup: Log Rotation ---------------------------------------------------
@@ -8227,6 +8477,7 @@ class TestHealerInfrastructure:
         content = Path("docs/prompt/healer.md").read_text()
         assert "docs/handoffs/LATEST.md" in content
         assert "docs/sessions/index.md" in content
+        assert "cost_analysis('docs/sessions')" in content
         assert "docs/vision-tracker/TRACKER.md" in content
         assert "docs/tasks/" in content
         assert "docs/healer/log.md" in content
@@ -8256,6 +8507,7 @@ class TestHealerInfrastructure:
         content = Path("docs/prompt/evolve.md").read_text()
         assert "Observe the System" in content
         assert "docs/healer/log.md" in content
+        assert "cost_analysis('docs/sessions')" in content
 
     def test_healer_step_before_generate_work(self) -> None:
         """Observe the System step must come before Generate Work in evolve.md."""
@@ -8275,6 +8527,16 @@ class TestHealerInfrastructure:
         """healer.md should be noted as reference doc in PROMPT_GUARD_FILES."""
         content = Path("scripts/lib-agent.sh").read_text()
         assert "healer.md" in content  # commented reference still present
+
+
+class TestStrategistPrompt:
+    def test_includes_cost_analysis_command(self) -> None:
+        content = Path("docs/prompt/strategist.md").read_text()
+        assert "cost_analysis('docs/sessions')" in content
+
+    def test_cost_intelligence_section_in_template(self) -> None:
+        content = Path("docs/prompt/strategist.md").read_text()
+        assert "## Cost Intelligence" in content
 
 
 class TestShellScripts:

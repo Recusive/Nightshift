@@ -461,11 +461,12 @@ Runs ONCE. Not a loop. Produces a strategy report for the human.
 ### What it does
 
 1. Reads git log, merged PRs, handoffs, evaluations, learnings, session indices
-2. Samples the last 10 builder session logs and the active prompt files to judge prompt effectiveness
-3. Analyzes: what's working, what's failing, what's missing, and which prompt instructions help vs. hinder
-4. Writes 3-5 concrete recommendations with evidence, including prompt file line references when a prompt edit is suggested
-5. Saves report to `docs/strategy/YYYY-MM-DD.md`
-6. Presents to the human for decisions
+2. Runs `nightshift.costs.cost_analysis('docs/sessions')` to summarize spend by task type, model efficiency, and outlier sessions
+3. Samples the last 10 builder session logs and the active prompt files to judge prompt effectiveness
+4. Analyzes: what's working, what's failing, what's missing, cost effectiveness, and which prompt instructions help vs. hinder
+5. Writes 3-5 concrete recommendations with evidence, including prompt file line references when a prompt edit is suggested
+6. Saves report to `docs/strategy/YYYY-MM-DD.md`
+7. Presents to the human for decisions
 
 ### Running it
 
@@ -488,6 +489,11 @@ The report now includes a `Prompt Health` section:
 - `Instructions helping` — prompt rules that correlate with good sessions
 - `Instructions ignored or confusing` — prompt rules that sessions repeatedly skip or misread
 - `Candidate prompt edits` — add/remove/reword suggestions backed by prompt line refs and session evidence
+
+It also includes a `Cost Intelligence` section:
+- `Task type averages` — average cost/duration for feat/fix/docs/refactor-style work
+- `Model efficiency` — cost per test added and per tracker point
+- `Outliers` — sessions that cost 2x+ their same-type peers
 
 Prompt edits remain advisory. The strategist does not auto-edit prompt files; approved changes become normal builder tasks.
 

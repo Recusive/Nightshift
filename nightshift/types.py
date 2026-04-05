@@ -410,6 +410,49 @@ class CostLedger(TypedDict):
     sessions: list[SessionCost]
 
 
+class TaskTypeCostStats(TypedDict):
+    """Average cost and duration for a classified task type."""
+
+    task_type: str
+    sessions: int
+    average_cost_usd: float
+    average_duration_minutes: float
+
+
+class ModelEfficiency(TypedDict):
+    """Cost-efficiency summary for a model across analyzed sessions."""
+
+    model: str
+    sessions: int
+    total_cost_usd: float
+    tests_added: int
+    tracker_delta_points: float
+    cost_per_test_added_usd: float | None
+    cost_per_tracker_delta_usd: float | None
+
+
+class CostOutlier(TypedDict):
+    """A session whose spend is materially above peer sessions of the same task type."""
+
+    session_id: str
+    task_type: str
+    feature: str
+    cost_usd: float
+    peer_average_cost_usd: float
+    ratio_to_peer_average: float
+
+
+class CostAnalysis(TypedDict):
+    """Cross-session cost intelligence derived from the ledger, index, and logs."""
+
+    total_cost_usd: float
+    sessions_analyzed: int
+    task_type_breakdown: list[TaskTypeCostStats]
+    model_efficiency: list[ModelEfficiency]
+    outliers: list[CostOutlier]
+    recommendations: list[str]
+
+
 # --- Cleanup types ----------------------------------------------------------
 
 

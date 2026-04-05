@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0047 (strategist prompt health + evaluation rerun).
+Last updated: 2026-04-05 by agent session #0048 (cross-session cost intelligence).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -20,7 +20,7 @@ NIGHTSHIFT VISION                              ███████████
 
 ## Loop 1 — Hardening Loop (99%)
 
-The core loop still works on the happy path, but three real Phractal evaluations now confirm the same false-rejection bug in shift-log verification on case-insensitive filesystems. The latest rerun started cleanly without manual overrides, but verification and cleanup/reporting gaps still keep Loop 1 below a truthful 100%.
+The core loop still works on the happy path, but five real Phractal evaluations now confirm the same false-rejection cluster around shift-log verification, verify-command wiring, and cleanup/reporting on real repos. The latest rerun still needed environment-specific startup help, so Loop 1 remains just below a truthful 100%.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -37,7 +37,7 @@ The core loop still works on the happy path, but three real Phractal evaluations
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (893 tests) | Done | ████████████████████ 100% |
+| Test suite (901 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -76,7 +76,7 @@ All Loop 2 components are complete: profiling, planning, decomposition, sub-agen
 
 ## Self-Maintaining Repo (68%)
 
-The infrastructure that lets the agent manage everything without human intervention. Prompt self-refinement is now active via strategist `Prompt Health` reports, but the rest of the automation backlog is still the main bottleneck.
+The infrastructure that lets the agent manage everything without human intervention. Prompt self-refinement and cross-session cost intelligence are now active, but the release/changelog/tracker automation backlog is still the main bottleneck.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -87,7 +87,7 @@ The infrastructure that lets the agent manage everything without human intervent
 | CLAUDE.md (agent context) | Done | ████████████████████ 100% |
 | CI pipeline (.github/workflows) | Done | ████████████████████ 100% |
 | Local CI (scripts/check.sh) | Done | ████████████████████ 100% |
-| Feedback loop (docs/prompt/feedback/) | In progress | ████████████████░░░░ 80% |
+| Feedback loop (docs/prompt/feedback/) | In progress | ██████████████████░░ 90% |
 | Auto-release (version bump + gh release) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-changelog update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-tracker update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

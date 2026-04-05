@@ -14,10 +14,11 @@ Read these files to understand the current state:
 
 1. `docs/handoffs/LATEST.md` -- What the last session built, decisions, known issues
 2. `docs/sessions/index.md` -- Session history (timestamps, exit codes, costs, features)
-3. `docs/tasks/*.md` -- Task queue (scan frontmatter: status, priority, created date)
-4. `docs/vision-tracker/TRACKER.md` -- Progress toward the vision
-5. `docs/learnings/INDEX.md` -- Hard-won knowledge (one-line summaries)
-6. `docs/healer/log.md` -- Your previous observations (read to avoid repeating yourself)
+3. Run `python3 -c "from nightshift.costs import cost_analysis; import pprint; pprint.pp(cost_analysis('docs/sessions'))"` -- structured cost trends by task type, model, and outlier session
+4. `docs/tasks/*.md` -- Task queue (scan frontmatter: status, priority, created date)
+5. `docs/vision-tracker/TRACKER.md` -- Progress toward the vision
+6. `docs/learnings/INDEX.md` -- Hard-won knowledge (one-line summaries)
+7. `docs/healer/log.md` -- Your previous observations (read to avoid repeating yourself)
 
 Do NOT read the full codebase. Do NOT read every learning file. Skim headers.
 
@@ -34,6 +35,8 @@ Ask yourself these questions. Connect dots across sessions:
   from reality? Is a pattern forming that will cause failures?
 - **Is the system getting better or worse?** More merged PRs? Fewer failures?
   Lower cost per feature? Or regressing?
+- **What does the cost analysis say?** Which task types are expensive, which
+  model is buying real progress per dollar, and which sessions were outliers?
 
 Think in trends, not point failures. "Test count wrong in handoff" is a point
 failure. "Builder has shipped 3 sessions without updating the tracker -- numbers
@@ -58,7 +61,9 @@ Append a new entry to `docs/healer/log.md` at the END of the file:
 ```
 
 Be specific. "Costs are trending up" is weak. "Last 3 sessions averaged $X.XX
-vs $Y.YY the prior 3, driven by longer turn counts" is useful.
+vs $Y.YY the prior 3, driven by longer turn counts" is useful. Prefer citing
+`cost_analysis('docs/sessions')` when you make cost claims instead of eyeballing
+the raw ledger.
 
 ## Step 4 -- Create tasks (if needed)
 
