@@ -233,6 +233,7 @@ Write `docs/handoffs/NNNN.md` (increment from the last number). Follow the exact
 
 **Required sections in every handoff:**
 - "Tracker delta: XX% -> XX%" (makes project progress visible)
+- "Generated tasks: [list #NNNN titles, or 'none']" (from Step 6n — what work you identified)
 - "Tasks I did NOT pick and why:" (skip accountability — list every pending task you read and chose not to build, with the reason)
 
 ### 6c. Changelog (ALWAYS except docs-only changes)
@@ -292,7 +293,7 @@ You are not a task runner. You are the engineer who owns this system. Before end
 
 **How to scan:**
 1. Read the vision tracker. What sections are furthest behind? What would move the percentage?
-2. Scan the last 3-5 session index entries. Any repeating patterns or stuck areas?
+2. Scan `docs/sessions/index.md`, the last 3-5 entries. Any repeating patterns or stuck areas?
 3. Think about friction you hit THIS session. What slowed you down? What was confusing?
 4. Think about the meta layer. Are prompts bloated? Are handoffs useful? Is the task system working?
 5. Scan for TODOs, hacks, or weak spots in any code you touched.
