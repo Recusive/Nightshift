@@ -1362,6 +1362,8 @@ class TestBuildPrompt:
         args["is_final"] = True
         prompt = nightshift.build_prompt(**args)
         assert "Final cycle" in prompt or "wrap up" in prompt.lower()
+        assert "leave full verification to the Nightshift runner" in prompt
+        assert "run the full verification command one last time" not in prompt
 
     def test_test_mode_instructions(self):
         args = self._base_args()
@@ -1383,7 +1385,12 @@ class TestBuildPrompt:
 
     def test_warns_about_package_manager_test_commands(self):
         prompt = nightshift.build_prompt(**self._base_args())
-        assert "Avoid package-manager test commands like `npm test`" in prompt
+        assert "Avoid repo-wide package-manager commands like `npm test`" in prompt
+
+    def test_warns_about_repo_wide_lint_and_build_commands(self):
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "`npm run lint`" in prompt
+        assert "`npm run build`" in prompt
 
     def test_includes_high_signal_focus_hints(self):
         prompt = nightshift.build_prompt(**self._base_args())
