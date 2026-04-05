@@ -227,6 +227,31 @@ for e in r['errors']:
 }
 
 # ──────────────────────────────────────────────
+# Handoff Compaction
+#
+# Compacts numbered handoff files into weekly
+# summaries when 7+ files accumulate.
+# ──────────────────────────────────────────────
+
+# compact_handoffs HANDOFFS_DIR
+# Runs Python-backed compaction on numbered handoff files.
+compact_handoffs() {
+    local handoffs_dir="$1"
+    local result
+    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
+from nightshift.compact import compact_handoffs
+r = compact_handoffs('$handoffs_dir')
+if r['compacted']:
+    print(f\"  Compacted {len(r['compacted'])} handoff(s) into {r['weekly_file']}\")
+for e in r['errors']:
+    print(f\"  Compaction error: {e}\")
+" 2>/dev/null) || true
+    if [ -n "$result" ]; then
+        echo "$result"
+    fi
+}
+
+# ──────────────────────────────────────────────
 # Agent Configuration
 # ──────────────────────────────────────────────
 

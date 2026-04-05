@@ -7408,3 +7408,189 @@ exit $RC
         )
         assert result.returncode == 0, f"False positive: {result.stdout}"
         assert "SELF-MODIFICATION" not in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Handoff compaction
+# ---------------------------------------------------------------------------
+
+_HANDOFF_TEMPLATE = """\
+# Handoff #{session}
+**Date**: {date}
+**Version**: {version}
+
+## What I Built
+- {built}
+- Files modified: something.py
+
+## Decisions Made
+- {decision}
+
+## Known Issues
+- {issue}
+
+## Current State
+- Loop 1: {loop1}
+- Loop 2: {loop2}
+- Overall: {overall}
+- Version: {version}
+
+## Next Session Should
+- Build next thing
+"""
+
+
+def _write_handoffs(tmp_path: Path, count: int, start: int = 1) -> list[Path]:
+    """Create *count* numbered handoff files in *tmp_path*."""
+    files: list[Path] = []
+    for i in range(count):
+        num = start + i
+        name = f"{num:04d}.md"
+        content = _HANDOFF_TEMPLATE.format(
+            session=f"{num:04d}",
+            date=f"2026-04-{3 + (i % 5):02d}",
+            version=f"v0.0.{7 + i // 3}",
+            built=f"Feature {num}",
+            decision=f"Decision from session {num}",
+            issue=f"Bug {num}" if i == count - 1 else f"Bug {num} (fixed later)",
+            loop1=f"{80 + i}%",
+            loop2=f"{50 + i}%",
+            overall=f"{70 + i}%",
+        )
+        path = tmp_path / name
+        path.write_text(content)
+        files.append(path)
+    return files
+
+
+class TestCompactHandoffs:
+    def test_below_threshold_no_action(self, tmp_path: Path) -> None:
+        """Fewer than threshold files: nothing happens."""
+        _write_handoffs(tmp_path, 5)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        assert result["compacted"] == []
+        assert result["weekly_file"] == ""
+        assert result["errors"] == []
+        # Original files still exist
+        assert len(list(tmp_path.glob("*.md"))) == 5
+
+    def test_at_threshold_compacts(self, tmp_path: Path) -> None:
+        """Exactly threshold files triggers compaction."""
+        files = _write_handoffs(tmp_path, 7)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        assert len(result["compacted"]) == 7
+        assert result["weekly_file"] != ""
+        assert result["errors"] == []
+        # Originals deleted
+        for f in files:
+            assert not f.exists()
+        # Weekly file exists
+        weekly = Path(result["weekly_file"])
+        assert weekly.exists()
+        assert weekly.parent.name == "weekly"
+
+    def test_above_threshold_compacts(self, tmp_path: Path) -> None:
+        """More than threshold files also triggers compaction."""
+        _write_handoffs(tmp_path, 10)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        assert len(result["compacted"]) == 10
+        assert result["errors"] == []
+
+    def test_weekly_summary_format(self, tmp_path: Path) -> None:
+        """Generated weekly summary contains expected sections."""
+        _write_handoffs(tmp_path, 7)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        weekly = Path(result["weekly_file"])
+        content = weekly.read_text()
+        assert "# Week " in content
+        assert "**Sessions**:" in content
+        assert "**Version**:" in content
+        assert "## Progress" in content
+        assert "## What Was Built" in content
+        assert "Session 0001:" in content
+        assert "Session 0007:" in content
+
+    def test_weekly_summary_preserves_last_decisions(self, tmp_path: Path) -> None:
+        """Decisions from the last handoff appear in the weekly summary."""
+        _write_handoffs(tmp_path, 7)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        content = Path(result["weekly_file"]).read_text()
+        assert "## Decisions Still Active" in content
+        assert "Decision from session 7" in content
+
+    def test_weekly_summary_preserves_last_issues(self, tmp_path: Path) -> None:
+        """Known issues from the last handoff appear in the weekly summary."""
+        _write_handoffs(tmp_path, 7)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        content = Path(result["weekly_file"]).read_text()
+        assert "## Bugs Still Open" in content
+        assert "Bug 7" in content
+
+    def test_ignores_non_numbered_files(self, tmp_path: Path) -> None:
+        """README.md, LATEST.md, and other non-numbered files are not compacted."""
+        _write_handoffs(tmp_path, 7)
+        readme = tmp_path / "README.md"
+        readme.write_text("# Handoffs")
+        latest = tmp_path / "LATEST.md"
+        latest.write_text("# Latest")
+
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        assert len(result["compacted"]) == 7
+        assert readme.exists()
+        assert latest.exists()
+
+    def test_duplicate_weekly_gets_suffix(self, tmp_path: Path) -> None:
+        """If a weekly file already exists for the same week, a suffix is added."""
+        _write_handoffs(tmp_path, 7)
+        weekly_dir = tmp_path / "weekly"
+        weekly_dir.mkdir()
+        # Pre-create a weekly file for W14 (2026-04-03 is in W14)
+        (weekly_dir / "week-2026-W14.md").write_text("existing")
+
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        weekly = Path(result["weekly_file"])
+        assert weekly.exists()
+        assert "W14b" in weekly.name
+
+    def test_nonexistent_dir(self) -> None:
+        """Non-existent directory returns empty result."""
+        result = nightshift.compact_handoffs("/nonexistent/path")
+        assert result["compacted"] == []
+        assert result["weekly_file"] == ""
+        assert result["errors"] == []
+
+    def test_empty_dir(self, tmp_path: Path) -> None:
+        """Empty directory returns empty result."""
+        result = nightshift.compact_handoffs(str(tmp_path))
+        assert result["compacted"] == []
+        assert result["weekly_file"] == ""
+        assert result["errors"] == []
+
+    def test_custom_threshold(self, tmp_path: Path) -> None:
+        """Custom threshold value is respected."""
+        _write_handoffs(tmp_path, 3)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=3)
+        assert len(result["compacted"]) == 3
+
+    def test_weekly_dir_created_if_missing(self, tmp_path: Path) -> None:
+        """The weekly/ subdirectory is created if it does not exist."""
+        _write_handoffs(tmp_path, 7)
+        assert not (tmp_path / "weekly").exists()
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        assert (tmp_path / "weekly").is_dir()
+        assert Path(result["weekly_file"]).exists()
+
+    def test_session_range_in_filename_order(self, tmp_path: Path) -> None:
+        """Session range in summary uses first and last file by sort order."""
+        _write_handoffs(tmp_path, 7, start=22)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        content = Path(result["weekly_file"]).read_text()
+        assert "0022-0028" in content
+
+    def test_iso_week_in_filename(self, tmp_path: Path) -> None:
+        """Weekly filename contains the correct ISO week."""
+        _write_handoffs(tmp_path, 7)
+        result = nightshift.compact_handoffs(str(tmp_path), threshold=7)
+        weekly = Path(result["weekly_file"])
+        # 2026-04-03 is ISO week 14
+        assert "W14" in weekly.name

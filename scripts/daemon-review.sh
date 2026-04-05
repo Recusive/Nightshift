@@ -117,9 +117,10 @@ while true; do
     git reset --hard origin/main --quiet 2>/dev/null || true
     git clean -fd --quiet 2>/dev/null || true
 
-    # --- Housekeeping: rotate old logs, prune stale branches ---
+    # --- Housekeeping: rotate old logs, prune stale branches, compact handoffs ---
     cleanup_old_logs "$LOG_DIR" "$KEEP_LOGS"
     cleanup_orphan_branches
+    compact_handoffs "$REPO_DIR/docs/handoffs"
 
     # --- Prompt guard: snapshot before cycle ---
     SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")

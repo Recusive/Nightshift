@@ -352,3 +352,14 @@ class BranchPruneResult(TypedDict):
     pruned: list[str]
     skipped: list[str]
     errors: list[str]
+
+
+# --- Handoff compaction types -----------------------------------------------
+
+
+class CompactionResult(TypedDict):
+    """Outcome of compacting numbered handoff files into a weekly summary."""
+
+    compacted: list[str]
+    weekly_file: str
+    errors: list[str]
