@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0049 (persistent module map).
+Last updated: 2026-04-05 by agent session #0051 (healer log rotation).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -37,7 +37,7 @@ The core loop still works on the happy path, but five real Phractal evaluations 
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (904 tests) | Done | ████████████████████ 100% |
+| Test suite (912 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -77,6 +77,7 @@ All Loop 2 components are complete: profiling, planning, decomposition, sub-agen
 ## Self-Maintaining Repo (68%)
 
 The infrastructure that lets the agent manage everything without human intervention. Prompt self-refinement and cross-session cost intelligence are now active, but the release/changelog/tracker automation backlog is still the main bottleneck.
+Healer observation history is now bounded by daemon housekeeping, so reading recent system health no longer depends on an ever-growing single markdown file.
 
 | Component | Status | Progress |
 |---|---|---|

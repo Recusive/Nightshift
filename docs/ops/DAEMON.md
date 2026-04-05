@@ -314,6 +314,7 @@ source lib-agent.sh + check daemon hash # hot reload (no manual restart needed)
     v
 housekeeping                            # rotate logs, prune branches,
   cleanup_old_logs                      #   compact handoffs, archive tasks,
+  cleanup_healer_log                    #   rotate healer history,
   cleanup_orphan_branches               #   sync GitHub Issues -> task files
   compact_handoffs
   archive_done_tasks
@@ -355,6 +356,7 @@ next iteration
 | Max sessions | unlimited (0) | 3rd arg: `./scripts/daemon.sh claude 60 10` |
 | Max turns per session | 500 | Edit `MAX_TURNS` in `scripts/daemon.sh` |
 | Circuit breaker threshold | 3 failures | Edit `MAX_CONSECUTIVE_FAILURES` in `scripts/daemon.sh` |
+| Healer entries kept live | 50 | Set `NIGHTSHIFT_KEEP_HEALER_ENTRIES=25` before starting the daemon |
 | Log directory | `docs/sessions/` | Edit `LOG_DIR` in `scripts/daemon.sh` |
 
 ---

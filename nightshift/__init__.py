@@ -2,6 +2,7 @@
 
 from nightshift.cleanup import (
     prune_orphan_branches,
+    rotate_healer_log,
     rotate_logs,
 )
 from nightshift.cli import (
@@ -37,6 +38,7 @@ from nightshift.constants import (
     DEBUG_PRINT_PATTERNS,
     DECOMPOSER_MAX_RETRIES,
     DEFAULT_CONFIG,
+    DEFAULT_KEEP_HEALER_ENTRIES,
     DEFAULT_KEEP_LOGS_DAYS,
     E2E_SMOKE_CANDIDATES,
     E2E_TEST_TIMEOUT,
@@ -246,6 +248,7 @@ from nightshift.types import (
     Fix,
     FixAttempt,
     FrameworkInfo,
+    HealerRotationResult,
     IntegrationResult,
     LoggedIssue,
     LogRotationResult,
@@ -296,6 +299,7 @@ __all__ = [
     "DEBUG_PRINT_PATTERNS",
     "DECOMPOSER_MAX_RETRIES",
     "DEFAULT_CONFIG",
+    "DEFAULT_KEEP_HEALER_ENTRIES",
     "DEFAULT_KEEP_LOGS_DAYS",
     "E2E_SMOKE_CANDIDATES",
     "E2E_TEST_TIMEOUT",
@@ -357,6 +361,7 @@ __all__ = [
     "Fix",
     "FixAttempt",
     "FrameworkInfo",
+    "HealerRotationResult",
     "IntegrationResult",
     "LogRotationResult",
     "LoggedIssue",
@@ -480,6 +485,7 @@ __all__ = [
     "render_module_map",
     "resolve_agent",
     "revert_cycle",
+    "rotate_healer_log",
     "rotate_logs",
     "run_capture",
     "run_command",

@@ -33,6 +33,7 @@ else
     BUDGET="${NIGHTSHIFT_BUDGET:-0}"
 fi
 KEEP_LOGS="${NIGHTSHIFT_KEEP_LOGS:-7}"
+KEEP_HEALER_ENTRIES="${NIGHTSHIFT_KEEP_HEALER_ENTRIES:-50}"
 LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index-review.md"
 REVIEW_PROMPT="$REPO_DIR/docs/prompt/review.md"
@@ -130,6 +131,7 @@ while true; do
 
     # --- Housekeeping: rotate old logs, prune stale branches, compact handoffs, sync issues ---
     cleanup_old_logs "$LOG_DIR" "$KEEP_LOGS"
+    cleanup_healer_log "$REPO_DIR/docs/healer/log.md" "$KEEP_HEALER_ENTRIES"
     cleanup_orphan_branches
     compact_handoffs "$REPO_DIR/docs/handoffs"
     archive_done_tasks "$REPO_DIR/docs/tasks"

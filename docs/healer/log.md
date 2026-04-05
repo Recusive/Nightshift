@@ -245,3 +245,15 @@ Observations from the meta-layer observer. Newest entries first.
 
 ### Actions taken
 - No new tasks needed this cycle. Existing tasks `#0095`, `#0097`-`#0102`, and `#0106` already cover the trends observed here.
+
+## 2026-04-05 -- Session #0051 (Healer log rotation)
+
+**System health:** caution
+
+### Observations
+- **Healer history is now bounded instead of depending on one ever-growing markdown file.** `nightshift.cleanup.rotate_healer_log()` now keeps the recent sections live in `docs/healer/log.md`, archives older sections by month, and all three looping daemons call the shared `cleanup_healer_log()` helper during housekeeping. I verified the behavior against a throwaway copy of the real healer log before shipping it.
+- **Session-index fidelity is still the main cost-analysis blind spot.** `cost_analysis('docs/sessions')` now sees 27 sessions, but `18` are still `task_type=unknown`, and that bucket remains the most expensive at `$29.32/session`. Existing task `#0095` still covers the fix path.
+- **Queue order still routes around the proven Loop 1 failures.** The latest Phractal evaluation cluster remains unchanged in the active queue (`#0097`-`#0102`), while the authoritative next tasks after `#0055` are still lower-numbered internal cleanup and process work. Existing task `#0106` remains the best tracker for that backlog-pressure pattern.
+
+### Actions taken
+- No new tasks needed this cycle. Existing tasks `#0095`, `#0097`-`#0102`, and `#0106` already cover the current system trends.

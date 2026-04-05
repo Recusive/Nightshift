@@ -210,6 +210,47 @@ for e in r['errors']:
     fi
 }
 
+# cleanup_healer_log LOG_PATH KEEP_ENTRIES
+# Archives old healer entries and keeps only the most recent sections live.
+cleanup_healer_log() {
+    local log_path="$1"
+    local keep_entries="${2:-50}"
+    local result
+
+    case "$keep_entries" in
+        ''|*[!0-9]*)
+            echo "  Healer rotation error: keep_entries must be numeric: $keep_entries"
+            return 0
+            ;;
+    esac
+
+    result=$(PYTHONPATH="$REPO_DIR" python3 - "$log_path" "$keep_entries" <<'PY' 2>/dev/null
+from pathlib import Path
+import sys
+
+from nightshift.cleanup import rotate_healer_log
+
+log_path = sys.argv[1]
+keep_entries = int(sys.argv[2])
+result = rotate_healer_log(log_path, keep_entries=keep_entries)
+if result["rotated_entries"]:
+    archived = ", ".join(Path(path).name for path in result["archived_files"])
+    print(
+        f"  Archived {result['rotated_entries']} healer entr"
+        f"{'y' if result['rotated_entries'] == 1 else 'ies'} "
+        f"(kept {result['kept_entries']})"
+        + (f" -> {archived}" if archived else "")
+    )
+for error in result["errors"]:
+    print(f"  Healer rotation error: {error}")
+PY
+) || true
+
+    if [ -n "$result" ]; then
+        echo "$result"
+    fi
+}
+
 # cleanup_orphan_branches
 # Prunes remote branches from nightshift that have no open PR.
 cleanup_orphan_branches() {

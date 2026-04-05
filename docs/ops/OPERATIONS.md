@@ -11,7 +11,7 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 ```
 Nightshift/
 ├── nightshift/                  ← THE PRODUCT (Python package, 28 modules)
-├── tests/                       ← TEST SUITE (904 tests)
+├── tests/                       ← TEST SUITE (912 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
 │   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)
@@ -311,17 +311,20 @@ Step 6n ("Observe the System") and Step 6o ("Generate Work") of
 ### Files
 | File | Purpose |
 |------|---------|
-| `docs/healer/log.md` | Append-only system-health observations written by builder sessions |
+| `docs/healer/log.md` | Current healer history written by builder sessions; newest entries stay live for fast reads |
+| `docs/healer/archive/*.md` | Monthly archive files created by housekeeping when old healer entries rotate out of the live log |
 | `docs/prompt/healer.md` | Historical/reference workflow for the healer mindset; useful context, but not directly executed |
 
 ### How it works
 1. The builder reads recent sessions, cost analysis, the task queue, the vision tracker, the module map, and the existing healer log.
 2. It appends a new dated entry to `docs/healer/log.md` with a health label (`good`, `caution`, or `concern`).
-3. If the observation reveals actionable gaps, the builder creates follow-up tasks during Step 6o.
-4. If the pattern needs human attention, the daemon can escalate with `notify_human`.
+3. Daemon housekeeping keeps the live healer log bounded by rotating older top-level entries into `docs/healer/archive/YYYY-MM.md`.
+4. If the observation reveals actionable gaps, the builder creates follow-up tasks during Step 6o.
+5. If the pattern needs human attention, the daemon can escalate with `notify_human`.
 
 ### How to inspect healer output
 - Read `docs/healer/log.md` for the durable observation history.
+- Check `docs/healer/archive/` when you need older observations that have rotated out of the live log.
 - Read the matching builder session log in `docs/sessions/*.log` for raw execution details.
 - There are no dedicated `*-healer.log` session files anymore; the old standalone healer flow was removed when the observation step moved into the builder prompt.
 
@@ -356,7 +359,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | `cycle.py` | Per-cycle logic | `build_prompt()`, `command_for_agent()`, `verify_cycle()`, `evaluate_baseline()`, `extract_json()`, `blocked_file()` |
 | `scoring.py` | Post-cycle diff scoring | `score_diff()`, `diff_line_score()`, `has_test_files()` |
 | `costs.py` | Session cost tracking | `record_session()`, `parse_session_tokens()`, `calculate_cost()`, `read_ledger()`, `write_ledger()`, `total_cost()`, `format_session_cost()`, `default_ledger_path()` |
-| `cleanup.py` | Daemon housekeeping | `rotate_logs()`, `prune_orphan_branches()` |
+| `cleanup.py` | Daemon housekeeping | `rotate_logs()`, `rotate_healer_log()`, `prune_orphan_branches()` |
 | `compact.py` | Handoff compaction | `compact_handoffs()` |
 | `multi.py` | Multi-repo orchestration | `run_multi_shift()`, `validate_repos()`, `format_multi_summary()` |
 | `profiler.py` | Repo analysis for Loop 2 | `profile_repo()` |
@@ -513,6 +516,7 @@ Only one daemon runs at a time (shared lockfile).
 |------|---------|
 | `run_agent()` | Normalized Claude/Codex invocation with JSONL logging |
 | `cleanup_old_logs()` | Rotates stale daemon log files via `nightshift.cleanup.rotate_logs()` |
+| `cleanup_healer_log()` | Rotates older healer entries into `docs/healer/archive/` via `nightshift.cleanup.rotate_healer_log()` |
 | `cleanup_orphan_branches()` | Removes remote Nightshift branches that no longer have open PRs |
 | `compact_handoffs()` | Rolls older numbered handoffs into weekly summaries |
 | `archive_done_tasks()` | Moves completed task files into `docs/tasks/archive/` |
