@@ -808,7 +808,7 @@ def evaluate(
 
     # Clone
     clone_dir: Path | None = None
-    clone_dest = Path("/tmp/nightshift-eval")  # noqa: S108
+    clone_dest = Path("/tmp/nightshift-eval")
     try:
         clone_dir = clone_target_repo(target_repo, clone_dest)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):

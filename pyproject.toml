@@ -25,7 +25,7 @@ ignore = [
 "nightshift/shell.py" = ["S603", "S607"]  # subprocess with variable args -- this is the orchestrator's job
 "nightshift/cycle.py" = ["S603", "S607"]
 "nightshift/worktree.py" = ["S603", "S607"]
-"nightshift/evaluation.py" = ["S603", "S607"]  # subprocess calls for clone + shift runner
+"nightshift/evaluation.py" = ["S603", "S607", "S108"]  # subprocess calls for clone + shift runner, /tmp path
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -204,11 +204,6 @@ print(format_session_cost(entry))
     COST_USD=$(echo "$SESSION_COST" | head -1)
     echo "$SESSION_COST" | tail -n +2
 
-    # --- Self-evaluation check ---
-    if [ "$EXIT_CODE" -eq 0 ] && should_evaluate "$CYCLE"; then
-        run_evaluation "$AGENT" "$FEATURE"
-    fi
-
     # --- Session index entry ---
     if [ "$EXIT_CODE" -eq 0 ]; then
         STATUS="success"
@@ -246,6 +241,11 @@ for line in open('$LOG_FILE'):
     except: pass
 print('-')
 " 2>/dev/null || echo "-")
+
+    # --- Self-evaluation check ---
+    if [ "$EXIT_CODE" -eq 0 ] && should_evaluate "$CYCLE"; then
+        run_evaluation "$AGENT" "$FEATURE"
+    fi
 
     echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
 
