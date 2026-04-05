@@ -589,3 +589,22 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
 
 # Filename for the cost ledger (stored in docs/sessions/).
 COST_LEDGER_FILENAME = "costs.json"
+
+# --- Cleanup / log rotation data --------------------------------------------
+
+# Default number of days to keep session logs before rotation.
+DEFAULT_KEEP_LOGS_DAYS = 7
+
+# Branch name prefixes created by nightshift daemons -- only these are
+# candidates for orphan pruning. Other branches are left untouched.
+DAEMON_BRANCH_PREFIXES = (
+    "feat/",
+    "fix/",
+    "docs/",
+    "refactor/",
+    "release/",
+    "test/",
+)
+
+# Branches that are never pruned, regardless of prefix or PR status.
+PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "staging", "production"})

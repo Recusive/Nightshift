@@ -32,6 +32,7 @@ PACKAGE_FILES=(
   "nightshift/cycle.py"
   "nightshift/scoring.py"
   "nightshift/costs.py"
+  "nightshift/cleanup.py"
   "nightshift/multi.py"
   "nightshift/profiler.py"
   "nightshift/planner.py"

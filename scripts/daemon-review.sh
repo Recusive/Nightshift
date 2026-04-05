@@ -32,6 +32,7 @@ else
     MAX_SESSIONS="${3:-0}"
     BUDGET="${NIGHTSHIFT_BUDGET:-0}"
 fi
+KEEP_LOGS="${NIGHTSHIFT_KEEP_LOGS:-7}"
 LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index-review.md"
 REVIEW_PROMPT="$REPO_DIR/docs/prompt/review.md"
@@ -115,6 +116,10 @@ while true; do
     git checkout main --quiet 2>/dev/null || true
     git reset --hard origin/main --quiet 2>/dev/null || true
     git clean -fd --quiet 2>/dev/null || true
+
+    # --- Housekeeping: rotate old logs, prune stale branches ---
+    cleanup_old_logs "$LOG_DIR" "$KEEP_LOGS"
+    cleanup_orphan_branches
 
     # --- Prompt guard: snapshot before cycle ---
     SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")

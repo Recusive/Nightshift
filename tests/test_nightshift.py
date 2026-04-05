@@ -6583,3 +6583,338 @@ class TestCostTypes:
         )
         assert ledger["total_cost_usd"] == 10.0
         assert ledger["sessions"] == []
+
+
+# --- Cleanup: Log Rotation ---------------------------------------------------
+
+
+class TestRotateLogs:
+    def test_deletes_old_logs(self, tmp_path: Path) -> None:
+        """Logs older than keep_days are deleted."""
+        import time
+
+        old_log = tmp_path / "old-session.log"
+        old_log.write_text("old data")
+        # Set mtime to 10 days ago
+        old_mtime = time.time() - (10 * 86400)
+        os.utime(old_log, (old_mtime, old_mtime))
+
+        new_log = tmp_path / "new-session.log"
+        new_log.write_text("new data")
+
+        result = nightshift.rotate_logs(str(tmp_path), keep_days=7)
+        assert str(old_log) in result["deleted"]
+        assert not old_log.exists()
+        assert new_log.exists()
+        assert result["kept"] == 1
+        assert result["errors"] == []
+
+    def test_keeps_recent_logs(self, tmp_path: Path) -> None:
+        """Logs newer than keep_days are kept."""
+        log = tmp_path / "recent.log"
+        log.write_text("data")
+
+        result = nightshift.rotate_logs(str(tmp_path), keep_days=7)
+        assert result["deleted"] == []
+        assert result["kept"] == 1
+        assert log.exists()
+
+    def test_ignores_non_log_files(self, tmp_path: Path) -> None:
+        """Non-.log files are never deleted, even if old."""
+        import time
+
+        json_file = tmp_path / "costs.json"
+        json_file.write_text("{}")
+        old_mtime = time.time() - (30 * 86400)
+        os.utime(json_file, (old_mtime, old_mtime))
+
+        md_file = tmp_path / "index.md"
+        md_file.write_text("# Index")
+        os.utime(md_file, (old_mtime, old_mtime))
+
+        result = nightshift.rotate_logs(str(tmp_path), keep_days=7)
+        assert result["deleted"] == []
+        assert result["kept"] == 0
+        assert json_file.exists()
+        assert md_file.exists()
+
+    def test_nonexistent_dir(self) -> None:
+        """Missing directory returns error, no crash."""
+        result = nightshift.rotate_logs("/nonexistent/path", keep_days=7)
+        assert result["deleted"] == []
+        assert result["kept"] == 0
+        assert len(result["errors"]) == 1
+        assert "does not exist" in result["errors"][0]
+
+    def test_empty_dir(self, tmp_path: Path) -> None:
+        """Empty directory returns zero counts."""
+        result = nightshift.rotate_logs(str(tmp_path), keep_days=7)
+        assert result["deleted"] == []
+        assert result["kept"] == 0
+        assert result["errors"] == []
+
+    def test_custom_keep_days(self, tmp_path: Path) -> None:
+        """Custom keep_days value is respected."""
+        import time
+
+        log = tmp_path / "session.log"
+        log.write_text("data")
+        # 2 days old
+        old_mtime = time.time() - (2 * 86400)
+        os.utime(log, (old_mtime, old_mtime))
+
+        # With 3 day retention: kept
+        result = nightshift.rotate_logs(str(tmp_path), keep_days=3)
+        assert result["deleted"] == []
+        assert result["kept"] == 1
+
+    def test_custom_keep_days_deletes(self, tmp_path: Path) -> None:
+        """File is deleted when older than custom keep_days."""
+        import time
+
+        log = tmp_path / "session.log"
+        log.write_text("data")
+        old_mtime = time.time() - (2 * 86400)
+        os.utime(log, (old_mtime, old_mtime))
+
+        # With 1 day retention: deleted
+        result = nightshift.rotate_logs(str(tmp_path), keep_days=1)
+        assert len(result["deleted"]) == 1
+        assert not log.exists()
+
+    def test_multiple_old_logs(self, tmp_path: Path) -> None:
+        """Multiple old logs are all deleted in one call."""
+        import time
+
+        old_mtime = time.time() - (14 * 86400)
+        for i in range(5):
+            log = tmp_path / f"session-{i}.log"
+            log.write_text(f"data {i}")
+            os.utime(log, (old_mtime, old_mtime))
+
+        result = nightshift.rotate_logs(str(tmp_path), keep_days=7)
+        assert len(result["deleted"]) == 5
+        assert result["kept"] == 0
+
+    def test_default_keep_days(self, tmp_path: Path) -> None:
+        """Default keep_days matches the constant."""
+        import time
+
+        log = tmp_path / "old.log"
+        log.write_text("data")
+        old_mtime = time.time() - (8 * 86400)
+        os.utime(log, (old_mtime, old_mtime))
+
+        # Call without explicit keep_days
+        result = nightshift.rotate_logs(str(tmp_path))
+        assert len(result["deleted"]) == 1
+
+
+# --- Cleanup: Branch Pruning --------------------------------------------------
+
+
+class TestIsDaemonBranch:
+    """Test the _is_daemon_branch helper via the module import."""
+
+    def test_feat_branch(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("feat/add-auth") is True
+
+    def test_fix_branch(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("fix/login-bug") is True
+
+    def test_docs_branch(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("docs/update-readme") is True
+
+    def test_refactor_branch(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("refactor/split-module") is True
+
+    def test_release_branch(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("release/v1.0") is True
+
+    def test_test_branch(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("test/add-coverage") is True
+
+    def test_random_branch_is_not_daemon(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("my-experiment") is False
+
+    def test_main_is_not_daemon(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("main") is False
+
+    def test_develop_is_not_daemon(self) -> None:
+        from nightshift.cleanup import _is_daemon_branch
+
+        assert _is_daemon_branch("develop") is False
+
+
+class TestPruneOrphanBranches:
+    def test_prunes_daemon_branch_without_open_pr(self, tmp_path: Path) -> None:
+        """A daemon branch with no open PR is pruned."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["feat/old-feature"]),
+            patch("nightshift.cleanup._open_pr_branches", return_value=set()),
+            patch("nightshift.cleanup.run_capture") as mock_run,
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == ["feat/old-feature"]
+        assert result["errors"] == []
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args[0][0]
+        assert call_args == ["git", "push", "origin", "--delete", "feat/old-feature"]
+
+    def test_skips_branch_with_open_pr(self, tmp_path: Path) -> None:
+        """A daemon branch with an open PR is skipped."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["feat/active-work"]),
+            patch("nightshift.cleanup._open_pr_branches", return_value={"feat/active-work"}),
+            patch("nightshift.cleanup.run_capture") as mock_run,
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        assert "feat/active-work" in result["skipped"]
+        mock_run.assert_not_called()
+
+    def test_skips_non_daemon_branches(self, tmp_path: Path) -> None:
+        """Non-daemon branches are skipped regardless of PR status."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["experiment"]),
+            patch("nightshift.cleanup._open_pr_branches", return_value=set()),
+            patch("nightshift.cleanup.run_capture") as mock_run,
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        assert "experiment" in result["skipped"]
+        mock_run.assert_not_called()
+
+    def test_skips_protected_branches(self, tmp_path: Path) -> None:
+        """Protected branches are never pruned."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["main", "master", "develop"]),
+            patch("nightshift.cleanup._open_pr_branches", return_value=set()),
+            patch("nightshift.cleanup.run_capture") as mock_run,
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        mock_run.assert_not_called()
+
+    def test_handles_delete_error(self, tmp_path: Path) -> None:
+        """Error during git push --delete is captured, not raised."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["fix/broken"]),
+            patch("nightshift.cleanup._open_pr_branches", return_value=set()),
+            patch("nightshift.cleanup.run_capture", side_effect=OSError("network error")),
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        assert len(result["errors"]) == 1
+        assert "fix/broken" in result["errors"][0]
+
+    def test_handles_branch_list_error(self, tmp_path: Path) -> None:
+        """Error listing remote branches returns error result."""
+        with patch("nightshift.cleanup._remote_branch_names", side_effect=OSError("git failed")):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        assert len(result["errors"]) == 1
+        assert "remote branches" in result["errors"][0]
+
+    def test_handles_pr_list_error(self, tmp_path: Path) -> None:
+        """Error listing open PRs returns error result."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["feat/x"]),
+            patch("nightshift.cleanup._open_pr_branches", side_effect=OSError("gh failed")),
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        assert len(result["errors"]) == 1
+        assert "open PRs" in result["errors"][0]
+
+    def test_handles_pr_list_nightshift_error(self, tmp_path: Path) -> None:
+        """NightshiftError from run_capture(check=True) is caught safely."""
+        with (
+            patch("nightshift.cleanup._remote_branch_names", return_value=["feat/x"]),
+            patch(
+                "nightshift.cleanup._open_pr_branches",
+                side_effect=nightshift.NightshiftError("gh auth failed"),
+            ),
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert result["pruned"] == []
+        assert len(result["errors"]) == 1
+        assert "open PRs" in result["errors"][0]
+
+    def test_mixed_branches(self, tmp_path: Path) -> None:
+        """Mix of daemon/non-daemon and with/without PRs."""
+        with (
+            patch(
+                "nightshift.cleanup._remote_branch_names",
+                return_value=["feat/old", "fix/stale", "experiment", "feat/active"],
+            ),
+            patch("nightshift.cleanup._open_pr_branches", return_value={"feat/active"}),
+            patch("nightshift.cleanup.run_capture"),
+        ):
+            result = nightshift.prune_orphan_branches(str(tmp_path))
+        assert sorted(result["pruned"]) == ["feat/old", "fix/stale"]
+        assert "experiment" in result["skipped"]
+        assert "feat/active" in result["skipped"]
+
+
+# --- Cleanup: Constants -------------------------------------------------------
+
+
+class TestCleanupConstants:
+    def test_default_keep_logs_days(self) -> None:
+        assert nightshift.DEFAULT_KEEP_LOGS_DAYS == 7
+
+    def test_daemon_branch_prefixes(self) -> None:
+        prefixes = nightshift.DAEMON_BRANCH_PREFIXES
+        assert "feat/" in prefixes
+        assert "fix/" in prefixes
+        assert "docs/" in prefixes
+        assert "refactor/" in prefixes
+        assert "release/" in prefixes
+
+    def test_protected_branches(self) -> None:
+        protected = nightshift.PROTECTED_BRANCHES
+        assert "main" in protected
+        assert "master" in protected
+        assert "develop" in protected
+
+
+# --- Cleanup: Types -----------------------------------------------------------
+
+
+class TestCleanupTypes:
+    def test_log_rotation_result_fields(self) -> None:
+        result = nightshift.LogRotationResult(
+            deleted=["/tmp/old.log"],
+            kept=3,
+            errors=[],
+        )
+        assert result["deleted"] == ["/tmp/old.log"]
+        assert result["kept"] == 3
+        assert result["errors"] == []
+
+    def test_branch_prune_result_fields(self) -> None:
+        result = nightshift.BranchPruneResult(
+            pruned=["feat/old"],
+            skipped=["experiment"],
+            errors=[],
+        )
+        assert result["pruned"] == ["feat/old"]
+        assert result["skipped"] == ["experiment"]
+        assert result["errors"] == []
