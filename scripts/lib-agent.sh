@@ -29,14 +29,14 @@ run_agent() {
     case "$agent" in
         codex)
             # Codex non-interactive mode
-            # --full-auto: no approval needed
-            # --sandbox danger-full-access: full filesystem + git access (no sandbox restrictions)
+            # --dangerously-bypass-approvals-and-sandbox: skip approvals + full filesystem/git access
+            #   NOTE: --full-auto forces --sandbox workspace-write which blocks .git/ lock files
+            #   in worktrees. We need true full access for git commit/push inside worktrees.
             # --json: JSONL stream to stdout
             # --model: configurable (default gpt-5.4)
             # -c reasoning_effort: thinking level
             codex exec \
-                --full-auto \
-                --sandbox danger-full-access \
+                --dangerously-bypass-approvals-and-sandbox \
                 --json \
                 --model "$CODEX_MODEL" \
                 -c "reasoning_effort=\"$CODEX_THINKING\"" \
