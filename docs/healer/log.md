@@ -23,3 +23,17 @@ Observations from the meta-layer observer. Newest entries first.
 ### Actions taken
 
 - Created task #0062: Tag overdue releases (v0.0.6, v0.0.7)
+
+---
+
+## 2026-04-05 -- Session #0032 (Fix healer -- merge into builder step)
+
+**System health:** good
+
+- **Healer now functional.** This is the first observation written by the builder as a session step (Step 6n). The 4-session gap of silent healer failure is over. Future sessions will run this observation step automatically.
+
+- **Meta-prompt clustering ending.** Last 5 sessions were all meta-prompt work (healer, notify_human, generate work, vision-alignment, healer fix). The vision-alignment check (#0031) should prevent this pattern from continuing -- it will flag that meta-prompt has received disproportionate attention and push toward Loop 2 (63%) or Self-Maintaining (59%).
+
+- **Cost per session is moderate.** Last 4 sessions averaged ~$27 (range $16-$35). No concerning trend yet, but the budget tracking now makes this visible.
+
+- **Ghost sessions remain unexplained.** 6 sessions on 04/04 00:56-02:00 plus 2 more at 21:14 and 22:10 have no feature name or PR. Previous observation already noted this. Cost tracking was not in place for the earlier batch. The later two had cost tracking but were logged without feature extraction. Not actionable without more data -- just monitoring.
