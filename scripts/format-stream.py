@@ -71,6 +71,8 @@ def format_codex(event: dict) -> str | None:
                 "SYSTEM SIGNALS", "ROLE DECISION", "EXECUTING ROLE",
                 "SESSION STATUS", "PROPOSAL", "PRE-PUSH CHECKLIST",
                 "SESSION COMPLETE", "Session Complete", "GENERATED TASKS",
+                "AUTONOMY SCORE", "ACHIEVE PROPOSAL", "ACHIEVE SESSION COMPLETE",
+                "OVERSEER AUDIT",
             ]:
                 if marker in text:
                     return f"  >>>   {marker}"
@@ -112,8 +114,9 @@ def main() -> None:
                 result = format_codex(event)
             if result is not None:
                 print(result, flush=True)
-        except Exception:
-            # Never crash the pipeline — log and continue
+        except Exception as exc:
+            # Never crash the pipeline — show error and continue
+            print(f"  ERR   formatter: {type(exc).__name__}", flush=True)
             continue
 
 

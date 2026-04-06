@@ -86,10 +86,17 @@ before v0.0.7). Multiple releases per session is fine. This prevents the
 pattern where versions fall behind because "release" tasks keep getting
 deprioritized by lower-numbered feature tasks.
 
-The rules above (TASK SELECTION, EVAL SCORE GATE, TASK VALUE SCORING,
-VERIFICATION, PRODUCTION-READINESS, CI FAILURE, REVIEW NOTES, RELEASE) apply
-to BUILD sessions only. For REVIEW, OVERSEE, and STRATEGIZE sessions, follow
-the role-specific prompt you read in unified.md Phase 3.
+BUILD-ONLY RULES: TASK SELECTION, EVAL SCORE GATE, TASK VALUE SCORING,
+and RELEASE apply to BUILD sessions only.
+
+UNIVERSAL RULES (apply to ALL roles that produce code changes — BUILD,
+REVIEW, ACHIEVE): VERIFICATION, PRODUCTION-READINESS, CI FAILURE, and
+REVIEW NOTES. These quality gates are non-negotiable for any role that
+commits code to the repo.
+
+For OVERSEE and STRATEGIZE sessions (which do not produce code), follow
+the role-specific prompt you read in unified.md Phase 3. The universal
+rules do not apply since these roles do not create PRs with code changes.
 
 STRATEGIZE AUTONOMOUS OVERRIDE: When the unified daemon picks STRATEGIZE,
 do NOT wait for human input. Write the strategy report, then auto-create
@@ -107,7 +114,7 @@ DAEMON CONTEXT: You are running inside the unified daemon (`scripts/daemon.sh`) 
 - A monitor agent or human may be reading your log in real-time
 - The daemon will hard-reset to origin/main before your next session starts
 - If you leave an open PR, the next session will detect it and finish it
-- The daemon auto-picks BUILD/REVIEW/OVERSEE/STRATEGIZE each cycle based on system signals
+- The daemon auto-picks BUILD/REVIEW/OVERSEE/STRATEGIZE/ACHIEVE each cycle based on system signals
 - Full daemon docs: `docs/ops/DAEMON.md`
 
 ---

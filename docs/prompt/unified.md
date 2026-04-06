@@ -146,12 +146,15 @@ System signals:
   pending_tasks:           N
   stale_tasks:             N
   healer_status:           [status]
+  autonomy_score:          NN/100
+  needs_human_issues:      N
 
 Scoring:
   BUILD:      NN  (breakdown)
   REVIEW:     NN  (breakdown)
   OVERSEE:    NN  (breakdown)
   STRATEGIZE: NN  (breakdown)
+  ACHIEVE:    NN  (breakdown)
 
 -> [ROLE] this session because [one sentence reason]
 ```
@@ -172,12 +175,12 @@ Based on your decision, read ONE of these prompt files and follow it end-to-end:
 
 **Read the ENTIRE prompt file and follow it step by step.** The role prompts are 100-650 lines. You MUST read the full file, not just the first 200 lines. If using shell commands to read, use `cat` not `sed -n '1,220p'`. Do NOT read the other role prompts. One role per session.
 
-**Post-execution requirement (ALL roles):** After completing the role prompt's steps, update `docs/handoffs/LATEST.md` with what you did this session. BUILD's evolve.md already requires this. For REVIEW, OVERSEE, and STRATEGIZE: write a brief handoff noting your role, what you did, and what the next session should know. The next cycle reads LATEST.md first -- stale data causes bad decisions.
+**Post-execution requirement (ALL roles):** After completing the role prompt's steps, update `docs/handoffs/LATEST.md` with what you did this session. BUILD's evolve.md already requires this. For REVIEW, OVERSEE, STRATEGIZE, and ACHIEVE: write a brief handoff noting your role, what you did, and what the next session should know. The next cycle reads LATEST.md first -- stale data causes bad decisions.
 
 After reading the role prompt, announce which role you adopted so the session log is traceable:
 
 ```
-EXECUTING ROLE: [BUILD/REVIEW/OVERSEE/STRATEGIZE]
+EXECUTING ROLE: [BUILD/REVIEW/OVERSEE/STRATEGIZE/ACHIEVE]
 ```
 
 ---
@@ -197,14 +200,17 @@ System signals:
   pending_tasks:           45
   stale_tasks:             1
   healer_status:           caution
+  autonomy_score:          55/100
+  needs_human_issues:      1
 
 Scoring:
   BUILD:      10  (50 base -40 eval gate = 10, no urgent tasks)
-  REVIEW:     10  (10 base, builds < 5, no healer concern, review < 10)
+  REVIEW:     10  (10 base, builds < 5, no healer concern, review < 5)
   OVERSEE:    10  (10 base, tasks < 50, stale < 3)
-  STRATEGIZE:  5  (5 base, strategy < 15 sessions ago)
+  STRATEGIZE:  5  (5 base, strategy < 15)
+  ACHIEVE:    55  (5 +50 autonomy 55 < 70)
 
--> BUILD this session because eval score 66 < 80 gates me to eval-related tasks. Picking the highest-impact eval fix to push toward 80.
+-> ACHIEVE this session because autonomy score 55 < 70 and eval is gated. Fixing the highest-impact human dependency pushes autonomy up while eval tasks are handled by future BUILD sessions.
 </example>
 
 <example>
@@ -223,9 +229,10 @@ System signals:
 
 Scoring:
   BUILD:      80  (50 +30 eval healthy)
-  REVIEW:     50  (10 +40 consecutive builds >= 5)
+  REVIEW:     60  (10 +40 consecutive >= 5 +10 review >= 5)
   OVERSEE:    100 (10 +50 pending >= 50 +40 stale >= 3)
   STRATEGIZE:  5  (5 base, strategy < 15)
+  ACHIEVE:    55  (5 +50 autonomy 0 < 70)
 
 -> OVERSEE this session because 62 pending tasks with 4 stale. Queue needs cleanup before more building adds noise.
 </example>
@@ -243,12 +250,15 @@ System signals:
   pending_tasks:           38
   stale_tasks:             1
   healer_status:           concern
+  autonomy_score:          72/100
+  needs_human_issues:      0
 
 Scoring:
   BUILD:      80  (50 +30 eval healthy)
-  REVIEW:     90  (10 +40 consecutive >= 5 +30 healer concern +10 review overdue)
+  REVIEW:     90  (10 +40 consecutive >= 5 +30 healer concern +10 review >= 5)
   OVERSEE:    10  (10 base, tasks < 50, stale < 3)
   STRATEGIZE:  5  (5 base, strategy < 15)
+  ACHIEVE:     5  (5 base, autonomy 72 >= 70)
 
 -> REVIEW this session because 6 consecutive builds with healer flagging quality concerns. REVIEW scores 90 vs BUILD 80.
 </example>
@@ -266,12 +276,15 @@ System signals:
   pending_tasks:           35
   stale_tasks:             0
   healer_status:           good
+  autonomy_score:          85/100
+  needs_human_issues:      0
 
 Scoring:
   BUILD:      80  (50 +30 eval healthy)
   REVIEW:     10  (10 base)
   OVERSEE:    10  (10 base)
   STRATEGIZE: 65  (5 +60 overdue by 3 sessions)
+  ACHIEVE:     5  (5 base, autonomy 85 >= 70)
 
 -> STRATEGIZE this session because 18 sessions without strategic review. Everything else is healthy -- time for big picture analysis.
 </example>
