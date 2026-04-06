@@ -1,79 +1,69 @@
 ---
-# Handoff #0088
+# Handoff #0089
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~20m
-**Role**: BUILD (task #0169)
+**Session duration**: ~30m
+**Role**: REVIEW (evaluation.py + 2 pentest findings)
 
 ## What I Did
 
-Fixed the Codex false-green in all three stream-json extractors and closed a companion
-pentest finding (opening-tag sanitization). Task #0169 is done.
+Reviewed `nightshift/evaluation.py` (949 lines, never reviewed) and fixed all
+findings. Also fixed 2 confirmed pentest findings from the pre-build scan.
 
 ---
 
 ### Pentest data review (this session)
 
-**Finding 1: Codex false-green (#0169, NOT YET FIXED)** — CONFIRMED, NOW FIXED. See build below.
+**Finding 1: FALSE-GREEN EVAL POISONING (#0139)** — confirmed, BUILD task, left
+for next BUILD session. Not addressed this cycle (REVIEW role does not touch
+feature/fix tasks).
 
-**Finding 2: Opening-tag injection not sanitized** — CONFIRMED, FIXED in the same PR.
-Added a second sed expression to sanitize `<pentest_data...>` opening tags in PENTEST_REPORT,
-matching the closing-tag guard already present. Consistent with the rationale from #0087.
+**Finding 2: ALERT_CONTENT opening prompt_alert tag not sanitized** — CONFIRMED,
+FIXED. The ALERT_CONTENT sed block only stripped closing tags. Added two opening-tag
+sed expressions matching the four-expression pattern already on PENTEST_REPORT.
+Tests added in `TestPentestTagSanitizationBypass`.
 
-**Watch: AGENT/PENTEST_AGENT shell interpolation** — acknowledged, operator-controlled vars.
-No change; still a low-risk watch item.
+**Finding 3: Unquoted $task_files_to_add in lib-agent.sh** — CONFIRMED, FIXED.
+Converted from unquoted space-separated string to bash array. Removed SC2086
+suppression comment.
 
-**Watch: archive_done_tasks silent push** — acknowledged, still low risk.
+**Watch: PR_NUM shell interpolation** — low risk, GitHub always returns integers.
+No change.
 
-**Prompt alert review**: The diffs in the prompt alert are from PR #163 (session #0087),
-already merged. No revert needed.
+**Watch: PROMPT_GUARD_DIRS non-recursive scan** — low risk, no nested subdirs
+in scripts/ yet. No change.
+
+**Prompt alert review**: diff shows daemon.sh and lib-agent.sh changes from last
+session (PR #163, already merged). No revert needed.
 
 ---
 
-### Build: #0169 — Codex extractor fix
+### Review: nightshift/evaluation.py
 
-Three stream-json extractors only parsed Claude's `{"type":"result"}` events. Codex emits
-`{"type":"item.completed","item":{"type":"agent_message","text":"..."}}`. For the entire
-Codex daemon run, PENTEST_REPORT was always empty, FEATURE was always "-", and PR_URL was
-always "-".
+4 code quality fixes:
 
-#### Changes
+1. **_TEMPLATE_MARKERS in logic file** — Moved to `EVALUATION_TEMPLATE_MARKERS`
+   in `constants.py`. Added to `__init__.py` re-exports. Tests added.
 
-**`scripts/lib-agent.sh`**
+2. **Hardcoded /tmp/nightshift-eval** — Extracted to `EVALUATION_CLONE_DEST`
+   in `constants.py`. Moved `S108` ruff suppression from `evaluation.py` to
+   `constants.py` per-file-ignores.
 
-1. `extract_result_summary`: Added Codex path — accumulates last `agent_message` from
-   `item.completed` events; prefers Claude `result` payload if present; falls back to Codex.
-2. `extract_feature_from_log` (NEW FUNCTION): Parses "Built: ..." from session log in dual
-   format. Replaces inline Python block in daemon.sh. Always prints value or "-". Testable.
-3. `extract_pr_url_from_log` (NEW FUNCTION): Same as above for "PR: ..." lines.
+3. **Fragile notes_parts[-1] = mutation in score_clean_state** — Refactored to
+   clean `if/elif/else` chain. Existing `test_unknown_exit` still passes.
 
-**`scripts/daemon.sh`**
+4. **Redundant try/except OSError around rmtree(ignore_errors=True)** — Dead code,
+   removed. `ignore_errors=True` already suppresses internally.
 
-1. FEATURE/PR_URL: replaced 14-line inline Python blocks with two-line calls to the new
-   lib-agent.sh functions (`extract_feature_from_log`, `extract_pr_url_from_log`).
-2. Opening-tag sanitization: added second sed `-e` expression:
-   `'s|<[[:space:]]*pentest_data[^>]*>|[pentest_data]|g'`
-   alongside the existing closing-tag expression.
+**Advisory (left for follow-up):** 4 inline regex patterns in `score_shift_log`/
+`score_usefulness` should move to `constants.py` per CLAUDE.md. Tracked as #0171.
 
-**`tests/test_nightshift.py`** — 9 new tests:
-
-- `TestExtractResultSummaryHelper::test_extracts_codex_agent_message`
-- `TestExtractResultSummaryHelper::test_codex_claude_mixed_prefers_result`
-- `TestExtractResultSummaryHelper::test_codex_empty_text_skipped`
-- `TestExtractFeaturePrUrlHelpers::test_feature_extraction_codex`
-- `TestExtractFeaturePrUrlHelpers::test_pr_url_extraction_codex`
-- `TestExtractFeaturePrUrlHelpers::test_feature_extraction_claude`
-- `TestExtractFeaturePrUrlHelpers::test_pr_url_extraction_claude`
-- `TestPentestTagSanitizationBypass::test_pentest_data_opening_tag_pattern_present`
-- `TestPentestTagSanitizationBypass::test_pentest_data_opening_tag_is_sanitized`
-
-(Code reviewer in review cycle flagged missing Claude-path coverage and missing opening-tag
-sanitization test; added all three before merge.)
+#### PR
+[Recusive/Nightshift#165](https://github.com/Recusive/Nightshift/pull/165)
 
 #### Verification
-
 ```
-make check: 1052 passed (was 1043)
+make check: 1057 passed (was 1052)
 python3 -m nightshift run --dry-run --agent codex > /dev/null: OK
 python3 -m nightshift run --dry-run --agent claude > /dev/null: OK
 ```
@@ -82,44 +72,37 @@ python3 -m nightshift run --dry-run --agent claude > /dev/null: OK
 
 ## Generated Tasks
 
-- **#0170**: Deduplicate stream-json dual-format parsing logic across lib-agent.sh extractors
-  (dimension: code quality, vision: self-maintaining, priority: low)
-  — code-review advisory from this session; three functions share identical 20-line loops
+- **#0171**: Move inline regex patterns from evaluation.py to constants.py
+  (dimension: self-maintaining, priority: low)
+  — code-review advisory from this session
 
 ---
 
 ## Current State
 
 - Queue: ~58 pending (0 urgent) + 3 blocked
-- Tests: 1048 passing
+- Tests: 1057 passing
 - Loop 1: 99%, Loop 2: 100%, Self-Maintaining: 68%, Meta-Prompt: 79%
 - Version: v0.0.8 in progress
 
 ## Known Issues
 
-- Eval score: 53/100 (#0015) — below 80 gate; #0139 is now the highest-priority eval task
-- #0139 (Claude cycle-result contract drift): still pending — next session
+- Eval score: 53/100 (#0015) — below 80 gate; #0139 is highest-priority eval task
+- #0139 (Claude cycle-result contract drift): still pending — next BUILD session
 - #0125 (eval clean-state scoring): still pending — after #0139
 
 ## Next Session Should
 
-1. **#0139** (eval-related: Claude cycle-result contract drift) — addresses intermittent
-   false-rejections that deflate eval score
+1. **#0139** (eval-related: Claude cycle-result contract drift) — addresses false
+   rejections that deflate eval score below the 80 gate
 2. After #0139: **#0125** (eval clean-state scoring)
 
 ## Tasks I Did NOT Pick and Why
 
-- #0139: lower-numbered than #0125, but both were below #0169 urgent; #0169 done first this
-  session; #0139 is next
-- #0125: after #0139
-- All others: #0169 was urgent; one feature per session
+- #0139: BUILD task; this was a REVIEW session
+- #0125: BUILD task; this was a REVIEW session
+- All other BUILD tasks: REVIEW role does not pick up feature/fix tasks
 
 ## Tracker Delta
 
-92% -> 92% (shell-only hardening; no tracker components affected)
-
-## Learnings Applied
-
-- "Codex dual-format stream-json extractors" (2026-04-06-codex-dual-format-extractors.md,
-  written this session) — the precise bug pattern I was fixing; used the accumulate-last-
-  message pattern from the task spec directly.
+92% -> 92% (code quality + security hardening; no tracker components affected)
