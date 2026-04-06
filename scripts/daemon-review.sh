@@ -202,7 +202,7 @@ for line in open('$LOG_FILE'):
                 if 'Review:' in l or 'nightshift/' in l:
                     print(l.strip()[:60])
                     sys.exit(0)
-    except: pass
+    except Exception: pass
 print('-')
 " 2>/dev/null || echo "-")
 
