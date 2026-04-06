@@ -9190,6 +9190,151 @@ class TestListTasksScript:
         assert "Queue via make" in result.stdout
 
 
+class TestValidateTasksScript:
+    @staticmethod
+    def _write_task(
+        task_dir: Path,
+        task_id: int,
+        *,
+        status: str,
+        priority: str,
+        title: str,
+        target: str = "v0.0.8",
+        created: str = "2026-04-05",
+        completed: str = "",
+        blocked_reason: str | None = None,
+    ) -> Path:
+        lines = [
+            "---",
+            f"status: {status}",
+            f"priority: {priority}",
+            f"target: {target}",
+            f"created: {created}",
+        ]
+        if blocked_reason is not None:
+            lines.append(f"blocked_reason: {blocked_reason}")
+        lines.extend(
+            [
+                f"completed: {completed}",
+                "---",
+                "",
+                f"# {title}",
+                "",
+            ]
+        )
+        path = task_dir / f"{task_id:04d}.md"
+        path.write_text("\n".join(lines), encoding="utf-8")
+        return path
+
+    def test_accepts_valid_tasks_and_skips_non_task_files(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        script = repo_root / "scripts" / "validate-tasks.sh"
+        task_dir = tmp_path / "tasks"
+        archive_dir = task_dir / "archive"
+        task_dir.mkdir()
+        archive_dir.mkdir()
+
+        self._write_task(task_dir, 1, status="pending", priority="normal", title="Pending task")
+        self._write_task(
+            task_dir,
+            2,
+            status="blocked",
+            priority="urgent",
+            title="Blocked task",
+            blocked_reason="dependency",
+        )
+        self._write_task(
+            task_dir,
+            3,
+            status="done",
+            priority="low",
+            title="Done task",
+            completed="2026-04-06",
+        )
+
+        (task_dir / "README.md").write_text("not a task", encoding="utf-8")
+        (task_dir / "GUIDE.md").write_text("not a task", encoding="utf-8")
+        (task_dir / ".next-id").write_text("4\n", encoding="utf-8")
+        (archive_dir / "0004.md").write_text("broken", encoding="utf-8")
+
+        result = subprocess.run(
+            ["bash", str(script), str(task_dir)],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "All 3 task files valid." in result.stdout
+
+    def test_reports_frontmatter_and_missing_required_fields(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        script = repo_root / "scripts" / "validate-tasks.sh"
+        task_dir = tmp_path / "tasks"
+        task_dir.mkdir()
+
+        (task_dir / "0001.md").write_text("# No frontmatter\n", encoding="utf-8")
+        (task_dir / "0002.md").write_text(
+            "---\nstatus: pending\npriority: normal\ncreated: 2026-04-05\n---\n\n# Missing target\n",
+            encoding="utf-8",
+        )
+        (task_dir / "0003.md").write_text(
+            "---\n## status: pending\npriority: normal\ntarget: v0.0.8\ncreated: 2026-04-05\n---\n\n# Broken field\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            ["bash", str(script), str(task_dir)],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        assert result.returncode != 0
+        assert "0001.md: frontmatter: missing opening --- delimiter" in result.stdout
+        assert "0002.md: target: missing" in result.stdout
+        assert "0003.md: frontmatter line 2: invalid field '## status'" in result.stdout
+        assert "0003.md: status: missing" in result.stdout
+
+    def test_reports_invalid_status_priority_dates_and_conditional_fields(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        script = repo_root / "scripts" / "validate-tasks.sh"
+        task_dir = tmp_path / "tasks"
+        task_dir.mkdir()
+
+        self._write_task(
+            task_dir,
+            1,
+            status="waiting",
+            priority="high",
+            title="Bad enum values",
+            created="2026-13-40",
+        )
+        self._write_task(task_dir, 2, status="blocked", priority="normal", title="Missing reason")
+        self._write_task(
+            task_dir,
+            3,
+            status="done",
+            priority="low",
+            title="Bad completed date",
+            completed="2026-04-99",
+        )
+
+        result = subprocess.run(
+            ["bash", str(script), str(task_dir)],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        assert result.returncode != 0
+        assert "0001.md: status: invalid value 'waiting'" in result.stdout
+        assert "0001.md: priority: invalid value 'high'" in result.stdout
+        assert "0001.md: created: invalid date '2026-13-40'" in result.stdout
+        assert "0002.md: blocked_reason: required when status is 'blocked'" in result.stdout
+        assert "0003.md: completed: invalid date '2026-04-99'" in result.stdout
+
+
 # ---------------------------------------------------------------------------
 # Readiness checker tests
 # ---------------------------------------------------------------------------
