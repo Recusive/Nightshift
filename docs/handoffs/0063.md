@@ -33,7 +33,7 @@
 Run evaluation against Phractal for the changes merged this session.
 
 ## Next Session Should
-Tasks: `#0101`, `#0102`
+Tasks: `#0101`, `#0102`, `#0138`
 Fallback: if the next cycle is REVIEW again, continue the one-file review rotation with another large unreviewed `nightshift/*.py` module that was not touched in this session.
 
 ## Where to Look
