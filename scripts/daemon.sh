@@ -232,10 +232,13 @@ ${PENTEST_PROMPT}"
         PENTEST_STATUS="failed (exit $PENTEST_EXIT_CODE)"
     fi
     PENTEST_REPORT=$(extract_result_summary "$PENTEST_LOG_FILE" 4000 80)
-    # Sanitize: prevent agent-crafted closing tags from escaping the data wrapper.
-    # If the pentest agent quotes daemon.sh source (which contains the literal tag),
-    # the raw tag would break the pentest_data XML boundary in the builder prompt.
-    PENTEST_REPORT=$(printf '%s' "$PENTEST_REPORT" | sed 's|<[[:space:]]*/[[:space:]]*pentest_data[[:space:]]*>|[/pentest_data]|g')
+    # Sanitize: prevent agent-crafted tags from escaping the data wrapper.
+    # Handles both the closing tag (</pentest_data>) and the opening tag
+    # (<pentest_data status="...">). Consistent with closing-tag guard added in #0087.
+    PENTEST_REPORT=$(printf '%s' "$PENTEST_REPORT" \
+        | sed \
+            -e 's|<[[:space:]]*/[[:space:]]*pentest_data[[:space:]]*>|[/pentest_data]|g' \
+            -e 's|<[[:space:]]*pentest_data[^>]*>|[pentest_data]|g')
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
     fi
@@ -380,36 +383,11 @@ print(format_session_cost(entry))
 
     # SESSION_ROLE already set by pick_session_role() at cycle start
 
-    # Extract feature name and PR from log (best-effort)
-    FEATURE=$(python3 -c "
-import json, sys
-for line in open('$LOG_FILE'):
-    try:
-        e = json.loads(line.strip())
-        if e.get('type') == 'result':
-            r = e.get('result', '')
-            for l in r.splitlines():
-                if l.startswith('Built:'):
-                    print(l.replace('Built:', '').strip()[:50])
-                    sys.exit(0)
-    except Exception: pass
-print('-')
-" 2>/dev/null || echo "-")
-
-    PR_URL=$(python3 -c "
-import json, sys
-for line in open('$LOG_FILE'):
-    try:
-        e = json.loads(line.strip())
-        if e.get('type') == 'result':
-            r = e.get('result', '')
-            for l in r.splitlines():
-                if l.startswith('PR:'):
-                    print(l.replace('PR:', '').strip()[:60])
-                    sys.exit(0)
-    except Exception: pass
-print('-')
-" 2>/dev/null || echo "-")
+    # Extract feature name and PR from log (best-effort).
+    # extract_feature_from_log / extract_pr_url_from_log handle both Claude
+    # (type:result) and Codex (item.completed/agent_message) formats.
+    FEATURE=$(extract_feature_from_log "$LOG_FILE" 2>/dev/null || echo "-")
+    PR_URL=$(extract_pr_url_from_log "$LOG_FILE" 2>/dev/null || echo "-")
 
     # Strip pipe chars and newlines to prevent markdown table corruption.
     # parse_session_index in pick-role.py silently drops rows with wrong cell count.

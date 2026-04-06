@@ -9841,6 +9841,121 @@ extract_result_summary "{log}" 200 6
         assert "quote the path" in result.stdout
         assert "ignore me" not in result.stdout
 
+    def test_extracts_codex_agent_message(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        event = {
+            "type": "item.completed",
+            "item": {"type": "agent_message", "text": "PENTEST REPORT\n==\nFix: inject guard\n"},
+        }
+        log.write_text(json.dumps(event) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_result_summary "{log}" 200 10
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "PENTEST REPORT" in result.stdout
+        assert "inject guard" in result.stdout
+
+    def test_codex_claude_mixed_prefers_result(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        codex_event = {
+            "type": "item.completed",
+            "item": {"type": "agent_message", "text": "codex output"},
+        }
+        claude_event = {"type": "result", "result": "claude result wins"}
+        log.write_text("\n".join([json.dumps(codex_event), json.dumps(claude_event)]) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_result_summary "{log}" 200 10
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "claude result wins" in result.stdout
+        assert "codex output" not in result.stdout
+
+    def test_codex_empty_text_skipped(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        empty_event = {
+            "type": "item.completed",
+            "item": {"type": "agent_message", "text": "   "},
+        }
+        real_event = {
+            "type": "item.completed",
+            "item": {"type": "agent_message", "text": "real content here"},
+        }
+        log.write_text("\n".join([json.dumps(empty_event), json.dumps(real_event)]) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_result_summary "{log}" 200 10
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "real content here" in result.stdout
+
+
+class TestExtractFeaturePrUrlHelpers:
+    def test_feature_extraction_codex(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        event = {
+            "type": "item.completed",
+            "item": {
+                "type": "agent_message",
+                "text": "SESSION COMPLETE\nBuilt: Codex feature name\nPR: https://github.com/x/y/pull/42\n",
+            },
+        }
+        log.write_text(json.dumps(event) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_feature_from_log "{log}"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert result.stdout.strip() == "Codex feature name"
+
+    def test_pr_url_extraction_codex(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        event = {
+            "type": "item.completed",
+            "item": {
+                "type": "agent_message",
+                "text": "SESSION COMPLETE\nBuilt: some feature\nPR: https://github.com/x/y/pull/99\n",
+            },
+        }
+        log.write_text(json.dumps(event) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_pr_url_from_log "{log}"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert result.stdout.strip() == "https://github.com/x/y/pull/99"
+
 
 class TestStrategistPrompt:
     def test_includes_cost_analysis_command(self) -> None:

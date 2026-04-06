@@ -1,6 +1,6 @@
 # Module Map
 
-Last updated: 2026-04-06 by session #0084
+Last updated: 2026-04-06 by session #0001
 Generated via: `python3 -m nightshift module-map --write`
 Stale after: 5 newer sessions without a refresh
 
@@ -50,8 +50,8 @@ Topological order derived from internal `nightshift.*` imports.
 
 ## Recent Shipped Sessions
 
+- PR #163: fix: pentest hardening #0087 -- mktemp guard + pentest report cap + #0169 scope
+- PR #162: overseer: fix ALERT_CONTENT pentest-tag bypass + urgent task for Codex false-green
+- PR #161: test: add body-injection regression test for has_urgent_tasks (review advisory)
+- PR #160: fix: add tracker update and review follow-up tasks (#0167, #0168)
 - PR #159: docs: clarify PROMPT_GUARD_DIRS eval false-positive analysis; task for TOCTOU window
-- PR #158: docs: address review findings -- handoff sections, guard learning, follow-up tasks
-- PR #157: fix: permanently deploy pentest fixes via all-PR strategy (4th attempt)
-- PR #156: fix: re-apply pentest fixes and break false-revert loop (3rd time)
-- PR #155: fix: re-apply 2 pentest findings via PR (pipe injection + CI guard)
