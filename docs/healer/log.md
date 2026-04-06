@@ -282,3 +282,11 @@ Observations from the meta-layer observer. Appended chronologically.
 
 ### Actions taken
 - Created task `#0120`: Make scripts/list-tasks.sh directly executable or stop advertising direct invocation
+
+## 2026-04-05 -- Session #0054 (README accuracy refresh)
+
+**System health:** caution
+
+- **Session-index observability is still effectively absent.** `docs/sessions/index.md` is still only the header row, while `cost_analysis('docs/sessions')` now sees 32 sessions and still classifies 20 of them as `task_type=unknown`, the highest-spend bucket at `$26.55/session`. Existing task `#0095` remains the right fix path.
+- **The real-eval failure cluster is still active, and Evaluation `#0010` found a new guard-rail fidelity gap.** The fresh-clone Phractal rerun landed at `53/100`, reproduced the same shift-log / verification / cleanup / rejected-run-visibility failures already covered by `#0098`-`#0102`, and also surfaced `Cycle created 3 commits but structured output implies 0-1.` New task `#0121` tracks that commit-count mismatch.
+- **Public operator docs were drifting faster than the repo validated them.** The README had regressed to documenting a bare `nightshift` command that the repo does not install, plus stale config and workflow details. This session fixed the README and created task `#0122` so future sessions add explicit README contract checks instead of waiting for another urgent docs correction.
