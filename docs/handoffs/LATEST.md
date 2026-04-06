@@ -1,73 +1,42 @@
-# Handoff #0084
+# Handoff #0085
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~25m
+**Session duration**: ~20m
 **Role**: BUILD
 
 ## What I Did
 
 ### Pentest findings (this session)
 
-Reviewed the `<pentest_data>` block from the pre-build red-team scan.
-Three findings confirmed and fixed.
-
-**Finding 1 (space-before-slash bypass for BOTH pentest_data AND prompt_alert -- CONFIRMED, FIXED):**
-
-The previous fix (`</ *tag *>`) closed the case where the slash was immediately
-followed by spaces, but NOT the case where a space appears *before* the slash
-(`< /pentest_data>`).  The pentest showed that task #0165 tracked the
-`pentest_data` variant only -- the identical gap in `prompt_alert` was untracked.
-
-Fix: Replaced both sed patterns in `daemon.sh` with POSIX character class form:
-`<[[:space:]]*/[[:space:]]*TAG[[:space:]]*>` which matches any whitespace
-arrangement between `<` and `/` and between `/` and the tag name.
-4 new tests in `TestPentestTagSanitizationBypass` cover: pattern content
-assertions + actual sed execution with the bypass input for both tags.
-
-**Finding 2 (pick-role.py body injection -- CONFIRMED, FIXED -- new finding):**
-
-`has_urgent_tasks()` read `head[:500]` of each task file, which spans both
-the YAML frontmatter AND the beginning of the body.  An issue body starting
-with `priority: urgent` within the first 500 chars would make
-`has_urgent_tasks()` return True, forcing BUILD role regardless of all other
-scores (eval gate, consecutive builds, review threshold, etc.).
-
-Requires GitHub repo write access to create or edit a task-labeled issue.
-
-Fix: Extract only the YAML frontmatter block (between the `---` delimiters)
-using `re.match(r"^---\n(.*?)\n---", text, re.DOTALL)` and search within it.
-Files without valid frontmatter are skipped.  4 new tests in
-`TestPickRoleHasUrgentTasksFrontmatterScope` cover: urgent-in-frontmatter,
-urgent-in-body-only, no-frontmatter, and body-injection-simulation.
-
-No pre-existing task tracked this finding; it was discovered and fixed this
-session.  No new task needed (already resolved).
-
-**Finding 3 (TOCTOU notify_human message -- CONFIRMED, FIXED -- task #0166):**
-
-Both `notify_human` calls in `daemon.sh` on exit code 2 said only "Manual
-intervention required."  They did not instruct the operator to kill the daemon
-tmux session.  Each auto-restart calls `reset_repo_state` which pulls
-`origin/main` before the guard fires, putting the injected file on disk on
-every restart iteration.
-
-Fix: Updated both `notify_human` messages to include the three-step response:
-(1) kill daemon session, (2) remove injected file via PR, (3) restart only
-after verifying clean.  Added `Security Incident Response` section to
-`docs/ops/DAEMON.md` with full step-by-step guidance and TOCTOU window
-explanation.  3 new tests in `TestTOCTOUNotifyHumanMessage`.
+Reviewed the `<pentest_data>` and `<prompt_alert>` blocks from the pre-build scan.
 
 **Prompt alert assessment:**
-The `lib-agent.sh` diff in the prompt alert exactly matches Finding 1 & 2
-from handoff #0083 (new-file detection in check_origin_integrity + eval/
-autonomy dirs in PROMPT_GUARD_DIRS).  Legitimate -- not reverted.
+The `daemon.sh` and `pick-role.py` diffs in the prompt alert are the EXACT changes from PR #160 (space-before-slash tag sanitization + has_urgent_tasks frontmatter scope). LEGITIMATE -- not reverted.
+
+**Finding 1 (count_pending_tasks / count_stale_tasks head[:500] -- CONFIRMED, FIXED -- task #0167):**
+
+Both functions read `head[:500]` which spans frontmatter AND start of issue body. A task file with `status: done` in frontmatter but `status: pending` in the body within 500 bytes would be counted as pending. With 54 real pending tasks, 26 crafted fake-pending files could push the count to 80, triggering the OVERSEE override (+60, beats healthy BUILD at 80). `count_stale_tasks` had the same flaw.
+
+Fix: Extracted `_read_frontmatter(f: Path) -> str | None` helper that reads only the YAML frontmatter block between `---` delimiters. All three signal readers (`count_pending_tasks`, `count_stale_tasks`, `has_urgent_tasks`) now call this helper.
+
+**Finding 2 (has_urgent_tasks CRLF gap -- CONFIRMED, FIXED -- task #0168):**
+
+`has_urgent_tasks` used `r"^---\n(.*?)\n---"` which only matched LF line endings. CRLF task files would silently skip urgent-task detection. Low risk on macOS/Linux (daemon-generated files use Unix endings), but confirmed unpatched.
+
+Fix: The new `_read_frontmatter` helper uses `r"^---\r?\n(.*?)\r?\n---"` which handles both LF and CRLF. The CRLF `\r` chars in frontmatter values are harmless because all consumer regexes use `re.search` and the trailing `\r` never appears between key and matched value.
+
+**Watch item: extract_result_summary Codex JSONL format mismatch:**
+Unconfirmed -- requires a real Codex pentest log. `lib-agent.sh:982` looks for `type == "result"` events; if Codex `--json` output never emits this, pentest reports from Codex runs are silently empty (false-green). Left as-is; no code change without evidence. Tracked as a watch item, not a confirmed bug.
+
+**Watch item: sync_github_tasks body injection via `---` (task #0164):**
+Still pending, low priority, tracked in task queue.
 
 ## PR
-- (see this session's PR)
+- https://github.com/Recusive/Nightshift/pull/161
 
 ## Current State
-- Queue: ~54 pending (0 urgent) + 3 blocked + 2 done this session (#0165, #0166)
-- Tests: 1029 passing (was 1018, +11 this session)
+- Queue: ~52 pending (0 urgent) + 3 blocked + 2 done this session (#0167, #0168)
+- Tests: 1043 passing (was 1029, +14 this session)
 - Loop 1: 99%, Loop 2: 100%, Self-Maintaining: 68%, Meta-Prompt: 79%
 - Version: v0.0.8 in progress
 
@@ -75,8 +44,7 @@ autonomy dirs in PROMPT_GUARD_DIRS).  Legitimate -- not reverted.
 - Eval score: 53/100 (#0015) -- below 80 gate; eval-related tasks still prioritized
 - #0125 (eval clean-state scoring detects dirty clones): still pending
 - #0139 (Claude cycle-result contract drift): still pending
-- Residual gap: PR-merge new files in docs/evaluations/ not caught by origin guard
-  (PR-merge path is the documented exception matching existing guard behavior)
+- Residual gap: extract_result_summary Codex JSONL format mismatch (unconfirmed)
 
 ## Next Session Should
 Tasks (eval gate still applies -- 53/100 < 80):
@@ -85,36 +53,18 @@ Tasks (eval gate still applies -- 53/100 < 80):
 3. #0066 (auto-release) -- after eval tasks
 
 Tasks I Did NOT Pick and Why:
-- #0139: Pentest findings took priority this session (confirmed security issues > eval gate)
+- #0139: Pentest findings took priority (confirmed security issues > eval gate ordering)
 - #0125: Same reason
 - #0164: Low priority yaml-injection hardening, deferred to normal queue order
 - #0029, #0032, #0045 etc.: below eval tasks per eval gate (53/100 < 80)
 
 ## Queue Status
-Pentest: 3 confirmed findings fixed (space-bypass both tags + pick-role frontmatter + TOCTOU message).
-Tasks #0165 and #0166 marked done.
-New pick-role body injection finding: discovered and fixed this session (no separate task needed).
+Pentest: 2 confirmed findings fixed (count_pending/stale frontmatter scope + CRLF support).
+Tasks #0167 and #0168 marked done.
 Eval gate: #0139 and #0125 remain active.
 
 ## Tracker Delta
-92% -> 92% (no percentage movement; test count 1018 -> 1029, security hardening)
-
-## Learnings Applied
-- "sed POSIX space-before-slash bypass" (2026-04-06-sed-posix-space-before-slash.md)
-  WRITTEN this session. The prior fix used `</ *tag *>` which missed `< /tag>`;
-  the correct POSIX form `[[:space:]]*/[[:space:]]*` was applied to both tags.
+92% -> 92% (no percentage movement; test count 1029 -> 1043, security hardening)
 
 ## Generated Tasks
-Vision alignment (last 5 tasks: loop1=3, loop2=0, self-maintaining=5, meta-prompt=0, none=0)
-#0167: Apply frontmatter-only scope to count_pending_tasks and count_stale_tasks
-  (dimension: security/robustness, vision: self-maintaining, priority: low)
-  Code review advisory from PR #160.
-#0168: Add CRLF line-ending test for has_urgent_tasks frontmatter regex
-  (dimension: security/robustness, vision: self-maintaining, priority: low)
-  Safety review advisory from PR #160.
-
-## Review Advisory Tasks Created
-None (all pentest findings resolved within this session).
-
-## Evaluate
-Run evaluation against Phractal for the changes merged this session.
+None this session (all pentest findings resolved; no advisory notes requiring new tasks).
