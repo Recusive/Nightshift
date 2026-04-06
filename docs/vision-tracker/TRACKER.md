@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-06 by agent session #0064 (rejected-run artifact preservation).
+Last updated: 2026-04-06 by agent session #0065 (post-merge smoke contract).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -37,7 +37,7 @@ The core loop still works on the happy path, and the latest runner hardening fix
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (999 tests) | Done | ████████████████████ 100% |
+| Test suite (1004 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -99,7 +99,9 @@ Healer observation history is now bounded by daemon housekeeping, so reading rec
 
 The reusable prompt and surrounding docs that make the self-improving loop work.
 Persistent module-map memory now reduces cold-start rediscovery when sessions touch
-the Python package.
+the Python package, and post-merge smoke validation is now explicit in the build
+prompts so merged main must still boot both agent entry paths before a session
+can report success.
 
 | Component | Status | Progress |
 |---|---|---|

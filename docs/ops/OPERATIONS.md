@@ -11,7 +11,7 @@ You should have already read `docs/handoffs/LATEST.md` before this file. If you 
 ```
 Nightshift/
 ├── nightshift/                  ← THE PRODUCT (Python package, 28 modules)
-├── tests/                       ← TEST SUITE (927 tests)
+├── tests/                       ← TEST SUITE (1004 tests)
 ├── docs/
 │   ├── handoffs/                ← SHORT-TERM MEMORY (read LATEST.md first every session)
 │   ├── learnings/               ← CROSS-SESSION KNOWLEDGE (gotchas, patterns, failures)
@@ -440,6 +440,16 @@ python3 -m pytest tests/ -v -k "TestBuildPrompt"  # specific class
 bash scripts/check.sh
 ```
 
+### Post-merge health
+After a PR merges and `gh run list --branch main --limit 1` shows green CI on `main`, run:
+
+```bash
+python3 -m nightshift run --dry-run --agent codex > /dev/null
+python3 -m nightshift run --dry-run --agent claude > /dev/null
+```
+
+Do not report the session as successful until both dry-runs pass on `main`.
+
 ---
 
 ## System 8b: Pre-Push Checklist (`docs/ops/PRE-PUSH-CHECKLIST.md`)
@@ -824,7 +834,7 @@ make clean         # remove runtime artifacts
 
 ## The Session Workflow
 
-Every session follows `docs/prompt/evolve.md` Steps 1-10. In short:
+Every session follows `docs/prompt/evolve.md` Steps 1-12. In short:
 
 ```
 Step 1:  Read handoff (LATEST.md) --> status report
@@ -835,7 +845,7 @@ Step 5:  Verify (make check)
 Step 6:  Update ALL docs (handoff, changelog, tracker, vision, CLAUDE.md, etc.)
 Step 7:  Pre-push checklist (docs/ops/PRE-PUSH-CHECKLIST.md)
 Step 8:  Branch, commit, push, PR, sub-agent review, merge
-Step 9:  Post-merge health check (CI on main)
+Step 9:  Post-merge health check (CI on main + codex/claude dry-runs)
 Step 10: Flag handoff for evaluation (next session scores your work)
 Step 11: Release check (is this a milestone?)
 Step 12: Report

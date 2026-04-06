@@ -35,6 +35,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Stale doc tasks need a reality check](2026-04-05-stale-doc-tasks-need-reality-check.md) — When docs tasks lag architecture, update the task text first and document the replacement flow, not the removed behavior
 - [Refresh module map before writing the current handoff](2026-04-05-module-map-before-handoff.md) — `module-map --write` uses the next numbered handoff as its session label, so run it before creating the current handoff file
 - [Prompt contracts need tests](2026-04-05-prompt-contracts-need-tests.md) — If a control doc carries an exact command or flag, add a regression test for the doc text and a code-side test for the executing helper
+- [Post-merge smoke checks need explicit prompt contracts](2026-04-06-post-merge-smoke-contract.md) — Pre-merge `make check` is not enough; if main must prove both agent entry paths still boot, Step 9 needs the exact dry-run commands and tests
 - [README must match shipped entry points](2026-04-05-readme-must-match-shipped-entrypoints.md) — If there is no console script, document the real module/wrapper entry points and treat README commands as contracts
 
 ## Code Patterns

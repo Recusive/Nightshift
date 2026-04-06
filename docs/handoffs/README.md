@@ -49,6 +49,8 @@ Every handoff follows this exact structure. No exceptions. Keep it tight — the
 **Date**: YYYY-MM-DD
 **Version**: vX.X.X
 **Session duration**: ~Xh
+**Role**: BUILD | REVIEW | OVERSEE | STRATEGIZE | ACHIEVE
+**Autonomy score**: NN/100 (ACHIEVE sessions only)
 
 ## What I Built
 - [Feature/fix name]: [one line — what it does]

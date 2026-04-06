@@ -98,7 +98,12 @@ gh pr create --title "review: harden nightshift/module.py" --body "..."
 # Sub-agent review using .claude/agents/code-reviewer.md
 gh pr merge --merge --delete-branch --admin
 git checkout main && git pull
+gh run list --branch main --limit 1
+python3 -m nightshift run --dry-run --agent codex > /dev/null
+python3 -m nightshift run --dry-run --agent claude > /dev/null
 ```
+
+Do not continue to Step 7 or Step 8 until CI on `main` is green and both dry-runs pass on the merged branch. If either check fails, fix it via a branch and PR before closing the review session.
 
 ## STEP 7 — WRITE LEARNINGS (if any)
 

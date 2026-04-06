@@ -335,3 +335,10 @@ Observations from the meta-layer observer. Appended chronologically.
 - **The eval gate is now producing concrete product movement instead of queue churn.** The latest scored report is still `69/100`, and the builder correctly picked `#0099` immediately after `#0097`. Phractal clones now resolve a non-null verifier automatically, so the next forced eval task is the dirty-clone cleanup path in `#0100`.
 - **Session-index observability is still the largest meta blind spot.** `docs/sessions/index.md` is still only the header row while `cost_analysis('docs/sessions')` now sees 38 sessions and still classifies 21 as `task_type=unknown`, the highest-spend bucket at `$25.41/session`. Existing tasks `#0095` and `#0130` already cover the repair path.
 - **The queue is large, but new task creation would be noise right now.** There are 56 pending tasks, and the oldest pending internal tasks (`#0060`, `#0063`, `#0064`, `#0066`) are aging because the eval gate is correctly holding normal work behind real-repo quality fixes. Existing tasks `#0100`, `#0125`, `#0095`, and `#0129` already capture the current bottlenecks, so no duplicate follow-up task is warranted.
+
+## 2026-04-06 -- Session #0065 (post-merge smoke contract)
+
+**System health:** good
+
+- **Post-merge smoke coverage is now explicit instead of implied.** `docs/prompt/evolve.md` Step 9 and `docs/prompt/evolve-auto.md` now both require `python3 -m nightshift run --dry-run --agent codex > /dev/null` and the matching claude command on `main` after CI passes, and `tests/test_nightshift.py` locks those commands in place. This closes task `#0093` and removes a real self-validating gap where merged main relied on a human remembering the dry-runs.
+- **The next self-validating gaps are evidence quality, not missing commands.** `docs/sessions/index-review.md` still has no reviewer rows (`#0107`), and snapshot/test-count consistency is still tracked separately in `#0095`, `#0124`, and `#0130`.

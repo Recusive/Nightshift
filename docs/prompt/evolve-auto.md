@@ -64,6 +64,12 @@ works in production. This means:
 If after 3 attempts something still doesn't work, log it as a known issue
 in the handoff and move on to the next priority. Do not push broken code.
 
+SMOKE TEST RULE: After every merge, run `python3 -m nightshift run --dry-run
+--agent codex > /dev/null` and `python3 -m nightshift run --dry-run --agent
+claude > /dev/null` from `main` before reporting success. This post-merge smoke
+check is mandatory even if `make check` passed before merge. If either command
+fails, fix it via a branch and PR before closing the session.
+
 CI FAILURE RULE: If CI fails AFTER you merge a PR, create a `fix/` branch
 and PR for the fix. NEVER push directly to main, not even for "trivial"
 lint fixes. The branch-PR-merge workflow exists for a reason.
@@ -91,8 +97,8 @@ BUILD-ONLY RULES: TASK SELECTION, EVAL SCORE GATE, TASK VALUE SCORING,
 and RELEASE apply to BUILD sessions only.
 
 UNIVERSAL RULES (apply to ALL roles that produce code changes — BUILD,
-REVIEW, ACHIEVE): VERIFICATION, PRODUCTION-READINESS, CI FAILURE, and
-REVIEW NOTES. These quality gates are non-negotiable for any role that
+REVIEW, ACHIEVE): VERIFICATION, PRODUCTION-READINESS, SMOKE TEST, CI FAILURE,
+and REVIEW NOTES. These quality gates are non-negotiable for any role that
 commits code to the repo.
 
 For OVERSEE and STRATEGIZE sessions (which do not produce code), follow

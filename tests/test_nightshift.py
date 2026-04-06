@@ -9211,6 +9211,41 @@ class TestAutonomousBuilderPromptContracts:
         assert "Urgent tasks still go first." in content
         assert "lowest-number-first rule for normal-priority tasks" in content
 
+    def test_evolve_auto_prompt_has_post_merge_smoke_test_rule(self) -> None:
+        content = Path("docs/prompt/evolve-auto.md").read_text()
+        normalized = " ".join(content.split())
+        assert "SMOKE TEST RULE" in content
+        assert "python3 -m nightshift run --dry-run --agent codex > /dev/null" in normalized
+        assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in normalized
+        assert "mandatory even if `make check` passed before merge" in normalized
+
+    def test_check_script_runs_both_agent_dry_runs(self) -> None:
+        content = Path("scripts/check.sh").read_text()
+        assert "python3 -m nightshift run --dry-run --agent codex > /dev/null" in content
+        assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in content
+
+    def test_evolve_prompt_post_merge_health_check_runs_both_agent_dry_runs(self) -> None:
+        content = Path("docs/prompt/evolve.md").read_text()
+        step_nine = content.split("## STEP 9 \u2014 POST-MERGE HEALTH CHECK", 1)[1].split("## STEP 10", 1)[0]
+        normalized = " ".join(step_nine.split())
+        assert "python3 -m nightshift run --dry-run --agent codex > /dev/null" in normalized
+        assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in normalized
+        assert "mandatory even if `make check` passed before merge" in normalized
+
+    def test_review_prompt_post_merge_flow_runs_both_agent_dry_runs(self) -> None:
+        content = Path("docs/prompt/review.md").read_text()
+        normalized = " ".join(content.split())
+        assert "gh run list --branch main --limit 1" in normalized
+        assert "python3 -m nightshift run --dry-run --agent codex > /dev/null" in normalized
+        assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in normalized
+
+    def test_achieve_prompt_post_merge_health_check_runs_both_agent_dry_runs(self) -> None:
+        content = Path("docs/prompt/achieve.md").read_text()
+        normalized = " ".join(content.split())
+        assert "gh run list --branch main --limit 1" in normalized
+        assert "python3 -m nightshift run --dry-run --agent codex > /dev/null" in normalized
+        assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in normalized
+
 
 class TestExtractResultSummaryHelper:
     def test_extracts_last_result_block(self, tmp_path: Path) -> None:
