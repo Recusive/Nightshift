@@ -21,6 +21,7 @@
 # ----------------------------------------------
 
 PROMPT_GUARD_FILES=(
+    "AGENTS.md"
     "CLAUDE.md"
     "docs/prompt/evolve.md"
     "docs/prompt/evolve-auto.md"
@@ -69,6 +70,9 @@ save_prompt_snapshots() {
             LC_ALL=C ls -1 "$src_dir" 2>/dev/null | LC_ALL=C sort > "$listing"
         fi
     done
+    # Record origin/main commit hash so check_origin_integrity can detect pushes
+    # that bypass the working-tree guard (blind spot described in pentest #0072).
+    git -C "$repo_dir" rev-parse origin/main 2>/dev/null > "$snap_dir/origin-main-hash" || true
     echo "$snap_dir"
 }
 
@@ -190,6 +194,123 @@ cleanup_prompt_snapshots() {
     if [ -n "$snap_dir" ] && [ -d "$snap_dir" ]; then
         rm -rf "$snap_dir"
     fi
+}
+
+# check_origin_integrity REPO_DIR SNAPSHOT_DIR [ALERT_FILE]
+# Blind-spot guard: detects if the agent pushed prompt/control file changes to
+# origin/main without touching the working tree, which bypasses check_prompt_integrity
+# (which only diffs the working tree against the snapshot).
+#
+# Algorithm:
+#   1. Read the origin/main commit hash saved by save_prompt_snapshots.
+#   2. Fetch latest origin state.
+#   3. If the hash changed, diff each PROMPT_GUARD_FILE on origin/main against
+#      the snapshot copy taken before the agent ran.
+#   4. If any guard file changed: log details, write to ALERT_FILE, restore the
+#      snapshot version of each changed file, and force-push the revert to
+#      origin/main so that the subsequent reset_repo_state pulls a clean state.
+#
+# Returns 0 if clean, 1 if tampering was detected (revert attempted).
+check_origin_integrity() {
+    local repo_dir="$1"
+    local snap_dir="$2"
+    local alert_file="${3:-}"
+    local changed=0
+    local alert_body=""
+
+    # Read the pre-session origin/main hash
+    local snap_hash
+    snap_hash=$(cat "$snap_dir/origin-main-hash" 2>/dev/null || true)
+    if [ -z "$snap_hash" ]; then
+        # No hash recorded (e.g., no remote configured) -- skip silently
+        return 0
+    fi
+
+    # Fetch latest origin state
+    git -C "$repo_dir" fetch origin --quiet 2>/dev/null || true
+
+    # Get current origin/main hash
+    local current_hash
+    current_hash=$(git -C "$repo_dir" rev-parse origin/main 2>/dev/null || true)
+
+    # If hash unchanged, no push occurred during the agent cycle
+    if [ -z "$current_hash" ] || [ "$snap_hash" = "$current_hash" ]; then
+        return 0
+    fi
+
+    # Hash changed -- inspect which guard files were modified on origin/main.
+    # Use a single temp file (truncated per iteration) to avoid trailing-newline
+    # stripping from command substitution and mktemp-failure leak in a loop.
+    local files_to_restore=()
+    local origin_tmp
+    origin_tmp=$(mktemp) || return 0  # Can't create tmpfile; skip check
+    for f in "${PROMPT_GUARD_FILES[@]}"; do
+        local snapshot="$snap_dir/$f"
+        [ -f "$snapshot" ] || continue
+        : > "$origin_tmp"  # truncate between iterations
+        git -C "$repo_dir" show "origin/main:$f" > "$origin_tmp" 2>/dev/null || continue
+        if ! diff -q "$snapshot" "$origin_tmp" >/dev/null 2>&1; then
+            if [ "$changed" -eq 0 ]; then
+                echo ""
+                echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                echo "  PROMPT GUARD: origin/main MODIFIED DURING AGENT CYCLE"
+                echo "  An agent pushed prompt/control file changes to origin/main"
+                echo "  without touching the working tree (blind spot attack)."
+                echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            fi
+            echo ""
+            echo "ORIGIN/MAIN CHANGED: $f"
+            local file_diff
+            file_diff=$(diff -u "$snapshot" "$origin_tmp" 2>/dev/null || true)
+            echo "$file_diff"
+            alert_body="${alert_body}ORIGIN/MAIN CHANGED: ${f}"$'\n'"${file_diff}"$'\n\n'
+            changed=1
+            files_to_restore+=("$f")
+        fi
+    done
+    rm -f "$origin_tmp"
+
+    if [ "$changed" -ne 0 ]; then
+        echo ""
+        echo "  Reverting origin/main guard files to pre-session snapshot..."
+        local revert_failed=0
+        for f in "${files_to_restore[@]}"; do
+            cp "$snap_dir/$f" "$repo_dir/$f" 2>/dev/null || revert_failed=1
+        done
+        if [ "$revert_failed" -eq 0 ]; then
+            git -C "$repo_dir" add -- "${files_to_restore[@]}" 2>/dev/null || true
+            git -C "$repo_dir" \
+                commit -m "security: revert prompt guard files pushed by agent session" \
+                --quiet 2>/dev/null || true
+            # Force-push is intentional here: the tampered origin/main commit is
+            # ahead of the pre-session hash, so a regular push would be rejected
+            # as non-fast-forward. This is an emergency exception to the no-direct-
+            # push-to-main rule, analogous to the housekeeping carve-out.
+            if git -C "$repo_dir" push origin main --force --quiet 2>/dev/null; then
+                echo "  Reverted origin/main to pre-session state."
+            else
+                echo "  WARNING: Revert push failed -- origin/main may still contain tampered files."
+            fi
+        else
+            echo "  WARNING: Could not restore snapshot files -- revert push skipped."
+        fi
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+
+        if [ -n "$alert_file" ]; then
+            {
+                printf '\n'
+                echo "PROMPT GUARD: ORIGIN/MAIN MODIFICATION DETECTED"
+                echo "================================================="
+                echo "An agent pushed prompt/control file changes to origin/main"
+                echo "without touching the working tree (blind spot attack)."
+                echo "Revert was attempted -- see daemon log for result."
+                printf '\n'
+                echo "$alert_body"
+            } >> "$alert_file"
+        fi
+    fi
+
+    return "$changed"
 }
 
 # ----------------------------------------------
