@@ -9978,6 +9978,120 @@ class TestTOCTOUNotifyHumanMessage:
         assert "Step 3" in content
 
 
+class TestAuthFailureDetection:
+    """Regression tests for is_auth_failure() in lib-agent.sh.
+
+    When a Claude session exits because the CLI is not authenticated, the
+    daemon should bypass the consecutive-failure counter to avoid tripping
+    the circuit breaker on a transient credential lapse.
+    """
+
+    LIB = str(Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh")
+
+    def _run_is_auth_failure(self, log_content: str, tmp_path: Path) -> int:
+        """Write log_content to a temp file and call is_auth_failure, returning exit code."""
+        log_file = tmp_path / "session.log"
+        log_file.write_text(log_content, encoding="utf-8")
+        script = f"""
+set +e
+source "{self.LIB}"
+is_auth_failure "{log_file}"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        return result.returncode
+
+    def test_detects_not_logged_in(self, tmp_path: Path) -> None:
+        """is_auth_failure returns 0 for a Claude 'Not logged in' result (UTF-8 middot)."""
+        import json
+
+        # Use ensure_ascii=False to match the real log format where the middot
+        # is stored as UTF-8 bytes rather than the \u00b7 ASCII escape.
+        log_line = json.dumps(
+            {
+                "type": "result",
+                "subtype": "success",
+                "is_error": True,
+                "result": "Not logged in \u00b7 Please run /login",
+                "total_cost_usd": 0,
+            },
+            ensure_ascii=False,
+        )
+        rc = self._run_is_auth_failure(log_line, tmp_path)
+        assert rc == 0, "is_auth_failure should return 0 for 'Not logged in' result"
+
+    def test_detects_please_run_login(self, tmp_path: Path) -> None:
+        """is_auth_failure returns 0 when result contains 'please run /login' (case-insensitive)."""
+        import json
+
+        log_line = json.dumps(
+            {
+                "type": "result",
+                "is_error": True,
+                "result": "Session expired. Please run /login to continue.",
+                "total_cost_usd": 0,
+            },
+            ensure_ascii=False,
+        )
+        rc = self._run_is_auth_failure(log_line, tmp_path)
+        assert rc == 0
+
+    def test_detects_codex_auth_failure(self, tmp_path: Path) -> None:
+        """is_auth_failure returns 0 for Codex item.completed/agent_message auth errors."""
+        import json
+
+        log_line = json.dumps(
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "agent_message",
+                    "text": "Not logged in. Please run /login to authenticate.",
+                },
+            },
+            ensure_ascii=False,
+        )
+        rc = self._run_is_auth_failure(log_line, tmp_path)
+        assert rc == 0, "is_auth_failure should detect auth failures in Codex item.completed events"
+
+    def test_ignores_code_errors(self, tmp_path: Path) -> None:
+        """is_auth_failure returns 1 for a regular code failure (not an auth issue)."""
+        import json
+
+        log_line = json.dumps(
+            {
+                "type": "result",
+                "is_error": True,
+                "result": "Error: make check failed with 3 lint errors",
+                "total_cost_usd": 2.5,
+            },
+            ensure_ascii=False,
+        )
+        rc = self._run_is_auth_failure(log_line, tmp_path)
+        assert rc == 1, "is_auth_failure should return 1 for non-auth failures"
+
+    def test_missing_log_file(self, tmp_path: Path) -> None:
+        """is_auth_failure returns 1 gracefully when log file does not exist."""
+        log_file = tmp_path / "nonexistent.log"
+        script = f"""
+set +e
+source "{self.LIB}"
+is_auth_failure "{log_file}"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 1
+
+    def test_daemon_has_auth_failure_bypass(self) -> None:
+        """daemon.sh circuit breaker checks is_auth_failure before incrementing counter."""
+        content = Path("scripts/daemon.sh").read_text()
+        assert "is_auth_failure" in content, (
+            "daemon.sh circuit breaker must call is_auth_failure() before incrementing CONSECUTIVE_FAILURES"
+        )
+
+    def test_lib_defines_is_auth_failure(self) -> None:
+        """lib-agent.sh defines the is_auth_failure function."""
+        content = Path("scripts/lib-agent.sh").read_text()
+        assert "is_auth_failure()" in content
+
+
 class TestEvaluationPromptContracts:
     def test_evolve_prompt_step_zero_targets_the_cloned_repo(self) -> None:
         content = Path("docs/prompt/evolve.md").read_text()

@@ -1106,6 +1106,54 @@ PY
 # Fails silently -- never crashes the daemon.
 # ----------------------------------------------
 
+# is_auth_failure LOG_FILE
+# Returns 0 if the session log shows an authentication error (e.g., "Not logged
+# in. Please run /login"), meaning the failure was caused by missing credentials
+# rather than a code bug.  Returns 1 for all other failure reasons.
+#
+# Handles both Claude (type:result) and Codex (item.completed/agent_message)
+# stream-json formats so auth failures for either agent bypass the counter.
+#
+# Use this in the circuit-breaker to avoid burning consecutive-failure slots on
+# transient auth outages.  The daemon waits and retries instead of tripping.
+is_auth_failure() {
+    local log_file="$1"
+    python3 - "$log_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+AUTH_PATTERNS = ("not logged in", "please run /login")
+
+log_path = Path(sys.argv[1])
+if not log_path.exists():
+    sys.exit(1)
+
+for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+    stripped = raw_line.strip()
+    if not stripped:
+        continue
+    try:
+        event = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        continue
+    # Claude format: {"type": "result", "result": "..."}
+    if event.get("type") == "result":
+        result_text = str(event.get("result", "")).lower()
+        if any(pat in result_text for pat in AUTH_PATTERNS):
+            sys.exit(0)  # auth failure (Claude)
+    # Codex format: {"type": "item.completed", "item": {"type": "agent_message", "text": "..."}}
+    elif event.get("type") == "item.completed":
+        item = event.get("item", {})
+        if item.get("type") == "agent_message":
+            text = str(item.get("text", "")).lower()
+            if any(pat in text for pat in AUTH_PATTERNS):
+                sys.exit(0)  # auth failure (Codex)
+sys.exit(1)  # not an auth failure
+PY
+}
+
+
 # notify_human TITLE BODY
 # Creates a GitHub issue with the "needs-human" label.
 # If .nightshift.json contains "notification_webhook", also POSTs there.

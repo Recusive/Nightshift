@@ -427,6 +427,17 @@ print(f'{total_cost(\"$COST_FILE\"):.2f}')
 
     # --- Circuit breaker ---
     if [ "$EXIT_CODE" -ne 0 ]; then
+        # Auth failures (Claude not logged in) are not code bugs.  Bypass the
+        # consecutive-failure counter so a credential lapse does not trip the
+        # circuit breaker and stop the daemon entirely.
+        if is_auth_failure "$LOG_FILE"; then
+            echo "Auth failure detected (agent not logged in). Waiting 300s for human to re-authenticate."
+            notify_human "Authentication required" \
+                "Daemon session $SESSION_ID failed because the agent is not logged in. Run /login (or equivalent) to restore service. The daemon will retry automatically in 5 minutes." || true
+            sleep 300
+            continue
+        fi
+
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
         echo "Consecutive failures: $CONSECUTIVE_FAILURES / $MAX_CONSECUTIVE_FAILURES"
 
