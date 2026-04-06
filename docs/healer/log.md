@@ -270,3 +270,15 @@ Observations from the meta-layer observer. Appended chronologically.
 
 ### Actions taken
 - Created task `#0116`: Isolate dry-run integration tests from runtime artifacts
+
+## 2026-04-05 -- Session #0053 (Step 0 evaluation targeting fix)
+
+**System health:** caution
+
+### Observations
+- **Evaluation targeting is now truthful, so the remaining score is finally about the product.** `docs/evaluations/0009.md` used the corrected default Step 0 command with `--repo-dir /tmp/nightshift-eval`, started cleanly without overrides, and wrote artifacts under the Phractal clone instead of the Nightshift repo. The score improved to `58/100`, but the same real low-scoring gaps remain in shift-log handling, verification wiring, cleanup, and rejected-run reporting (`#0098`-`#0102`).
+- **Session-index observability is still effectively absent.** `docs/sessions/index.md` is still only the header row while `cost_analysis('docs/sessions')` now sees 31 sessions and still classifies 20 as `task_type=unknown`, the highest-spend bucket at `$26.55/session`. Existing task `#0095` remains the right fix path.
+- **The queue summary path is still only partially hardened.** `make tasks` works, but direct invocation of `scripts/list-tasks.sh` still fails with `permission denied`, which means the task-summary automation is not yet consistent with how it is documented and named.
+
+### Actions taken
+- Created task `#0120`: Make scripts/list-tasks.sh directly executable or stop advertising direct invocation

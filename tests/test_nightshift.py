@@ -8859,6 +8859,15 @@ class TestPentestInfrastructure:
         assert "PENTEST REPORT FROM PRE-BUILD RED TEAM" in content
 
 
+class TestEvaluationPromptContracts:
+    def test_evolve_prompt_step_zero_targets_the_cloned_repo(self) -> None:
+        content = Path("docs/prompt/evolve.md").read_text()
+        assert (
+            "PYTHONPATH=$(pwd) python3 -m nightshift test --agent claude --cycles 2 "
+            "--cycle-minutes 5 --repo-dir /tmp/nightshift-eval"
+        ) in content
+
+
 class TestExtractResultSummaryHelper:
     def test_extracts_last_result_block(self, tmp_path: Path) -> None:
         repo_root = Path(__file__).resolve().parent.parent
@@ -11131,6 +11140,29 @@ class TestParseShiftArtifacts:
         arts = nightshift.parse_shift_artifacts(tmp_path)
         assert arts["shift_log_exists"]
         assert "Nightshift" in arts["shift_log"]
+
+
+class TestRunTestShift:
+    def test_targets_repo_dir_explicitly(self, tmp_path: Path) -> None:
+        repo_dir = tmp_path / "target-repo"
+        repo_dir.mkdir()
+        nightshift_dir = tmp_path / "nightshift-repo"
+        nightshift_dir.mkdir()
+
+        with patch(
+            "nightshift.evaluation.subprocess.run",
+            return_value=subprocess.CompletedProcess(args=["python3"], returncode=0),
+        ) as mocked:
+            result = nightshift.run_test_shift(repo_dir, nightshift_dir, "claude")
+
+        assert result == 0
+        mocked.assert_called_once()
+        args = mocked.call_args.args[0]
+        kwargs = mocked.call_args.kwargs
+        assert "--repo-dir" in args
+        assert args[args.index("--repo-dir") + 1] == str(repo_dir)
+        assert kwargs["cwd"] == str(repo_dir)
+        assert kwargs["env"]["PYTHONPATH"] == str(nightshift_dir)
 
 
 class TestEvaluationConstants:

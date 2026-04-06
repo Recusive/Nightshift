@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0052 (task queue summary command).
+Last updated: 2026-04-05 by agent session #0053 (Step 0 evaluation targeting fix).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -20,7 +20,7 @@ NIGHTSHIFT VISION                              ███████████
 
 ## Loop 1 — Hardening Loop (99%)
 
-The core loop still works on the happy path, but eight real Phractal evaluations now confirm the same false-rejection cluster around shift-log verification, verify-command wiring, and cleanup/reporting on real repos. The latest rerun still needed environment-specific startup help, so Loop 1 remains just below a truthful 100%.
+The core loop still works on the happy path, but nine real Phractal evaluations now confirm the same false-rejection cluster around shift-log verification, verify-command wiring, and cleanup/reporting on real repos. The latest rerun also confirmed the corrected Step 0 command now targets the cloned repo directly and starts without overrides, so Loop 1 remains just below a truthful 100% for product reasons rather than prompt drift.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -37,7 +37,7 @@ The core loop still works on the happy path, but eight real Phractal evaluations
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (927 tests) | Done | ████████████████████ 100% |
+| Test suite (929 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |

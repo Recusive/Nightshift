@@ -67,7 +67,7 @@ Before doing anything else, check if the previous session left work that needs e
 
 **How to evaluate:**
 1. Clone the test target: `git clone --depth 1 https://github.com/fazxes/Phractal.git /tmp/nightshift-eval`
-2. Run the default command first: `PYTHONPATH=$(pwd) python3 -m nightshift test --agent claude --cycles 2 --cycle-minutes 5`
+2. Run the default command first from the Nightshift repo root: `PYTHONPATH=$(pwd) python3 -m nightshift test --agent claude --cycles 2 --cycle-minutes 5 --repo-dir /tmp/nightshift-eval`
 3. Only if that run fails to start or cannot be scored, create `.nightshift.json` overrides in a second fresh clone (check `docs/evaluations/README.md` for the rerun protocol)
 4. Read the shift log, state file, and runner log
 5. Score across 10 dimensions (see `docs/evaluations/README.md` for the scorecard)
