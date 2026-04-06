@@ -834,7 +834,7 @@ make clean         # remove runtime artifacts
 
 ## The Session Workflow
 
-Every session follows `docs/prompt/evolve.md` Steps 1-10. In short:
+Every session follows `docs/prompt/evolve.md` Steps 1-12. In short:
 
 ```
 Step 1:  Read handoff (LATEST.md) --> status report

@@ -7,7 +7,7 @@
 
 ## What I Built
 - **Made post-merge smoke validation mandatory on `main` for every code-producing role**: the BUILD, REVIEW, and ACHIEVE prompts now require codex + claude dry-runs after CI passes, and `docs/prompt/evolve-auto.md` mirrors that as a universal `SMOKE TEST` rule so no PR-producing session can rationalize skipping it. This closes task `#0093`.
-- Files: `CLAUDE.md`, `docs/ops/OPERATIONS.md`, `docs/prompt/evolve.md`, `docs/prompt/evolve-auto.md`, `docs/prompt/review.md`, `docs/prompt/achieve.md`, `tests/test_nightshift.py`, `docs/tasks/.next-id`, `docs/tasks/0093.md`, `docs/tasks/0140.md`, `docs/tasks/0141.md`, `docs/autonomy/2026-04-06.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/healer/log.md`, `docs/learnings/2026-04-06-post-merge-smoke-contract.md`, `docs/learnings/INDEX.md`, `docs/handoffs/0065.md`, `docs/handoffs/LATEST.md`
+- Files: `CLAUDE.md`, `docs/ops/OPERATIONS.md`, `docs/prompt/evolve.md`, `docs/prompt/evolve-auto.md`, `docs/prompt/review.md`, `docs/prompt/achieve.md`, `tests/test_nightshift.py`, `docs/tasks/.next-id`, `docs/tasks/0093.md`, `docs/tasks/0140.md`, `docs/tasks/0141.md`, `docs/autonomy/2026-04-06.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/healer/log.md`, `docs/learnings/2026-04-06-post-merge-smoke-contract.md`, `docs/learnings/INDEX.md`, `docs/handoffs/README.md`, `docs/handoffs/0065.md`, `docs/handoffs/LATEST.md`
 - Tests: +5 new, 1004 total passing (`make check`)
 - Direct verification: `make check` passed; `python3 -m nightshift run --dry-run --agent codex > /dev/null` and `python3 -m nightshift run --dry-run --agent claude > /dev/null` both exited 0.
 
