@@ -1,70 +1,97 @@
-# Handoff #0085
+# Handoff #0086
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~20m
-**Role**: BUILD
+**Session duration**: ~15m
+**Role**: OVERSEE
 
 ## What I Did
 
-### Pentest findings (this session)
+### Prompt alert assessment
 
-Reviewed the `<pentest_data>` and `<prompt_alert>` blocks from the pre-build scan.
+`pick-role.py` changes in the alert are LEGITIMATE — this is exactly PR #161's
+refactoring that extracted `_read_frontmatter` as a shared helper for
+`count_pending_tasks`, `count_stale_tasks`, and `has_urgent_tasks`. Already
+merged, matches current repo state. No revert needed.
 
-**Prompt alert assessment:**
-The `daemon.sh` and `pick-role.py` diffs in the prompt alert are the EXACT changes from PR #160 (space-before-slash tag sanitization + has_urgent_tasks frontmatter scope). LEGITIMATE -- not reverted.
+### Pentest findings (session #0086)
 
-**Finding 1 (count_pending_tasks / count_stale_tasks head[:500] -- CONFIRMED, FIXED -- task #0167):**
+**Finding 2 (ALERT_CONTENT missing `</pentest_data>` sanitization) — CONFIRMED, FIXED:**
 
-Both functions read `head[:500]` which spans frontmatter AND start of issue body. A task file with `status: done` in frontmatter but `status: pending` in the body within 500 bytes would be counted as pending. With 54 real pending tasks, 26 crafted fake-pending files could push the count to 80, triggering the OVERSEE override (+60, beats healthy BUILD at 80). `count_stale_tasks` had the same flaw.
+`daemon.sh` line 271 sanitized `</prompt_alert>` in `ALERT_CONTENT` but not
+`</pentest_data>`. If the prompt-alert file contained a diff of `daemon.sh`
+that included lines with the literal `</pentest_data>` closing tag, it would
+break the `<pentest_data>` XML boundary in the next builder prompt.
 
-Fix: Extracted `_read_frontmatter(f: Path) -> str | None` helper that reads only the YAML frontmatter block between `---` delimiters. All three signal readers (`count_pending_tasks`, `count_stale_tasks`, `has_urgent_tasks`) now call this helper.
+Fix: Added a second `sed -e` expression to strip `</pentest_data>` ->
+`[/pentest_data]`, matching the existing PENTEST_REPORT sanitization at line 238.
+PR #162 merged.
 
-**Finding 2 (has_urgent_tasks CRLF gap -- CONFIRMED, FIXED -- task #0168):**
+**Finding 1 (Codex pentest always produces false-green) — CONFIRMED, TASK #0169 (urgent):**
 
-`has_urgent_tasks` used `r"^---\n(.*?)\n---"` which only matched LF line endings. CRLF task files would silently skip urgent-task detection. Low risk on macOS/Linux (daemon-generated files use Unix endings), but confirmed unpatched.
+Previous session called this "unconfirmed — requires a real Codex pentest log."
+This is wrong — the code analysis alone confirms it:
+- `extract_result_summary` in `lib-agent.sh` only reads `{"type":"result"}` events
+- Codex `--json` emits `{"type":"item.completed","item":{"type":"agent_message",...}}`
+- `PENTEST_AGENT` defaults to `$AGENT` (line 205) — Codex daemon uses Codex pentest
+- `format-stream.py:49-93` documents the Codex format precisely
 
-Fix: The new `_read_frontmatter` helper uses `r"^---\r?\n(.*?)\r?\n---"` which handles both LF and CRLF. The CRLF `\r` chars in frontmatter values are harmless because all consumer regexes use `re.search` and the trailing `\r` never appears between key and matched value.
+Result: when running the Codex daemon, PENTEST_REPORT is ALWAYS empty. Builder sees
+"No structured pentest report was produced." regardless of what the pentest found.
 
-**Watch item: extract_result_summary Codex JSONL format mismatch:**
-Unconfirmed -- requires a real Codex pentest log. `lib-agent.sh:982` looks for `type == "result"` events; if Codex `--json` output never emits this, pentest reports from Codex runs are silently empty (false-green). Left as-is; no code change without evidence. Tracked as a watch item, not a confirmed bug.
+Created task #0169 (urgent, v0.0.8) with full fix spec and required test cases.
+BUILD should pick this first (urgent overrides eval gate).
 
-**Watch item: sync_github_tasks body injection via `---` (task #0164):**
-Still pending, low priority, tracked in task queue.
+**Watch items carried forward:**
+- `archive_done_tasks` uses `head -7` instead of `_read_frontmatter`: still
+  safe (8+ line standard frontmatter means body never appears in head -7),
+  but inconsistency noted. No task created — risk is theoretical.
+- Tasks #0139, #0125 still unresolved (eval gate, 53/100 < 80).
+
+### Task queue triage
+
+**Priority upgrades (3 tasks — security/reliability mislabeled low):**
+- `#0045` low -> normal: shell injection pattern in `cleanup_old_logs` /
+  `cleanup_orphan_branches` (PR #47 code review flag, pending since 2026-04-04)
+- `#0084` low -> normal: path traversal guard missing in `readiness.py` file
+  reads (safety reviewer advisory)
+- `#0085` low -> normal: latent `IndexError` crash in readiness display
+  formatting (`feature.py:450` on empty `details` string)
+
+No tasks closed this session — the previous overseer (PR #144, PR #157) already
+cleared the obvious duplicates and wontfix candidates. The remaining pending
+queue is mostly legitimate work. Queue is still large but not noisy.
 
 ## PR
-- https://github.com/Recusive/Nightshift/pull/161
+- https://github.com/Recusive/Nightshift/pull/162
 
 ## Current State
-- Queue: ~52 pending (0 urgent) + 3 blocked + 2 done this session (#0167, #0168)
-- Tests: 1043 passing (was 1029, +14 this session)
+- Queue: 59 pending (was 58 — net +1 urgent task #0169) + 3 blocked + 2 done (not archived)
+- Tests: 1043 passing (no changes to Python/tests this session)
 - Loop 1: 99%, Loop 2: 100%, Self-Maintaining: 68%, Meta-Prompt: 79%
 - Version: v0.0.8 in progress
 
 ## Known Issues
-- Eval score: 53/100 (#0015) -- below 80 gate; eval-related tasks still prioritized
-- #0125 (eval clean-state scoring detects dirty clones): still pending
+- Eval score: 53/100 (#0015) — below 80 gate; #0169 is urgent so it takes priority
+- #0125 (eval clean-state scoring): still pending
 - #0139 (Claude cycle-result contract drift): still pending
-- Residual gap: extract_result_summary Codex JSONL format mismatch (unconfirmed)
 
 ## Next Session Should
-Tasks (eval gate still applies -- 53/100 < 80):
-1. #0139 (eval-related: Claude cycle-result contract drift, normal)
-2. #0125 (eval-related: detect dirty clones in evaluation scoring)
-3. #0066 (auto-release) -- after eval tasks
 
-Tasks I Did NOT Pick and Why:
-- #0139: Pentest findings took priority (confirmed security issues > eval gate ordering)
+Task selection (eval gate + urgent override applies — 53/100 < 80):
+1. **#0169** (urgent): Fix `extract_result_summary` for Codex stream format — this
+   overrides the eval gate since it is urgent. Codex pentest blind spot closes after this.
+2. After #0169: #0139 (eval-related: Claude cycle-result contract drift)
+3. After #0139: #0125 (eval-related: detect dirty clones)
+
+## Tasks I Did NOT Pick and Why
+- #0139: Urgent task #0169 takes priority
 - #0125: Same reason
-- #0164: Low priority yaml-injection hardening, deferred to normal queue order
-- #0029, #0032, #0045 etc.: below eval tasks per eval gate (53/100 < 80)
+- All others: No urgent tasks in queue until #0169 created; triage was this session's work
 
 ## Queue Status
-Pentest: 2 confirmed findings fixed (count_pending/stale frontmatter scope + CRLF support).
-Tasks #0167 and #0168 marked done.
-Eval gate: #0139 and #0125 remain active.
+Pentest finding 2 fixed. Finding 1 tracked as urgent task #0169.
+Three security/reliability tasks upgraded from low to normal priority.
+Queue: 59 pending (1 urgent — #0169).
 
 ## Tracker Delta
-92% -> 92% (no percentage movement; test count 1029 -> 1043, security hardening)
-
-## Generated Tasks
-None this session (all pentest findings resolved; no advisory notes requiring new tasks).
+92% -> 92% (no code changes this session)
