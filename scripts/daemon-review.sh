@@ -19,6 +19,12 @@
 
 set -uo pipefail
 
+echo "WARNING: daemon-review.sh is deprecated. The unified daemon (daemon.sh)"
+echo "         now auto-picks BUILD/REVIEW/OVERSEE/STRATEGIZE each cycle."
+echo "         Use: bash scripts/daemon.sh [agent] [pause]"
+echo "         Or force review: NIGHTSHIFT_FORCE_ROLE=review bash scripts/daemon.sh [agent] [pause]"
+echo ""
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib-agent.sh"

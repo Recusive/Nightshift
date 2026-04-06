@@ -93,20 +93,27 @@ def format_codex(event: dict) -> str | None:
 
 def main() -> None:
     for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
         try:
-            event = json.loads(line)
-        except (json.JSONDecodeError, ValueError):
-            continue
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except (json.JSONDecodeError, ValueError):
+                # Non-JSON line (stderr, errors) — show to operator
+                if len(line) > 10 and not line.startswith("{"):
+                    print(f"  ERR   {_truncate(line)}", flush=True)
+                continue
 
-        # Try Claude format first, then Codex
-        result = format_claude(event)
-        if result is None:
-            result = format_codex(event)
-        if result is not None:
-            print(result, flush=True)
+            # Try Claude format first, then Codex
+            result = format_claude(event)
+            if result is None:
+                result = format_codex(event)
+            if result is not None:
+                print(result, flush=True)
+        except Exception:
+            # Never crash the pipeline — log and continue
+            continue
 
 
 if __name__ == "__main__":

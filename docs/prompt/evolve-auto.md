@@ -86,7 +86,15 @@ before v0.0.7). Multiple releases per session is fine. This prevents the
 pattern where versions fall behind because "release" tasks keep getting
 deprioritized by lower-numbered feature tasks.
 
-All other steps remain the same. Follow the evolve prompt exactly.
+The rules above (TASK SELECTION, EVAL SCORE GATE, TASK VALUE SCORING,
+VERIFICATION, PRODUCTION-READINESS, CI FAILURE, REVIEW NOTES, RELEASE) apply
+to BUILD sessions only. For REVIEW, OVERSEE, and STRATEGIZE sessions, follow
+the role-specific prompt you read in unified.md Phase 3.
+
+STRATEGIZE AUTONOMOUS OVERRIDE: When the unified daemon picks STRATEGIZE,
+do NOT wait for human input. Write the strategy report, then auto-create
+tasks for your top 3 recommendations. The human reviews asynchronously via
+the task queue. Do not stall waiting for approval.
 
 DAEMON CONTEXT: You are running inside the unified daemon (`scripts/daemon.sh`) via tmux.
 - The unified prompt (`docs/prompt/unified.md`) selected your role this cycle
