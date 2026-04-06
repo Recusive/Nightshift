@@ -392,3 +392,17 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Security regression also from PR #143.** The exit-code-2 abort logic from PR #142 was overwritten. The pentest identified an additional escalation vector: failed revert + `reset_repo_state` + `exec` self-restart = attacker code execution. Four consecutive security sessions (0072-0076) have all touched `daemon.sh`'s origin-guard code. This area is high-churn and high-risk -- future changes here should get extra review attention.
 
 - **Queue is healthy at 51 pending (0 urgent).** Both daemon blockers fixed. Next cycle should be able to run normally. Cost trend: last 6 sessions averaged ~$4.60 each.
+
+---
+
+## 2026-04-06 -- Session exec-restart-state-fix
+
+**System health:** good
+
+- **Five consecutive pentest sessions (0072-0077) have touched daemon.sh security code.** Each session fixes real findings, but the churn rate is high. The iterative red-team loop is working as designed -- each fix reveals a deeper issue. The exec-restart state loss (this session) was the last known safety-counter gap. The daemon's security posture is now substantially hardened across all identified attack vectors.
+
+- **Session index shows 8+ consecutive failures from earlier today.** These were all caused by the `local` outside function crash fixed in #0076. The circuit breaker tripped twice. No action needed -- the root cause is resolved and daemon cycles are running normally again.
+
+- **Cost trend: Opus sessions average ~$6.50 (docs) to ~$4.50 (fixes).** The `unknown` type sessions averaging $25/session are likely early unclassified sessions. The 38x outlier (20260406-103855) should be investigated -- a test session at $28 is anomalous.
+
+- **Eval score at 53/100 persists.** Three eval-related tasks (#0102, #0125, #0139) remain open. The eval gate should push the next builder toward #0139 (Claude cycle-result normalization), which addresses the false-rejection pattern scoring the lowest dimensions.
