@@ -1,622 +1,369 @@
 # Daemon Operations Guide
 
-How to run, monitor, and manage the four Nightshift daemons. This is the complete reference for operating the autonomous system.
+This is the operator reference for the current Nightshift control plane.
+Nightshift now runs through one unified daemon, `scripts/daemon.sh`, and that
+daemon chooses a role each cycle with `scripts/pick-role.py`.
 
 ---
 
-## The Four Daemons
+## Unified Architecture
 
-Nightshift has four daemons, each with a different role:
+One loop owns the repo and the lockfile. Each cycle it:
 
-| Daemon | Script | Prompt | Loops? | Purpose |
-|--------|--------|--------|--------|---------|
-| **Builder** | `scripts/daemon.sh` | `pentest.md` + `evolve-auto.md` + `evolve.md` | Yes, forever | Runs a red-team preflight, then fixes/builds and ships code |
-| **Reviewer** | `scripts/daemon-review.sh` | `review.md` | Yes, forever | Reviews code file by file, fixes quality issues |
-| **Overseer** | `scripts/daemon-overseer.sh` | `overseer.md` | Yes, forever | Audits task queue, fixes priorities, cleans duplicates, catches direction problems |
-| **Strategist** | `scripts/daemon-strategist.sh` | `strategist.md` | No, runs once | Reviews the big picture, advises human on what to change |
+1. Resets to `origin/main`
+2. Runs housekeeping
+3. Runs the pentest preflight
+4. Resets again
+5. Picks the session role
+6. Loads the matching prompt
+7. Runs the agent
+8. Records logs, cost, and session index data
+9. Optionally runs evaluation
+10. Sleeps or trips the retry/circuit-breaker path
 
-All four share a lockfile (`.nightshift-daemon.lock`) so **only one can run at a time**. They'd conflict on git otherwise.
+Role selection lives in [scripts/pick-role.py](/Users/no9labs/Developer/Recursive/Nightshift/scripts/pick-role.py). The scoring rules are documented in [docs/ops/ROLE-SCORING.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/ops/ROLE-SCORING.md).
 
-### Quick start
+## Roles
 
-```bash
-make daemon       # Builder — loops, ships features
-make review       # Reviewer — loops, fixes code quality
-make overseer     # Overseer — loops, audits and fixes systemic issues
-make strategist   # Strategist — runs once, produces a report
-```
+| Role | Prompt | Purpose |
+|------|--------|---------|
+| `build` | `docs/prompt/evolve.md` | Pick a task, implement, test, review, merge |
+| `review` | `docs/prompt/review.md` | Review code quality and patch defects |
+| `oversee` | `docs/prompt/overseer.md` | Audit queue/process drift and fix systemic issues |
+| `strategize` | `docs/prompt/strategist.md` | Big-picture planning and report writing |
+| `achieve` | `docs/prompt/achieve.md` | Raise autonomy and remove human dependencies |
 
-### Typical workflow
-
-1. Run `make daemon` overnight — it red-teams the system, then builds features from the task queue
-2. Run `make overseer` after a build run — it audits what was built, fixes task priorities, cleans duplicates, catches direction problems
-3. Run `make strategist` when you want a human-readable big picture review
-4. Run `make review` to harden what was built
-5. Run `make daemon` again to continue building
-
-Or: builder during the day, overseer + reviewer overnight.
-
----
-
-## Builder Daemon (`scripts/daemon.sh`)
-
-The primary daemon. Each session:
-1. hard-resets to `origin/main`
-2. runs housekeeping
-3. runs a short read-only pentest preflight with `docs/prompt/pentest.md`
-4. hard-resets again to discard any accidental pentest edits
-5. injects the pentest handoff into the main builder prompt
-6. builds, tests, opens PRs, reviews, and merges
-
-When the latest Step 0 evaluation in `docs/evaluations/` scores below
-`80/100`, the builder's autonomous override (`docs/prompt/evolve-auto.md`)
-forces the next non-urgent session to take evaluation-related work before
-other normal-priority queue items. This keeps repeated real-repo failures
-from being starved by lower-numbered cleanup tasks.
+`docs/prompt/evolve-auto.md` is prepended to every unified-daemon session
+before the role prompt.
 
 ---
 
 ## Starting the Daemon
 
-### Quick start (run in foreground)
+### Foreground
 
 ```bash
-./scripts/daemon.sh              # interactive setup (prompts for agent + duration)
-./scripts/daemon.sh codex        # codex agent
-./scripts/daemon.sh claude 120   # 120s pause between sessions
-./scripts/daemon.sh claude 60 5  # stop after 5 sessions
+bash scripts/daemon.sh
+bash scripts/daemon.sh codex
+bash scripts/daemon.sh claude 60
+bash scripts/daemon.sh claude 60 10
 ```
 
-### Production start (tmux — recommended)
+Arguments are:
 
-Always run the daemon in tmux so it survives terminal disconnects and can be monitored from any session.
+1. agent name
+2. pause between sessions in seconds
+3. max sessions (`0` means loop forever)
+
+### tmux
 
 ```bash
-# Start the daemon in a detached tmux session
 tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
-
-# Verify it's running
-tmux capture-pane -t nightshift -p -S -15
-```
-
-You should see:
-
-```
-Lock acquired. PID XXXXX.
-
-==================================================
-  NIGHTSHIFT DAEMON
-  Agent:       claude
-  Pentest:     claude (120 turns)
-  Pause:       60s between sessions
-  Max sessions: unlimited
-  Circuit:     stops after 3 consecutive failures
-  Logs:        /path/to/docs/sessions
-  Stop:        Ctrl+C
-==================================================
-
--- Session 1 --- HH:MM --- YYYYMMDD-HHMMSS --
-```
-
-### With a session limit
-
-```bash
-# Run 10 sessions then stop (good for overnight runs with a budget)
-tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60 10"
-```
-
-### With a dedicated pentest agent
-
-```bash
-NIGHTSHIFT_PENTEST_AGENT=codex tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
-```
-
-By default the pentest preflight uses the same agent as the builder. Override it
-with `NIGHTSHIFT_PENTEST_AGENT`. Tune its budget with `NIGHTSHIFT_PENTEST_MAX_TURNS`.
-
-### Using make
-
-```bash
-make daemon   # shortcut for ./scripts/daemon.sh (foreground)
-```
-
----
-
-## Monitoring the Daemon
-
-### From a Claude Code session (agent-as-monitor)
-
-This is how you supervise the daemon from another Claude session. Tell Claude to monitor and it will read the stream-json logs.
-
-**1. Check if the daemon is alive:**
-
-```bash
-tmux has-session -t nightshift 2>&1 && echo "alive" || echo "dead"
-ps aux | grep "claude -p" | grep -v grep
-```
-
-**2. Read the live session log:**
-
-The daemon outputs `--output-format stream-json` which produces one JSON event per line. Each event contains tool calls, messages, and results. Use this Python parser to read them:
-
-```bash
-LATEST_LOG=$(ls docs/sessions/*.log | tail -1)
-cat "$LATEST_LOG" | python3 -c "
-import json, sys
-for line in sys.stdin:
-    line = line.strip()
-    if not line: continue
-    try:
-        event = json.loads(line)
-        etype = event.get('type', '?')
-        if etype == 'assistant':
-            for block in event.get('message', {}).get('content', []):
-                if block.get('type') == 'tool_use':
-                    name = block['name']
-                    inp = block.get('input', {})
-                    if name == 'Bash':
-                        print(f'BASH: {inp.get(\"command\", \"\")[:90]}')
-                    elif name in ('Read', 'Write', 'Edit'):
-                        print(f'{name}: {inp.get(\"file_path\", \"\").split(\"/\")[-1]}')
-                    elif name == 'Agent':
-                        print(f'AGENT: {inp.get(\"description\", \"\")[:60]}')
-                    else:
-                        print(name)
-                elif block.get('type') == 'text':
-                    t = block.get('text', '').strip()
-                    if t and len(t) > 15:
-                        print(f'MSG: {t[:140]}')
-        elif etype == 'result':
-            t = event.get('result', '').strip()
-            if t:
-                print(f'DONE: {t[:200]}')
-    except json.JSONDecodeError:
-        pass
-"
-```
-
-This shows you exactly what the agent is doing: which files it reads, which tools it calls, what it's thinking, and the final result.
-
-**3. Check event count (how far along is the session):**
-
-```bash
-LATEST_LOG=$(ls docs/sessions/*.log | tail -1)
-python3 -c "
-import json
-count = sum(1 for line in open('$LATEST_LOG')
-            if line.strip() and json.loads(line.strip()).get('type') == 'assistant')
-print(f'{count} events (of 500 max turns)')
-"
-```
-
-**4. Check for PRs (proof the agent is shipping):**
-
-```bash
-gh pr list --state all --limit 5
-```
-
-**5. Check the session index:**
-
-```bash
-cat docs/sessions/index.md
-```
-
-**6. Check the tmux pane (daemon wrapper output):**
-
-```bash
 tmux capture-pane -t nightshift -p -S -20
 ```
 
-### Understanding the stream-json log format
+This is the recommended production path.
 
-Each line in the log is a JSON object. The key event types:
+### Force a Specific Role
 
-| Type | What it contains |
-|------|-----------------|
-| `assistant` | Agent's response — contains `message.content[]` with `tool_use` and `text` blocks |
-| `result` | Final session output — contains the `SESSION COMPLETE` report |
-| `system` | System events — API retries, errors |
-
-**Tool use events** (inside `assistant` messages):
-
-```json
-{
-  "type": "assistant",
-  "message": {
-    "content": [
-      {
-        "type": "tool_use",
-        "name": "Read",
-        "input": {"file_path": "/path/to/file.py"}
-      }
-    ]
-  }
-}
-```
-
-**Text events** (agent thinking/speaking):
-
-```json
-{
-  "type": "assistant",
-  "message": {
-    "content": [
-      {
-        "type": "text",
-        "text": "Now let me build the feature..."
-      }
-    ]
-  }
-}
-```
-
-**Result event** (session complete):
-
-```json
-{
-  "type": "result",
-  "result": "SESSION COMPLETE\n================\n\nBuilt: Feature name\n..."
-}
-```
-
----
-
-## Stopping the Daemon
-
-### Graceful stop (after current session finishes)
-
-From inside the tmux session:
+Use `NIGHTSHIFT_FORCE_ROLE` when you want the unified daemon to run one role
+instead of scoring all roles:
 
 ```bash
-tmux send-keys -t nightshift C-c
+NIGHTSHIFT_FORCE_ROLE=build bash scripts/daemon.sh claude 60
+NIGHTSHIFT_FORCE_ROLE=review bash scripts/daemon.sh codex 60
+NIGHTSHIFT_FORCE_ROLE=oversee bash scripts/daemon.sh claude 120 1
+NIGHTSHIFT_FORCE_ROLE=strategize bash scripts/daemon.sh claude 0 1
+NIGHTSHIFT_FORCE_ROLE=achieve bash scripts/daemon.sh claude 0 1
 ```
 
-This sends Ctrl+C which triggers the trap handler. The daemon finishes the current pause/session boundary and stops cleanly.
+Valid values are `build`, `review`, `oversee`, `strategize`, and `achieve`.
 
-### Immediate stop
+### Optional Environment Variables
+
+| Variable | Meaning |
+|----------|---------|
+| `NIGHTSHIFT_FORCE_ROLE` | Skip scoring and force one role |
+| `NIGHTSHIFT_BUDGET` | Stop after cumulative spend reaches this USD amount |
+| `NIGHTSHIFT_PENTEST_AGENT` | Use a different agent for the pentest preflight |
+| `NIGHTSHIFT_PENTEST_MAX_TURNS` | Override the pentest turn budget (default `120`) |
+| `NIGHTSHIFT_KEEP_LOGS` | Number of session logs to retain live |
+| `NIGHTSHIFT_KEEP_HEALER_ENTRIES` | Healer-log retention limit |
+
+---
+
+## How Role Selection Works
+
+At the start of every cycle, `scripts/daemon.sh` calls
+[scripts/pick-role.py](/Users/no9labs/Developer/Recursive/Nightshift/scripts/pick-role.py).
+That scorer reads the live system state and prints one winner.
+
+Primary inputs:
+
+- `docs/handoffs/LATEST.md`
+- `docs/sessions/index.md`
+- the latest report in `docs/evaluations/`
+- pending/stale task counts from `docs/tasks/`
+- `docs/healer/log.md`
+- the latest report in `docs/autonomy/`
+- open GitHub issues labeled `needs-human`
+
+The exact math belongs in
+[docs/ops/ROLE-SCORING.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/ops/ROLE-SCORING.md),
+not in this file. Read that file when debugging "why did the daemon pick this
+role?" behavior.
+
+Important constraints:
+
+- Urgent tasks force `build`
+- Low evaluation scores gate `build` toward eval-related tasks
+- `strategize` is capped to avoid hiding in planning mode
+- `achieve` is capped to avoid starving product work
+- Ties fall back to `build`
+
+---
+
+## Cycle Lifecycle
+
+### 1. Reset and housekeeping
+
+Each cycle begins from a clean checkout of `origin/main`:
 
 ```bash
-tmux kill-session -t nightshift
+git fetch origin
+git checkout main
+git reset --hard origin/main
+git clean -fd
 ```
 
-This kills everything immediately. If a session is mid-work, the PR may be left open. The next daemon run will detect it via open-PR recovery.
+After reset, the daemon hot-reloads shared shell helpers from `lib-agent.sh`.
+If `daemon.sh` itself changed on `main`, it `exec`s into the new version.
 
-### If the lock file is stuck
+Housekeeping then runs:
 
-If the daemon crashes without cleanup, the lock file remains:
+- rotate old session logs
+- trim the healer log
+- prune orphan branches
+- compact old handoffs
+- archive done task files
+- sync GitHub issues labeled `task` into `docs/tasks/`
 
-```bash
-rmdir .nightshift-daemon.lock
-```
+### 2. Open PR recovery
+
+If a previous session left an open PR, the daemon injects a recovery instruction
+into both the pentest prompt and the main role prompt. The session is expected
+to finish or repair that PR instead of silently rebuilding the work.
+
+### 3. Pentest preflight
+
+The daemon always runs `docs/prompt/pentest.md` first. Its result is inserted as
+a `<pentest_data>` block into the main session prompt. The daemon treats that
+block as data, not instructions, and resets the repo again after the preflight.
+
+### 4. Prompt construction
+
+The unified prompt stack for the main session is:
+
+1. optional prompt-integrity alert from the previous cycle
+2. optional open-PR recovery instruction
+3. the current `<pentest_data>` block
+4. `docs/prompt/evolve-auto.md`
+5. one role prompt chosen by `pick-role.py`
+
+### 5. Agent run
+
+The agent runs with stream-json logging into `docs/sessions/YYYYMMDD-HHMMSS.log`.
+When the run ends, the daemon records:
+
+- exit code
+- duration
+- session cost
+- detected role
+- best-effort feature summary
+- best-effort PR URL
+
+Those fields are appended to `docs/sessions/index.md`.
+
+### 6. Evaluation and wait path
+
+If the cycle succeeded and the evaluation cadence says "run now", the daemon
+launches evaluation after the session. Otherwise it sleeps for the configured
+pause. Failed sessions increment the consecutive-failure counter and eventually
+trip the circuit breaker.
 
 ---
 
-## What to Look For (Is It Working?)
+## Logs and State
 
-### Signs the daemon is healthy
+These are the authoritative runtime artifacts:
 
-1. **Session index grows** — new rows in `docs/sessions/index.md` with `success` status
-2. **PRs are merging** — `gh pr list --state merged --limit 5` shows recent merges
-3. **Tests are increasing** — `python3 -m pytest tests/ -q` shows growing test count
-4. **Handoff updates** — `docs/handoffs/LATEST.md` changes after each session
-5. **Log files are large** — each `.log` file should be 1-6MB of stream-json
-
-### Signs something is wrong
-
-1. **Circuit breaker tripped** — session index shows `CIRCUIT-BREAK` row. Check the last 3 log files.
-2. **Consecutive failures** — multiple `failed` rows in the index. Read the logs to find the error.
-3. **Log file is 0 bytes** — the session started but produced no output. Check if `claude` CLI is installed and authenticated.
-4. **Open PR stuck** — `gh pr list --state open` shows a PR that's been open for multiple sessions. May have merge conflicts.
-5. **No new events** — if the latest log hasn't grown in 10+ minutes and the process is alive, the agent may be stuck on a long-running command.
-
-### Quick health check (copy-paste this)
-
-```bash
-echo "=== DAEMON ===" && tmux has-session -t nightshift 2>&1 && echo "ALIVE" || echo "DEAD"
-echo "=== PROCESS ===" && ps aux | grep "claude -p" | grep -v grep | awk '{print "PID:",$2,"CPU:",$3}' || echo "none"
-echo "=== LATEST LOG ===" && ls -la docs/sessions/*.log | tail -1
-echo "=== RECENT PRS ===" && gh pr list --state all --limit 3
-echo "=== INDEX ===" && tail -5 docs/sessions/index.md
-echo "=== TESTS ===" && python3 -m pytest tests/ -q 2>&1 | tail -1
-```
-
----
-
-## Session Lifecycle (What Happens Each Cycle)
-
-```
-daemon.sh loop iteration
-    |
-    v
-git fetch + reset --hard origin/main    # clean slate
-    |
-    v
-source lib-agent.sh + check daemon hash # hot reload (no manual restart needed)
-    |
-    v
-housekeeping                            # rotate logs, prune branches,
-  cleanup_old_logs                      #   compact handoffs, archive tasks,
-  cleanup_healer_log                    #   rotate healer history,
-  cleanup_orphan_branches               #   sync GitHub Issues -> task files
-  compact_handoffs
-  archive_done_tasks
-  sync_github_tasks
-    |
-    v
-check gh pr list --state open           # open-PR recovery
-    |
-    v
-run pentest.md preflight               # read-only red-team pass
-    |
-    v
-reset --hard origin/main again         # discard any pentest-side edits
-    |
-    v
-build prompt (evolve-auto.md + evolve.md)
-with injected pentest handoff
-    |
-    v
-claude -p --max-turns 500               # the autonomous session
-  --output-format stream-json            # line-by-line JSON events
-  --verbose                              # full tool output
-  2>&1 | tee $LOG_FILE                   # capture everything
-    |
-    v
-extract feature + PR from log           # session index update
-    |
-    v
-circuit breaker check                   # stop after 3 consecutive failures
-    |
-    v
-sleep $PAUSE                            # 60s default
-    |
-    v
-next iteration
-```
-
----
-
-## Configuration
-
-| Parameter | Default | How to change |
-|-----------|---------|--------------|
-| Agent | claude | 1st arg: `./scripts/daemon.sh codex` |
-| Pause between sessions | 60s | 2nd arg: `./scripts/daemon.sh claude 120` |
-| Max sessions | unlimited (0) | 3rd arg: `./scripts/daemon.sh claude 60 10` |
-| Max turns per session | 500 | Edit `MAX_TURNS` in `scripts/daemon.sh` |
-| Pentest agent | same as builder | Set `NIGHTSHIFT_PENTEST_AGENT=codex` |
-| Pentest max turns | 120 | Set `NIGHTSHIFT_PENTEST_MAX_TURNS=80` |
-| Circuit breaker threshold | 3 failures | Edit `MAX_CONSECUTIVE_FAILURES` in `scripts/daemon.sh` |
-| Healer entries kept live | 50 | Set `NIGHTSHIFT_KEEP_HEALER_ENTRIES=25` before starting the daemon |
-| Log directory | `docs/sessions/` | Edit `LOG_DIR` in `scripts/daemon.sh` |
-
----
-
-## Files
-
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `scripts/daemon.sh` | The daemon script |
-| `docs/prompt/pentest.md` | Read-only pre-builder red-team prompt |
-| `docs/prompt/evolve.md` | The session lifecycle prompt (11 steps) |
-| `docs/prompt/evolve-auto.md` | Autonomous override (skip human confirmation) |
-| `docs/sessions/*.log` | Stream-json logs (one per session) |
-| `docs/sessions/index.md` | Session index (one row per session) |
-| `.nightshift-daemon.lock` | Lock directory (prevents two daemons) |
+| `docs/sessions/index.md` | Unified session history across all roles |
+| `docs/sessions/*.log` | Stream-json session logs |
+| `docs/sessions/*-pentest.log` | Pentest preflight logs |
+| `docs/sessions/costs.json` | Cost ledger used by budget checks |
+| `docs/handoffs/LATEST.md` | Short-term memory for the next cycle |
+| `docs/evaluations/*.md` | Real-repo evaluation reports |
+| `docs/healer/log.md` | System-health observations |
+
+Legacy role-specific indexes still exist:
+
+- `docs/sessions/index-review.md`
+- `docs/sessions/index-overseer.md`
+
+Treat them as historical artifacts from the old single-role scripts. The unified
+daemon writes `docs/sessions/index.md`.
 
 ---
 
-## Troubleshooting
+## Monitoring
 
-### "Another daemon may be running"
-
-The lock directory exists. Either another daemon is running, or a previous one crashed.
+### Check whether the daemon is alive
 
 ```bash
-# Check if a daemon process exists
-ps aux | grep daemon.sh | grep -v grep
-
-# If no process, remove the stale lock
-rmdir .nightshift-daemon.lock
+tmux has-session -t nightshift 2>&1 && echo alive || echo dead
+tmux capture-pane -t nightshift -p -S -20
 ```
 
-### Session fails immediately (exit 1, 0 minutes)
-
-The `claude` CLI may not be authenticated or installed.
+### Inspect the latest unified session log
 
 ```bash
-claude --version
-claude -p "hello" --output-format json
+LATEST_LOG=$(find docs/sessions -maxdepth 1 -name '*.log' ! -name '*-pentest.log' | sort | tail -1)
 ```
 
-### Agent builds nothing (session succeeds but no PR)
+Then inspect it directly or with a small parser. Stream-json logs contain
+assistant messages, tool calls, and the final `result` block.
 
-The handoff may be out of date or there are no pending tasks. Check:
+### Check the current system state
 
 ```bash
 cat docs/handoffs/LATEST.md
-ls docs/tasks/*.md
+cat docs/sessions/index.md
+gh pr list --state all --limit 10
 ```
 
-### Log file is empty
-
-If you see 0-byte log files, the daemon may be using an old version without `--output-format stream-json`. Update `scripts/daemon.sh` to ensure the claude command includes:
-
-```
---output-format stream-json --verbose
-```
-
----
-
-## Reviewer Daemon (`scripts/daemon-review.sh`)
-
-Loops forever like the builder, but with a different mission: code quality.
-
-### What it does each session
-
-1. Picks ONE file from `nightshift/` that hasn't been reviewed recently
-2. Reads every function in that file
-3. Fixes: dead code, weak typing, missing error handling, unclear naming, untested paths
-4. Commits all fixes for that file, creates PR, sub-agent review, merges
-5. Logs the review to `docs/reviews/YYYY-MM-DD-module.md`
-
-### Running it
+### Understand a surprising role pick
 
 ```bash
-# Foreground
-./scripts/daemon-review.sh              # interactive setup (prompts for agent + duration)
-./scripts/daemon-review.sh claude 60 5  # stop after 5 sessions
-
-# tmux (recommended)
-tmux new-session -d -s nightshift-review "bash scripts/daemon-review.sh claude 60"
-
-# make
-make review
+python3 scripts/pick-role.py "$(pwd)"
 ```
 
-### Session index
-
-Separate index: `docs/sessions/index-review.md`
-
-### Key differences from the builder
-
-- Does NOT read the task queue
-- Does NOT read the evolve prompt
-- Reviews ONE file per session (not a feature)
-- 200 max turns (smaller scope = fewer turns needed)
-- Uses `docs/reviews/` to track what's been reviewed
+The script prints the winning role to stdout and the scoring breakdown to stderr.
 
 ---
 
-## Strategist Daemon (`scripts/daemon-strategist.sh`)
+## Legacy Entry Points
 
-Runs ONCE. Not a loop. Produces a strategy report for the human.
+These files still exist, but they are no longer the primary control plane:
 
-### What it does
+| Script | Status | Notes |
+|--------|--------|-------|
+| `scripts/daemon.sh` | current | Unified daemon, recommended entrypoint |
+| `scripts/daemon-review.sh` | deprecated | Emits a deprecation warning and points to `NIGHTSHIFT_FORCE_ROLE=review` |
+| `scripts/daemon-overseer.sh` | deprecated | Emits a deprecation warning and points to `NIGHTSHIFT_FORCE_ROLE=oversee` |
+| `scripts/daemon-strategist.sh` | legacy helper | Single-run strategist entrypoint; unified daemon can also select `strategize` |
 
-1. Reads git log, merged PRs, handoffs, evaluations, learnings, session indices
-2. Runs `nightshift.costs.cost_analysis('docs/sessions')` to summarize spend by task type, model efficiency, and outlier sessions
-3. Samples the last 10 builder session logs and the active prompt files to judge prompt effectiveness
-4. Analyzes: what's working, what's failing, what's missing, cost effectiveness, and which prompt instructions help vs. hinder
-5. Writes 3-5 concrete recommendations with evidence, including prompt file line references when a prompt edit is suggested
-6. Saves report to `docs/strategy/YYYY-MM-DD.md`
-7. Presents to the human for decisions
+If you need manual role selection, prefer the unified daemon plus
+`NIGHTSHIFT_FORCE_ROLE`.
 
-### Running it
+---
+
+## Common Operations
+
+### Run one overseer audit cycle
 
 ```bash
-./scripts/daemon-strategist.sh          # interactive setup (prompts for agent)
-./scripts/daemon-strategist.sh codex    # codex
-
-# make
-make strategist
+NIGHTSHIFT_FORCE_ROLE=oversee bash scripts/daemon.sh claude 0 1
 ```
 
-### What happens after
-
-You read the report. For each recommendation:
-- "Yes" — create a task in `docs/tasks/` (the strategist can do this for you)
-- "No" — explain why, strategist notes the feedback
-- "Later" — skip it, it'll come up in the next review
-
-The report now includes a `Prompt Health` section:
-- `Instructions helping` — prompt rules that correlate with good sessions
-- `Instructions ignored or confusing` — prompt rules that sessions repeatedly skip or misread
-- `Candidate prompt edits` — add/remove/reword suggestions backed by prompt line refs and session evidence
-
-It also includes a `Cost Intelligence` section:
-- `Task type averages` — average cost/duration for feat/fix/docs/refactor-style work
-- `Model efficiency` — cost per test added and per tracker point
-- `Outliers` — sessions that cost 2x+ their same-type peers
-
-Prompt edits remain advisory. The strategist does not auto-edit prompt files; approved changes become normal builder tasks.
-
-The builder daemon picks up the resulting tasks.
-
----
-
-## Running All Three (workflow)
-
-You can only run one daemon at a time (shared lockfile). Here's the recommended pattern:
-
-### Daily cycle
-
-```
-Morning:   make strategist         → read report, approve tasks
-Day:       make daemon             → builder ships features
-Evening:   Ctrl+C the builder
-           make review             → reviewer hardens code overnight
-Next day:  Ctrl+C the reviewer
-           make strategist         → check on overnight work
-           ... repeat
-```
-
-### Weekend / unattended
+### Run one strategist cycle under the unified daemon
 
 ```bash
-# Friday evening: start the builder with a session limit
-tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60 20"
-
-# It runs 20 sessions, stops. Monday: run strategist to see what happened.
-make strategist
+NIGHTSHIFT_FORCE_ROLE=strategize bash scripts/daemon.sh claude 0 1
 ```
 
----
-
-## Human Escalation (`notify_human`)
-
-When the daemon hits a situation that requires human attention, it creates a GitHub issue with the `needs-human` label. This happens automatically for:
-
-- **Circuit breaker tripped** -- 3 consecutive session failures (all daemons)
-- **Budget limit reached** -- cumulative spending exceeds the configured limit (builder)
-- **Builder health concern** -- the builder's "Observe the System" step (Step 6n in evolve.md) flags system health as "concern" in the handoff
-
-### How it works
-
-`notify_human` is a shell function in `scripts/lib-agent.sh`. It:
-
-1. Creates a GitHub issue titled `[Nightshift] <title>` with the `needs-human` label
-2. If `notification_webhook` is set in `.nightshift.json`, POSTs to that URL (Slack, Discord, etc.)
-3. Fails silently -- never crashes the daemon
-
-### Checking for escalations
+### Run one ACHIEVE cycle
 
 ```bash
-gh issue list --label needs-human
+NIGHTSHIFT_FORCE_ROLE=achieve bash scripts/daemon.sh claude 0 1
 ```
 
-### Optional webhook
+### Resume normal autonomous behavior
 
-Add a webhook URL to `.nightshift.json` for real-time notifications:
-
-```json
-{
-  "notification_webhook": "https://hooks.slack.com/services/T00/B00/xxx"
-}
+```bash
+unset NIGHTSHIFT_FORCE_ROLE
+bash scripts/daemon.sh claude 60
 ```
-
-The webhook receives a JSON payload: `{"text": "[Nightshift] <title>"}`.
-
-### Observation-driven escalation
-
-The builder's "Observe the System" step (Step 6n in evolve.md) checks system health each session. When health is "concern", the builder notes it prominently in the handoff so the human sees it. Critical patterns that cannot be self-fixed by creating tasks should be escalated via `notify_human` from the daemon scripts.
 
 ---
 
-## Files Reference
+## Failure and Recovery
 
-| File | Purpose |
-|------|---------|
-| `scripts/daemon.sh` | Builder daemon |
-| `scripts/daemon-review.sh` | Reviewer daemon |
-| `scripts/daemon-strategist.sh` | Strategist (single run) |
-| `docs/prompt/evolve.md` | Builder session prompt |
-| `docs/prompt/evolve-auto.md` | Autonomous override for builder |
-| `docs/prompt/review.md` | Reviewer session prompt |
-| `docs/prompt/strategist.md` | Strategist session prompt |
-| `docs/sessions/*.log` | Session logs (all daemons) |
-| `docs/sessions/index.md` | Builder session index |
-| `docs/sessions/index-review.md` | Reviewer session index |
-| `docs/reviews/*.md` | Code review logs |
-| `docs/strategy/*.md` | Strategy reports |
-| `.nightshift-daemon.lock` | Shared lock (prevents concurrent daemons) |
+### Another daemon already holds the lock
+
+The unified daemon uses `.nightshift-daemon.lock`. If startup says another
+daemon is running, verify first and only then remove the lock directory.
+
+### Prompt/control files were modified during a session
+
+Prompt integrity is checked around both the pentest and main session. If a
+session mutates prompt/control files, the daemon writes `prompt-alert.md`,
+resets the repo, and injects that alert into the next cycle.
+
+### Three consecutive failures
+
+The circuit breaker stops the daemon after three failed cycles. Inspect:
+
+- `docs/sessions/index.md`
+- the latest session log
+- the latest pentest log
+- `docs/handoffs/LATEST.md`
+
+### Budget stop
+
+If `NIGHTSHIFT_BUDGET` is set and cumulative spend reaches it, the daemon stops
+and records a `BUDGET-STOP` row in `docs/sessions/index.md`.
+
+### Wrong repo state after a crash
+
+Start with:
+
+```bash
+git status --short
+git worktree list
+gh pr list --state open
+```
+
+The daemon already hard-resets to `origin/main` at the start of each cycle, so
+manual cleanup should be rare.
+
+---
+
+## Key Files
+
+| File | What it owns |
+|------|---------------|
+| [scripts/daemon.sh](/Users/no9labs/Developer/Recursive/Nightshift/scripts/daemon.sh) | Unified loop, housekeeping, pentest, session logging |
+| [scripts/pick-role.py](/Users/no9labs/Developer/Recursive/Nightshift/scripts/pick-role.py) | Role scoring and selection |
+| [scripts/lib-agent.sh](/Users/no9labs/Developer/Recursive/Nightshift/scripts/lib-agent.sh) | Shared shell helpers used by daemon entrypoints |
+| [docs/ops/ROLE-SCORING.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/ops/ROLE-SCORING.md) | Human-readable scoring reference |
+| [docs/prompt/evolve-auto.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/prompt/evolve-auto.md) | Global autonomous-mode constraints |
+| [docs/prompt/evolve.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/prompt/evolve.md) | BUILD role prompt |
+| [docs/prompt/review.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/prompt/review.md) | REVIEW role prompt |
+| [docs/prompt/overseer.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/prompt/overseer.md) | OVERSEE role prompt |
+| [docs/prompt/strategist.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/prompt/strategist.md) | STRATEGIZE role prompt |
+| [docs/prompt/achieve.md](/Users/no9labs/Developer/Recursive/Nightshift/docs/prompt/achieve.md) | ACHIEVE role prompt |
+
+---
+
+## Source of Truth
+
+When this guide and the live scripts disagree, trust the code:
+
+1. `scripts/daemon.sh`
+2. `scripts/pick-role.py`
+3. `docs/ops/ROLE-SCORING.md`
+
+This document should explain those files, not invent behavior that the code
+does not implement.
