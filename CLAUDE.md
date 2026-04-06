@@ -25,33 +25,30 @@ make dry-run     # preview cycle prompt
 make tasks       # show pending/blocked/in-progress tasks
 bash scripts/validate-tasks.sh   # validate numbered task frontmatter
 make clean       # remove runtime artifacts
-make daemon      # builder daemon (loops, ships features)
-make review      # reviewer daemon (loops, fixes code quality)
-make overseer    # overseer daemon (loops, audits tasks, fixes priorities)
-make strategist  # strategist (runs once, advises human)
+make daemon      # unified daemon (auto-picks role: build/review/oversee/strategize)
 python3 -m nightshift module-map --write   # refresh docs/architecture/MODULE_MAP.md
 ```
 
-## Daemons
+## Daemon
 
-Four daemons, one runs at a time (shared lockfile). Full guide: `docs/ops/DAEMON.md`
-- **Builder** (`make daemon`): picks up tasks, runs a read-only pentest preflight, injects that red-team handoff into the main fixer session, builds features, PRs, merges. Includes an **Observe the System** step (Step 6n in evolve.md) within each session that checks system health, spots trends, and writes observations to `docs/healer/log.md`. Daemon housekeeping rotates older healer entries into `docs/healer/archive/` so the live log stays readable.
-- **Reviewer** (`make review`): reviews code file by file, fixes quality
-- **Overseer** (`make overseer`): audits task queue, fixes priorities, cleans duplicates, catches direction problems
-- **Strategist** (`make strategist`): runs once, reviews big picture, produces report for human
+One unified daemon that picks its own role each cycle. Full guide: `docs/ops/DAEMON.md`
+
+Each cycle the agent reads system signals (eval scores, task queue size, session history) and scores four roles. The highest score wins:
+- **BUILD**: picks up tasks, builds features, PRs, merges. Includes pentest preflight and healer observations.
+- **REVIEW**: reviews code file by file, fixes quality issues. Triggered after 5+ consecutive builds.
+- **OVERSEE**: audits task queue, fixes priorities, culls stale tasks. Triggered when 50+ pending tasks accumulate.
+- **STRATEGIZE**: big picture review, produces strategy report. Triggered every 15+ sessions.
+
+The agent decides autonomously -- no human picks the mode. Role decisions are logged in the session index.
 
 ```bash
-# Start any daemon in tmux (recommended — survives terminal disconnect)
-tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"          # builder
-tmux new-session -d -s nightshift "bash scripts/daemon-review.sh claude 60"   # reviewer
-tmux new-session -d -s nightshift "bash scripts/daemon-overseer.sh claude 60" # overseer
-tmux new-session -d -s nightshift "bash scripts/daemon-strategist.sh"         # strategist (runs once)
+# Start the daemon in tmux (recommended -- survives terminal disconnect)
+tmux new-session -d -s nightshift "caffeinate -s bash scripts/daemon.sh codex 60"
+tmux new-session -d -s nightshift "caffeinate -s bash scripts/daemon.sh claude 60"
 
-# Monitor (works for any daemon)
+# Monitor
 tmux capture-pane -t nightshift -p -S -15   # daemon wrapper output
-cat docs/sessions/index.md                   # builder session history
-cat docs/sessions/index-review.md            # reviewer session history
-cat docs/sessions/index-overseer.md          # overseer audit history
+cat docs/sessions/index.md                   # session history (includes role column)
 gh pr list --state all --limit 5             # recent PRs
 
 # Read the live stream-json log (see what the agent is doing right now)
