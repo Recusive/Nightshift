@@ -154,9 +154,14 @@ while true; do
     source "$SCRIPT_DIR/lib-agent.sh"
 
     # --- Self-restart: if daemon.sh changed, exec into new version ---
+    # Hash is computed AFTER reset_repo_state so it reflects origin/main.
+    # On first iteration _DAEMON_HASH is unset, so we just record it.
+    # On subsequent iterations, a mismatch means origin/main was updated
+    # between cycles (not by our own reset), so we restart.
     NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon.sh" 2>/dev/null | cut -d' ' -f1)
     if [ -n "${_DAEMON_HASH:-}" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
         echo "  daemon.sh changed on main -- restarting with new code..."
+        export _DAEMON_HASH="$NEW_HASH"
         rmdir "$LOCKFILE" 2>/dev/null || true
         exec bash "$SCRIPT_DIR/daemon.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
     fi
