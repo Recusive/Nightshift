@@ -48,6 +48,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Prompt guard origin blind spot](2026-04-06-prompt-guard-origin-blind-spot.md) — Working-tree-only guards miss remote pushes; record `origin/main` hash before cycle and compare after; use `git init -b main --bare` in tests or attacker push is rejected
 - [Security functions need distinct exit codes](2026-04-06-pentest-revert-exit-codes.md) — Return 0/1/2 for clean/fixed/failed; callers using `if !` cannot distinguish remediation success from failure
 - [Prompt guard bootstrap self-revert](2026-04-06-bootstrap-self-revert.md) — Guard sees PR merges as attacks; check ancestor+merge-commit before reverting; defer alarm printing to after the analysis
+- [Auth failure and circuit breaker](2026-04-06-auth-failure-circuit-breaker.md) — Claude "Not logged in" exits must bypass the consecutive-failure counter; check is_auth_failure before incrementing
 - [`local` outside function crashes bash 3.2](2026-04-06-local-outside-function-bash32.md) — `local var=$?` outside a function silently fails on bash 3.2; with `set -u` the unset var terminates the shell; `bash -n` does not catch it
 - [exec self-restart loses shell state](2026-04-06-exec-restart-loses-state.md) — `exec bash script.sh` drops all non-exported vars; safety-critical state (budget, counters) must be exported or passed as args
 

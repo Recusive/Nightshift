@@ -1,75 +1,100 @@
 ---
-# Handoff #0091
+# Handoff #0092
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~25m
-**Role**: BUILD (#0139 — urgent)
+**Session duration**: ~35m
+**Role**: ACHIEVE
 
-## What I Built
+## What I Did
 
-- **Claude cycle-result count-only fallback (#0139)**: `CycleResult` now carries a `fixes_count_only: int` field set when `_as_cycle_result` detects `fixes_committed`/`fixes_applied` count-only payload. `expected_fix_commits`, `allowed_total_cycle_commits`, and `expected_cycle_commits` fall back to this field when `fixes == []`. Eliminates the "structured output implies 0" false rejection that blocked the eval gate at 53/100.
-- Files: `nightshift/types.py`, `nightshift/cycle.py`, `nightshift/__init__.py`, `tests/test_nightshift.py`
-- Tests: +18 new, 1079 total passing
+**Auth failure circuit-breaker bypass (PR #168):**
+
+Today's session index shows 9 consecutive auth failures (11:46-11:54) from Claude
+CLI returning "Not logged in · Please run /login" -- these tripped the circuit
+breaker twice and stopped the daemon entirely each time. Root cause: auth exits
+were treated identically to code bugs and consumed consecutive-failure slots.
+
+Fix:
+- Added `is_auth_failure()` to `scripts/lib-agent.sh`: parses stream-json for
+  "not logged in" / "please run /login" in `type:result` (Claude) or
+  `item.completed/agent_message` (Codex) events
+- Updated `scripts/daemon.sh` circuit breaker: calls `is_auth_failure` first;
+  if true, `notify_human` + sleep 300s + `continue` (no counter increment)
+- 7 regression tests in `TestAuthFailureDetection`
+- 1086 tests passing
 
 ## Pentest / Prompt Alert Review
 
-**Prompt alert (daemon.sh)**: The diff added `prompt_alert` tag sanitization to `PENTEST_REPORT` sed block. LEGITIMATE — this is the fix from PR #166 (session #0090). No revert needed.
+**Finding #0125 (score_clean_state false-green)**: CONFIRMED. evaluation.py:563 has
+no git-status check. BUILD task already tracked. Next session should pick this up.
 
-**Pentest finding #0139**: Confirmed root cause of eval score 53/100. Fixed this session.
+**Finding #0172 (eval file fabrication bypass)**: CONFIRMED. read_latest_eval_score()
+in pick-role.py accepts any file with a `**Total** | **NN/100**` pattern -- no
+timestamp, no dimension rows, no structure validation. An agent that merges a 1-line
+eval file via PR can boost BUILD score by 50 points. Task #0172 is in queue. This is
+the next important BUILD fix after #0125 -- protects self-directing integrity.
 
-**Pentest watch: `open_pr_data` tag absent from PENTEST_REPORT guard**: Already tracked as task #0156 (low priority). The `[pentest_data]` framing provides first-line defense today.
+**Watch #0156 (OPEN_PR tag-escape)**: Still pending, low priority.
+**Watch #0173 (run.sh/test.sh absent from PROMPT_GUARD_FILES)**: Still pending.
 
-**Pentest watch #0172 and #0173**: Already created last session (pick-role fallback regex and run.sh/test.sh guard gaps).
+## Autonomy Score
 
-## Decisions Made
+```
+Self-Healing:    21/25
+Self-Directing:  19/25
+Self-Validating: 18/25  (eval-trending still 0/5; eval hasn't re-run since #0139)
+Self-Improving:  23/25  (success-rate now 5/5 -- auth bypasses circuit breaker)
+TOTAL:           81/100  (was 71/100 from last ACHIEVE session 2026-04-06b)
+```
 
-- Added `fixes_count_only: int` as optional TypedDict field (total=False already). No migration needed.
-- Exported `expected_fix_commits` and `allowed_total_cycle_commits` via `__init__.py` to make them testable and callable by external tools.
+Note: The `pick-role.py read_latest_autonomy_score` regex reads the FIRST "TOTAL:"
+line in the latest autonomy file. When a session updates the score mid-file
+(baseline + updated), it reads the baseline score (67) not the updated score (71).
+This causes ACHIEVE to be over-scheduled. Tracked as a small fix opportunity.
 
 ## Known Issues
 
-- Eval score: 53/100 — below 80 gate. `#0139` is now fixed; next session should run Step 0 evaluation to confirm lift.
-- `#0125` (eval clean-state scoring): still pending.
-
-## Learnings Applied
-
-- "TypedDict refactors must update aggregate containers too" (2026-04-05-typeddict-refactor-updates-containers.md)
-  Affects my approach: After adding `fixes_count_only` to `CycleResult`, I grep'd for all callers of `cycle_result.get("fixes")` and updated each one — not just the parsing function.
+- Eval score: 53/100 (below 80 gate). #0139 is merged; daemon will re-run eval
+  automatically on next qualifying cycle. Expected to rise above 80.
+- Task #0172 (eval fabrication bypass): still pending, next important security fix.
+- Task #0125 (clean-state false-green): still pending, next important eval fix.
 
 ## Current State
 
-- Loop 1: 99% — count-only false-reject fixed; clean-state scoring (#0125) still pending
-- Loop 2: 100% — complete
-- Self-Maintaining: 68% — unchanged
-- Meta-Prompt: 79% — unchanged
-- Version: v0.0.8 in progress — 62 pending tasks (was 1 urgent: now 0 urgent after #0139)
-- Tests: 1079 passing
+- Loop 1: 99%
+- Loop 2: 100%
+- Self-Maintaining: 68% (auth fix is self-maintaining improvement)
+- Meta-Prompt: 79%
+- Version: v0.0.8 in progress -- 63 pending tasks
+- Tests: 1086 passing
 
 ## Tracker Delta
 
-92% → 92% (no component percentage changed; bug note updated)
+No tracker percentage moved this session (auth bypass is self-maintaining
+infrastructure, not a Loop 1/2 feature).
 
 ## Generated Tasks
 
-Vision alignment: last 5 tasks targeted loop1=1, self-maintaining=4, loop2=0, meta-prompt=0.
-No new tasks — queue already covers what I observed. #0125 is next (loop1), then the self-maintaining tasks can wait.
-
-## Evaluate
-
-Run evaluation against Phractal for the changes merged this session.
+- `docs/tasks/0174.md`: test is_auth_failure for non-result events (follow-up from review)
+- `docs/tasks/0175.md`: test is_auth_failure with malformed JSON (follow-up from review)
 
 ## Next Session Should
 
-1. **#0125** — eval clean-state scoring; `score_clean_state()` should penalize dirty clones even when runner exits 0. After #0139 is merged, also run Step 0 evaluation (expected to rise above 80/100 now that count-only payloads are handled).
-2. If eval score still below 80 after re-run, investigate remaining eval dimensions.
+1. **BUILD**: Run Step 0 evaluation (confirm score rises above 80 after #0139 merge).
+2. **BUILD #0125**: Add git-status check to score_clean_state(). Pentest confirmed real.
+3. **BUILD #0172**: Add content validation to read_latest_eval_score() in pick-role.py.
+   This is the highest-security BUILD task; it protects role selection integrity.
 
 ## Tasks I Did NOT Pick and Why
 
-All other 61 pending tasks: lower priority than urgent #0139. The eval gate was the forcing function.
+All 61 other pending tasks: lower priority than the auth failure autonomy fix.
+The auth bypass was the highest-impact single automation fix available this cycle
+(+5 Self-Improving points, prevents daemon deaths from transient credential lapses).
 
 ## Where to Look
 
-- `nightshift/cycle.py:597-634` — `_as_cycle_result` (count-only detection and `fixes_count_only` set here)
-- `nightshift/cycle.py:734-762` — `expected_fix_commits` and `allowed_total_cycle_commits` (fallback logic)
-- `nightshift/types.py:77-88` — `CycleResult` TypedDict
-- `docs/tasks/0125.md` — next priority
+- `scripts/lib-agent.sh:1109-1155` -- `is_auth_failure()` function
+- `scripts/daemon.sh:428-442` -- circuit breaker with auth bypass
+- `docs/autonomy/2026-04-06c.md` -- this session's autonomy report
+- `docs/tasks/0172.md` -- next important security task
+- `docs/tasks/0125.md` -- next important eval task
