@@ -408,6 +408,11 @@ for line in open('$LOG_FILE'):
 print('-')
 " 2>/dev/null || echo "-")
 
+    # Strip pipe chars and newlines to prevent markdown table corruption.
+    # parse_session_index in pick-role.py silently drops rows with wrong cell count.
+    FEATURE=$(echo "$FEATURE" | tr -d '|\n\r')
+    PR_URL=$(echo "$PR_URL" | tr -d '|\n\r')
+
     # --- Self-evaluation check ---
     if [ "$EXIT_CODE" -eq 0 ] && should_evaluate "$CYCLE"; then
         run_evaluation "$AGENT" "$FEATURE"
