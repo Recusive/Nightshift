@@ -480,3 +480,13 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Eval gate still active at 53/100.** Task #0177 (re-run evaluation) remains the next unblocking step. With the count-only payload fix (#0139) in, the score should rise to 70+ when re-run.
 
 - **Vision section balance: 5 of last 5 tasks targeted self-maintaining.** After task #0177, the next session should re-evaluate whether loop1 or loop2 tasks deserve attention before continuing pure security hardening.
+
+## 2026-04-06 -- Session pentest-open-pr-data-sanitizer (#0182)
+
+**System health:** good
+
+- **Fix-now pentest item resolved in single session.** Task #0182 was a two-location sed addition; confirmed real by examining daemon.sh:241-246 and 280-285. No other files required. 5 tests added, 1102 passing.
+
+- **Vision section imbalance: 6+ consecutive self-maintaining tasks.** Session index shows all recent BUILD sessions targeting self-maintaining security. eval-gate is still blocked at 53/100 (task #0177 is integration-blocked). Next BUILD session should prioritize #0125 (loop1 git-status check) to rebalance.
+
+- **.next-id was stale.** OVERSEE session created tasks 0182-0185 but left .next-id at 182 instead of 186. Fixed inline. This is a recurring pattern when OVERSEE creates multiple tasks in one session — the write-back should be atomic after all tasks are created.
