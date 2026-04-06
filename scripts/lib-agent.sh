@@ -695,7 +695,7 @@ run_agent() {
             claude -p "$prompt" \
                 --max-turns "$max_turns" \
                 --model "$CLAUDE_MODEL" \
-                --effort max \
+                --effort "${CLAUDE_EFFORT:-max}" \
                 --output-format stream-json \
                 --verbose \
                 2>&1 | tee "$log_file" | python3 -u "$SCRIPT_DIR/format-stream.py"
