@@ -9009,6 +9009,15 @@ class TestEvaluationPromptContracts:
         ) in content
 
 
+class TestAutonomousBuilderPromptContracts:
+    def test_evolve_auto_prompt_has_eval_score_gate(self) -> None:
+        content = Path("docs/prompt/evolve-auto.md").read_text()
+        assert "EVAL SCORE GATE" in content
+        assert "below 80/100" in content
+        assert "Urgent tasks still go first." in content
+        assert "lowest-number-first rule for normal-priority tasks" in content
+
+
 class TestExtractResultSummaryHelper:
     def test_extracts_last_result_block(self, tmp_path: Path) -> None:
         repo_root = Path(__file__).resolve().parent.parent

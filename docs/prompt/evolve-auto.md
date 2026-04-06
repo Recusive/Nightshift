@@ -26,6 +26,16 @@ Session Should" is advisory only. Follow this order strictly:
    the handoff and exit cleanly. Do NOT fall through to the priority engine
    and create duplicate work that overlaps existing tasks.
 
+EVAL SCORE GATE: After running Step 0 evaluation, check the score in the
+latest report under `docs/evaluations/`. If the latest evaluation scored
+below 80/100, you MUST pick an eval-related pending internal task before
+any other normal-priority task. Eval-related means a task created by an
+evaluation report, or any task that directly improves evaluation dimensions
+such as verification, clone cleanliness, artifact fidelity, scoring, or
+real-repo startup. Urgent tasks still go first. This gate overrides the
+lowest-number-first rule for normal-priority tasks until the latest eval
+score reaches at least 80/100.
+
 TASK VALUE SCORING: Hard tasks that move the tracker percentage are worth
 more than easy internal cleanup. When choosing between tasks of equal
 priority and number proximity, prefer the one that moves the vision
