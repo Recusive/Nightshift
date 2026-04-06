@@ -195,6 +195,11 @@ ${PENTEST_PROMPT}"
     cleanup_prompt_snapshots "$SNAP_DIR"
     reset_repo_state
 
+    # --- Force role override (env var) ---
+    if [ -n "${NIGHTSHIFT_FORCE_ROLE:-}" ]; then
+        echo "  FORCE_ROLE=$NIGHTSHIFT_FORCE_ROLE (overriding unified scoring)"
+    fi
+
     # Rebuild prompt each cycle
     PROMPT=$(build_prompt)
 
@@ -236,7 +241,14 @@ automation paths yourself before taking on lower-priority work.
 ${PROMPT}"
     fi
 
-    # --- Run the builder/fixer agent ---
+    # --- Force role override: inject at top of prompt ---
+    if [ -n "${NIGHTSHIFT_FORCE_ROLE:-}" ]; then
+        PROMPT="FORCED ROLE OVERRIDE: Skip unified scoring. Your role this session is ${NIGHTSHIFT_FORCE_ROLE^^}. Read the corresponding prompt file and execute immediately.
+
+${PROMPT}"
+    fi
+
+    # --- Run the agent ---
     run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
 
     # --- Prompt guard: check for self-modification ---
@@ -355,7 +367,7 @@ print(f'{total_cost(\"$COST_FILE\"):.2f}')
         if [ "$OVER_BUDGET" = "yes" ]; then
             echo ""
             echo "BUDGET LIMIT REACHED: \$$CUMULATIVE spent (limit: \$$BUDGET)"
-            echo "| $(date '+%Y-%m-%d %H:%M') | BUDGET-STOP | - | - | \$$CUMULATIVE | Budget limit reached (\$$BUDGET) |" >> "$INDEX_FILE"
+            echo "| $(date '+%Y-%m-%d %H:%M') | BUDGET-STOP | - | - | - | \$$CUMULATIVE | Budget limit reached (\$$BUDGET) | - | - |" >> "$INDEX_FILE"
             notify_human "Budget limit reached" "Daemon stopped after spending \$$CUMULATIVE (limit: \$$BUDGET). Review spending at docs/sessions/costs.json."
             break
         fi
@@ -372,7 +384,7 @@ print(f'{total_cost(\"$COST_FILE\"):.2f}')
             echo "Something is fundamentally broken. Check the logs:"
             echo "  $LOG_DIR"
             echo ""
-            echo "| $(date '+%Y-%m-%d %H:%M') | CIRCUIT-BREAK | - | - | Stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures |" >> "$INDEX_FILE"
+            echo "| $(date '+%Y-%m-%d %H:%M') | CIRCUIT-BREAK | - | - | - | - | Stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures | - | - |" >> "$INDEX_FILE"
             notify_human "Circuit breaker tripped" "Builder daemon stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures. Check logs in $LOG_DIR."
             break
         fi

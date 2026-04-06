@@ -56,10 +56,13 @@ tracker_movement:        [did overall % change in last 5 sessions?]
 ```
 
 **Defaults for missing data:** If any signal file is missing or unreadable, use these:
-- eval_score: 0 (gates BUILD to eval tasks)
-- sessions_since_review: 999 (triggers REVIEW)
-- sessions_since_strategy: 999 (triggers STRATEGIZE)
+- eval_score: 80 (assume healthy until proven otherwise)
+- sessions_since_review: 0
+- sessions_since_strategy: 0
+- consecutive_builds: 0
 - All others: 0
+
+On a cold start (empty session index, no evaluations), BUILD wins by default. The system needs features before it needs reviews or strategy.
 
 **Grounding rule:** Use ONLY data from the files listed above. Do not estimate or guess signal values. If a file has no relevant data, use the default above.
 
@@ -87,6 +90,7 @@ base:                           10
 consecutive_builds >= 5:       +40  (code quality debt accumulating)
 healer_status == "concern":    +30  (system flagged quality issues)
 sessions_since_review >= 10:   +20  (overdue for review)
+sessions_since_review >= 5:    +10  (review getting stale)
 ```
 
 **OVERSEE** -- audit task queue, fix priorities, cull stale tasks
@@ -150,7 +154,9 @@ Based on your decision, read ONE of these prompt files and follow it end-to-end:
 | OVERSEE | `docs/prompt/overseer.md` | Audit the task queue, fix priorities, cull duplicates, clean up |
 | STRATEGIZE | `docs/prompt/strategist.md` | Review the big picture, write a strategy report |
 
-**Read the prompt file now and follow it step by step.** Do NOT read the other role prompts. One role per session.
+**Read the ENTIRE prompt file and follow it step by step.** The role prompts are 100-650 lines. You MUST read the full file, not just the first 200 lines. If using shell commands to read, use `cat` not `sed -n '1,220p'`. Do NOT read the other role prompts. One role per session.
+
+**Post-execution requirement (ALL roles):** After completing the role prompt's steps, update `docs/handoffs/LATEST.md` with what you did this session. BUILD's evolve.md already requires this. For REVIEW, OVERSEE, and STRATEGIZE: write a brief handoff noting your role, what you did, and what the next session should know. The next cycle reads LATEST.md first -- stale data causes bad decisions.
 
 After reading the role prompt, announce which role you adopted so the session log is traceable:
 
@@ -177,7 +183,7 @@ System signals:
   healer_status:           caution
 
 Scoring:
-  BUILD:      60  (50 base -40 eval gate +20 urgent eval tasks = 30... wait, no urgent. 50 -40 = 10)
+  BUILD:      10  (50 base -40 eval gate = 10, no urgent tasks)
   REVIEW:     10  (10 base, builds < 5, no healer concern, review < 10)
   OVERSEE:    10  (10 base, tasks < 50, stale < 3)
   STRATEGIZE:  5  (5 base, strategy < 15 sessions ago)
@@ -224,11 +230,11 @@ System signals:
 
 Scoring:
   BUILD:      80  (50 +30 eval healthy)
-  REVIEW:     80  (10 +40 consecutive >= 5 +30 healer concern)
+  REVIEW:     90  (10 +40 consecutive >= 5 +30 healer concern +10 review overdue)
   OVERSEE:    10  (10 base, tasks < 50, stale < 3)
   STRATEGIZE:  5  (5 base, strategy < 15)
 
--> REVIEW this session because 6 consecutive builds with healer flagging quality concerns. Code debt needs attention before more features.
+-> REVIEW this session because 6 consecutive builds with healer flagging quality concerns. REVIEW scores 90 vs BUILD 80.
 </example>
 
 <example>
