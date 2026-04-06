@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from nightshift.config import infer_install_command
 from nightshift.constants import (
@@ -29,6 +29,40 @@ def _missing_gitdir_hint(worktree_dir: Path) -> str | None:
     if gitdir.exists():
         return None
     return f"Worktree .git points to missing gitdir `{gitdir}`."
+
+
+def _case_insensitive_child(parent: Path, name: str) -> str | None:
+    try:
+        for child in parent.iterdir():
+            if child.name.casefold() == name.casefold():
+                return child.name
+    except OSError:
+        return None
+    return None
+
+
+def canonical_repo_relative_path(repo_dir: Path, relative_path: str) -> str:
+    """Resolve a repo-relative path to the casing that exists on disk."""
+    current = repo_dir
+    resolved_parts: list[str] = []
+    parts = [part for part in PurePosixPath(relative_path).parts if part not in {"", "."}]
+
+    for index, part in enumerate(parts):
+        match = _case_insensitive_child(current, part)
+        if match is not None:
+            resolved_parts.append(match)
+            current = current / match
+            continue
+
+        resolved_parts.extend(parts[index:])
+        break
+
+    return PurePosixPath(*resolved_parts).as_posix()
+
+
+def resolve_nightshift_dir(repo_dir: Path) -> Path:
+    relative_dir = canonical_repo_relative_path(repo_dir, "docs/Nightshift")
+    return repo_dir / Path(*PurePosixPath(relative_dir).parts)
 
 
 def validate_worktree(worktree_dir: Path) -> None:

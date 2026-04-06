@@ -21,6 +21,7 @@ from nightshift.constants import (
     EVALUATION_SHIFT_TIMEOUT,
 )
 from nightshift.types import DimensionScore, EvaluationResult, ShiftArtifacts
+from nightshift.worktree import resolve_nightshift_dir
 
 # ---------------------------------------------------------------------------
 # Clone / run helpers
@@ -82,7 +83,7 @@ def run_test_shift(
 
 def parse_shift_artifacts(repo_dir: Path) -> ShiftArtifacts:
     """Read state file and shift log from a completed test shift."""
-    ns_dir = repo_dir / "docs" / "Nightshift"
+    ns_dir = resolve_nightshift_dir(repo_dir)
 
     # State file
     state_files = sorted(glob.glob(str(ns_dir / "*.state.json")))

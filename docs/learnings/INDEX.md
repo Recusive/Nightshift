@@ -52,6 +52,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Readiness checks as pure file scanners](2026-04-05-readiness-checks-pure-computation.md) — Pure Path.read_text() + regex beats shell-command wrappers; testable with tmp_path, no mocks needed
 - [Pure scorer pattern for evaluation](2026-04-05-pure-scorer-pattern-for-evaluation.md) — Scorers take typed artifacts, return scores; I/O at edges only; 66 tests with zero mocks
 - [E2E as gate before final verify](2026-04-05-e2e-gate-before-final-verify.md) — New pipeline steps sharing checks with later steps should gate; grep for integration tests to update
+- [Case-insensitive path resolution needs directory enumeration](2026-04-05-case-insensitive-path-resolution-needs-directory-enumeration.md) — `Path.exists()` keeps the queried casing on macOS; enumerate parent entries to recover the real on-disk path
 - [Code structure rules work](2026-04-03-code-structure-rules-work.md) — CLAUDE.md structure rules catch real violations at review time
 - [Plan agent is simpler than cycle agent](2026-04-04-plan-agent-simpler-than-cycle.md) — Plan invocation needs fewer args than full cycle
 - [Symlink check before is_file](2026-04-04-symlink-before-is-file.md) — Check is_symlink() first for security; symlinks pass is_file()

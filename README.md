@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Claude-Supported-F97316" alt="Claude Code" />
   <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
   <img src="https://img.shields.io/badge/Tracker-92%25-2563EB" alt="Vision Tracker" />
-  <img src="https://img.shields.io/badge/Tests-929-blue" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-935-blue" alt="Tests" />
   <img src="https://img.shields.io/badge/License-MIT-22C55E" alt="MIT License" />
 </p>
 
@@ -53,7 +53,7 @@ numbers change.
 | Loop 2 feature builder | 100% | `docs/vision-tracker/TRACKER.md` |
 | Self-maintaining repo | 68% | `docs/vision-tracker/TRACKER.md` |
 | Meta-prompt system | 78% | `docs/vision-tracker/TRACKER.md` |
-| Tests | 929 passing | `python3 -m pytest tests/ -q` |
+| Tests | 935 passing | `python3 -m pytest tests/ -q` |
 | Python modules | 28 | `docs/architecture/MODULE_MAP.md` |
 | Merged PRs | 80 | `gh pr list --state merged --json number` |
 

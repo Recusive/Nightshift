@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0053 (Step 0 evaluation targeting fix).
+Last updated: 2026-04-05 by agent session #0055 (Canonical Nightshift log paths).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -20,7 +20,7 @@ NIGHTSHIFT VISION                              ███████████
 
 ## Loop 1 — Hardening Loop (99%)
 
-The core loop still works on the happy path, but nine real Phractal evaluations now confirm the same false-rejection cluster around shift-log verification, verify-command wiring, and cleanup/reporting on real repos. The latest rerun also confirmed the corrected Step 0 command now targets the cloned repo directly and starts without overrides, so Loop 1 remains just below a truthful 100% for product reasons rather than prompt drift.
+The core loop still works on the happy path, and the latest runner hardening fixed the `docs/` vs `Docs/` false rejection plus the brittle final-cycle shift-log commit accounting. Real Phractal evaluations still keep Loop 1 just below 100% because target-specific verification wiring and rejected-run cleanup/reporting remain open on real repos.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -31,13 +31,13 @@ The core loop still works on the happy path, but nine real Phractal evaluations 
 | Runner-enforced guard rails | Done | ████████████████████ 100% |
 | Machine-readable state | Done | ████████████████████ 100% |
 | Baseline verification | Done | ████████████████████ 100% |
-| Post-cycle verification | In progress | ██████████████████░░ 90% |
+| Post-cycle verification | In progress | ███████████████████░ 95% |
 | Shift log generation | Done | ████████████████████ 100% |
 | Category dominance check | Done | ████████████████████ 100% |
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (929 tests) | Done | ████████████████████ 100% |
+| Test suite (935 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -48,7 +48,6 @@ The core loop still works on the happy path, but nine real Phractal evaluations 
 | run_command timeout fix | Done | ████████████████████ 100% |
 
 ### Bugs Found (not yet fixed)
-- `verify_cycle()` can reject valid shift-log commits when the filesystem folds `docs/` and `Docs/` to the same path (#0098).
 - Real evaluations still need a target-specific verify command for Phractal, so baseline/cycle verification is weaker than intended (#0099).
 - Rejected evaluation runs still leave the target clone dirty and hide useful findings in the human-readable artifacts, confirming tasks #0100, #0101, and #0102 remain active.
 
