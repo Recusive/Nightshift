@@ -167,7 +167,10 @@ while true; do
         # Preserve safety counters across exec so budget, session limit,
         # and circuit breaker survive the self-restart (pentest fix).
         export NIGHTSHIFT_BUDGET="$BUDGET"
-        export _DAEMON_CYCLE="$CYCLE"
+        # CYCLE was already incremented for this iteration (line 144) but
+        # the session hasn't run yet.  Export the pre-increment value so the
+        # new process resumes from the same point and doesn't skip a session.
+        export _DAEMON_CYCLE="$((CYCLE - 1))"
         export _DAEMON_FAILURES="$CONSECUTIVE_FAILURES"
         rmdir "$LOCKFILE" 2>/dev/null || true
         exec bash "$SCRIPT_DIR/daemon.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"

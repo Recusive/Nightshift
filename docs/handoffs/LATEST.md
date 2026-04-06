@@ -42,7 +42,10 @@ Tracker delta: 92% -> 92% (no percentage change -- daemon security fix, not feat
 
 Learnings applied: "Security functions need distinct exit codes" + "`local` outside function crashes bash 3.2" -- both informed the approach to preserving state safely across exec
 
-Generated tasks: none -- pentest findings addressed directly, no new issues discovered
+Generated tasks:
+  Vision alignment: [last 5 target: loop1=0, loop2=0, self-maintaining=3, meta-prompt=2, none=0]
+  #0156: Add explicit sed sanitization for open_pr_data closing tag (dimension: security, vision: self-maintaining, priority: low)
+  #0157: Watch existing files in docs/prompt/feedback for modification (dimension: security, vision: self-maintaining, priority: low)
 
 Tasks I did NOT pick and why:
 - #0045 (shell injection cleanup, low): pentest fixes took priority; this is low priority cleanup
@@ -56,7 +59,11 @@ Run evaluation against Phractal for the changes merged this session.
 Tasks: #0139 (eval-related -- normalize Claude cycle-result payloads, addresses 53/100 eval score), then #0066 (auto-release).
 Fallback: if #0139 is complex, pick #0102 (rejected-run scorer fidelity).
 
+## Code Review
+- Code reviewer flagged off-by-one in _DAEMON_CYCLE export: CYCLE is already incremented before exec, so exporting it as-is skips a session. Fixed by exporting `$((CYCLE - 1))`.
+- Two advisory notes became follow-up tasks: #0156 (open_pr_data tag sanitization) and #0157 (feedback dir existing file modification detection).
+
 ## Where to Look
-- `scripts/daemon.sh` lines 43-46 (counter restore), lines 166-173 (state export before exec)
+- `scripts/daemon.sh` lines 43-46 (counter restore), lines 167-175 (state export before exec)
 - `scripts/lib-agent.sh` line 46 (feedback dir added to PROMPT_GUARD_DIRS)
 - `scripts/daemon.sh` lines 235, 268 (regex XML escape)
