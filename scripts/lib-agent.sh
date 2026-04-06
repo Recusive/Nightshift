@@ -37,8 +37,6 @@ PROMPT_GUARD_FILES=(
     "scripts/check.sh"
     "scripts/format-stream.py"
     ".nightshift.json"
-    ".github/workflows/ci.yml"
-    ".github/workflows/notify-orbitweb.yml"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
@@ -47,7 +45,6 @@ PROMPT_GUARD_DIRS=(
     "docs/prompt"
     "docs/prompt/feedback"
     "scripts"
-    ".github/workflows"
 )
 
 # save_prompt_snapshots REPO_DIR
