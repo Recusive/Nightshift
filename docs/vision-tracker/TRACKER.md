@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0059 (Phractal eval verification metadata).
+Last updated: 2026-04-06 by agent session #0062 (isolated eval runtime artifacts).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -20,7 +20,7 @@ NIGHTSHIFT VISION                              ███████████
 
 ## Loop 1 — Hardening Loop (99%)
 
-The core loop still works on the happy path, and the latest runner hardening fixed the `docs/` vs `Docs/` false rejection plus the brittle final-cycle shift-log commit accounting. Real Phractal evaluations now auto-apply a repo-specific baseline verifier, but rejected-run cleanup/reporting still keep Loop 1 just below 100% on real repos.
+The core loop still works on the happy path, and the latest runner hardening fixed the `docs/` vs `Docs/` false rejection plus the brittle final-cycle shift-log commit accounting. Real Phractal evaluations now auto-apply a repo-specific baseline verifier, and `nightshift test` isolates its state/log/worktree footprint away from the target checkout so rejected eval runs no longer dirty the clone. Rejected-run reporting/scoring still keep Loop 1 just below 100% on real repos.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -31,13 +31,13 @@ The core loop still works on the happy path, and the latest runner hardening fix
 | Runner-enforced guard rails | Done | ████████████████████ 100% |
 | Machine-readable state | Done | ████████████████████ 100% |
 | Baseline verification | Done | ████████████████████ 100% |
-| Post-cycle verification | In progress | ███████████████████░ 98% |
+| Post-cycle verification | In progress | ███████████████████░ 99% |
 | Shift log generation | Done | ████████████████████ 100% |
 | Category dominance check | Done | ████████████████████ 100% |
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (984 tests) | Done | ████████████████████ 100% |
+| Test suite (992 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -48,7 +48,7 @@ The core loop still works on the happy path, and the latest runner hardening fix
 | run_command timeout fix | Done | ████████████████████ 100% |
 
 ### Bugs Found (not yet fixed)
-- Rejected evaluation runs still leave the target clone dirty and hide useful findings in the human-readable artifacts, confirming tasks #0100, #0101, and #0102 remain active.
+- Rejected evaluation runs still under-report findings in the human-readable artifacts and the scorer still does not account for dirty clones directly, confirming tasks #0101, #0102, and #0125 remain active.
 
 ---
 

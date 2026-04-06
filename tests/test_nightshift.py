@@ -907,6 +907,51 @@ class TestRunNightshiftPaths:
         captured = capsys.readouterr()
         assert "Docs/Nightshift" in captured.out
 
+    def test_rejected_test_mode_run_keeps_target_repo_clean(self, tmp_path: Path) -> None:
+        repo = _init_git_repo_for_test_mode(tmp_path / "repo")
+        runtime_root = tmp_path / "runtime-root"
+        parser = nightshift.build_parser()
+        args = parser.parse_args(
+            ["test", "--agent", "codex", "--repo-dir", str(repo), "--cycles", "1", "--cycle-minutes", "1"]
+        )
+        verification = {
+            "files_touched": [],
+            "dominant_path": "(none)",
+            "commits": [],
+            "violations": ["simulated rejection"],
+            "verify_command": None,
+            "verify_status": "failed",
+            "verify_exit_code": 1,
+        }
+
+        with (
+            patch("nightshift.worktree.tempfile.gettempdir", return_value=str(runtime_root)),
+            patch("nightshift.cli.command_exists", return_value=True),
+            patch("nightshift.cli.read_repo_instructions", return_value=""),
+            patch("nightshift.cli.evaluate_baseline"),
+            patch("nightshift.cli.install_dependencies_if_needed"),
+            patch("nightshift.cli.command_for_agent", return_value=["python3", "-c", "print('{}')"]),
+            patch("nightshift.cli.parse_cycle_result", return_value={"fixes": [], "logged_issues": []}),
+            patch("nightshift.cli.verify_cycle", return_value=(False, verification)),
+        ):
+            result = nightshift.run_nightshift(args, test_mode=True)
+            runtime_dir = nightshift.resolve_test_runtime_dir(repo)
+
+        assert result == 1
+        status = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert status.stdout == ""
+        assert not (repo / "docs" / "Nightshift").exists()
+
+        today = nightshift.now_local().strftime("%Y-%m-%d")
+        assert (runtime_dir / f"{today}.state.json").exists()
+        assert (runtime_dir / f"{today}.runner.log").exists()
+
 
 class TestValidateWorktree:
     def test_reports_missing_gitdir_from_git_file(self, tmp_path: Path) -> None:
@@ -11492,6 +11537,26 @@ class TestParseShiftArtifacts:
         assert arts["shift_log_exists"]
         assert arts["state"] == state
 
+    def test_reads_isolated_test_runtime_artifacts(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        runtime_root = tmp_path / "runtime-root"
+
+        with patch("nightshift.worktree.tempfile.gettempdir", return_value=str(runtime_root)):
+            runtime_dir = nightshift.resolve_test_runtime_dir(repo)
+            runtime_dir.mkdir(parents=True)
+            state = {"version": 1, "cycles": []}
+            (runtime_dir / "2026-04-05.state.json").write_text(json.dumps(state), encoding="utf-8")
+            log_dir = runtime_dir / "worktree-2026-04-05" / "Docs" / "Nightshift"
+            log_dir.mkdir(parents=True)
+            (log_dir / "2026-04-05.md").write_text("# Nightshift log", encoding="utf-8")
+
+            arts = nightshift.parse_shift_artifacts(repo)
+
+        assert arts["state_file_valid"]
+        assert arts["shift_log_exists"]
+        assert arts["state"] == state
+
 
 class TestRunTestShift:
     def test_targets_repo_dir_explicitly(self, tmp_path: Path) -> None:
@@ -11514,6 +11579,17 @@ class TestRunTestShift:
         assert args[args.index("--repo-dir") + 1] == str(repo_dir)
         assert kwargs["cwd"] == str(repo_dir)
         assert kwargs["env"]["PYTHONPATH"] == str(nightshift_dir)
+
+
+def _init_git_repo_for_test_mode(repo: Path) -> Path:
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+    return repo
 
 
 class TestEvaluationConstants:

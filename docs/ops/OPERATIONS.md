@@ -546,24 +546,27 @@ of the normal session workflow.
 
 ---
 
-## System 12: Runtime Artifacts (`docs/Nightshift/`)
+## System 12: Runtime Artifacts (`docs/Nightshift/` + isolated test roots)
 
 ### What it is
-Created when Nightshift runs. NOT checked into git (except shift logs).
+Created when Nightshift runs. Full overnight `run` sessions use repo-local
+`docs/Nightshift/`; `test`/evaluation sessions keep their machine-readable
+artifacts and linked worktrees under `$TMPDIR/nightshift-test-runs/...` so the
+target checkout stays clean.
 
 ### Files (generated at runtime)
 | File | Purpose | Git status |
 |------|---------|------------|
-| `YYYY-MM-DD.md` | Shift log (human-readable) | Committed to nightshift branch |
-| `YYYY-MM-DD.state.json` | Machine-readable state | Gitignored |
-| `YYYY-MM-DD.runner.log` | Raw runner output | Gitignored |
-| `worktree-YYYY-MM-DD/` | Isolated git worktree | Gitignored |
+| `YYYY-MM-DD.md` | Shift log (human-readable) | Committed to nightshift branch for `run`; lives in the isolated worktree for `test` |
+| `YYYY-MM-DD.state.json` | Machine-readable state | Gitignored / temp-root for `test` |
+| `YYYY-MM-DD.runner.log` | Raw runner output | Gitignored / temp-root for `test` |
+| `worktree-YYYY-MM-DD/` | Isolated git worktree | Gitignored in `run`; temp-root for `test` |
 
 ### How to clean up after a test run
 ```bash
-git worktree remove docs/Nightshift/worktree-YYYY-MM-DD
+git worktree remove "$TMPDIR"/nightshift-test-runs/<repo>-<hash>/worktree-YYYY-MM-DD
 git branch -d nightshift/YYYY-MM-DD
-rm -f docs/Nightshift/YYYY-MM-DD.state.json docs/Nightshift/YYYY-MM-DD.runner.log
+rm -rf "$TMPDIR"/nightshift-test-runs/<repo>-<hash>
 ```
 
 ---
@@ -785,8 +788,10 @@ git clone https://github.com/fazxes/Phractal.git /tmp/nightshift-test-target
 cd /tmp/nightshift-test-target
 python3 -m nightshift test --agent claude --cycles 2 --cycle-minutes 5
 
-# Check results
-cat docs/Nightshift/YYYY-MM-DD.md
+# Check results (use the paths printed at the end of the run)
+# Shift log:   ...
+# State file:  ...
+# Runner log:  ...
 ```
 
 This is a real full-stack project with real issues. Use it to validate that Loop 1 actually finds and fixes things.

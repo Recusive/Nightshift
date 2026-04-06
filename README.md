@@ -139,6 +139,11 @@ python3 -m nightshift multi /repo1 /repo2 --agent claude --test --cycles 1
 python3 -m nightshift module-map --write
 ```
 
+`python3 -m nightshift test ...` now keeps its state files, runner logs, and
+linked worktree under `$TMPDIR/nightshift-test-runs/...` so evaluation clones
+stay clean. Full `run` mode still writes repo-local runtime artifacts under
+`docs/Nightshift/`.
+
 ### From the installed skill bundle
 
 Use the bundled wrapper scripts:

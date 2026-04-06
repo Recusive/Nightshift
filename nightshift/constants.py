@@ -743,3 +743,7 @@ EVALUATION_DEFAULT_CYCLE_MINUTES = 5
 
 # Timeout in seconds for the entire evaluation shift subprocess.
 EVALUATION_SHIFT_TIMEOUT = 900
+
+# Directory name under the system temp root used for isolated test/evaluation
+# runtime artifacts so `nightshift test` does not dirty the target checkout.
+TEST_RUNTIME_ARTIFACT_DIRNAME = "nightshift-test-runs"

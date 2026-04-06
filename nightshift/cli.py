@@ -40,7 +40,8 @@ from nightshift.worktree import (
     ensure_shift_log_committed,
     ensure_worktree,
     install_dependencies_if_needed,
-    resolve_nightshift_dir,
+    resolve_runtime_dir,
+    resolve_shift_log_relative_dir,
     revert_cycle,
     sync_shift_log,
 )
@@ -58,13 +59,13 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     if getattr(args, "cycle_minutes", None) is not None:
         config["cycle_minutes"] = args.cycle_minutes
     today = args.date or now_local().strftime("%Y-%m-%d")
-    nightshift_dir = resolve_nightshift_dir(repo_dir)
-    nightshift_relative_dir = nightshift_dir.relative_to(repo_dir).as_posix()
-    worktree_dir = nightshift_dir / f"worktree-{today}"
+    runtime_dir = resolve_runtime_dir(repo_dir, test_mode=test_mode)
+    shift_log_dir = resolve_shift_log_relative_dir(repo_dir)
+    worktree_dir = runtime_dir / f"worktree-{today}"
     branch = f"nightshift/{today}"
-    shift_log_relative = f"{nightshift_relative_dir}/{today}.md"
-    state_path = nightshift_dir / f"{today}.state.json"
-    runner_log = nightshift_dir / f"{today}.runner.log"
+    shift_log_relative = f"{shift_log_dir}/{today}.md"
+    state_path = runtime_dir / f"{today}.state.json"
+    runner_log = runtime_dir / f"{today}.runner.log"
     base_branch = discover_base_branch(repo_dir)
     verify_command = infer_verify_command(repo_dir, config)
 
@@ -124,11 +125,12 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     if not command_exists(agent):
         raise NightshiftError(f"`{agent}` is not installed or not on PATH.")
 
-    nightshift_dir.mkdir(parents=True, exist_ok=True)
+    runtime_dir.mkdir(parents=True, exist_ok=True)
     ensure_worktree(repo_dir, worktree_dir, branch)
     ensure_shift_log(worktree_dir / shift_log_relative, today=today, branch=branch, base_branch=base_branch)
     ensure_shift_log_committed(worktree_dir, shift_log_relative)
-    sync_shift_log(worktree_dir, repo_dir, shift_log_relative)
+    if not test_mode:
+        sync_shift_log(worktree_dir, repo_dir, shift_log_relative)
     install_dependencies_if_needed(worktree_dir, runner_log)
     evaluate_baseline(worktree_dir=worktree_dir, runner_log=runner_log, state=state)
     write_json(state_path, state)
@@ -197,7 +199,7 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             repo_instructions=target_repo_instructions,
         )
 
-        message_path = nightshift_dir / f"{today}.cycle-{cycle_number}.json"
+        message_path = runtime_dir / f"{today}.cycle-{cycle_number}.json"
         if message_path.exists():
             message_path.unlink()
         cmd = command_for_agent(
@@ -297,7 +299,8 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
             cycle_result=cycle_result,
             verification=verification,
         )
-        sync_shift_log(worktree_dir, repo_dir, shift_log_relative)
+        if not test_mode:
+            sync_shift_log(worktree_dir, repo_dir, shift_log_relative)
         write_json(state_path, state)
 
         if state["counters"]["empty_cycles"] >= int(config["stop_after_empty_cycles"]):
@@ -314,7 +317,8 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
         print_status(f"|  Halted:     {halt_reason[:36]:<36}|")
     print_status("+--------------------------------------------------+")
     print_status("")
-    print_status(f"Shift log:   {repo_dir / shift_log_relative}")
+    shift_log_path = (worktree_dir / shift_log_relative) if test_mode else (repo_dir / shift_log_relative)
+    print_status(f"Shift log:   {shift_log_path}")
     print_status(f"State file:  {state_path}")
     print_status(f"Runner log:  {runner_log}")
     print_status(f"Branch:      {branch}")
@@ -329,8 +333,11 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
 def summarize(args: argparse.Namespace) -> int:
     repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
     date = args.date or now_local().strftime("%Y-%m-%d")
-    nightshift_dir = resolve_nightshift_dir(repo_dir)
-    state_path = nightshift_dir / f"{date}.state.json"
+    state_path = resolve_runtime_dir(repo_dir, test_mode=False) / f"{date}.state.json"
+    if not state_path.exists():
+        test_state_path = resolve_runtime_dir(repo_dir, test_mode=True) / f"{date}.state.json"
+        if test_state_path.exists():
+            state_path = test_state_path
     if not state_path.exists():
         raise NightshiftError(f"No state file found at {state_path}")
     state = load_json(state_path)
@@ -344,10 +351,10 @@ def verify_cycle_cli(args: argparse.Namespace) -> int:
     config = merge_config(repo_dir)
     agent_name = resolve_agent(config, args.agent)
     config["agent"] = agent_name
-    nightshift_dir = resolve_nightshift_dir(repo_dir)
-    nightshift_relative_dir = nightshift_dir.relative_to(repo_dir).as_posix()
+    runtime_dir = resolve_runtime_dir(repo_dir, test_mode=False)
+    shift_log_dir = resolve_shift_log_relative_dir(repo_dir)
     state = read_state(
-        nightshift_dir / f"{date}.state.json",
+        runtime_dir / f"{date}.state.json",
         today=date,
         branch=f"nightshift/{date}",
         agent=agent_name,
@@ -357,12 +364,12 @@ def verify_cycle_cli(args: argparse.Namespace) -> int:
     cycle_result = _as_cycle_result(raw_result) if raw_result is not None else None
     valid, verification = verify_cycle(
         worktree_dir=Path(args.worktree_dir).resolve(),
-        shift_log_relative=f"{nightshift_relative_dir}/{date}.md",
+        shift_log_relative=f"{shift_log_dir}/{date}.md",
         pre_head=args.pre_head,
         cycle_result=cycle_result,
         config=config,
         state=state,
-        runner_log=nightshift_dir / f"{date}.runner.log",
+        runner_log=runtime_dir / f"{date}.runner.log",
     )
     payload = {"valid": valid, "verification": verification}
     print(json.dumps(payload, indent=2, sort_keys=True))

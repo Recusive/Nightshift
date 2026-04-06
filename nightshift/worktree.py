@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path, PurePosixPath
 
 from nightshift.config import infer_install_command
@@ -11,6 +13,7 @@ from nightshift.constants import (
     SAFE_ARTIFACT_DIRS,
     SAFE_ARTIFACT_GLOBS,
     SHIFT_LOG_TEMPLATE,
+    TEST_RUNTIME_ARTIFACT_DIRNAME,
     now_local,
     print_status,
 )
@@ -61,8 +64,24 @@ def canonical_repo_relative_path(repo_dir: Path, relative_path: str) -> str:
 
 
 def resolve_nightshift_dir(repo_dir: Path) -> Path:
-    relative_dir = canonical_repo_relative_path(repo_dir, "docs/Nightshift")
+    relative_dir = resolve_shift_log_relative_dir(repo_dir)
     return repo_dir / Path(*PurePosixPath(relative_dir).parts)
+
+
+def resolve_shift_log_relative_dir(repo_dir: Path) -> str:
+    """Return the repo-relative shift-log directory with on-disk casing."""
+    return canonical_repo_relative_path(repo_dir, "docs/Nightshift")
+
+
+def resolve_test_runtime_dir(repo_dir: Path) -> Path:
+    """Return an isolated runtime directory for test-mode runs."""
+    digest = hashlib.sha256(str(repo_dir).encode("utf-8")).hexdigest()[:12]
+    return Path(tempfile.gettempdir()) / TEST_RUNTIME_ARTIFACT_DIRNAME / f"{repo_dir.name}-{digest}"
+
+
+def resolve_runtime_dir(repo_dir: Path, *, test_mode: bool) -> Path:
+    """Resolve the runtime-artifact directory for the current run mode."""
+    return resolve_test_runtime_dir(repo_dir) if test_mode else resolve_nightshift_dir(repo_dir)
 
 
 def validate_worktree(worktree_dir: Path) -> None:
