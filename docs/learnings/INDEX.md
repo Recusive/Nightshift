@@ -38,6 +38,8 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Post-merge smoke checks need explicit prompt contracts](2026-04-06-post-merge-smoke-contract.md) — Pre-merge `make check` is not enough; if main must prove both agent entry paths still boot, Step 9 needs the exact dry-run commands and tests
 - [README must match shipped entry points](2026-04-05-readme-must-match-shipped-entrypoints.md) — If there is no console script, document the real module/wrapper entry points and treat README commands as contracts
 
+- [Eval scorer rejected-cycle fallback](2026-04-06-eval-scorer-rejected-cycle-fallback.md) — Rejected cycles store fixes under `cycle_result`, not at top level; scorers must check both paths when counters stay zero
+- [PROMPT_GUARD_FILES must cover agent-invoking scripts](2026-04-06-prompt-guard-agent-invoker-scripts.md) — Every script that invokes an agent or sources lib-agent.sh must be in PROMPT_GUARD_FILES; PROMPT_GUARD_DIRS only catches new files, not existing ones
 - [Shell injection: env var pattern](2026-04-06-shell-injection-env-var-pattern.md) — Pass agent-controlled text via env vars into `python3 -c`, never by string interpolation; applies to any value extracted from agent output
 - [Prompt guard origin blind spot](2026-04-06-prompt-guard-origin-blind-spot.md) — Working-tree-only guards miss remote pushes; record `origin/main` hash before cycle and compare after; use `git init -b main --bare` in tests or attacker push is rejected
 - [Security functions need distinct exit codes](2026-04-06-pentest-revert-exit-codes.md) — Return 0/1/2 for clean/fixed/failed; callers using `if !` cannot distinguish remediation success from failure

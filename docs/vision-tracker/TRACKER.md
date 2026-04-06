@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-06 by agent session #0066 (queue cleanup + metadata backfill).
+Last updated: 2026-04-06 by agent session #0082 (pentest guard + eval scorer fallback).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -37,7 +37,7 @@ The core loop still works on the happy path, and the latest runner hardening fix
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (1012 tests) | Done | ████████████████████ 100% |
+| Test suite (1016 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -48,7 +48,7 @@ The core loop still works on the happy path, and the latest runner hardening fix
 | run_command timeout fix | Done | ████████████████████ 100% |
 
 ### Bugs Found (not yet fixed)
-- The evaluator still under-reads rejected runs and dirty-clone state, and Evaluation `#0015` surfaced an intermittent Claude cycle-result contract drift that can still false-reject real fixes; tasks `#0102`, `#0125`, and `#0139` remain active.
+- The evaluator still under-reads rejected runs and dirty-clone state, and Evaluation `#0015` surfaced an intermittent Claude cycle-result contract drift that can still false-reject real fixes; tasks `#0125` and `#0139` remain active. (task `#0102` resolved: scorers now fall back to rejected-cycle `cycle_result` data)
 
 ---
 

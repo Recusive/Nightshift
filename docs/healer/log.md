@@ -406,3 +406,15 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Cost trend: Opus sessions average ~$6.50 (docs) to ~$4.50 (fixes).** The `unknown` type sessions averaging $25/session are likely early unclassified sessions. The 38x outlier (20260406-103855) should be investigated -- a test session at $28 is anomalous.
 
 - **Eval score at 53/100 persists.** Three eval-related tasks (#0102, #0125, #0139) remain open. The eval gate should push the next builder toward #0139 (Claude cycle-result normalization), which addresses the false-rejection pattern scoring the lowest dimensions.
+
+---
+
+## 2026-04-06 -- Session pentest-guard-plus-eval-scorer
+
+**System health:** good
+
+- **Pentest pipeline caught two previously missed guard gaps.** `watchdog.sh` and three legacy daemon scripts (`daemon-strategist.sh`, `daemon-review.sh`, `daemon-overseer.sh`) were not in `PROMPT_GUARD_FILES`. These have existed since PR #125 and the earlier daemon refactor — the gap survived multiple pentest cycles because the scanner logic checked file-level guards, not directory-level inference. Fix: added all four to `PROMPT_GUARD_FILES` in `lib-agent.sh`.
+
+- **Eval gate is making progress.** Task #0102 completed this session. Scorers now fall back to `cycle_result` data for rejected cycles. Eval score (53/100) still below 80 gate, but the two remaining eval tasks (#0125, #0139) address the two biggest gaps (readable artifact after rejection, Claude contract drift causing false-rejections).
+
+- **Session log shows clean recovery after the crash loop.** Last two sessions (build + oversee) both succeeded. Daemon is healthy. No new circuit-breaker trips.
