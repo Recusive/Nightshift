@@ -744,6 +744,16 @@ EVALUATION_DEFAULT_CYCLE_MINUTES = 5
 # Timeout in seconds for the entire evaluation shift subprocess.
 EVALUATION_SHIFT_TIMEOUT = 900
 
+# Strings whose presence in a shift log marks it as an unfilled template.
+EVALUATION_TEMPLATE_MARKERS: list[str] = [
+    "will be rewritten as the overnight run accumulates",
+    "Number sequentially",
+    "Issues too large to fix autonomously",
+]
+
+# Destination path (under /tmp) used when cloning the target repo for evaluation.
+EVALUATION_CLONE_DEST = "/tmp/nightshift-eval"
+
 # Directory name under the system temp root used for isolated test/evaluation
 # runtime artifacts so `nightshift test` does not dirty the target checkout.
 TEST_RUNTIME_ARTIFACT_DIRNAME = "nightshift-test-runs"

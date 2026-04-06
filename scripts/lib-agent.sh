@@ -695,19 +695,18 @@ for task_num, issue_num, title in created_files:
     fi
 
     # Close each issue with a comment and commit the task files
-    local task_files_to_add=""
+    local task_files_to_add=()
     while IFS=: read -r task_num issue_num title; do
         [ -z "$task_num" ] && continue
         gh issue comment "$issue_num" --body "Converted to task #${task_num}" 2>/dev/null || true
         gh issue close "$issue_num" 2>/dev/null || true
-        task_files_to_add="$task_files_to_add $tasks_dir/${task_num}.md"
+        task_files_to_add+=("$tasks_dir/${task_num}.md")
         count=$((count + 1))
     done <<< "$new_files"
 
     # Commit the new task files (on main, before the session starts)
-    if [ "$count" -gt 0 ] && [ -n "$task_files_to_add" ]; then
-        # shellcheck disable=SC2086
-        git add $task_files_to_add "$next_id_file" 2>/dev/null || true
+    if [ "$count" -gt 0 ] && [ "${#task_files_to_add[@]}" -gt 0 ]; then
+        git add "${task_files_to_add[@]}" "$next_id_file" 2>/dev/null || true
         git commit -m "task: sync $count GitHub issue(s) to task files" --quiet 2>/dev/null || true
         git push origin main --quiet 2>/dev/null || true
         echo "  Synced $count GitHub issue(s) to task files"
