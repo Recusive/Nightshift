@@ -9120,6 +9120,59 @@ exit $RC
         alert_content = alert_file.read_text()
         assert "ORIGIN/MAIN MODIFICATION" in alert_content
 
+    def test_pr_merge_not_auto_reverted(self, tmp_path: Path) -> None:
+        """check_origin_integrity returns 0 and does not revert a legitimate PR merge.
+
+        Simulates the bootstrap self-revert bug scenario: an agent improves guard
+        files, merges via PR (merge commit), and the guard should accept the forward
+        progression rather than reverting it.  A direct push (non-merge commit) by
+        contrast should still be caught.
+        """
+        _origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
+
+        # Simulate a PR merge: feature branch -> merge commit on main -> push
+        # This mirrors `gh pr merge --merge` which creates a merge commit.
+        script = f"""
+set -e
+source "{self.LIB}"
+cd "{repo_dir}"
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+
+# Create a feature branch with a guard-file change
+git -C "{repo_dir}" checkout -b fix/guard --quiet
+echo "improved content" > "{repo_dir}/CLAUDE.md"
+git -C "{repo_dir}" add CLAUDE.md
+git -C "{repo_dir}" commit -m "security: improve guard" --quiet
+
+# Merge back to main with --no-ff so a merge commit is created (like gh pr merge --merge)
+git -C "{repo_dir}" checkout main --quiet
+git -C "{repo_dir}" merge fix/guard --no-ff -m "Merge pull request: security: improve guard" --quiet
+
+# Push the merged main to origin (simulates the PR merge completing)
+git -C "{repo_dir}" push origin main --quiet
+
+set +e
+check_origin_integrity "{repo_dir}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 0, (
+            "PR merge should not be auto-reverted (expected rc=0), "
+            f"got rc={result.returncode}:\n" + result.stdout + result.stderr
+        )
+        assert "ORIGIN/MAIN CHANGED" not in result.stdout, "Guard should not flag a PR merge as tampering"
+        # Verify origin still has the improved content (not reverted)
+        content_check = subprocess.run(
+            ["git", "-C", str(repo_dir), "show", "origin/main:CLAUDE.md"],
+            capture_output=True,
+            text=True,
+        )
+        assert "improved content" in content_check.stdout, (
+            "Guard reverted the PR-merged content -- bootstrap self-revert bug"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Handoff compaction
