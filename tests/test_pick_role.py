@@ -11,6 +11,7 @@ from importlib import import_module
 pick_role_mod = import_module("pick-role")
 
 compute_scores = pick_role_mod.compute_scores
+_is_valid_eval_file = pick_role_mod._is_valid_eval_file
 pick_role = pick_role_mod.pick_role
 DEFAULTS = pick_role_mod.DEFAULTS
 parse_session_index = pick_role_mod.parse_session_index
@@ -247,12 +248,29 @@ class TestScenario10AchieveCap:
 # ---------------------------------------------------------------------------
 
 
+_VALID_EVAL = (
+    "**Date**: 2026-04-06\n"
+    "| Startup | 7/10 | OK |\n"
+    "| Discovery | 6/10 | OK |\n"
+    "| Fix quality | 5/10 | OK |\n"
+    "| **Total** | **69/100** | |\n"
+)
+
+_VALID_EVAL_51 = (
+    "**Date**: 2026-01-01\n"
+    "| Startup | 5/10 | OK |\n"
+    "| Discovery | 6/10 | OK |\n"
+    "| Fix quality | 4/10 | OK |\n"
+    "| **Total** | **51/100** | |\n"
+)
+
+
 class TestReadEvalScore:
     def test_reads_latest_eval(self, tmp_path: Path) -> None:
         d = tmp_path / "evaluations"
         d.mkdir()
-        (d / "0001.md").write_text("| **Total** | **51/100** |")
-        (d / "0014.md").write_text("| **Total** | **69/100** |")
+        (d / "0001.md").write_text(_VALID_EVAL_51)
+        (d / "0014.md").write_text(_VALID_EVAL)
         assert read_latest_eval_score(d) == 69
 
     def test_no_files_returns_none(self, tmp_path: Path) -> None:
@@ -264,12 +282,89 @@ class TestReadEvalScore:
         assert read_latest_eval_score(tmp_path / "nope") is None
 
 
+class TestEvalFileValidation:
+    """Content validation for read_latest_eval_score (task #0172)."""
+
+    def test_valid_file_accepted(self, tmp_path: Path) -> None:
+        d = tmp_path / "evaluations"
+        d.mkdir()
+        (d / "0001.md").write_text(_VALID_EVAL)
+        assert read_latest_eval_score(d) == 69
+
+    def test_single_line_fabricated_file_rejected(self, tmp_path: Path) -> None:
+        # Old fallback regex would accept "Total: 99/100"; new code must reject it.
+        d = tmp_path / "evaluations"
+        d.mkdir()
+        (d / "0001.md").write_text("Total: 99/100\n")
+        assert read_latest_eval_score(d) is None
+
+    def test_ambiguous_prose_rejected(self, tmp_path: Path) -> None:
+        # Old fallback accepted "Total overhead is 12/100 cases handled"
+        d = tmp_path / "evaluations"
+        d.mkdir()
+        (d / "0001.md").write_text("Total overhead is 12/100 cases handled\n")
+        assert read_latest_eval_score(d) is None
+
+    def test_file_missing_date_rejected(self, tmp_path: Path) -> None:
+        d = tmp_path / "evaluations"
+        d.mkdir()
+        (d / "0001.md").write_text(
+            "| Startup | 8/10 | OK |\n"
+            "| Discovery | 6/10 | OK |\n"
+            "| Fix quality | 5/10 | OK |\n"
+            "| **Total** | **70/100** | |\n"
+        )
+        assert read_latest_eval_score(d) is None
+
+    def test_file_with_too_few_dimension_rows_rejected(self, tmp_path: Path) -> None:
+        d = tmp_path / "evaluations"
+        d.mkdir()
+        (d / "0001.md").write_text("**Date**: 2026-04-06\n| Startup | 8/10 | OK |\n| **Total** | **85/100** | |\n")
+        assert read_latest_eval_score(d) is None
+
+
+class TestIsValidEvalFile:
+    """Unit tests for the _is_valid_eval_file helper."""
+
+    def test_valid_content_returns_true(self) -> None:
+        assert _is_valid_eval_file(_VALID_EVAL) is True
+
+    def test_missing_date_returns_false(self) -> None:
+        text = "| Startup | 8/10 | OK |\n| Discovery | 6/10 | OK |\n| Fix quality | 5/10 | OK |\n"
+        assert _is_valid_eval_file(text) is False
+
+    def test_too_few_dimension_rows_returns_false(self) -> None:
+        text = "**Date**: 2026-04-06\n| Startup | 8/10 | OK |\n"
+        assert _is_valid_eval_file(text) is False
+
+    def test_total_row_not_counted_as_dimension(self) -> None:
+        # Total row has /100 not /10 -- must not count toward dimension threshold
+        text = (
+            "**Date**: 2026-04-06\n| Startup | 8/10 | OK |\n| Discovery | 6/10 | OK |\n| **Total** | **70/100** | |\n"
+        )
+        assert _is_valid_eval_file(text) is False  # only 2 dimension rows
+
+
 class TestReadAutonomyScore:
     def test_reads_score(self, tmp_path: Path) -> None:
         d = tmp_path / "autonomy"
         d.mkdir()
         (d / "2026-04-06.md").write_text("TOTAL:           72/100")
         assert read_latest_autonomy_score(d) == 72
+
+    def test_dual_total_returns_last_score(self, tmp_path: Path) -> None:
+        # Regression for task #0176: ACHIEVE reports have baseline + updated TOTAL.
+        # re.findall[-1] must return the updated (last) score, not the baseline.
+        d = tmp_path / "autonomy"
+        d.mkdir()
+        (d / "2026-04-06c.md").write_text("## Baseline\nTOTAL: 76/100\n\n## Updated\nTOTAL: 81/100\n")
+        assert read_latest_autonomy_score(d) == 81
+
+    def test_single_total_still_works(self, tmp_path: Path) -> None:
+        d = tmp_path / "autonomy"
+        d.mkdir()
+        (d / "2026-04-06.md").write_text("TOTAL: 55/100\n")
+        assert read_latest_autonomy_score(d) == 55
 
     def test_no_files_returns_none(self, tmp_path: Path) -> None:
         d = tmp_path / "autonomy"

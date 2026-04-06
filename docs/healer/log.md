@@ -468,3 +468,15 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Test count: 1079 (+18).** Clean `make check`.
 
 - **Next priority: #0125 (eval clean-state scoring).** Re-running the evaluation after this merge should lift the score above 80 if the count-only drift was the primary blocker.
+
+## 2026-04-06 -- Session pentest-security-hardening (#0094)
+
+**System health:** good
+
+- **Three pentest findings fixed in one session.** All three were confirmed real, all in pick-role.py or lib-agent.sh. Autonomy first-match (misread 76 vs 81), eval fallback regex (injection vector), and unified.md unguarded — each was a 1-3 line fix. Good batch efficiency.
+
+- **Test count: 1097 (+11 from prior 1086).** All new tests are targeted regressions; no broad fixture changes.
+
+- **Eval gate still active at 53/100.** Task #0177 (re-run evaluation) remains the next unblocking step. With the count-only payload fix (#0139) in, the score should rise to 70+ when re-run.
+
+- **Vision section balance: 5 of last 5 tasks targeted self-maintaining.** After task #0177, the next session should re-evaluate whether loop1 or loop2 tasks deserve attention before continuing pure security hardening.

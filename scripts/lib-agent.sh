@@ -43,6 +43,7 @@ PROMPT_GUARD_FILES=(
     ".nightshift.json"
     ".github/workflows/ci.yml"
     ".github/workflows/notify-orbitweb.yml"
+    "docs/prompt/unified.md"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
