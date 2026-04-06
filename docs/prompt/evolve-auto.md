@@ -96,7 +96,7 @@ REVIEW NOTES. These quality gates are non-negotiable for any role that
 commits code to the repo.
 
 For OVERSEE and STRATEGIZE sessions (which do not produce code), follow
-the role-specific prompt you read in unified.md Phase 3. The universal
+your role-specific prompt (selected by pick-role.py). The universal
 rules do not apply since these roles do not create PRs with code changes.
 
 STRATEGIZE AUTONOMOUS OVERRIDE: When the unified daemon picks STRATEGIZE,
