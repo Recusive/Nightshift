@@ -9232,6 +9232,20 @@ class TestAutonomousBuilderPromptContracts:
         assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in normalized
         assert "mandatory even if `make check` passed before merge" in normalized
 
+    def test_review_prompt_post_merge_flow_runs_both_agent_dry_runs(self) -> None:
+        content = Path("docs/prompt/review.md").read_text()
+        normalized = " ".join(content.split())
+        assert "gh run list --branch main --limit 1" in normalized
+        assert "python3 -m nightshift run --dry-run --agent codex > /dev/null" in normalized
+        assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in normalized
+
+    def test_achieve_prompt_post_merge_health_check_runs_both_agent_dry_runs(self) -> None:
+        content = Path("docs/prompt/achieve.md").read_text()
+        normalized = " ".join(content.split())
+        assert "gh run list --branch main --limit 1" in normalized
+        assert "python3 -m nightshift run --dry-run --agent codex > /dev/null" in normalized
+        assert "python3 -m nightshift run --dry-run --agent claude > /dev/null" in normalized
+
 
 class TestExtractResultSummaryHelper:
     def test_extracts_last_result_block(self, tmp_path: Path) -> None:

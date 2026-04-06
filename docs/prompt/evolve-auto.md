@@ -97,8 +97,8 @@ BUILD-ONLY RULES: TASK SELECTION, EVAL SCORE GATE, TASK VALUE SCORING,
 and RELEASE apply to BUILD sessions only.
 
 UNIVERSAL RULES (apply to ALL roles that produce code changes — BUILD,
-REVIEW, ACHIEVE): VERIFICATION, PRODUCTION-READINESS, CI FAILURE, and
-REVIEW NOTES. These quality gates are non-negotiable for any role that
+REVIEW, ACHIEVE): VERIFICATION, PRODUCTION-READINESS, SMOKE TEST, CI FAILURE,
+and REVIEW NOTES. These quality gates are non-negotiable for any role that
 commits code to the repo.
 
 For OVERSEE and STRATEGIZE sessions (which do not produce code), follow

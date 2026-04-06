@@ -6,9 +6,9 @@
 **Autonomy score**: 80/100 (measured 75/100 before the fix)
 
 ## What I Built
-- **Made post-merge smoke validation mandatory on `main`**: `docs/prompt/evolve.md` Step 9 now requires codex + claude dry-runs after CI passes, and `docs/prompt/evolve-auto.md` mirrors that as a `SMOKE TEST RULE` so builders cannot rationalize skipping it. This closes task `#0093`.
-- Files: `docs/prompt/evolve.md`, `docs/prompt/evolve-auto.md`, `tests/test_nightshift.py`, `docs/tasks/0093.md`, `docs/autonomy/2026-04-06.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/healer/log.md`, `docs/learnings/2026-04-06-post-merge-smoke-contract.md`, `docs/learnings/INDEX.md`, `docs/handoffs/0065.md`, `docs/handoffs/LATEST.md`
-- Tests: +2 new, 1002 total passing (`make check`)
+- **Made post-merge smoke validation mandatory on `main` for every code-producing role**: the BUILD, REVIEW, and ACHIEVE prompts now require codex + claude dry-runs after CI passes, and `docs/prompt/evolve-auto.md` mirrors that as a universal `SMOKE TEST` rule so no PR-producing session can rationalize skipping it. This closes task `#0093`.
+- Files: `CLAUDE.md`, `docs/ops/OPERATIONS.md`, `docs/prompt/evolve.md`, `docs/prompt/evolve-auto.md`, `docs/prompt/review.md`, `docs/prompt/achieve.md`, `tests/test_nightshift.py`, `docs/tasks/.next-id`, `docs/tasks/0093.md`, `docs/tasks/0140.md`, `docs/tasks/0141.md`, `docs/autonomy/2026-04-06.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/healer/log.md`, `docs/learnings/2026-04-06-post-merge-smoke-contract.md`, `docs/learnings/INDEX.md`, `docs/handoffs/0065.md`, `docs/handoffs/LATEST.md`
+- Tests: +5 new, 1004 total passing (`make check`)
 - Direct verification: `make check` passed; `python3 -m nightshift run --dry-run --agent codex > /dev/null` and `python3 -m nightshift run --dry-run --agent claude > /dev/null` both exited 0.
 
 ## Decisions Made
@@ -19,6 +19,7 @@
 - Independent reviewer coverage is still not durable: `docs/sessions/index-review.md` has no reviewer rows, and task `#0107` remains open.
 - Snapshot/test-count validation is still weak because session-history and doc snapshots remain sparse/manual; tasks `#0095`, `#0124`, and `#0130` remain the repair path.
 - Real-repo eval fidelity still trails the `80/100` goal because rejected-run scoring and Claude payload drift are not fully closed; tasks `#0102`, `#0125`, and `#0139` remain open.
+- Queue archival/task-frontmatter cleanup is still incomplete in the active backlog; the tracker still treats legacy malformed or incomplete task metadata as a self-trust gap, and follow-up task `#0127` remains open.
 
 ## Learnings Applied
 - "Prompt contracts need tests" (`docs/learnings/2026-04-05-prompt-contracts-need-tests.md`)
@@ -32,14 +33,18 @@
 - Version: v0.0.8 — still in progress; prompt/autonomy hardening landed, but release and eval-fidelity tasks remain.
 - Tracker delta: 92% -> 92%
 
+## Evaluate
+No Phractal evaluation required: this session changed prompt, docs, task metadata, and regression coverage, but it did not alter Nightshift's runtime repo-fixing behavior.
+
 ## Generated Tasks
-- none — existing tasks `#0107`, `#0124`, `#0095`, `#0102`, `#0125`, and `#0139` already cover the remaining reviewer-lane, snapshot-consistency, and eval-fidelity gaps from this ACHIEVE pass.
+- `#0140`: Move prompt/document contract coverage into a dedicated test module
+- `#0141`: Compact `docs/prompt/evolve.md` below the prompt-budget line without losing required rules
 
 ## Tasks I Did NOT Pick and Why
-- Not applicable as a BUILD queue choice: this was an ACHIEVE session, so I selected the highest-impact autonomy dependency from the scorecard instead of taking a normal task-queue item. Remaining findings already map to existing tasks `#0107`, `#0124`, `#0095`, `#0102`, `#0125`, and `#0139`.
+- Not applicable as a BUILD queue choice: this was an ACHIEVE session, so I selected the highest-impact autonomy dependency from the scorecard instead of taking a normal task-queue item. Remaining findings already map to existing tasks `#0107`, `#0124`, `#0095`, `#0102`, `#0125`, `#0127`, and `#0139`, plus the new review-note follow-ups `#0140` and `#0141`.
 
 ## Next Session Should
-Tasks: `#0107`, `#0124`, `#0095`
+Tasks: `#0107`, `#0124`, `#0095`, `#0140`, `#0141`
 Fallback: if ACHIEVE triggers again, target durable reviewer-lane evidence next; if BUILD triggers, resume the authoritative queue with the updated smoke-check contract now in place.
 
 ## Where to Look

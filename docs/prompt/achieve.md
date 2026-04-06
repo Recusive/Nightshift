@@ -239,8 +239,13 @@ git checkout main && git pull
 
 ```bash
 gh run list --branch main --limit 1
+python3 -m nightshift run --dry-run --agent codex > /dev/null
+python3 -m nightshift run --dry-run --agent claude > /dev/null
 # If failure: fix via branch+PR, never push to main
 ```
+
+Do not report the ACHIEVE session complete until CI on `main` is green and both
+dry-runs pass on the merged branch.
 
 ## STEP 10 -- REPORT
 
@@ -285,8 +290,8 @@ Next ACHIEVE session should target: [recommendation]
 A good ACHIEVE session:
 
 1. Agent measures autonomy: 62/100. Self-Validating is lowest at 10/25 (eval runs but score stuck at 66, no post-merge smoke test, no coverage tracking).
-2. Root cause analysis: post-merge smoke test exists in evolve.md Step 5 but is marked "optional." Agents skip it every session because the word "optional" gives them permission.
-3. Proposal: change "Optional but recommended" to "Required" in evolve.md Step 9, add a verification that dry-run was executed before the session report.
+2. Root cause analysis: `scripts/check.sh` already runs both dry-runs before merge, but `evolve.md` Step 9 never required those commands on `main` after merge, so sessions could still report success without proving both agent entry paths booted on the merged branch.
+3. Proposal: add the exact codex + claude dry-run commands to Step 9, mirror them in `evolve-auto.md`, and add regression tests so the contract cannot drift.
 4. Builds: edits evolve.md (2 lines), adds test verifying the dry-run instruction is non-optional, runs make check.
 5. Verifies: searches last 5 session logs — confirms agents skip dry-run. After the fix, the instruction is mandatory.
 6. Updates: autonomy report (62 -> 67), handoff, learnings ("optional in prompts means never").
