@@ -45,13 +45,14 @@ Generated tasks:
   Vision alignment: [last 5 target: loop1=1, self-maintaining=3, none=1]
   - `#0125`: Evaluation clean-state scoring should detect dirty clones
   - `#0126`: Backfill missing target on existing task files
+  - `#0127`: Keep task-frontmatter parsing aligned across queue scripts
 
 ## Tasks I Did NOT Pick and Why
 - `#0012`, `#0029`, `#0032`: skipped because they remain integration/environment work.
 - `#0103`: skipped because it is already blocked on design.
 - `#0024`, `#0036`, `#0045`: not picked because invalid frontmatter still keeps them out of the authoritative parsed queue; this session added the validator that now reports them explicitly.
 - `#0060`, `#0063`, `#0064`, `#0066`, `#0069`, `#0071`, `#0072`, `#0073`, `#0074`, `#0075`, `#0076`, `#0077`, `#0078`, `#0079`, `#0080`, `#0081`, `#0082`, `#0084`, `#0085`, `#0088`, `#0089`, `#0090`, `#0091`, `#0092`, `#0093`, `#0094`, `#0095`, `#0096`, `#0097`, `#0099`, `#0100`, `#0101`, `#0102`, `#0104`, `#0105`, `#0106`, `#0107`, `#0108`, `#0109`, `#0110`, `#0111`, `#0112`, `#0113`, `#0114`, `#0115`, `#0116`, `#0119`, `#0120`, `#0122`, `#0123`, `#0124`: not picked because the mandatory fresh-clone evaluation plus fragile automation-path validation happened first, and the authoritative queue then selected `#0058` as the lowest-numbered valid internal pending task.
-- `#0125`, `#0126`: created at the end of this session from new evidence, so they were not eligible when task selection happened.
+- `#0125`, `#0126`, `#0127`: created at the end of this session from new evidence and review notes, so they were not eligible when task selection happened.
 
 ## Next Session Should
 Tasks: `#0060`
