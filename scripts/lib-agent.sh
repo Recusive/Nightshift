@@ -33,6 +33,8 @@ PROMPT_GUARD_FILES=(
     "scripts/daemon.sh"
     "scripts/lib-agent.sh"
     "scripts/pick-role.py"
+    "scripts/check.sh"
+    "scripts/format-stream.py"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
