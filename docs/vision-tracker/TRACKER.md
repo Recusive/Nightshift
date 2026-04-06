@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-06 by agent session #0062 (isolated eval runtime artifacts).
+Last updated: 2026-04-06 by agent session #0063 (cycle.py review hardening).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -20,7 +20,7 @@ NIGHTSHIFT VISION                              ███████████
 
 ## Loop 1 — Hardening Loop (99%)
 
-The core loop still works on the happy path, and the latest runner hardening fixed the `docs/` vs `Docs/` false rejection plus the brittle final-cycle shift-log commit accounting. Real Phractal evaluations now auto-apply a repo-specific baseline verifier, and `nightshift test` isolates its state/log/worktree footprint away from the target checkout so rejected eval runs no longer dirty the clone. Rejected-run reporting/scoring still keep Loop 1 just below 100% on real repos.
+The core loop still works on the happy path, and the latest runner hardening fixed the `docs/` vs `Docs/` false rejection plus the brittle final-cycle shift-log commit accounting. Real Phractal evaluations now auto-apply a repo-specific baseline verifier, and `nightshift test` isolates its state/log/worktree footprint away from the target checkout so rejected eval runs no longer dirty the clone. Cycle prompt helpers now also skip malformed UTF-8 instruction files, keep injected instruction content within the configured byte cap, and apply more precise hot-file plus forbidden-command guard rails. Rejected-run reporting/scoring still keep Loop 1 just below 100% on real repos.
 
 | Component | Status | Progress |
 |---|---|---|
@@ -37,7 +37,7 @@ The core loop still works on the happy path, and the latest runner hardening fix
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (992 tests) | Done | ████████████████████ 100% |
+| Test suite (998 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |

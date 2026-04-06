@@ -806,6 +806,14 @@ class TestBlockedFile:
         result = nightshift.blocked_file("deploy/k8s/app.yaml", self._config())
         assert result is not None
 
+    def test_prefix_without_trailing_slash_matches_path_segments_only(self):
+        config = {
+            "blocked_paths": ["docs"],
+            "blocked_globs": [],
+        }
+        assert nightshift.blocked_file("docs/api.md", config) is not None
+        assert nightshift.blocked_file("docs2/api.md", config) is None
+
 
 # --- Recent Hot Files --------------------------------------------------------
 
@@ -841,6 +849,15 @@ class TestHighSignalFocusPaths:
         (tmp_path / "src" / "app" / "api").mkdir(parents=True)
 
         result = nightshift.high_signal_focus_paths(tmp_path, ["src/lib/auth"])
+        assert "src/lib/auth" not in result
+        assert "src/app/api" in result
+
+    def test_skips_hot_files_nested_under_candidate_when_possible(self, tmp_path: Path) -> None:
+        (tmp_path / "src" / "lib" / "auth").mkdir(parents=True)
+        (tmp_path / "src" / "lib" / "http.ts").write_text("", encoding="utf-8")
+        (tmp_path / "src" / "app" / "api").mkdir(parents=True)
+
+        result = nightshift.high_signal_focus_paths(tmp_path, ["src/lib/auth/login.ts"])
         assert "src/lib/auth" not in result
         assert "src/app/api" in result
 
@@ -1536,6 +1553,15 @@ class TestReadRepoInstructions:
         assert "copilot-instructions.md" in result
         assert "Copilot rules here" in result
 
+    def test_invalid_utf8_instruction_file_skipped_with_warning(self, tmp_path: Path) -> None:
+        (tmp_path / "CLAUDE.md").write_bytes(b"\xff\xfe\x00")
+        (tmp_path / "AGENTS.md").write_text("Readable instructions")
+
+        result = nightshift.read_repo_instructions(tmp_path)
+
+        assert "CLAUDE.md is not valid UTF-8 -- skipped" in result
+        assert "Readable instructions" in result
+
 
 # --- Read Repo Instructions (truncation) -------------------------------------
 
@@ -1629,6 +1655,24 @@ class TestReadRepoInstructionsTruncation:
                 if not line.startswith("--- ") or not line.endswith(" ---"):
                     content_bytes += len(line.encode("utf-8")) + 1  # +1 for newline
         assert content_bytes <= MAX_INSTRUCTION_TOTAL_BYTES + 500  # generous margin for markers
+
+    def test_total_cap_stays_within_budget_when_warning_cannot_fully_fit(self, tmp_path: Path) -> None:
+        from nightshift.constants import MAX_INSTRUCTION_FILE_BYTES, MAX_INSTRUCTION_TOTAL_BYTES
+
+        (tmp_path / "CLAUDE.md").write_text("c" * MAX_INSTRUCTION_FILE_BYTES)
+        (tmp_path / "AGENTS.md").write_text("a" * MAX_INSTRUCTION_FILE_BYTES)
+        remaining = MAX_INSTRUCTION_TOTAL_BYTES - (2 * MAX_INSTRUCTION_FILE_BYTES) - 5
+        (tmp_path / ".cursorrules").write_text("r" * remaining)
+        (tmp_path / "CONTRIBUTING.md").write_text("x" * 100)
+
+        result = nightshift.read_repo_instructions(tmp_path)
+
+        content_bytes = 0
+        for section in result.split("\n\n"):
+            for line in section.split("\n"):
+                if not line.startswith("--- ") or not line.endswith(" ---"):
+                    content_bytes += len(line.encode("utf-8")) + 1
+        assert content_bytes <= MAX_INSTRUCTION_TOTAL_BYTES
 
 
 # --- Read Repo Instructions (symlink rejection) --------------------------------
@@ -1968,6 +2012,31 @@ class TestForbiddenReportedCommands:
             }
         )
         assert result == ["npm run lint", "npm run test"]
+
+    def test_detects_shell_wrapped_commands_from_structured_tests_run(self) -> None:
+        result = nightshift.forbidden_reported_commands(
+            {
+                "status": "completed",
+                "fixes": [],
+                "logged_issues": [],
+                "tests_run": ["/bin/zsh -lc 'npm run lint'"],
+            }
+        )
+        assert result == ["npm run lint"]
+
+    def test_ignores_file_scoped_package_manager_commands(self) -> None:
+        result = nightshift.forbidden_reported_commands(
+            {
+                "status": "completed",
+                "fixes": [],
+                "logged_issues": [],
+                "tests_run": [
+                    "npm test -- src/lib/auth/parse-social-url.test.ts",
+                    "npm run lint -- src/lib/http.ts",
+                ],
+            }
+        )
+        assert result == []
 
 
 class TestExpectedCycleCommits:
