@@ -69,15 +69,43 @@ class TestScenario3ExactThresholds:
         scores = compute_scores(signals)
         assert scores["review"] >= 60  # 10 + 40 + 10
 
-    def test_50_pending_triggers_oversee(self) -> None:
-        signals = make_signals(pending_tasks=50)
+    def test_80_pending_triggers_oversee_hard(self) -> None:
+        signals = make_signals(pending_tasks=80, sessions_since_oversee=5)
         scores = compute_scores(signals)
-        assert scores["oversee"] >= 60  # 10 + 50
+        assert scores["oversee"] >= 55  # 5 + 50
 
-    def test_3_stale_triggers_oversee(self) -> None:
-        signals = make_signals(stale_tasks=3)
+    def test_50_pending_only_triggers_if_not_recent(self) -> None:
+        signals = make_signals(pending_tasks=55, sessions_since_oversee=5)
         scores = compute_scores(signals)
-        assert scores["oversee"] >= 50  # 10 + 40
+        assert scores["oversee"] >= 40  # 5 + 35
+
+    def test_50_pending_suppressed_if_recently_overseen(self) -> None:
+        signals = make_signals(pending_tasks=55, sessions_since_oversee=2)
+        scores = compute_scores(signals)
+        assert scores["oversee"] < 20  # no +35 bonus
+
+    def test_5_stale_triggers_oversee(self) -> None:
+        signals = make_signals(stale_tasks=5, sessions_since_oversee=5)
+        scores = compute_scores(signals)
+        assert scores["oversee"] >= 35  # 5 + 30
+
+    def test_clean_status_suppresses_rerun(self) -> None:
+        signals = make_signals(
+            pending_tasks=55,
+            sessions_since_oversee=1,
+            last_oversee_status="CLEAN",
+        )
+        scores = compute_scores(signals)
+        assert scores["oversee"] == 5  # capped to base
+
+    def test_needs_more_work_triggers_rerun(self) -> None:
+        signals = make_signals(
+            pending_tasks=55,
+            sessions_since_oversee=5,
+            last_oversee_status="NEEDS MORE WORK",
+        )
+        scores = compute_scores(signals)
+        assert scores["oversee"] >= 60  # 5 + 35 + 20
 
 
 class TestHealerCautionTriggers:
@@ -98,10 +126,10 @@ class TestHealerCautionTriggers:
 
 
 class TestScenario4OverseeMax:
-    def test_oversee_beats_build_with_pending_and_stale(self) -> None:
-        signals = make_signals(eval_score=95, pending_tasks=50, stale_tasks=3)
+    def test_oversee_beats_build_with_critical_queue(self) -> None:
+        signals = make_signals(eval_score=95, pending_tasks=80, stale_tasks=5, sessions_since_oversee=10)
         scores = compute_scores(signals)
-        assert scores["oversee"] == 100
+        assert scores["oversee"] >= 85  # 5 + 50 + 30
         assert scores["build"] == 80
         winner = pick_role(scores, urgent=False)
         assert winner == "oversee"

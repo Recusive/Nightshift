@@ -178,6 +178,20 @@ def count_needs_human_issues() -> int:
     return 0
 
 
+def read_last_oversee_status(handoff_path: Path) -> str:
+    """Read the queue status from the last OVERSEE handoff (CLEAN or NEEDS MORE WORK)."""
+    try:
+        text = handoff_path.read_text(encoding="utf-8")
+        if "Role: OVERSEE" not in text and "role: oversee" not in text.lower():
+            return ""  # last session wasn't oversee
+        match = re.search(r"Queue status:\s*(CLEAN|NEEDS MORE WORK)", text)
+        if match:
+            return match.group(1)
+    except OSError:
+        pass
+    return ""
+
+
 def did_tracker_move(rows: list[dict[str, str]], window: int = 5) -> bool:
     """Check if any recent session reported tracker movement."""
     recent = rows[-window:] if len(rows) >= window else rows
@@ -199,12 +213,15 @@ DEFAULTS = {
     "sessions_since_review": 0,
     "sessions_since_strategy": 0,
     "sessions_since_achieve": 0,
+    "sessions_since_oversee": 0,
     "pending_tasks": 0,
     "stale_tasks": 0,
     "healer_status": "good",
     "needs_human_issues": 0,
     "tracker_moved": False,
     "urgent_tasks": False,
+    "tasks_synced": False,
+    "last_oversee_status": "",
 }
 
 
@@ -242,14 +259,23 @@ def compute_scores(signals: dict) -> dict[str, int]:
     if sr >= 5:
         review += 10
 
-    # OVERSEE
-    oversee = 10
-    if pt >= 50:
-        oversee += 50
-    if st >= 3:
-        oversee += 40
-    if hs in ("concern", "caution") and pt >= 30:
-        oversee += 30
+    # OVERSEE — triggers on queue drift, not raw size
+    oversee = 5
+    so = signals["sessions_since_oversee"]
+    last_oversee_status = signals.get("last_oversee_status", "")
+    if pt >= 80:
+        oversee += 50  # queue is critically large
+    elif pt >= 50 and so >= 5:
+        oversee += 35  # queue is large but only trigger if not recently overseen
+    if st >= 5:
+        oversee += 30  # many stale tasks rotting
+    if signals.get("tasks_synced", False):
+        oversee += 25  # new GitHub Issues synced — queue needs organizing
+    if last_oversee_status == "NEEDS MORE WORK":
+        oversee += 20  # previous overseer said it wasn't done
+    # Cap: if last overseer said CLEAN and nothing changed, don't re-run
+    if so < 3 and last_oversee_status == "CLEAN":
+        oversee = 5
 
     # STRATEGIZE
     strategize = 5
@@ -321,6 +347,7 @@ def main() -> None:
     autonomy_score = read_latest_autonomy_score(repo / "docs" / "autonomy")
     index_rows = parse_session_index(repo / "docs" / "sessions" / "index.md")
     healer_status = read_healer_status(repo / "docs" / "healer" / "log.md")
+    last_oversee = read_last_oversee_status(repo / "docs" / "handoffs" / "LATEST.md")
     tasks_dir = repo / "docs" / "tasks"
     pending = count_pending_tasks(tasks_dir)
     stale = count_stale_tasks(tasks_dir)
@@ -335,12 +362,14 @@ def main() -> None:
         "sessions_since_review": count_sessions_since_role(index_rows, "review"),
         "sessions_since_strategy": count_sessions_since_role(index_rows, "strategize"),
         "sessions_since_achieve": count_sessions_since_role(index_rows, "achieve"),
+        "sessions_since_oversee": count_sessions_since_role(index_rows, "oversee"),
         "pending_tasks": pending,
         "stale_tasks": stale,
         "healer_status": healer_status,
         "needs_human_issues": needs_human,
         "tracker_moved": tracker_moved,
         "urgent_tasks": urgent,
+        "last_oversee_status": last_oversee,
     }
 
     scores = compute_scores(signals)

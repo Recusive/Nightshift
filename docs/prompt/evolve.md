@@ -354,7 +354,7 @@ You are not a task runner. You are the engineer who owns this system. Before end
 | Security / robustness | Edge cases that crash? Input validation gaps? Auto-merge exploitable? Secrets exposed? |
 
 **Constraints:**
-- **Max 5 tasks per session.** Quality over quantity. Do not flood the queue.
+- **Queue-aware cap.** Count pending tasks in `docs/tasks/`. If 50+ pending, create 0 new tasks (the queue is already full — the OVERSEE role will clean it). If under 50, max 3 tasks. The queue must not grow faster than the system can close tasks.
 - **Check for duplicates first.** Scan all pending tasks in `docs/tasks/`. If a task already covers your idea, skip it or update the existing task instead.
 - **Span multiple dimensions.** If you create 3 tasks, they should not all be "code quality." Spread across at least 2 different dimensions.
 - **Vision alignment check.** Before creating tasks, read the last 5 task files (by number). Check their `vision_section` field. If 3+ target the same section, your new tasks MUST prioritize a different section. Check `docs/vision-tracker/TRACKER.md` — lower-percentage sections need more attention. Set `vision_section` in every new task's frontmatter (`loop1`, `loop2`, `self-maintaining`, `meta-prompt`, or `none`). Exception: if a section has urgent bugs or blockers, alignment can be overridden — explain why in the task description.
