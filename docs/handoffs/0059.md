@@ -41,6 +41,7 @@ Run evaluation against Phractal for the changes merged this session.
 ## Generated tasks
 - `#0132`: Generalize evaluation target metadata beyond a single verify-command map
 - `#0133`: Separate eval-target overrides from generic verify-command inference
+- `#0134`: Keep module-map key symbols aligned with verifier-related helper changes
 
 ## Tasks I Did NOT Pick and Why
 - `#0012`, `#0029`, `#0032`: skipped because they remain integration/environment work.
