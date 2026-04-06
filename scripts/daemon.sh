@@ -333,6 +333,8 @@ ${PROMPT}"
         END_TIME=$(date +%s)
         DURATION=$(( END_TIME - START_TIME ))
         DURATION_MIN=$(( DURATION / 60 ))
+        # FEATURE is always unset at this early-exit point (extraction runs at line ~381).
+        # ${FEATURE:--} expands to '-' here, so no pipe sanitization is needed.
         echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | - | SECURITY ABORT: origin revert failed${PROMPT_TAMPERED} | ${FEATURE:--} | - |" >> "$INDEX_FILE"
         notify_human "Origin revert failed (post-builder)" \
             "check_origin_integrity returned exit code 2 after builder session $SESSION_ID. Origin/main may contain tampered prompt/control files. The exec self-restart would run attacker code. Manual intervention required." || true
@@ -408,10 +410,10 @@ for line in open('$LOG_FILE'):
 print('-')
 " 2>/dev/null || echo "-")
 
-    # Strip pipe chars to prevent markdown table corruption in session index.
+    # Strip pipe chars and newlines to prevent markdown table corruption.
     # parse_session_index in pick-role.py silently drops rows with wrong cell count.
-    FEATURE=$(echo "$FEATURE" | tr -d '|')
-    PR_URL=$(echo "$PR_URL" | tr -d '|')
+    FEATURE=$(echo "$FEATURE" | tr -d '|\n\r')
+    PR_URL=$(echo "$PR_URL" | tr -d '|\n\r')
 
     # --- Self-evaluation check ---
     if [ "$EXIT_CODE" -eq 0 ] && should_evaluate "$CYCLE"; then
