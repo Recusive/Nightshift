@@ -39,6 +39,7 @@ Read these files and extract the system signals. Do this EVERY session before de
 5. **Read `docs/healer/log.md`** (last entry) -- system health rating
 6. **Check `docs/strategy/`** -- when was the last strategy report written?
 7. **Check `docs/reviews/`** -- when was the last code review session?
+8. **Check `docs/autonomy/`** -- latest autonomy score (if any reports exist)
 
 Extract these signals:
 
@@ -53,6 +54,8 @@ pending_task_count:      [number of status: pending tasks]
 stale_task_count:        [tasks pending 20+ sessions -- check created date vs session count]
 healer_status:           [good / caution / concern from last healer entry]
 tracker_movement:        [did overall % change in last 5 sessions?]
+autonomy_score:          [NN/100 from latest docs/autonomy/ report, or "none"]
+needs_human_issues:      [count of open GitHub issues with needs-human label]
 ```
 
 **Defaults for missing data:** If any signal file is missing or unreadable, use these:
@@ -108,13 +111,25 @@ sessions_since_strategy >= 15:  +60  (overdue for strategic review)
 tracker_movement == false:      +30  (progress stalled, need to reassess)
 ```
 
+**ACHIEVE** -- measure and improve system autonomy, eliminate human dependencies
+```
+base:                            5
+autonomy_score < 70:           +50  (system not self-sufficient)
+needs_human_issues >= 3:       +30  (humans being paged)
+eval_score < 80 for 10+ sess: +20  (stuck, not self-improving)
+consecutive_builds >= 10:      +15  (no self-reflection happening)
+```
+To compute `autonomy_score`: read the latest report in `docs/autonomy/`. If none exists, score is 0.
+To compute `needs_human_issues`: run `gh issue list --label needs-human --state open` and count.
+
 **Pick the highest score.** Ties go to BUILD (building features is the default).
 
 **Hard constraints:**
 - STRATEGIZE max once per 10 sessions (cap prevents hiding in strategy mode)
+- ACHIEVE max once per 5 sessions (autonomy work is high-value but infrequent)
 - Urgent tasks always force BUILD regardless of scores
-- eval_score < 80 gates BUILD to eval-related tasks only, but does NOT block REVIEW/OVERSEE/STRATEGIZE
-- Override: if `NIGHTSHIFT_FORCE_ROLE` env var is set, skip scoring and use that role (valid values: `build`, `review`, `oversee`, `strategize`)
+- eval_score < 80 gates BUILD to eval-related tasks only, but does NOT block REVIEW/OVERSEE/STRATEGIZE/ACHIEVE
+- Override: if `NIGHTSHIFT_FORCE_ROLE` env var is set, skip scoring and use that role (valid values: `build`, `review`, `oversee`, `strategize`, `achieve`)
 
 </scoring_rules>
 
@@ -153,6 +168,7 @@ Based on your decision, read ONE of these prompt files and follow it end-to-end:
 | REVIEW | `docs/prompt/review.md` | Pick one file, review it, fix quality issues, PR, merge |
 | OVERSEE | `docs/prompt/overseer.md` | Audit the task queue, fix priorities, cull duplicates, clean up |
 | STRATEGIZE | `docs/prompt/strategist.md` | Review the big picture, write a strategy report |
+| ACHIEVE | `docs/prompt/achieve.md` | Measure autonomy score, eliminate one human dependency |
 
 **Read the ENTIRE prompt file and follow it step by step.** The role prompts are 100-650 lines. You MUST read the full file, not just the first 200 lines. If using shell commands to read, use `cat` not `sed -n '1,220p'`. Do NOT read the other role prompts. One role per session.
 

@@ -38,6 +38,7 @@ Each cycle the agent reads system signals (eval scores, task queue size, session
 - **REVIEW**: reviews code file by file, fixes quality issues. Triggered after 5+ consecutive builds.
 - **OVERSEE**: audits task queue, fixes priorities, culls stale tasks. Triggered when 50+ pending tasks accumulate.
 - **STRATEGIZE**: big picture review, produces strategy report. Triggered every 15+ sessions.
+- **ACHIEVE**: measures autonomy score (0-100), eliminates human dependencies. Triggered when autonomy is low or needs-human issues accumulate. Reports to `docs/autonomy/`.
 
 The agent decides autonomously -- no human picks the mode. Role decisions are logged in the session index.
 

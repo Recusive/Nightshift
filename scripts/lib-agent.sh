@@ -29,6 +29,7 @@ PROMPT_GUARD_FILES=(
     "docs/prompt/review.md"
     "docs/prompt/overseer.md"
     "docs/prompt/strategist.md"
+    "docs/prompt/achieve.md"
     "docs/prompt/harden-daemon.md"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
