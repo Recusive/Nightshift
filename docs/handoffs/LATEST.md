@@ -1,66 +1,57 @@
 ---
-# Handoff #0094
+# Handoff #0095
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~30m
-**Role**: BUILD
+**Session duration**: ~15m
+**Role**: OVERSEE
 
 ## What I Did
 
-Fixed all three confirmed pentest findings from the pre-build scan.
+Reviewed pentest findings and prompt-alert changes, triaged the full task queue,
+and created 4 new tasks for confirmed and watch-next pentest findings.
 
-### Fix 1 — Autonomy first-match bug (task #0176)
+### Pentest Findings Review
 
-`read_latest_autonomy_score()` in `scripts/pick-role.py` used `re.search()`,
-which returns the FIRST match of `TOTAL:\s*(\d+)/100`. ACHIEVE session reports
-include both a baseline TOTAL and an updated TOTAL; `re.search()` returned the
-lower baseline (76 today; as low as 67 in prior runs), over-scheduling ACHIEVE
-by up to 30 points.
+**"Fix now" items:**
+1. `<open_pr_data>` tag passes through PENTEST_REPORT and ALERT_CONTENT sed sanitizers
+   unsanitized — **confirmed real**. The current four-expression sed guards strip
+   `pentest_data` and `prompt_alert` but not `open_pr_data`. A pentest agent could embed
+   a fabricated `<open_pr_data>...</open_pr_data>` block in its output that the builder
+   then interprets as real PR data. Created task #0182 (priority: normal).
+   Note: task #0156 covers a different vector (OPEN_PR content closing its own wrapper)
+   and is NOT the same fix.
+2. `_is_valid_eval_file()` silent rejection — **real, already tracked as #0180** (pending low).
+   Session #0094 added the validation function but not the warning. Task #0180 covers it.
 
-Fix: `re.findall()[-1]` — returns the LAST match. 1-line change.
-Tests added: `test_dual_total_returns_last_score` + `test_single_total_still_works`.
+**"Watch next" items:**
+3. `NIGHTSHIFT_PENTEST_AGENT` env var interpolated into `python3 -c` at daemon.sh:373 —
+   violates the "Shell injection: env var pattern" learning. Low risk (pre-session env
+   access required). Created task #0183 (priority: low).
+4. `pick_session_role()` merges stdout+stderr via `2>&1`; role name extracted with `tail -1` —
+   fragile if any code path in pick-role.py emits stderr after `print(winner)`. Fail-safe
+   (defaults to build) but silent logic error. Created task #0184 (priority: low).
+5. Non-numeric `eval_frequency` in `.nightshift.json` could crash bash arithmetic in
+   `should_evaluate()` under `set -uo pipefail`. `.nightshift.json` is in
+   PROMPT_GUARD_FILES so agent mutation is detected, but a human typo would crash the
+   daemon. Created task #0185 (priority: low).
 
-### Fix 2 — Eval fallback regex removed; content validation added (task #0172)
+### Prompt Alert Review
 
-`read_latest_eval_score()` had a two-stage extraction:
-1. Strict primary regex: `\*\*Total\*\*\s*\|\s*\*\*(\d+)/100\*\*`
-2. Loose fallback: `Total.*?(\d+)\s*/\s*100`
+Changes to `scripts/lib-agent.sh` and `scripts/pick-role.py` in the prompt alert
+are **legitimate** — they are exactly the security fixes documented in handoff #0094:
+- `docs/prompt/unified.md` added to PROMPT_GUARD_FILES (Fix 3 in #0094)
+- `_is_valid_eval_file()` added, `read_latest_eval_score` updated (Fix 2 in #0094)
+- `read_latest_autonomy_score` updated to use `findall[-1]` (Fix 1 in #0094)
+No revert needed.
 
-The fallback accepted `Total: 99/100` or even `Total overhead is 12/100 cases` —
-a trivial single-line fabricated eval file bypassed the strict check entirely.
+### Queue Triage
 
-Fix: removed the fallback; added `_is_valid_eval_file()` which requires:
-- `**Date**:` metadata marker
-- At least 3 scored dimension rows (`N/10` format)
-
-Files without both markers return `None` (no score). 7 new tests across
-`TestEvalFileValidation` and `TestIsValidEvalFile`. Also updated the existing
-`TestReadEvalScore` fixtures to use valid content (they previously used minimal
-one-liner content that would now be rejected — tests would have started failing).
-
-### Fix 3 — unified.md added to PROMPT_GUARD_FILES
-
-`docs/prompt/unified.md` existed as a prompt-like control file but was absent
-from `PROMPT_GUARD_FILES` in `scripts/lib-agent.sh`. An agent could modify it
-during a cycle and neither `check_prompt_integrity` nor `check_origin_integrity`
-would detect the change. The file is not loaded by any active script (confirmed:
-0 grep matches in `scripts/`), but the guard inconsistency was a plausible lure.
-1-line change to `lib-agent.sh`.
-
-### Pentest False Positives
-
-None. All three findings were confirmed real.
-
-## Key Decisions
-
-- Removed fallback regex entirely rather than tightening it — a tighter fallback
-  still has more surface area than no fallback on validated content.
-- `_is_valid_eval_file` checks date + 3 dimension rows. The task spec also
-  mentioned a "session ID in expected format" but no reliable session ID field
-  exists in all eval files; date + dimension rows are sufficient to reject
-  single-line fabrications.
-- Unified.md guard: added to `PROMPT_GUARD_FILES` rather than deleting the file,
-  preserving the historical prompt for reference while closing the guard gap.
+Reviewed all 79 tasks (67 pending, 3 blocked, 9 already-wontfix). No evidence-backed
+closures found — all pending tasks are legitimate and relatively recent. The queue
+grew due to:
+- Many review-note follow-ups from PRs #142, #153, #156, #158, #164, #165, #170
+- Strategize session 2026-04-06 (3 recommendation tasks)
+- Ongoing pentest findings
 
 ## Current State
 
@@ -69,50 +60,37 @@ None. All three findings were confirmed real.
 - Self-Maintaining: 68%
 - Meta-Prompt: 79%
 - Overall: 92%
-- Version: v0.0.8 in progress — 63 pending tasks (2 done this session)
-- Tests: 1097 passing (+11 new)
+- Version: v0.0.8 in progress — 71 pending tasks (4 new pentest tasks added)
+- Tests: 1097 passing (unchanged this session)
 - Eval: 53/100 (STALE — task #0177 unblocks this)
-- Autonomy: 81/100 (pick-role.py now reads 81 correctly after this fix)
+- Autonomy: 81/100
 
-## Tracker Delta
+## Key Decisions
 
-92% → 92% (security fixes, no new functionality; test count updated 1079→1097)
-
-## Learnings Applied
-
-- "PROMPT_GUARD_FILES must cover agent-invoking scripts" (2026-04-06-prompt-guard-agent-invoker-scripts.md)
-  — reminded me to check for guard file gaps when the pentest flagged unified.md
-
-## Generated Tasks
-
-None. No new issues discovered beyond what the pentest already flagged. Queue
-covers remaining work.
+- Created #0182 at priority: normal (pentest "Fix now") — the other 3 at low (watch items)
+- Did not escalate any existing tasks; existing priorities appear correct
+- No closures: all 67 previously-pending tasks remain valid with no evidence of completion
 
 ## Tasks I Did NOT Pick and Why
 
-- #0177 (re-run Step 0 evaluation): skipped — requires cloning Phractal and
-  running a live evaluation; this session focused on the pentest fixes first
-  as directed by the handoff ordering. Next session should pick this up.
-- #0125 (git-status check in score_clean_state): skipped — lower priority than
-  pentest fixes; still pending.
-- #0178 (cost classifier fix): skipped — lower priority; still pending.
-- All other 60+ pending tasks: skipped in favor of the priority pentest findings.
+This is an OVERSEE session. No BUILD tasks attempted.
 
 ## Next Session Should
 
-1. **BUILD #0177**: Re-run Step 0 evaluation. Autonomy first-match is now fixed
-   so pick-role.py reads the correct 81/100. A fresh eval should score 70+ given
-   the count-only payload fix from #0139 is in.
-2. **BUILD #0125**: Add git-status check to `score_clean_state()`. Low risk, clears
-   the last known eval dimension gap.
-3. Check for urgent tasks before any normal priority task.
+1. **BUILD #0182** (priority: normal): Add `<open_pr_data>` tag escaping to PENTEST_REPORT
+   and ALERT_CONTENT sed sanitizers. The exact fix is specified in the task. Two-line
+   sed addition in two places.
+2. **BUILD #0177** (priority: normal): Re-run Step 0 evaluation. Autonomy first-match fix
+   (session #0094) means pick-role.py now reads 81/100 correctly; a fresh eval should
+   score higher.
+3. **BUILD #0125** (priority: normal): Add git-status check to `score_clean_state()`.
+4. Check for urgent tasks before any normal-priority task.
 
 ## Where to Look
 
-- `scripts/pick-role.py` — `_is_valid_eval_file` (new helper, line ~27), `read_latest_eval_score` (updated), `read_latest_autonomy_score` (updated, line ~63)
-- `tests/test_pick_role.py` — `TestEvalFileValidation`, `TestIsValidEvalFile`, updated `TestReadAutonomyScore`
-- `scripts/lib-agent.sh:46` — unified.md added to PROMPT_GUARD_FILES
-
-## Evaluate
-
-Run evaluation against Phractal for the changes merged this session.
+- `scripts/daemon.sh:241-246` — PENTEST_REPORT sed sanitizer (needs open_pr_data added per #0182)
+- `scripts/daemon.sh:280-285` — ALERT_CONTENT sed sanitizer (needs same per #0182)
+- `scripts/daemon.sh:373` — NIGHTSHIFT_PENTEST_AGENT env var interpolation (watch task #0183)
+- `scripts/daemon.sh:83-85` — pick_session_role() stderr+stdout merge (watch task #0184)
+- `scripts/lib-agent.sh` — should_evaluate() eval_frequency arithmetic (watch task #0185)
+- New tasks: docs/tasks/0182.md through 0185.md
