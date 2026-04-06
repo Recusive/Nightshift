@@ -26,6 +26,7 @@ PACKAGE_FILES=(
   "nightshift/__main__.py"
   "nightshift/types.py"
   "nightshift/constants.py"
+  "nightshift/eval_targets.py"
   "nightshift/errors.py"
   "nightshift/shell.py"
   "nightshift/config.py"

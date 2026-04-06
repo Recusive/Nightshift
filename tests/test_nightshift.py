@@ -455,6 +455,26 @@ class TestInferVerifyCommand:
         config = {"verify_command": "make test"}
         assert nightshift.infer_verify_command(tmp_path, config) == "make test"
 
+    def test_known_evaluation_target_remote(self, tmp_path):
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        (git_dir / "config").write_text(
+            '[remote "origin"]\n\turl = https://github.com/fazxes/Phractal.git\n',
+            encoding="utf-8",
+        )
+        result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
+        assert result == "python3 -m compileall apps/api/app"
+
+    def test_known_evaluation_target_remote_allows_percent_in_url(self, tmp_path):
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        (git_dir / "config").write_text(
+            '[remote "origin"]\n\turl = https://user%25token@github.com/fazxes/Phractal.git\n',
+            encoding="utf-8",
+        )
+        result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
+        assert result == "python3 -m compileall apps/api/app"
+
     def test_package_json_test_ci(self, tmp_path):
         (tmp_path / "package.json").write_text(json.dumps({"scripts": {"test:ci": "jest --ci", "test": "jest"}}))
         result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
@@ -9007,6 +9027,11 @@ class TestEvaluationPromptContracts:
             "PYTHONPATH=$(pwd) python3 -m nightshift test --agent claude --cycles 2 "
             "--cycle-minutes 5 --repo-dir /tmp/nightshift-eval"
         ) in content
+
+    def test_evaluations_readme_documents_known_target_verify_command(self) -> None:
+        content = Path("docs/evaluations/README.md").read_text()
+        assert "nightshift/eval_targets.py" in content
+        assert "python3 -m compileall apps/api/app" in content
 
 
 class TestAutonomousBuilderPromptContracts:

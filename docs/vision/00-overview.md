@@ -185,6 +185,7 @@ Both loops use the same core infrastructure. This is critical — we are NOT bui
 Shared Infrastructure:
 ├── nightshift/shell.py          — subprocess execution (both loops shell out to agents)
 ├── nightshift/config.py         — repo detection, verify commands (both loops need this)
+├── nightshift/eval_targets.py   — repo-specific evaluation defaults for known real-repo targets
 ├── nightshift/state.py          — state tracking (both loops persist progress to disk)
 ├── nightshift/worktree.py       — git worktree isolation (both loops work in worktrees)
 ├── nightshift/cycle.py          — verification, blocked paths (both loops enforce policy)

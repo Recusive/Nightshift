@@ -130,6 +130,7 @@ from nightshift.e2e import (
     run_e2e_tests,
 )
 from nightshift.errors import NightshiftError
+from nightshift.eval_targets import infer_target_verify_command
 from nightshift.evaluation import (
     clone_target_repo,
     create_followup_tasks,
@@ -453,6 +454,7 @@ __all__ = [
     "infer_install_command",
     "infer_lint_command",
     "infer_package_manager",
+    "infer_target_verify_command",
     "infer_test_command",
     "infer_verify_command",
     "inject_hints",

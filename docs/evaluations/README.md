@@ -21,6 +21,14 @@ fails to start or cannot produce a scorable result, rerun in a second fresh
 clone with the minimum temporary overrides needed to collect evidence, and
 document both attempts in the report.
 
+## Known target metadata
+
+Repo-specific evaluation defaults live in `nightshift/eval_targets.py`. Use
+that metadata for stable real-repo settings instead of ad-hoc `.nightshift.json`
+overrides. Current known target:
+
+- `github.com/fazxes/Phractal` -> `python3 -m compileall apps/api/app`
+
 ## Scorecard (10 dimensions, max 100)
 
 | # | Dimension | What it measures | Max |

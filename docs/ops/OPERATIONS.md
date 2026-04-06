@@ -356,6 +356,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 |--------|---------------|---------------|
 | `types.py` | TypedDicts for all data structures | `NightshiftConfig`, `ShiftState`, `CycleResult`, `CycleVerification` |
 | `constants.py` | Constants + utilities | `DATA_VERSION`, `DEFAULT_CONFIG`, `SHIFT_LOG_TEMPLATE`, `now_local()`, `print_status()` |
+| `eval_targets.py` | Repo-specific evaluation defaults | `infer_target_verify_command()` |
 | `errors.py` | Exception class | `NightshiftError` |
 | `shell.py` | Subprocess execution | `run_command()`, `run_capture()`, `git()`, `command_exists()`, `run_shell_string()` |
 | `config.py` | Config + agent resolution | `merge_config()`, `resolve_agent()`, `prompt_for_agent()`, `infer_package_manager()`, `infer_verify_command()` |
@@ -378,7 +379,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 
 ### Dependency flow
 ```
-types → constants → errors → shell → config/state → worktree → cycle → scoring → costs → cleanup → multi → profiler → planner → decomposer → subagent → integrator → cli
+errors → eval_targets → types → constants → shell → summary → cleanup → compact → coordination → costs → module_map → readiness → scoring → state → config → multi → e2e → profiler → worktree → cycle → evaluation → planner → subagent → decomposer → integrator → feature → cli
 ```
 No circular imports. Each module only imports from modules to its left. `multi.py` receives the `run_nightshift` callable from `cli.py` via dependency injection to avoid circular deps.
 
