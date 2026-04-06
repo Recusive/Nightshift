@@ -96,14 +96,16 @@ Eval gate: #0139 and #0125 remain active.
   (not just individual files). Used to validate and scope the fix correctly.
 
 ## Generated Tasks
-Vision alignment (last 5 tasks: loop1=3, loop2=0, self-maintaining=2, meta-prompt=0, none=0)
+Vision alignment (last 5 tasks: loop1=3, loop2=0, self-maintaining=3, meta-prompt=0, none=0)
 #0164: Harden sync_github_tasks against YAML-injection in issue titles/bodies
   (dimension: security/robustness, vision: self-maintaining, priority: low)
 #0165: Harden daemon.sh pentest_data tag sanitization against space-before-slash bypass
   (dimension: security/robustness, vision: self-maintaining, priority: low)
+#0166: Document TOCTOU window when new injected files are detected on origin/main
+  (dimension: security/robustness, vision: self-maintaining, priority: low)
 
 ## Review Advisory Tasks Created
-None this session (2 watch-item tasks from pentest findings created above).
+None this session (3 watch-item tasks from pentest findings + safety review above).
 
 ## Evaluate
 Run evaluation against Phractal for the changes merged this session.
