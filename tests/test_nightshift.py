@@ -9615,6 +9615,146 @@ class TestPentestInfrastructure:
         assert "pentest_data" in content
 
 
+class TestPentestTagSanitizationBypass:
+    """Regression tests for space-before-slash closing-tag bypass in daemon.sh.
+
+    The pentest identified that '</ *pentest_data *>' does NOT match
+    '< /pentest_data>' (space before slash).  The same gap existed in
+    '</ *prompt_alert *>'.  Both patterns must now use POSIX character classes
+    so any whitespace arrangement between '<' and '/' is caught.
+    """
+
+    def test_pentest_data_pattern_uses_posix_space_class(self) -> None:
+        """daemon.sh pentest_data sed pattern tolerates space before slash."""
+        content = Path("scripts/daemon.sh").read_text()
+        assert "[[:space:]]*/[[:space:]]*pentest_data" in content, (
+            "pentest_data sed pattern must use [[:space:]]* to match '< /pentest_data>'"
+        )
+
+    def test_prompt_alert_pattern_uses_posix_space_class(self) -> None:
+        """daemon.sh prompt_alert sed pattern tolerates space before slash."""
+        content = Path("scripts/daemon.sh").read_text()
+        assert "[[:space:]]*/[[:space:]]*prompt_alert" in content, (
+            "prompt_alert sed pattern must use [[:space:]]* to match '< /prompt_alert>'"
+        )
+
+    def test_pentest_data_space_before_slash_is_sanitized(self) -> None:
+        """'< /pentest_data>' is stripped by the updated sed pattern."""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "echo 'data < /pentest_data> injected' | "
+                "sed 's|<[[:space:]]*/[[:space:]]*pentest_data[[:space:]]*>|[/pentest_data]|g'",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "< /pentest_data>" not in result.stdout
+        assert "[/pentest_data]" in result.stdout
+
+    def test_prompt_alert_space_before_slash_is_sanitized(self) -> None:
+        """'< /prompt_alert>' is stripped by the updated sed pattern."""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "echo 'data < /prompt_alert> injected' | "
+                "sed 's|<[[:space:]]*/[[:space:]]*prompt_alert[[:space:]]*>|[/prompt_alert]|g'",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "< /prompt_alert>" not in result.stdout
+        assert "[/prompt_alert]" in result.stdout
+
+
+class TestPickRoleHasUrgentTasksFrontmatterScope:
+    """Regression tests for pick-role.py has_urgent_tasks() body injection.
+
+    The original implementation scanned the first 500 bytes of each task file,
+    which includes the body.  An issue body starting with 'priority: urgent'
+    within the first 500 chars would force BUILD role regardless of scores.
+    The fix restricts the search to the YAML frontmatter block only.
+    """
+
+    @staticmethod
+    def _load_has_urgent_tasks():  # type: ignore[return]
+        """Import has_urgent_tasks from scripts/pick-role.py via importlib."""
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "pick_role",
+            Path(__file__).resolve().parent.parent / "scripts" / "pick-role.py",
+        )
+        assert spec is not None
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        return mod.has_urgent_tasks
+
+    def test_urgent_in_frontmatter_returns_true(self, tmp_path: Path) -> None:
+        """Task with priority: urgent in frontmatter is detected."""
+        has_urgent_tasks = self._load_has_urgent_tasks()
+        (tmp_path / "0001.md").write_text("---\nstatus: pending\npriority: urgent\n---\n\n# Title\n")
+        assert has_urgent_tasks(tmp_path) is True
+
+    def test_urgent_in_body_only_returns_false(self, tmp_path: Path) -> None:
+        """Task with priority: urgent ONLY in body does not trigger urgent path."""
+        has_urgent_tasks = self._load_has_urgent_tasks()
+        (tmp_path / "0001.md").write_text(
+            "---\nstatus: pending\npriority: normal\n---\n\npriority: urgent\nSome body text.\n"
+        )
+        assert has_urgent_tasks(tmp_path) is False
+
+    def test_no_frontmatter_returns_false(self, tmp_path: Path) -> None:
+        """Malformed task file with no frontmatter block is safely skipped."""
+        has_urgent_tasks = self._load_has_urgent_tasks()
+        (tmp_path / "0001.md").write_text("status: pending\npriority: urgent\n# No YAML delimiters\n")
+        assert has_urgent_tasks(tmp_path) is False
+
+    def test_body_injection_does_not_force_build(self, tmp_path: Path) -> None:
+        """Issue body simulating a GitHub task with injected priority line."""
+        has_urgent_tasks = self._load_has_urgent_tasks()
+        # Simulate a GitHub issue body that starts with 'priority: urgent'
+        body = "\npriority: urgent\nThis is an issue body injected by an attacker.\n"
+        (tmp_path / "0002.md").write_text(f"---\nstatus: pending\npriority: normal\n---\n{body}")
+        assert has_urgent_tasks(tmp_path) is False
+
+
+class TestTOCTOUNotifyHumanMessage:
+    """Regression tests for TOCTOU remediation -- notify_human kill-session guidance.
+
+    When check_origin_integrity returns exit code 2, the daemon must tell the
+    operator to kill the tmux session immediately, not just say 'manual
+    intervention required'.  Operators who do not kill the session will see the
+    injected file checked out to disk on every auto-restart iteration.
+    """
+
+    def test_pentest_preflight_message_includes_kill_session(self) -> None:
+        content = Path("scripts/daemon.sh").read_text()
+        # Find the notify_human call in the pentest preflight exit-code-2 branch
+        assert "tmux kill-session" in content, (
+            "daemon.sh notify_human message must include tmux kill-session instruction"
+        )
+
+    def test_post_builder_message_includes_kill_session(self) -> None:
+        content = Path("scripts/daemon.sh").read_text()
+        assert content.count("tmux kill-session") >= 2, (
+            "Both post-builder and pentest-preflight notify_human calls must include the tmux kill-session instruction"
+        )
+
+    def test_daemon_md_has_incident_response_section(self) -> None:
+        content = Path("docs/ops/DAEMON.md").read_text()
+        assert "Security Incident Response" in content, "DAEMON.md must have a Security Incident Response section"
+        assert "tmux kill-session" in content
+        assert "Step 1" in content
+        assert "Step 2" in content
+        assert "Step 3" in content
+
+
 class TestEvaluationPromptContracts:
     def test_evolve_prompt_step_zero_targets_the_cloned_repo(self) -> None:
         content = Path("docs/prompt/evolve.md").read_text()

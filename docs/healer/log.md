@@ -432,3 +432,11 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Test count: 1018.** Clean `make check`. No regressions.
 
 - **Eval gate still active at 53/100.** Tasks #0139 and #0125 remain the next priority once pentest work settles.
+
+## 2026-04-06 -- Session pentest-tag-bypass-pick-role-frontmatter-toctou
+**System health:** good
+- **Pentest revealed sed bypass that survived the prior "regex fix."** The session prior to this one (PR ~#159) fixed `</pentest_data>` with `</ *tag *>` (slash then spaces), but `< /tag>` (space before slash) was not matched. The same oversight affected `prompt_alert`. Both patterns are now hardened with POSIX `[[:space:]]*/[[:space:]]*`. This is the third time the sanitization pattern has been extended -- the lesson is to test the exact adversarial inputs reported, not just the form in the code.
+- **pick-role body injection was untracked.** `has_urgent_tasks()` scanning 500 bytes of body content was never flagged in the 55+ prior task queue items. Only the pentest found it. Good signal that the pentest agent adds real coverage.
+- **TOCTOU message lacked actionable instructions.** "Manual intervention required" without "kill the tmux session" is insufficient -- operators may assume they can fix origin/main while the daemon keeps running, causing the injected file to land on disk on every restart. Fixed with explicit steps in both notify_human messages and DAEMON.md.
+- **Test count: 1029 (+11).** Three new test classes covering all three fixes.
+- **Eval gate still active at 53/100.** Next session: #0139 (Claude cycle-result contract drift).
