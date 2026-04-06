@@ -625,6 +625,7 @@ def _as_cycle_result(data: dict[str, Any]) -> CycleResult:
             fix_count = _coerce_nonnegative_int(data.get("fixes_committed"))
         if fix_count:
             notes_parts.append(f"Agent reported {fix_count} fix(es) in summary form.")
+            result["fixes_count_only"] = fix_count
     if not result["logged_issues"]:
         issue_count = _coerce_nonnegative_int(data.get("issues_logged"))
         if issue_count:
@@ -722,20 +723,31 @@ def expected_cycle_commits(cycle_result: CycleResult | None) -> tuple[int, int] 
     Agents may commit fixes and shift-log updates together or separately.
     The minimum assumes co-committed shift-log updates; the maximum adds
     one extra commit for a separate shift-log-only commit.
+
+    When the agent returned a count-only payload (fixes_committed/fixes_applied)
+    instead of a structured fixes[] list, fixes_count_only is used as fallback.
     """
     if cycle_result is None:
         return None
     fixes = cycle_result.get("fixes", [])
+    fix_count = len(fixes) if fixes else cycle_result.get("fixes_count_only", 0)
     logged_issues = cycle_result.get("logged_issues", [])
-    base = len(fixes) + (1 if logged_issues else 0)
+    base = fix_count + (1 if logged_issues else 0)
     return (base, base + 1)
 
 
 def expected_fix_commits(cycle_result: CycleResult | None) -> int | None:
-    """Return the exact number of commits that should touch non-log files."""
+    """Return the exact number of commits that should touch non-log files.
+
+    When the agent returned a count-only payload (fixes_committed/fixes_applied)
+    instead of a structured fixes[] list, fixes_count_only is used as fallback.
+    """
     if cycle_result is None:
         return None
-    return len(cycle_result.get("fixes", []))
+    fixes = cycle_result.get("fixes", [])
+    if fixes:
+        return len(fixes)
+    return cycle_result.get("fixes_count_only", 0)
 
 
 def allowed_total_cycle_commits(cycle_result: CycleResult | None) -> tuple[int, int] | None:
@@ -744,13 +756,17 @@ def allowed_total_cycle_commits(cycle_result: CycleResult | None) -> tuple[int, 
     Each fix needs one non-log commit. Agents may either co-commit the shift log
     or follow a fix with a separate shift-log-only commit, and the final wrap-up
     may add one extra shift-log-only summary commit.
+
+    When the agent returned a count-only payload (fixes_committed/fixes_applied)
+    instead of a structured fixes[] list, fixes_count_only is used as fallback.
     """
     if cycle_result is None:
         return None
     fixes = cycle_result.get("fixes", [])
+    fix_count = len(fixes) if fixes else cycle_result.get("fixes_count_only", 0)
     logged_issues = cycle_result.get("logged_issues", [])
-    min_commits = len(fixes) if fixes else (1 if logged_issues else 0)
-    max_commits = (len(fixes) * 2) + (1 if logged_issues and not fixes else 0) + 1
+    min_commits = fix_count if fix_count else (1 if logged_issues else 0)
+    max_commits = (fix_count * 2) + (1 if logged_issues and not fix_count else 0) + 1
     return (min_commits, max_commits)
 
 

@@ -2128,6 +2128,131 @@ class TestExpectedCycleCommits:
         result = nightshift.expected_cycle_commits({"status": "completed", "fixes": [], "logged_issues": []})
         assert result == (0, 1)
 
+    def test_fixes_count_only_used_as_fallback(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {"status": "completed", "fixes": [], "logged_issues": [], "fixes_count_only": 2}
+        )
+        assert result == (2, 3)
+
+    def test_fixes_list_takes_precedence_over_count_only(self) -> None:
+        result = nightshift.expected_cycle_commits(
+            {"status": "completed", "fixes": [{"title": "a"}], "logged_issues": [], "fixes_count_only": 99}
+        )
+        assert result == (1, 2)
+
+
+class TestExpectedFixCommits:
+    def test_returns_fix_count_from_list(self) -> None:
+        result = nightshift.expected_fix_commits({"fixes": [{"title": "a"}, {"title": "b"}], "logged_issues": []})
+        assert result == 2
+
+    def test_returns_zero_when_no_fixes_no_count_only(self) -> None:
+        result = nightshift.expected_fix_commits({"fixes": [], "logged_issues": []})
+        assert result == 0
+
+    def test_returns_count_only_fallback_when_fixes_empty(self) -> None:
+        result = nightshift.expected_fix_commits({"fixes": [], "logged_issues": [], "fixes_count_only": 1})
+        assert result == 1
+
+    def test_fixes_list_takes_precedence_over_count_only(self) -> None:
+        result = nightshift.expected_fix_commits(
+            {"fixes": [{"title": "a"}], "logged_issues": [], "fixes_count_only": 99}
+        )
+        assert result == 1
+
+    def test_none_returns_none(self) -> None:
+        assert nightshift.expected_fix_commits(None) is None
+
+
+class TestAllowedTotalCycleCommits:
+    def test_one_fix_gives_range_1_to_3(self) -> None:
+        result = nightshift.allowed_total_cycle_commits({"fixes": [{"title": "a"}], "logged_issues": []})
+        assert result == (1, 3)
+
+    def test_no_fixes_no_issues_gives_range_0_to_1(self) -> None:
+        result = nightshift.allowed_total_cycle_commits({"fixes": [], "logged_issues": []})
+        assert result == (0, 1)
+
+    def test_count_only_one_fix_gives_range_1_to_3(self) -> None:
+        # Regression for eval #0015: count-based Claude payload must not produce (0,1)
+        result = nightshift.allowed_total_cycle_commits({"fixes": [], "logged_issues": [], "fixes_count_only": 1})
+        assert result == (1, 3)
+
+    def test_count_only_two_fixes_gives_range_2_to_5(self) -> None:
+        result = nightshift.allowed_total_cycle_commits({"fixes": [], "logged_issues": [], "fixes_count_only": 2})
+        assert result == (2, 5)
+
+    def test_fixes_list_takes_precedence_over_count_only(self) -> None:
+        result = nightshift.allowed_total_cycle_commits(
+            {"fixes": [{"title": "a"}], "logged_issues": [], "fixes_count_only": 99}
+        )
+        assert result == (1, 3)
+
+    def test_none_returns_none(self) -> None:
+        assert nightshift.allowed_total_cycle_commits(None) is None
+
+
+class TestAsCycleResultCountOnlyPayload:
+    """Regression for eval #0015: fixes_committed/fixes_applied must set fixes_count_only."""
+
+    def test_fixes_committed_sets_count_only(self) -> None:
+        result = nightshift.parse_cycle_result(
+            agent="claude",
+            message_path=__import__("pathlib").Path("/nonexistent"),
+            raw_output='{"fixes_committed": 1, "summary": "Fixed the issue"}',
+        )
+        assert result is not None
+        assert result.get("fixes") == []
+        assert result.get("fixes_count_only") == 1
+
+    def test_fixes_applied_sets_count_only(self) -> None:
+        result = nightshift.parse_cycle_result(
+            agent="claude",
+            message_path=__import__("pathlib").Path("/nonexistent"),
+            raw_output='{"fixes_applied": 2, "summary": "Fixed two issues"}',
+        )
+        assert result is not None
+        assert result.get("fixes") == []
+        assert result.get("fixes_count_only") == 2
+
+    def test_fixes_committed_prefers_fixes_applied(self) -> None:
+        result = nightshift.parse_cycle_result(
+            agent="claude",
+            message_path=__import__("pathlib").Path("/nonexistent"),
+            raw_output='{"fixes_applied": 3, "fixes_committed": 99, "summary": "done"}',
+        )
+        assert result is not None
+        assert result.get("fixes_count_only") == 3
+
+    def test_structured_fixes_do_not_set_count_only(self) -> None:
+        result = nightshift.parse_cycle_result(
+            agent="claude",
+            message_path=__import__("pathlib").Path("/nonexistent"),
+            raw_output='{"fixes": [{"title": "a", "files": ["x.py"]}], "logged_issues": []}',
+        )
+        assert result is not None
+        assert len(result.get("fixes", [])) == 1
+        assert "fixes_count_only" not in result
+
+    def test_eval_0015_single_fix_cycle_no_longer_produces_violation(self) -> None:
+        """Full end-to-end reproduction of eval #0015 false-reject pattern.
+
+        A cycle that commits 1 non-log fix but returns a count-only payload
+        must not produce 'structured output implies 0' or out-of-range violations.
+        """
+        cycle_result = nightshift.parse_cycle_result(
+            agent="claude",
+            message_path=__import__("pathlib").Path("/nonexistent"),
+            raw_output='{"fixes_committed": 1, "summary": "Hardened error path in server.py"}',
+        )
+        assert cycle_result is not None
+        assert nightshift.expected_fix_commits(cycle_result) == 1
+        allowed = nightshift.allowed_total_cycle_commits(cycle_result)
+        assert allowed is not None
+        min_c, max_c = allowed
+        # A real cycle with 1 commit must fall in range
+        assert min_c <= 1 <= max_c
+
 
 # --- CLI Parser --------------------------------------------------------------
 

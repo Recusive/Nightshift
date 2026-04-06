@@ -102,6 +102,7 @@ from nightshift.costs import (
     write_ledger,
 )
 from nightshift.cycle import (
+    allowed_total_cycle_commits,
     blocked_file,
     build_backend_escalation,
     build_category_balancing,
@@ -112,6 +113,7 @@ from nightshift.cycle import (
     command_for_agent,
     evaluate_baseline,
     expected_cycle_commits,
+    expected_fix_commits,
     extract_json,
     forbidden_cycle_commands,
     forbidden_reported_commands,
@@ -396,6 +398,7 @@ __all__ = [
     "TestPlan",
     "WaveResult",
     "WorkOrder",
+    "allowed_total_cycle_commits",
     "append_cycle_state",
     "blocked_file",
     "build_backend_escalation",
@@ -439,6 +442,7 @@ __all__ = [
     "evaluate_baseline",
     "execution_order",
     "expected_cycle_commits",
+    "expected_fix_commits",
     "extract_file_references",
     "extract_json",
     "feature_log_dir",
