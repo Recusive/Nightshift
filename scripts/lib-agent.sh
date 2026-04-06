@@ -71,7 +71,8 @@ PROMPT_GUARD_DIRS=(
 save_prompt_snapshots() {
     local repo_dir="$1"
     local snap_dir
-    snap_dir=$(mktemp -d "${TMPDIR:-/tmp}/nightshift-prompt-guard.XXXXXX")
+    snap_dir=$(mktemp -d "${TMPDIR:-/tmp}/nightshift-prompt-guard.XXXXXX") \
+        || { echo "  WARN: prompt guard disabled (mktemp failed)"; return; }
     for f in "${PROMPT_GUARD_FILES[@]}"; do
         local src="$repo_dir/$f"
         if [ -f "$src" ]; then
