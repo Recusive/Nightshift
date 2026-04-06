@@ -9017,7 +9017,7 @@ class TestPentestInfrastructure:
         assert 'PENTEST_PROMPT_FILE="$REPO_DIR/docs/prompt/pentest.md"' in content
         assert 'PENTEST_LOG_FILE="$LOG_DIR/${SESSION_ID}-pentest.log"' in content
         assert "Pentest preflight" in content
-        assert "PENTEST REPORT FROM PRE-BUILD RED TEAM" in content
+        assert "pentest_data" in content
 
 
 class TestEvaluationPromptContracts:

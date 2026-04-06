@@ -109,12 +109,13 @@ human dependency, and write a report to `docs/autonomy/`. The autonomy score
 (0-100) measures how close the system is to zero human intervention.
 
 DAEMON CONTEXT: You are running inside the unified daemon (`scripts/daemon.sh`) via tmux.
-- The unified prompt (`docs/prompt/unified.md`) selected your role this cycle
+- `scripts/pick-role.py` selected your role this cycle based on system signals
 - Your output is captured as stream-json to `docs/sessions/YYYYMMDD-HHMMSS.log`
 - A monitor agent or human may be reading your log in real-time
 - The daemon will hard-reset to origin/main before your next session starts
 - If you leave an open PR, the next session will detect it and finish it
-- The daemon auto-picks BUILD/REVIEW/OVERSEE/STRATEGIZE/ACHIEVE each cycle based on system signals
+- The daemon auto-picks BUILD/REVIEW/OVERSEE/STRATEGIZE/ACHIEVE each cycle
+- Scoring rules: `docs/ops/ROLE-SCORING.md`
 - Full daemon docs: `docs/ops/DAEMON.md`
 
 ---

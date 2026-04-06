@@ -57,14 +57,12 @@ git commit -m "review: harden nightshift/module.py — [summary of fixes]"
 
 ## STEP 4 — VERIFY
 
+Run the full CI gate. Do NOT run individual tools as your final check:
 ```bash
-python3 -m pytest tests/ -v
-python3 -m nightshift run --dry-run --agent codex
-python3 -m nightshift run --dry-run --agent claude
-bash scripts/validate-docs.sh
+make check
 ```
 
-All must pass.
+All must pass. `make check` covers ruff, mypy, pytest, dry-runs, shell syntax, and artifact validation.
 
 ## STEP 5 — LOG THE REVIEW
 

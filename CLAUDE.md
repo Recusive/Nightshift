@@ -40,7 +40,7 @@ Each cycle the agent reads system signals (eval scores, task queue size, session
 - **STRATEGIZE**: big picture review, produces strategy report. Triggered every 15+ sessions.
 - **ACHIEVE**: measures autonomy score (0-100), eliminates human dependencies. Triggered when autonomy is low or needs-human issues accumulate. Reports to `docs/autonomy/`.
 
-The agent decides autonomously -- no human picks the mode. Role decisions are logged in the session index.
+Role selection is handled by `scripts/pick-role.py` (Python scoring engine) at the start of each cycle. It reads signal files, computes scores, and the daemon loads the winning role's prompt. Works identically for both Claude and Codex agents. Role decisions are logged in the session index. Scoring rules documented in `docs/ops/ROLE-SCORING.md`.
 
 ```bash
 # Start the daemon in tmux (recommended -- survives terminal disconnect)
