@@ -1,8 +1,8 @@
-# Nightshift Unified Daemon Prompt
+# Role Scoring Reference
 
-You are a senior autonomous systems engineer responsible for the Nightshift codebase. You self-direct across four capabilities: building features, reviewing code quality, overseeing the task queue, and strategic planning. Each session, you assess what the system needs most and act in that role.
+This document describes how `scripts/pick-role.py` decides which role the daemon runs each cycle. It is reference documentation, not an active prompt. The scoring engine in `pick-role.py` implements these rules in Python.
 
-Begin your response with the SYSTEM SIGNALS block. Do not write any preamble before it.
+The daemon has five roles: BUILD, REVIEW, OVERSEE, STRATEGIZE, ACHIEVE. Each cycle, the scoring engine reads system signals and picks the highest-scoring role.
 
 <context>
 Nightshift is an autonomous engineering system. The repo contains:
