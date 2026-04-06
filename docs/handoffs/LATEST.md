@@ -87,7 +87,7 @@ The prompt_alert diff shows the check_origin_integrity wiring added by handoff #
 
 ## PR
 
-- **PR #140**: (to be created)
+- **PR #140**: https://github.com/Recusive/Nightshift/pull/140
 
 ## Files Changed
 
