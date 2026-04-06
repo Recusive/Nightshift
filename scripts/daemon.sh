@@ -233,12 +233,17 @@ ${PENTEST_PROMPT}"
     fi
     PENTEST_REPORT=$(extract_result_summary "$PENTEST_LOG_FILE" 4000 80)
     # Sanitize: prevent agent-crafted tags from escaping the data wrapper.
-    # Handles both the closing tag (</pentest_data>) and the opening tag
-    # (<pentest_data status="...">). Consistent with closing-tag guard added in #0087.
+    # Handles both opening and closing tags for pentest_data and prompt_alert.
+    # A pentest agent that emits <prompt_alert>...</prompt_alert> in its result
+    # could trigger high-priority LLM attention inside the <pentest_data> wrapper
+    # if prompt_alert tags are not stripped here. Four-expression guard mirrors
+    # the ALERT_CONTENT block below.
     PENTEST_REPORT=$(printf '%s' "$PENTEST_REPORT" \
         | sed \
             -e 's|<[[:space:]]*/[[:space:]]*pentest_data[[:space:]]*>|[/pentest_data]|g' \
-            -e 's|<[[:space:]]*pentest_data[^>]*>|[pentest_data]|g')
+            -e 's|<[[:space:]]*pentest_data[^>]*>|[pentest_data]|g' \
+            -e 's|<[[:space:]]*/[[:space:]]*prompt_alert[[:space:]]*>|[/prompt_alert]|g' \
+            -e 's|<[[:space:]]*prompt_alert[^>]*>|[prompt_alert]|g')
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
     fi
