@@ -48,6 +48,12 @@ The primary daemon. Each session:
 5. injects the pentest handoff into the main builder prompt
 6. builds, tests, opens PRs, reviews, and merges
 
+When the latest Step 0 evaluation in `docs/evaluations/` scores below
+`80/100`, the builder's autonomous override (`docs/prompt/evolve-auto.md`)
+forces the next non-urgent session to take evaluation-related work before
+other normal-priority queue items. This keeps repeated real-repo failures
+from being starved by lower-numbered cleanup tasks.
+
 ---
 
 ## Starting the Daemon

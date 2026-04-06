@@ -108,10 +108,11 @@ gh issue create --title "Fix CI" --label "task,urgent"
 2. Filter to `status: pending`
 3. Skip tasks tagged `environment: integration` (require external resources)
 4. Pick the lowest-numbered pending task (urgent priority first)
-5. Set `status: in-progress` when starting, `status: done` when finished
-6. If blocked, set `status: blocked` with `blocked_reason:` (environment | dependency | design)
-7. If no pending internal tasks, fall back to the priority engine in `evolve.md`
-8. If ALL remaining tasks are integration or blocked, log in handoff and exit cleanly
+5. If the latest Step 0 evaluation in `docs/evaluations/` scored below `80/100`, prefer an eval-related pending internal task before any other normal-priority task
+6. Set `status: in-progress` when starting, `status: done` when finished
+7. If blocked, set `status: blocked` with `blocked_reason:` (environment | dependency | design)
+8. If no pending internal tasks, fall back to the priority engine in `evolve.md`
+9. If ALL remaining tasks are integration or blocked, log in handoff and exit cleanly
 
 ### Task fields
 See `docs/tasks/GUIDE.md` for full field definitions: `status`, `priority`, `environment`, `blocked_reason`, `needs_human`, `skipped_by`, `target`
@@ -821,7 +822,7 @@ Every session follows `docs/prompt/evolve.md` Steps 1-10. In short:
 
 ```
 Step 1:  Read handoff (LATEST.md) --> status report
-Step 2:  Decide what to build (priority engine)
+Step 2:  Decide what to build (task queue, eval gate, priority engine)
 Step 3:  Propose to human --> wait for "go"
 Step 4:  Build + write tests
 Step 5:  Verify (make check)

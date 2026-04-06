@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-05 by agent session #0056 (Task frontmatter validator).
+Last updated: 2026-04-05 by agent session #0057 (Eval score gate).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -13,7 +13,7 @@ NIGHTSHIFT VISION                              ███████████
 ├── Loop 1 — Hardening Loop                    ████████████████████  99%
 ├── Loop 2 — Feature Builder Loop              ████████████████████ 100%
 ├── Self-Maintaining Repo                      ██████████████░░░░░░  68%
-└── Meta-Prompt System                         ████████████████░░░░  78%
+└── Meta-Prompt System                         ████████████████░░░░  79%
 ```
 
 ---
@@ -37,7 +37,7 @@ The core loop still works on the happy path, and the latest runner hardening fix
 | Path bias detection | Done | ████████████████████ 100% |
 | Hot-file protection | Done | ████████████████████ 100% |
 | Halt conditions | Done | ████████████████████ 100% |
-| Test suite (939 tests) | Done | ████████████████████ 100% |
+| Test suite (940 tests) | Done | ████████████████████ 100% |
 | Post-cycle diff scorer | Done | ████████████████████ 100% |
 | Cycle-to-cycle state injection | Done | ████████████████████ 100% |
 | Test writing incentives | Done | ████████████████████ 100% |
@@ -96,7 +96,7 @@ Healer observation history is now bounded by daemon housekeeping, so reading rec
 
 ---
 
-## Meta-Prompt System (78%)
+## Meta-Prompt System (79%)
 
 The reusable prompt and surrounding docs that make the self-improving loop work.
 Persistent module-map memory now reduces cold-start rediscovery when sessions touch
@@ -109,7 +109,7 @@ the Python package.
 | Loop 1 deep dive doc | Done | ████████████████████ 100% |
 | Loop 2 deep dive doc | Done | ████████████████████ 100% |
 | Feedback ingestion | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
-| Priority engine (what to build next) | In progress | ████████████░░░░░░░░ 60% |
+| Priority engine (what to build next) | In progress | ██████████████░░░░░░ 70% |
 | Session history / learning | In progress | █████████████████░░░ 85% |
 
 ---
