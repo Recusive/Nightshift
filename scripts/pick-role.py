@@ -210,6 +210,7 @@ DEFAULTS = {
     "eval_score": 80,
     "autonomy_score": 0,
     "consecutive_builds": 0,
+    "sessions_since_build": 0,
     "sessions_since_review": 0,
     "sessions_since_strategy": 0,
     "sessions_since_achieve": 0,
@@ -220,8 +221,6 @@ DEFAULTS = {
     "needs_human_issues": 0,
     "tracker_moved": False,
     "urgent_tasks": False,
-    "tasks_synced": False,
-    "last_oversee_status": "",
 }
 
 
@@ -233,58 +232,64 @@ def compute_scores(signals: dict) -> dict[str, int]:
     sr = signals["sessions_since_review"]
     ss = signals["sessions_since_strategy"]
     sa = signals["sessions_since_achieve"]
+    sb = signals.get("sessions_since_build", 0)
     pt = signals["pending_tasks"]
     st = signals["stale_tasks"]
     hs = signals["healer_status"]
     nh = signals["needs_human_issues"]
     tm = signals["tracker_moved"]
+    so = signals["sessions_since_oversee"]
 
-    # BUILD
+    # BUILD — the default workhorse
     build = 50
     if ev >= 80:
-        build += 30
+        build += 30  # healthy eval, build freely
     else:
-        build -= 40
+        build -= 20  # eval gated, but NOT locked out (-20 not -40)
     if signals["urgent_tasks"]:
         build += 20
+    # Escape hatch: if BUILD hasn't run for 5+ cycles, boost it
+    if sb >= 5:
+        build += 25  # system needs to make progress, override other roles
+    if sb >= 10:
+        build += 15  # critical: nothing has been built in 10 sessions
 
-    # REVIEW
+    # REVIEW — code quality
     review = 10
     if cb >= 5:
         review += 40
-    if hs in ("concern", "caution"):
-        review += 30
+    # Healer bonus decays after consecutive reviews
+    if hs in ("concern", "caution") and sr >= 2:
+        review += 30  # only if we haven't JUST reviewed
+    elif hs in ("concern", "caution") and sr < 2:
+        review += 10  # diminished: reviewed recently, healer may not have updated
     if sr >= 10:
         review += 20
     if sr >= 5:
         review += 10
 
-    # OVERSEE — triggers on queue drift, not raw size
+    # OVERSEE — close tasks, reduce the queue
     oversee = 5
-    so = signals["sessions_since_oversee"]
-    last_oversee_status = signals.get("last_oversee_status", "")
     if pt >= 80:
-        oversee += 50  # queue is critically large
-    elif pt >= 50 and so >= 5:
-        oversee += 35  # queue is large but only trigger if not recently overseen
+        oversee += 60  # critical queue size, must beat healthy BUILD (80)
+    elif pt >= 50 and so >= 3:
+        oversee += 45  # large queue, not recently overseen
+    elif pt >= 50 and so >= 1:
+        oversee += 20  # large queue but was recently overseen
     if st >= 5:
-        oversee += 30  # many stale tasks rotting
-    if signals.get("tasks_synced", False):
-        oversee += 25  # new GitHub Issues synced — queue needs organizing
-    if last_oversee_status == "NEEDS MORE WORK":
-        oversee += 20  # previous overseer said it wasn't done
-    # Cap: if last overseer said CLEAN and nothing changed, don't re-run
-    if so < 3 and last_oversee_status == "CLEAN":
-        oversee = 5
+        oversee += 25
+    # Cap: don't re-run immediately after a CLEAN signal
+    if so == 0:
+        oversee = 5  # just ran last cycle, give others a turn
 
-    # STRATEGIZE
+    # STRATEGIZE — big picture
     strategize = 5
     if ss >= 15:
         strategize += 60
     if not tm:
         strategize += 30
 
-    # ACHIEVE
+    # ACHIEVE — autonomy engineering
     achieve = 5
     if auto < 70:
         achieve += 50
@@ -299,7 +304,7 @@ def compute_scores(signals: dict) -> dict[str, int]:
     if sa < 5:
         achieve = -1
     if ss < 10:
-        strategize = min(strategize, 5)  # keep base but remove bonuses
+        strategize = min(strategize, 5)
 
     return {
         "build": build,
@@ -315,7 +320,7 @@ def pick_role(scores: dict[str, int], urgent: bool) -> str:
     if urgent:
         return "build"
     # Sort by score descending, then prefer build on ties
-    priority = ["build", "review", "oversee", "achieve", "strategize"]
+    priority = ["build", "oversee", "review", "achieve", "strategize"]
     best_score = max(scores.values())
     for role in priority:
         if scores[role] == best_score:
@@ -347,7 +352,6 @@ def main() -> None:
     autonomy_score = read_latest_autonomy_score(repo / "docs" / "autonomy")
     index_rows = parse_session_index(repo / "docs" / "sessions" / "index.md")
     healer_status = read_healer_status(repo / "docs" / "healer" / "log.md")
-    last_oversee = read_last_oversee_status(repo / "docs" / "handoffs" / "LATEST.md")
     tasks_dir = repo / "docs" / "tasks"
     pending = count_pending_tasks(tasks_dir)
     stale = count_stale_tasks(tasks_dir)
@@ -359,6 +363,7 @@ def main() -> None:
         "eval_score": eval_score if eval_score is not None else DEFAULTS["eval_score"],
         "autonomy_score": autonomy_score if autonomy_score is not None else DEFAULTS["autonomy_score"],
         "consecutive_builds": count_consecutive_role(index_rows, "build"),
+        "sessions_since_build": count_sessions_since_role(index_rows, "build"),
         "sessions_since_review": count_sessions_since_role(index_rows, "review"),
         "sessions_since_strategy": count_sessions_since_role(index_rows, "strategize"),
         "sessions_since_achieve": count_sessions_since_role(index_rows, "achieve"),
@@ -369,7 +374,6 @@ def main() -> None:
         "needs_human_issues": needs_human,
         "tracker_moved": tracker_moved,
         "urgent_tasks": urgent,
-        "last_oversee_status": last_oversee,
     }
 
     scores = compute_scores(signals)

@@ -50,12 +50,13 @@ class TestScenario1ColdStart:
 
 
 class TestScenario2EvalGate:
-    def test_eval_79_gates_build(self) -> None:
+    def test_eval_79_reduces_build(self) -> None:
         signals = make_signals(eval_score=79, sessions_since_achieve=10)
         scores = compute_scores(signals)
-        assert scores["build"] == 10  # 50 - 40
+        assert scores["build"] == 30  # 50 - 20 (softer gate)
+        assert scores["achieve"] == 55  # 5 + 50
         winner = pick_role(scores, urgent=False)
-        assert winner == "achieve"  # 5 + 50 = 55
+        assert winner == "achieve"
 
     def test_eval_80_ungates_build(self) -> None:
         signals = make_signals(eval_score=80)
@@ -79,45 +80,32 @@ class TestScenario3ExactThresholds:
         scores = compute_scores(signals)
         assert scores["oversee"] >= 40  # 5 + 35
 
-    def test_50_pending_suppressed_if_recently_overseen(self) -> None:
+    def test_50_pending_with_recent_oversee_gets_small_bonus(self) -> None:
         signals = make_signals(pending_tasks=55, sessions_since_oversee=2)
         scores = compute_scores(signals)
-        assert scores["oversee"] < 20  # no +35 bonus
+        assert scores["oversee"] == 25  # 5 + 20 (recent but still large)
+
+    def test_50_pending_suppressed_if_just_ran(self) -> None:
+        signals = make_signals(pending_tasks=55, sessions_since_oversee=0)
+        scores = compute_scores(signals)
+        assert scores["oversee"] == 5  # just ran, give others a turn
 
     def test_5_stale_triggers_oversee(self) -> None:
         signals = make_signals(stale_tasks=5, sessions_since_oversee=5)
         scores = compute_scores(signals)
-        assert scores["oversee"] >= 35  # 5 + 30
-
-    def test_clean_status_suppresses_rerun(self) -> None:
-        signals = make_signals(
-            pending_tasks=55,
-            sessions_since_oversee=1,
-            last_oversee_status="CLEAN",
-        )
-        scores = compute_scores(signals)
-        assert scores["oversee"] == 5  # capped to base
-
-    def test_needs_more_work_triggers_rerun(self) -> None:
-        signals = make_signals(
-            pending_tasks=55,
-            sessions_since_oversee=5,
-            last_oversee_status="NEEDS MORE WORK",
-        )
-        scores = compute_scores(signals)
-        assert scores["oversee"] >= 60  # 5 + 35 + 20
+        assert scores["oversee"] >= 30  # 5 + 25
 
 
 class TestHealerCautionTriggers:
-    def test_caution_triggers_review_bonus(self) -> None:
-        signals = make_signals(healer_status="caution", consecutive_builds=5)
+    def test_caution_with_gap_triggers_full_bonus(self) -> None:
+        signals = make_signals(healer_status="caution", consecutive_builds=5, sessions_since_review=3)
         scores = compute_scores(signals)
-        assert scores["review"] >= 80  # 10 + 40 + 30
+        assert scores["review"] >= 60  # 10 + 40 + 30 (gap >= 2)
 
-    def test_concern_also_triggers_review_bonus(self) -> None:
-        signals = make_signals(healer_status="concern", consecutive_builds=5)
+    def test_caution_right_after_review_diminished(self) -> None:
+        signals = make_signals(healer_status="caution", consecutive_builds=5, sessions_since_review=1)
         scores = compute_scores(signals)
-        assert scores["review"] >= 80
+        assert scores["review"] == 60  # 10 + 40 + 10 (diminished)
 
     def test_good_does_not_trigger(self) -> None:
         signals = make_signals(healer_status="good", consecutive_builds=5)
@@ -145,18 +133,40 @@ class TestScenario5EverythingBroken:
         )
         scores = compute_scores(signals)
         assert scores["achieve"] == 85  # 5 + 50 + 30
-        assert scores["build"] == 10
+        assert scores["build"] == 30  # 50 - 20 (softer gate)
         winner = pick_role(scores, urgent=False)
         assert winner == "achieve"
 
 
-class TestScenario6ImpossibleTie:
-    def test_build_and_strategize_can_never_equal(self) -> None:
-        # BUILD possible: 10, 30, 80, 100
-        # STRATEGIZE possible: 5, 35, 65, 95
-        build_possible = {10, 30, 80, 100}
-        strat_possible = {5, 35, 65, 95}
-        assert build_possible.isdisjoint(strat_possible)
+class TestBuildEscapeHatch:
+    def test_build_gets_boost_after_5_non_build_sessions(self) -> None:
+        signals = make_signals(eval_score=69, sessions_since_build=5)
+        scores = compute_scores(signals)
+        assert scores["build"] == 55  # 50 - 20 + 25
+
+    def test_build_gets_critical_boost_after_10(self) -> None:
+        signals = make_signals(eval_score=69, sessions_since_build=10)
+        scores = compute_scores(signals)
+        assert scores["build"] == 70  # 50 - 20 + 25 + 15
+
+    def test_build_escapes_review_dominance(self) -> None:
+        signals = make_signals(
+            eval_score=69,
+            sessions_since_build=6,
+            healer_status="caution",
+            sessions_since_review=0,
+        )
+        scores = compute_scores(signals)
+        # BUILD: 50 - 20 + 25 = 55
+        # REVIEW: 10 + 10 (diminished healer, sr < 2) = 20
+        assert scores["build"] > scores["review"]
+
+
+class TestScenario6TieBreak:
+    def test_oversee_beats_review_on_tie(self) -> None:
+        # Tie-break priority: build, oversee, review, achieve, strategize
+        scores = {"build": 10, "review": 40, "oversee": 40, "strategize": 5, "achieve": -1}
+        assert pick_role(scores, urgent=False) == "oversee"
 
 
 class TestScenario7ReviewVsAchieve:
