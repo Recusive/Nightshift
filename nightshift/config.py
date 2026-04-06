@@ -10,6 +10,7 @@ from typing import Any
 
 from nightshift.constants import DEFAULT_CONFIG, SUPPORTED_AGENTS, print_status
 from nightshift.errors import NightshiftError
+from nightshift.eval_targets import infer_target_verify_command
 from nightshift.state import load_json
 from nightshift.types import NightshiftConfig
 
@@ -183,6 +184,9 @@ def infer_install_command(repo_dir: Path) -> list[str] | None:
 def infer_verify_command(repo_dir: Path, config: NightshiftConfig) -> str | None:
     if config["verify_command"]:
         return str(config["verify_command"])
+    target_command = infer_target_verify_command(repo_dir)
+    if target_command:
+        return target_command
     package_json = repo_dir / "package.json"
     if package_json.exists():
         try:

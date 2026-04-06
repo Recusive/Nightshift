@@ -140,7 +140,7 @@ These are enforced by CI. Non-negotiable.
 - **One concern per module.** If you're adding >50 lines of new logic to an existing file, it belongs in its own module. cycle.py handles cycle logic — not scoring. cli.py handles CLI — not business logic.
 - **No hardcoded data in logic files.** Regex patterns, score maps, category weights, thresholds — these go in `constants.py` or a dedicated `*_patterns.py`. Logic files import them.
 - **New module checklist:** create the `.py` file, add to `__init__.py` re-exports, add to `scripts/install.sh` PACKAGE_FILES, add to this file's structure tree.
-- **Follow the dependency flow:** `errors -> types -> constants -> shell -> summary -> cleanup -> compact -> coordination -> costs -> evaluation -> module_map -> readiness -> scoring -> state -> config -> multi -> e2e -> profiler -> worktree -> cycle -> planner -> subagent -> decomposer -> integrator -> feature -> cli`. New modules slot into this chain. No circular imports. (`multi.py` uses a late import of `run_nightshift` from `cli.py` to avoid circular deps.)
+- **Follow the dependency flow:** `errors -> eval_targets -> types -> constants -> shell -> summary -> cleanup -> compact -> coordination -> costs -> module_map -> readiness -> scoring -> state -> config -> multi -> e2e -> profiler -> worktree -> cycle -> evaluation -> planner -> subagent -> decomposer -> integrator -> feature -> cli`. New modules slot into this chain. No circular imports. (`multi.py` uses a late import of `run_nightshift` from `cli.py` to avoid circular deps.)
 - **Functions over inline code.** If a block of code does one thing and is >10 lines, extract it into a named function. The function name documents the intent.
 - **Config over magic numbers.** If a value might change (thresholds, limits, timeouts), put it in `DEFAULT_CONFIG` and `types.py`, not inline.
 
@@ -152,6 +152,7 @@ These are enforced by CI. Non-negotiable.
 ## Editing Conventions
 
 - `nightshift/SKILL.md` uses YAML frontmatter for skill registration
+- `nightshift/eval_targets.py` stores repo-specific evaluation defaults such as the Phractal verification command
 - Shell scripts are thin wrappers in `scripts/`
 - `scripts/validate-tasks.sh` is the standalone task-frontmatter validator; do not wire it into `make check` until the known malformed backlog is repaired
 - Per-repo config: `.nightshift.json` (see `.nightshift.json.example`)
