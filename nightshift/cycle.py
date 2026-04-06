@@ -69,6 +69,33 @@ def extract_json(text: str) -> dict[str, Any] | None:
     return None
 
 
+def _truncate_utf8_bytes(text: str, limit_bytes: int) -> str:
+    if limit_bytes <= 0:
+        return ""
+    return text.encode("utf-8")[:limit_bytes].decode("utf-8", errors="ignore").rstrip()
+
+
+def _instruction_section(name: str, body: str) -> str:
+    return f"--- {name} ---\n{body}\n--- end {name} ---"
+
+
+def _fit_instruction_to_total_budget(*, name: str, content: str, remaining_bytes: int) -> tuple[str, int]:
+    warning_body = (
+        f"[WARNING: {name} truncated -- total instruction size cap ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]"
+    )
+    warning = f"\n\n{warning_body}"
+    warning_bytes = len(warning.encode("utf-8"))
+    if remaining_bytes >= warning_bytes:
+        prefix = _truncate_utf8_bytes(content, remaining_bytes - warning_bytes)
+        body = f"{prefix}{warning}" if prefix else warning_body
+        return body, len(body.encode("utf-8"))
+    short_warning = "[TRUNCATED]"
+    short_warning_bytes = len(short_warning.encode("utf-8"))
+    if remaining_bytes >= short_warning_bytes:
+        return short_warning, short_warning_bytes
+    return "", 0
+
+
 def read_repo_instructions(repo_dir: Path) -> str:
     """Read instruction files from a target repo and return their combined content.
 
@@ -84,47 +111,45 @@ def read_repo_instructions(repo_dir: Path) -> str:
     for name in INSTRUCTION_FILE_NAMES:
         file_path = repo_dir / name
         if file_path.is_symlink():
-            sections.append(
-                f"--- {name} ---\n[WARNING: {name} is a symlink -- skipped for security]\n--- end {name} ---"
-            )
+            sections.append(_instruction_section(name, f"[WARNING: {name} is a symlink -- skipped for security]"))
             continue
         if file_path.is_file():
             try:
                 content = file_path.read_text(encoding="utf-8").strip()
-                if not content:
-                    continue
-                content_bytes = len(content.encode("utf-8"))
-                if content_bytes > MAX_INSTRUCTION_FILE_BYTES:
-                    content = (
-                        content.encode("utf-8")[:MAX_INSTRUCTION_FILE_BYTES].decode("utf-8", errors="ignore").rstrip()
-                    )
-                    content += (
-                        f"\n\n[WARNING: {name} truncated from {content_bytes:,} bytes"
-                        f" to {MAX_INSTRUCTION_FILE_BYTES:,} bytes]"
-                    )
-                    content_bytes = len(content.encode("utf-8"))
-                remaining = MAX_INSTRUCTION_TOTAL_BYTES - total_bytes
-                if remaining <= 0:
-                    sections.append(
-                        f"--- {name} ---\n"
-                        f"[WARNING: {name} skipped -- total instruction size cap"
-                        f" ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]"
-                        f"\n--- end {name} ---"
-                    )
-                    continue
-                if content_bytes > remaining:
-                    warning = (
-                        f"\n\n[WARNING: {name} truncated -- total instruction size cap"
-                        f" ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]"
-                    )
-                    warning_bytes = len(warning.encode("utf-8"))
-                    slice_bytes = max(remaining - warning_bytes, 0)
-                    content = content.encode("utf-8")[:slice_bytes].decode("utf-8", errors="ignore").rstrip() + warning
-                    content_bytes = len(content.encode("utf-8"))
-                total_bytes += content_bytes
-                sections.append(f"--- {name} ---\n{content}\n--- end {name} ---")
+            except UnicodeDecodeError:
+                sections.append(_instruction_section(name, f"[WARNING: {name} is not valid UTF-8 -- skipped]"))
+                continue
             except OSError:
                 continue
+            if not content:
+                continue
+            content_bytes = len(content.encode("utf-8"))
+            if content_bytes > MAX_INSTRUCTION_FILE_BYTES:
+                content = _truncate_utf8_bytes(content, MAX_INSTRUCTION_FILE_BYTES)
+                content += (
+                    f"\n\n[WARNING: {name} truncated from {content_bytes:,} bytes"
+                    f" to {MAX_INSTRUCTION_FILE_BYTES:,} bytes]"
+                )
+                content_bytes = len(content.encode("utf-8"))
+            remaining = MAX_INSTRUCTION_TOTAL_BYTES - total_bytes
+            if remaining <= 0:
+                sections.append(
+                    _instruction_section(
+                        name,
+                        f"[WARNING: {name} skipped -- total instruction size cap ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]",
+                    )
+                )
+                continue
+            if content_bytes > remaining:
+                content, content_bytes = _fit_instruction_to_total_budget(
+                    name=name,
+                    content=content,
+                    remaining_bytes=remaining,
+                )
+                if not content:
+                    continue
+            total_bytes += content_bytes
+            sections.append(_instruction_section(name, content))
     return "\n\n".join(sections)
 
 
@@ -503,7 +528,7 @@ def build_prompt(
 def high_signal_focus_paths(repo_dir: Path, hot_files: list[str]) -> list[str]:
     hot_prefixes = {entry for entry in hot_files if entry}
     existing = [c for c in HIGH_SIGNAL_PATH_CANDIDATES if (repo_dir / c).exists()]
-    filtered = [c for c in existing if not any(c == hot or c.startswith(f"{hot}/") for hot in hot_prefixes)]
+    filtered = [c for c in existing if not any(_paths_overlap(c, hot) for hot in hot_prefixes)]
     candidates = filtered[:5] if filtered else existing[:5]
     return candidates
 
@@ -537,12 +562,23 @@ def recent_hot_files(repo_dir: Path) -> list[str]:
     return hot
 
 
+def _paths_overlap(path_a: str, path_b: str) -> bool:
+    return path_a == path_b or path_a.startswith(f"{path_b}/") or path_b.startswith(f"{path_a}/")
+
+
+def _matches_blocked_path_prefix(path: str, prefix: str) -> bool:
+    normalized_prefix = prefix.strip().strip("/")
+    if not normalized_prefix:
+        return False
+    return path == normalized_prefix or path.startswith(f"{normalized_prefix}/")
+
+
 def blocked_file(path: str, config: NightshiftConfig) -> str | None:
     normalized = path.strip()
     if not normalized:
         return None
     for prefix in config["blocked_paths"]:
-        if normalized.startswith(prefix):
+        if _matches_blocked_path_prefix(normalized, prefix):
             return f"blocked path prefix `{prefix}`"
     for pattern in config["blocked_globs"]:
         if fnmatch.fnmatch(normalized, pattern):
@@ -640,10 +676,18 @@ def forbidden_reported_commands(cycle_result: CycleResult | None) -> list[str]:
         return []
     seen: list[str] = []
     for entry in cycle_result.get("tests_run", []):
-        for command in FORBIDDEN_CYCLE_COMMANDS:
-            if entry.startswith(command) and command not in seen:
-                seen.append(command)
+        reported = _reported_forbidden_command(entry)
+        if reported is not None and reported not in seen:
+            seen.append(reported)
     return seen
+
+
+def _reported_forbidden_command(entry: str) -> str | None:
+    normalized = _extract_shell_command(entry).strip()
+    for command in FORBIDDEN_CYCLE_COMMANDS:
+        if normalized == command or normalized.startswith(f"{command} ("):
+            return command
+    return None
 
 
 def expected_cycle_commits(cycle_result: CycleResult | None) -> tuple[int, int] | None:
