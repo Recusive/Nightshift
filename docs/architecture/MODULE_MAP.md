@@ -1,6 +1,6 @@
 # Module Map
 
-Last updated: 2026-04-06 by session #0063
+Last updated: 2026-04-06 by session #0064
 Generated via: `python3 -m nightshift module-map --write`
 Stale after: 5 newer sessions without a refresh
 
@@ -30,14 +30,14 @@ Read it before opening modules one by one when you need fast orientation.
 | `e2e.py` | 113 | End-to-end test runner for Loop 2 feature builds. | `infer_test_command`, `detect_smoke_test`, `run_e2e_tests`, `_MAKEFILE_TEST_TARGET` | PR #70 (95ef827) |
 | `profiler.py` | 569 | Repo profiling for Loop 2 -- detects language, framework, dependencies, structure. | `profile_repo` | PR #78 (5cc11a3) |
 | `worktree.py` | 232 | Git worktree lifecycle: create, shift log, sync, revert, cleanup. | `canonical_repo_relative_path`, `resolve_nightshift_dir`, `resolve_shift_log_relative_dir`, `resolve_test_runtime_dir` | PR #126 (7f7131d) |
-| `cycle.py` | 899 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | session #0063 |
+| `cycle.py` | 925 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | session #0064 |
 | `evaluation.py` | 906 | Self-evaluation loop: score nightshift runs against real repos. | `clone_target_repo`, `run_test_shift`, `parse_shift_artifacts`, `score_startup` | PR #126 (7f7131d) |
 | `planner.py` | 483 | Feature planner for Loop 2 -- builds structured plans from repo profiles. | `build_plan_prompt`, `validate_plan`, `parse_plan`, `execution_order` | PR #78 (5cc11a3) |
 | `subagent.py` | 281 | Sub-agent spawner for Loop 2 -- executes work orders via codex or claude CLI. | `spawn_task`, `spawn_wave`, `format_wave_result`, `_TASK_COMPLETION_REQUIRED_KEYS` | PR #33 (bd23cc4) |
 | `decomposer.py` | 175 | Task decomposer for Loop 2 -- converts FeaturePlans into sub-agent work orders. | `build_work_order_prompt`, `decompose_plan`, `format_work_orders` | PR #78 (5cc11a3) |
 | `integrator.py` | 325 | Wave integrator for Loop 2 -- merges sub-agent work, runs tests, handles failures. | `collect_wave_files`, `stage_files`, `run_test_suite`, `diagnose_failure` | PR #33 (bd23cc4) |
 | `feature.py` | 696 | Loop 2 feature-build orchestration and persisted build state. | `feature_state_path`, `feature_log_dir`, `read_feature_state`, `write_feature_state` | PR #78 (5cc11a3) |
-| `cli.py` | 550 | CLI entry points: run, test, summarize, verify-cycle, module-map. | `run_nightshift`, `summarize`, `verify_cycle_cli`, `plan_feature` | PR #126 (7f7131d) |
+| `cli.py` | 670 | CLI entry points: run, test, summarize, verify-cycle, module-map. | `run_nightshift`, `summarize`, `verify_cycle_cli`, `plan_feature` | session #0064 |
 | `__main__.py` | 5 | Entry point for python3 -m nightshift. | `main` | 2802c51 |
 | `__init__.py` | 547 | Nightshift -- autonomous overnight codebase improvement agent. | `AGENT_DEFAULT_MODELS`, `BACKEND_DIR_NAMES`, `BACKEND_EXTENSIONS`, `CATEGORY_ORDER` | PR #126 (7f7131d) |
 
@@ -50,8 +50,8 @@ Topological order derived from internal `nightshift.*` imports.
 
 ## Recent Shipped Sessions
 
+- PR #127: docs: track cycle.py follow-up task
 - PR #126: fix: isolate test-mode runtime artifacts
 - PR #125: feat: watchdog + natural task creation (no artificial caps)
 - PR #124: fix: round 6 audit — 9 remaining issues patched
 - PR #123: feat: overseer rewrite — ticket closer, not process auditor
-- PR #122: overseer: dedupe auto-release queue

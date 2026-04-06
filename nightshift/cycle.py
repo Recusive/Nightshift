@@ -573,6 +573,14 @@ def _matches_blocked_path_prefix(path: str, prefix: str) -> bool:
     return path == normalized_prefix or path.startswith(f"{normalized_prefix}/")
 
 
+def _coerce_nonnegative_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value >= 0 else None
+    return None
+
+
 def blocked_file(path: str, config: NightshiftConfig) -> str | None:
     normalized = path.strip()
     if not normalized:
@@ -598,13 +606,31 @@ def _as_cycle_result(data: dict[str, Any]) -> CycleResult:
     logged = data.get("logged_issues")
     result["logged_issues"] = logged if isinstance(logged, list) else []
     categories = data.get("categories")
+    if not isinstance(categories, list):
+        categories = data.get("categories_covered")
     result["categories"] = categories if isinstance(categories, list) else []
     touched = data.get("files_touched")
     result["files_touched"] = touched if isinstance(touched, list) else []
     tests_run = data.get("tests_run")
     result["tests_run"] = tests_run if isinstance(tests_run, list) else []
-    if "notes" in data:
-        result["notes"] = str(data["notes"])
+    notes_parts: list[str] = []
+    if "notes" in data and isinstance(data["notes"], str) and data["notes"].strip():
+        notes_parts.append(data["notes"].strip())
+    summary = data.get("summary")
+    if isinstance(summary, str) and summary.strip() and summary.strip() not in notes_parts:
+        notes_parts.append(summary.strip())
+    if not result["fixes"]:
+        fix_count = _coerce_nonnegative_int(data.get("fixes_applied"))
+        if fix_count is None:
+            fix_count = _coerce_nonnegative_int(data.get("fixes_committed"))
+        if fix_count:
+            notes_parts.append(f"Agent reported {fix_count} fix(es) in summary form.")
+    if not result["logged_issues"]:
+        issue_count = _coerce_nonnegative_int(data.get("issues_logged"))
+        if issue_count:
+            notes_parts.append(f"Agent reported {issue_count} logged issue(s) in summary form.")
+    if notes_parts:
+        result["notes"] = " ".join(notes_parts)
     return result
 
 

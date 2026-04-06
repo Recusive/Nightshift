@@ -258,6 +258,11 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Session-index fidelity is still the main cost-analysis blind spot.** The last 5 rows in `docs/sessions/index.md` still have blank feature cells, and `cost_analysis('docs/sessions')` now classifies `18 of 26` analyzed sessions as `task_type=unknown` with the highest average spend (`$29.32/session`). Existing task `#0095` still covers the fix path.
 - **Healer documentation drift was real and is now corrected.** `docs/ops/OPERATIONS.md` had no `docs/healer/` entry, task `#0054` still referenced removed `persist_healer_changes()` behavior, and the current builder-side Step 6n/6o workflow was undocumented. This session fixed the docs so future sessions have a truthful reference for the merged healer path.
 
+## 2026-04-06 -- Session preserve-rejected-findings
+**System health:** caution
+- **Session-index observability is still weak.** `docs/sessions/index.md` only has four recent rows, and every visible row still has `Feature = -` / `PR = -`, so the required 5-session trend scan remains too sparse to explain why `cost_analysis('docs/sessions')` still classifies `21 of 45` sessions as `task_type=unknown` at the highest average spend (`$25.41/session`). Existing tasks `#0095` and `#0130` still cover the fix path.
+- **The eval gate is finally paying off, but Loop 1 fidelity is still below release grade.** Evaluation `#0015` reproduced a missing rejected-run artifact and a Claude cycle-result contract drift severe enough to false-reject real fixes. This session closed `#0101`, and a post-fix Phractal rerun left the repo healthy, but the scorer/parser gap (`#0102`) plus intermittent contract drift (`#0139`) remain the active blockers to a consistently trustworthy eval score.
+
 ### Actions taken
 - No new tasks needed this cycle. Existing tasks `#0095`, `#0097`-`#0102`, and `#0106` already cover the trends observed here.
 

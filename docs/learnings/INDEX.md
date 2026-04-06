@@ -55,6 +55,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Readiness checks as pure file scanners](2026-04-05-readiness-checks-pure-computation.md) — Pure Path.read_text() + regex beats shell-command wrappers; testable with tmp_path, no mocks needed
 - [Eval target detection via git config](2026-04-05-eval-target-detection-via-git-config.md) — Repo-specific behavior should read `.git/config` directly instead of shelling out to `git`
 - [Test-mode runtime artifacts stay outside the target repo](2026-04-06-test-mode-runtime-isolation.md) — Isolate evaluation/test state, logs, and worktrees under a temp-root runtime dir; keep only full overnight runs in `docs/Nightshift/`
+- [Rejected findings must be written outside the reverted worktree](2026-04-06-rejected-findings-outside-reverted-worktree.md) — `revert_cycle()` wipes worktree evidence, so rejected-run summaries must be persisted in the runtime dir before reset
 - [Pure scorer pattern for evaluation](2026-04-05-pure-scorer-pattern-for-evaluation.md) — Scorers take typed artifacts, return scores; I/O at edges only; 66 tests with zero mocks
 - [E2E as gate before final verify](2026-04-05-e2e-gate-before-final-verify.md) — New pipeline steps sharing checks with later steps should gate; grep for integration tests to update
 - [Case-insensitive path resolution needs directory enumeration](2026-04-05-case-insensitive-path-resolution-needs-directory-enumeration.md) — `Path.exists()` keeps the queried casing on macOS; enumerate parent entries to recover the real on-disk path
