@@ -973,6 +973,7 @@ if not log_path.exists():
     raise SystemExit(0)
 
 result_text = ""
+codex_last_message = ""
 for raw_line in log_path.read_text(encoding="utf-8").splitlines():
     stripped = raw_line.strip()
     if not stripped:
@@ -981,12 +982,19 @@ for raw_line in log_path.read_text(encoding="utf-8").splitlines():
         event = json.loads(stripped)
     except (json.JSONDecodeError, ValueError):
         continue
-    if event.get("type") != "result":
-        continue
-    payload = event.get("result")
-    if isinstance(payload, str) and payload.strip():
-        result_text = payload.strip()
+    if event.get("type") == "result":
+        payload = event.get("result")
+        if isinstance(payload, str) and payload.strip():
+            result_text = payload.strip()
+    elif event.get("type") == "item.completed":
+        item = event.get("item", {})
+        if item.get("type") == "agent_message":
+            text = item.get("text", "")
+            if isinstance(text, str) and text.strip():
+                codex_last_message = text.strip()
 
+if not result_text:
+    result_text = codex_last_message
 if not result_text:
     raise SystemExit(0)
 
@@ -996,6 +1004,98 @@ if len(trimmed) > max_chars:
     trimmed = trimmed[: max_chars - 3].rstrip() + "..."
 
 print(trimmed)
+PY
+}
+
+# extract_feature_from_log LOG_FILE
+# Pull the "Built: ..." line from a stream-json session log.
+# Handles both Claude (type:result) and Codex (item.completed/agent_message) formats.
+# Prints the feature name (up to 50 chars) or "-" if not found.
+extract_feature_from_log() {
+    local log_file="$1"
+    python3 - "$log_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+log_path = Path(sys.argv[1])
+if not log_path.exists():
+    print("-")
+    sys.exit(0)
+
+result_text = ""
+codex_last = ""
+for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+    stripped = raw_line.strip()
+    if not stripped:
+        continue
+    try:
+        event = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        continue
+    if event.get("type") == "result":
+        r = event.get("result", "")
+        if isinstance(r, str) and r.strip():
+            result_text = r
+    elif event.get("type") == "item.completed":
+        item = event.get("item", {})
+        if item.get("type") == "agent_message":
+            t = item.get("text", "")
+            if isinstance(t, str) and t.strip():
+                codex_last = t
+
+text = result_text or codex_last
+for line in text.splitlines():
+    if line.startswith("Built:"):
+        print(line.replace("Built:", "").strip()[:50])
+        sys.exit(0)
+print("-")
+PY
+}
+
+# extract_pr_url_from_log LOG_FILE
+# Pull the "PR: ..." line from a stream-json session log.
+# Handles both Claude (type:result) and Codex (item.completed/agent_message) formats.
+# Prints the PR URL (up to 60 chars) or "-" if not found.
+extract_pr_url_from_log() {
+    local log_file="$1"
+    python3 - "$log_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+log_path = Path(sys.argv[1])
+if not log_path.exists():
+    print("-")
+    sys.exit(0)
+
+result_text = ""
+codex_last = ""
+for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+    stripped = raw_line.strip()
+    if not stripped:
+        continue
+    try:
+        event = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        continue
+    if event.get("type") == "result":
+        r = event.get("result", "")
+        if isinstance(r, str) and r.strip():
+            result_text = r
+    elif event.get("type") == "item.completed":
+        item = event.get("item", {})
+        if item.get("type") == "agent_message":
+            t = item.get("text", "")
+            if isinstance(t, str) and t.strip():
+                codex_last = t
+
+text = result_text or codex_last
+for line in text.splitlines():
+    if line.startswith("PR:"):
+        print(line.replace("PR:", "").strip()[:60])
+        sys.exit(0)
+print("-")
 PY
 }
 

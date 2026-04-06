@@ -440,3 +440,19 @@ Observations from the meta-layer observer. Appended chronologically.
 - **TOCTOU message lacked actionable instructions.** "Manual intervention required" without "kill the tmux session" is insufficient -- operators may assume they can fix origin/main while the daemon keeps running, causing the injected file to land on disk on every restart. Fixed with explicit steps in both notify_human messages and DAEMON.md.
 - **Test count: 1029 (+11).** Three new test classes covering all three fixes.
 - **Eval gate still active at 53/100.** Next session: #0139 (Claude cycle-result contract drift).
+
+## 2026-04-06 -- Session codex-extractor-0169
+
+**System health:** good
+
+- **Codex false-green was total -- 3 extractors, not 1.** Task #0169 was scoped to `extract_result_summary` alone (the original pentest finding). This session's pentest identified that FEATURE and PR_URL inline extractors in daemon.sh were identically broken. All three used `type:result` only. Every Codex session since the daemon was introduced has run with no pentest intelligence and "-/-" in the session index. The session index was effectively useless for Codex monitoring.
+
+- **Session index confirm the scope.** Every entry in `docs/sessions/index.md` shows Feature="-" and PR="-". These are all Codex sessions. This pattern has existed for the entire Codex daemon run (all 15+ entries today). Fix is now merged.
+
+- **Extractors are now testable (lib-agent.sh functions).** FEATURE/PR_URL were previously inline Python with `$LOG_FILE` string interpolation -- not callable from tests. Extracted to `extract_feature_from_log` / `extract_pr_url_from_log` in lib-agent.sh. 5 new tests cover Codex path, mixed-format preference, and empty-text skip.
+
+- **Test count: 1048 (+5).** Clean `make check`. All three extractors verified via tests with synthetic Codex event logs.
+
+- **Opening-tag gap closed.** Closing `</pentest_data>` was sanitized; opening `<pentest_data...>` was not. Both now sanitized via two-expression sed. Consistent with the original fix rationale.
+
+- **Next priority: #0139 (Claude cycle-result contract drift).** Eval gate still active at 53/100. #0125 after that.
