@@ -380,3 +380,15 @@ Observations from the meta-layer observer. Appended chronologically.
 - **The pentest pipeline is catching layered vulnerabilities.** Three consecutive sessions (0071, 0072, 0073) each fixed a real issue that was introduced or revealed by the previous session's fix. This is the expected behavior of an iterative red-team loop. The depth is appropriate -- each fix genuinely closes an attack path.
 
 - **Healer loop completed two full cleanup passes.** Session 0071 (overseer) archived stale tasks. Session 0072 + 0073 fixed security findings. Meta-layer is functioning. No OVERSEE trigger (queue at ~43, below the 50 threshold).
+
+---
+
+## 2026-04-06 -- Session daemon-crash-fix
+
+**System health:** caution
+
+- **Daemon was completely broken since PR #143 merged.** `local origin_rc=$?` outside a function crashes bash 3.2 with `set -u`. Zero cycles could complete. The overseer session (#0075) correctly identified this and created urgent tasks, but it's concerning that PR #143's code review didn't catch the `local` misuse. Shell PRs touching the main `while true` loop need extra scrutiny -- `bash -n` does NOT catch `local` outside a function.
+
+- **Security regression also from PR #143.** The exit-code-2 abort logic from PR #142 was overwritten. The pentest identified an additional escalation vector: failed revert + `reset_repo_state` + `exec` self-restart = attacker code execution. Four consecutive security sessions (0072-0076) have all touched `daemon.sh`'s origin-guard code. This area is high-churn and high-risk -- future changes here should get extra review attention.
+
+- **Queue is healthy at 51 pending (0 urgent).** Both daemon blockers fixed. Next cycle should be able to run normally. Cost trend: last 6 sessions averaged ~$4.60 each.

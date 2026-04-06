@@ -230,11 +230,15 @@ ${PENTEST_PROMPT}"
         echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
     fi
     check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"
-    local origin_rc=$?
+    origin_rc=$?
     if [ "$origin_rc" -eq 1 ]; then
         echo "  Pentest preflight pushed prompt/control files to origin/main; reverted and alerting builder."
     elif [ "$origin_rc" -eq 2 ]; then
-        echo "  CRITICAL: Pentest pushed to origin/main and revert FAILED. Resetting to origin/main."
+        echo "  CRITICAL: Pentest pushed to origin/main and revert FAILED. Daemon cannot safely continue."
+        notify_human "Origin revert failed (pentest preflight)" \
+            "check_origin_integrity returned exit code 2 during pentest preflight. Origin/main may contain tampered prompt/control files. Manual intervention required." || true
+        cleanup_prompt_snapshots "$SNAP_DIR"
+        break
     fi
     cleanup_prompt_snapshots "$SNAP_DIR"
     reset_repo_state
@@ -310,11 +314,20 @@ ${PROMPT}"
         PROMPT_TAMPERED=" [PROMPT MODIFIED]"
     fi
     check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"
-    local origin_rc=$?
+    origin_rc=$?
     if [ "$origin_rc" -eq 1 ]; then
         PROMPT_TAMPERED="${PROMPT_TAMPERED} [ORIGIN MODIFIED]"
     elif [ "$origin_rc" -eq 2 ]; then
         PROMPT_TAMPERED="${PROMPT_TAMPERED} [ORIGIN MODIFIED - REVERT FAILED]"
+        ORIGIN_REVERT_FAILED=1
+        END_TIME=$(date +%s)
+        DURATION=$(( END_TIME - START_TIME ))
+        DURATION_MIN=$(( DURATION / 60 ))
+        echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | - | SECURITY ABORT: origin revert failed${PROMPT_TAMPERED} | $FEATURE | - |" >> "$INDEX_FILE"
+        notify_human "Origin revert failed (post-builder)" \
+            "check_origin_integrity returned exit code 2 after builder session $SESSION_ID. Origin/main may contain tampered prompt/control files. The exec self-restart would run attacker code. Manual intervention required." || true
+        cleanup_prompt_snapshots "$SNAP_DIR"
+        break
     fi
     cleanup_prompt_snapshots "$SNAP_DIR"
 
