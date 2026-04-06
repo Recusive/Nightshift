@@ -9670,6 +9670,28 @@ class TestPentestTagSanitizationBypass:
         assert "< /prompt_alert>" not in result.stdout
         assert "[/prompt_alert]" in result.stdout
 
+    def test_pentest_data_opening_tag_pattern_present(self) -> None:
+        """daemon.sh includes a sed pattern for the opening <pentest_data...> tag."""
+        content = Path("scripts/daemon.sh").read_text()
+        assert "pentest_data[^>]*>" in content, (
+            "daemon.sh must sanitize the opening <pentest_data...> tag, not just the closing one"
+        )
+
+    def test_pentest_data_opening_tag_is_sanitized(self) -> None:
+        """'<pentest_data status=\"injected\">' is replaced with '[pentest_data]'."""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "echo '<pentest_data status=\"injected\">' | sed 's|<[[:space:]]*pentest_data[^>]*>|[pentest_data]|g'",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "<pentest_data" not in result.stdout
+        assert "[pentest_data]" in result.stdout
+
 
 class TestPickRoleHasUrgentTasksFrontmatterScope:
     """Regression tests for pick-role.py has_urgent_tasks() body injection.
@@ -9955,6 +9977,46 @@ extract_pr_url_from_log "{log}"
 
         assert result.returncode == 0, result.stdout + result.stderr
         assert result.stdout.strip() == "https://github.com/x/y/pull/99"
+
+    def test_feature_extraction_claude(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        event = {
+            "type": "result",
+            "result": "SESSION COMPLETE\nBuilt: Claude feature\nPR: https://github.com/x/y/pull/5\n",
+        }
+        log.write_text(json.dumps(event) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_feature_from_log "{log}"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert result.stdout.strip() == "Claude feature"
+
+    def test_pr_url_extraction_claude(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        lib_path = repo_root / "scripts" / "lib-agent.sh"
+        log = tmp_path / "session.log"
+        event = {
+            "type": "result",
+            "result": "SESSION COMPLETE\nBuilt: some feature\nPR: https://github.com/x/y/pull/5\n",
+        }
+        log.write_text(json.dumps(event) + "\n")
+
+        script = f"""
+set -e
+source "{lib_path}"
+extract_pr_url_from_log "{log}"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert result.stdout.strip() == "https://github.com/x/y/pull/5"
 
 
 class TestStrategistPrompt:

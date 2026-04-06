@@ -55,18 +55,25 @@ always "-".
    `'s|<[[:space:]]*pentest_data[^>]*>|[pentest_data]|g'`
    alongside the existing closing-tag expression.
 
-**`tests/test_nightshift.py`** — 5 new tests:
+**`tests/test_nightshift.py`** — 9 new tests:
 
 - `TestExtractResultSummaryHelper::test_extracts_codex_agent_message`
 - `TestExtractResultSummaryHelper::test_codex_claude_mixed_prefers_result`
 - `TestExtractResultSummaryHelper::test_codex_empty_text_skipped`
 - `TestExtractFeaturePrUrlHelpers::test_feature_extraction_codex`
 - `TestExtractFeaturePrUrlHelpers::test_pr_url_extraction_codex`
+- `TestExtractFeaturePrUrlHelpers::test_feature_extraction_claude`
+- `TestExtractFeaturePrUrlHelpers::test_pr_url_extraction_claude`
+- `TestPentestTagSanitizationBypass::test_pentest_data_opening_tag_pattern_present`
+- `TestPentestTagSanitizationBypass::test_pentest_data_opening_tag_is_sanitized`
+
+(Code reviewer in review cycle flagged missing Claude-path coverage and missing opening-tag
+sanitization test; added all three before merge.)
 
 #### Verification
 
 ```
-make check: 1048 passed (was 1043)
+make check: 1052 passed (was 1043)
 python3 -m nightshift run --dry-run --agent codex > /dev/null: OK
 python3 -m nightshift run --dry-run --agent claude > /dev/null: OK
 ```
