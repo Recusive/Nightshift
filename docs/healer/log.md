@@ -219,6 +219,14 @@ Observations from the meta-layer observer. Appended chronologically.
 
 ## 2026-04-05 -- Session #0047 (Strategist prompt health)
 
+## 2026-04-06 -- Session #0062 (isolated eval runtime artifacts)
+
+**System health:** caution
+
+- **The eval gate finally moved from cleanup to fidelity.** Task `#0100` is now done: the new `test`-mode runtime-dir helper keeps evaluation state, runner logs, and linked worktrees under `$TMPDIR/nightshift-test-runs/...`. A real `python3 -m nightshift test --cycles 0 --repo-dir <tmp repo>` smoke run left `git status --short` empty in the target repo, so the remaining eval backlog is now `#0101`, `#0102`, and `#0125`, not clone cleanliness.
+- **Trend visibility is still weak because the session index is too sparse.** `docs/sessions/index.md` currently contains only two recent rows, so the required 5-session scan collapses into almost no historical signal. Existing tasks `#0095` and `#0130` still cover index fidelity/persistence, so I did not create a duplicate.
+- **Cost recommendations are still noisy because too many sessions are typed as `unknown`.** `cost_analysis('docs/sessions')` shows 21 of 43 analyzed sessions in the `unknown` bucket at `$25.41/session`, far above the labeled `fix`/`feat`/`overseer` averages. That makes the outlier guidance directionally useful but still under-instrumented; the same session-index fidelity tasks already cover the missing structure.
+
 ## 2026-04-05 -- Session #0058 (Close stale eval startup task)
 **System health:** caution
 

@@ -21,7 +21,7 @@ from nightshift.constants import (
     EVALUATION_SHIFT_TIMEOUT,
 )
 from nightshift.types import DimensionScore, EvaluationResult, ShiftArtifacts
-from nightshift.worktree import resolve_nightshift_dir
+from nightshift.worktree import resolve_runtime_dir
 
 # ---------------------------------------------------------------------------
 # Clone / run helpers
@@ -83,10 +83,10 @@ def run_test_shift(
 
 def parse_shift_artifacts(repo_dir: Path) -> ShiftArtifacts:
     """Read state file and shift log from a completed test shift."""
-    ns_dir = resolve_nightshift_dir(repo_dir)
+    runtime_dirs = _runtime_artifact_dirs(repo_dir)
 
     # State file
-    state_files = sorted(glob.glob(str(ns_dir / "*.state.json")))
+    state_files = _glob_runtime_candidates(runtime_dirs, "*.state.json")
     state: dict[str, object] | None = None
     state_valid = False
     if state_files:
@@ -100,7 +100,7 @@ def parse_shift_artifacts(repo_dir: Path) -> ShiftArtifacts:
     # Shift log
     shift_log = ""
     shift_log_exists = False
-    log_candidates = sorted(glob.glob(str(ns_dir / "SHIFT-LOG*.md")))
+    log_candidates = _shift_log_candidates(runtime_dirs)
     if log_candidates:
         try:
             shift_log = Path(log_candidates[-1]).read_text(encoding="utf-8")
@@ -115,6 +115,38 @@ def parse_shift_artifacts(repo_dir: Path) -> ShiftArtifacts:
         state_file_valid=state_valid,
         shift_log_exists=shift_log_exists,
     )
+
+
+_DATED_SHIFT_LOG_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md"
+
+
+def _runtime_artifact_dirs(repo_dir: Path) -> list[Path]:
+    runtime_dirs: list[Path] = []
+    for test_mode in (False, True):
+        candidate = resolve_runtime_dir(repo_dir, test_mode=test_mode)
+        if candidate not in runtime_dirs:
+            runtime_dirs.append(candidate)
+    return runtime_dirs
+
+
+def _glob_runtime_candidates(runtime_dirs: list[Path], pattern: str) -> list[str]:
+    matches: list[str] = []
+    for runtime_dir in runtime_dirs:
+        matches.extend(glob.glob(str(runtime_dir / pattern)))
+    return sorted(set(matches))
+
+
+def _shift_log_candidates(runtime_dirs: list[Path]) -> list[str]:
+    patterns = [
+        "SHIFT-LOG*.md",
+        _DATED_SHIFT_LOG_GLOB,
+        "worktree-*/*/Nightshift/SHIFT-LOG*.md",
+        f"worktree-*/*/Nightshift/{_DATED_SHIFT_LOG_GLOB}",
+    ]
+    matches: list[str] = []
+    for pattern in patterns:
+        matches.extend(_glob_runtime_candidates(runtime_dirs, pattern))
+    return sorted(set(matches))
 
 
 # ---------------------------------------------------------------------------
