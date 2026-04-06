@@ -137,12 +137,22 @@ def count_stale_tasks(tasks_dir: Path, threshold: int = 20) -> int:
 
 
 def has_urgent_tasks(tasks_dir: Path) -> bool:
-    """Check if any pending task has priority: urgent."""
+    """Check if any pending task has priority: urgent in its YAML frontmatter.
+
+    Reads only the YAML frontmatter block (between the opening and closing ---
+    delimiters) to prevent issue body content from triggering the urgent-task
+    fast path and manipulating role selection.
+    """
     for f in tasks_dir.glob("[0-9]*.md"):
         try:
-            head = f.read_text(encoding="utf-8")[:500]
-            if re.search(r"^status:\s*pending", head, re.MULTILINE) and re.search(
-                r"^priority:\s*urgent", head, re.MULTILINE
+            text = f.read_text(encoding="utf-8")
+            # Extract only the YAML frontmatter block; reject body content.
+            fm_match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+            if not fm_match:
+                continue
+            frontmatter = fm_match.group(1)
+            if re.search(r"^status:\s*pending", frontmatter, re.MULTILINE) and re.search(
+                r"^priority:\s*urgent", frontmatter, re.MULTILINE
             ):
                 return True
         except OSError:

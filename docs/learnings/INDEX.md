@@ -39,6 +39,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [README must match shipped entry points](2026-04-05-readme-must-match-shipped-entrypoints.md) — If there is no console script, document the real module/wrapper entry points and treat README commands as contracts
 
 - [Eval scorer rejected-cycle fallback](2026-04-06-eval-scorer-rejected-cycle-fallback.md) — Rejected cycles store fixes under `cycle_result`, not at top level; scorers must check both paths when counters stay zero
+- [sed POSIX space-before-slash bypass](2026-04-06-sed-posix-space-before-slash.md) — `</ *tag *>` does not match `< /tag>`; use `[[:space:]]*/[[:space:]]*` to catch all whitespace arrangements around the slash
 - [Origin guard new-file blind spot](2026-04-06-origin-guard-new-file-detection.md) — check_origin_integrity must scan PROMPT_GUARD_DIRS for new files (via git ls-tree vs snapshot filelist), not just check PROMPT_GUARD_FILES; guarding eval/autonomy dirs requires this second loop
 - [PROMPT_GUARD_FILES must cover agent-invoking scripts](2026-04-06-prompt-guard-agent-invoker-scripts.md) — Every script that invokes an agent or sources lib-agent.sh must be in PROMPT_GUARD_FILES; PROMPT_GUARD_DIRS only catches new files, not existing ones
 - [Shell injection: env var pattern](2026-04-06-shell-injection-env-var-pattern.md) — Pass agent-controlled text via env vars into `python3 -c`, never by string interpolation; applies to any value extracted from agent output

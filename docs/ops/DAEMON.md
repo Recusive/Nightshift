@@ -340,6 +340,70 @@ manual cleanup should be rare.
 
 ---
 
+## Security Incident Response
+
+If `check_origin_integrity` detects that a file was pushed directly to
+`origin/main` during an agent cycle (exit code 2), the daemon prints a
+`notify_human` alert and breaks out of its loop.  The injected file **remains
+on `origin/main`** and cannot be auto-reverted without risking loss of
+legitimate intervening commits.
+
+### What to do when the daemon aborts with exit code 2
+
+**Step 1 — Kill the daemon session immediately.**
+
+```bash
+tmux kill-session -t nightshift
+```
+
+Do NOT wait, do NOT let the daemon restart.  Each auto-restart calls
+`reset_repo_state` which does `git reset --hard origin/main`, pulling the
+injected file to disk before the guard fires and aborts again.  The injected
+file lands on disk on every restart iteration.
+
+**Step 2 — Remove the injected file from `origin/main` via a PR.**
+
+```bash
+# Identify the injected file from the notify_human message or daemon log
+# Then, on a clean checkout or worktree:
+git checkout -b fix/remove-injected-file origin/main
+git rm path/to/injected/file
+git commit -m "security: remove injected file from guard directory"
+git push origin fix/remove-injected-file
+gh pr create --title "security: remove injected file" --body "Removing file injected during agent cycle. See daemon log for details."
+# Review the PR yourself, then merge
+gh pr merge --merge --admin
+```
+
+**Do NOT direct-push to `main`.**  Even for a security remediation, a PR gives
+you a second look at what you are removing.
+
+**Step 3 — Verify `origin/main` is clean.**
+
+```bash
+git fetch origin
+git log --no-merges --first-parent --oneline origin/main -10
+# Confirm no unexpected direct-push commits remain
+```
+
+**Step 4 — Restart the daemon.**
+
+```bash
+tmux new-session -d -s nightshift "caffeinate -s bash scripts/daemon.sh codex 60"
+```
+
+### TOCTOU window
+
+There is a short window between when the daemon boots (`reset_repo_state`
+pulls the latest `origin/main`) and when `check_origin_integrity` runs its
+comparison.  The guard fires before any agent session starts, so no attacker
+code runs.  However, if the daemon is killed and restarted without remediating
+`origin/main`, the injected file will be checked out to disk on every restart
+iteration.  This is why Step 1 (kill the session) must happen before Step 2
+(remove the file).
+
+---
+
 ## Key Files
 
 | File | What it owns |
