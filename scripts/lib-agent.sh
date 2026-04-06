@@ -36,6 +36,7 @@ PROMPT_GUARD_FILES=(
     "scripts/pick-role.py"
     "scripts/check.sh"
     "scripts/format-stream.py"
+    ".nightshift.json"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
@@ -210,7 +211,9 @@ cleanup_prompt_snapshots() {
 #      snapshot version of each changed file, and force-push the revert to
 #      origin/main so that the subsequent reset_repo_state pulls a clean state.
 #
-# Returns 0 if clean, 1 if tampering was detected (revert attempted).
+# Returns 0 if clean (or PR merge -- legitimate workflow),
+#         1 if tampering detected and revert succeeded,
+#         2 if tampering detected but revert FAILED.
 check_origin_integrity() {
     local repo_dir="$1"
     local snap_dir="$2"
@@ -235,6 +238,18 @@ check_origin_integrity() {
 
     # If hash unchanged, no push occurred during the agent cycle
     if [ -z "$current_hash" ] || [ "$snap_hash" = "$current_hash" ]; then
+        return 0
+    fi
+
+    # Distinguish PR merges from direct pushes.  gh pr merge --merge creates
+    # merge commits (2+ parents).  If every first-parent commit between snap
+    # and current is a merge commit, the changes came through the PR workflow
+    # and should NOT be reverted.  --no-merges excludes merge commits, so an
+    # empty result means all mainline commits are merges.
+    local direct_push_commits
+    direct_push_commits=$(git -C "$repo_dir" rev-list --first-parent --no-merges \
+        "$snap_hash..$current_hash" 2>/dev/null || true)
+    if [ -z "$direct_push_commits" ]; then
         return 0
     fi
 
@@ -290,6 +305,7 @@ check_origin_integrity() {
                 echo "  Reverted origin/main to pre-session state."
             else
                 echo "  WARNING: Revert push failed -- origin/main may still contain tampered files."
+                revert_failed=1
             fi
         else
             echo "  WARNING: Could not restore snapshot files -- revert push skipped."
@@ -310,7 +326,12 @@ check_origin_integrity() {
         fi
     fi
 
-    return "$changed"
+    if [ "$changed" -ne 0 ]; then
+        # 1 = tampered + reverted OK, 2 = tampered + revert failed
+        [ "$revert_failed" -ne 0 ] && return 2
+        return 1
+    fi
+    return 0
 }
 
 # ----------------------------------------------
