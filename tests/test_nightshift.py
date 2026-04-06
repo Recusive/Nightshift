@@ -326,7 +326,11 @@ class TestMergeConfig:
         nightshift.merge_config(tmp_path)
         assert nightshift.DEFAULT_CONFIG["blocked_paths"] == original
 
-    def test_model_config_defaults(self, tmp_path):
+    def test_model_config_defaults(self, tmp_path, monkeypatch):
+        # Unset env overrides so we test the hardcoded defaults, not local env.
+        monkeypatch.delenv("NIGHTSHIFT_CLAUDE_MODEL", raising=False)
+        monkeypatch.delenv("NIGHTSHIFT_CODEX_MODEL", raising=False)
+        monkeypatch.delenv("NIGHTSHIFT_CODEX_THINKING", raising=False)
         config = nightshift.merge_config(tmp_path)
         assert config["claude_model"] == "claude-opus-4-6"
         assert config["claude_effort"] == "max"

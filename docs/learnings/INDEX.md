@@ -38,6 +38,8 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Post-merge smoke checks need explicit prompt contracts](2026-04-06-post-merge-smoke-contract.md) — Pre-merge `make check` is not enough; if main must prove both agent entry paths still boot, Step 9 needs the exact dry-run commands and tests
 - [README must match shipped entry points](2026-04-05-readme-must-match-shipped-entrypoints.md) — If there is no console script, document the real module/wrapper entry points and treat README commands as contracts
 
+- [Shell injection: env var pattern](2026-04-06-shell-injection-env-var-pattern.md) — Pass agent-controlled text via env vars into `python3 -c`, never by string interpolation; applies to any value extracted from agent output
+
 ## Code Patterns
 
 - [Escalation pattern for prompt directives](2026-04-03-escalation-pattern.md) — Standalone function returns directive string; build_prompt() assembles

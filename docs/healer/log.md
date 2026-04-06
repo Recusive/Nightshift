@@ -342,3 +342,17 @@ Observations from the meta-layer observer. Appended chronologically.
 
 - **Post-merge smoke coverage is now explicit instead of implied.** `docs/prompt/evolve.md` Step 9 and `docs/prompt/evolve-auto.md` now both require `python3 -m nightshift run --dry-run --agent codex > /dev/null` and the matching claude command on `main` after CI passes, and `tests/test_nightshift.py` locks those commands in place. This closes task `#0093` and removes a real self-validating gap where merged main relied on a human remembering the dry-runs.
 - **The next self-validating gaps are evidence quality, not missing commands.** `docs/sessions/index-review.md` still has no reviewer rows (`#0107`), and snapshot/test-count consistency is still tracked separately in `#0095`, `#0124`, and `#0130`.
+
+---
+
+## 2026-04-06 -- Session #0068 (Security: pentest fixes #0142/#0143/#0144)
+
+**System health:** good
+
+- **Pentest preflight is now catching and closing real vulnerabilities.** Three shell injection findings were confirmed and fixed this session: `after_task` env-var fix (#0142), PR_TITLE sanitization (#0143), and XML-wrapper escape (#0144 — self-demonstrating, found and fixed in the same cycle). The pentest preflight is working as designed.
+
+- **Session index blank feature cells persist across ALL recent sessions.** Every row in the last 15 session entries has an empty feature cell (`-`). This is the known #0095/#0130 issue. Cost analysis shows 55 sessions analyzed with ~20% `task_type=unknown`. Not creating a duplicate task.
+
+- **Pre-existing test isolation bug hit CI.** `test_model_config_defaults` silently fails in any environment where `NIGHTSHIFT_CLAUDE_MODEL` is set. This was already failing on main before this PR. Fixed with `monkeypatch.delenv()`. The broader pattern: tests should always isolate themselves from host environment variables when testing default behavior.
+
+- **Residual injection surface: `$agent` still interpolated in `run_evaluation()`.** `agent='$agent'` on lib-agent.sh line 521 is a lower-risk residual from the same pattern as #0142. `$agent` is daemon-controlled ("codex"/"claude"), not agent-output, so exploitation requires compromising the daemon invocation itself. Not creating a task — the queue is at 50+ pending and this risk is minimal.

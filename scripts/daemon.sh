@@ -177,6 +177,10 @@ while true; do
         PR_NUM=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['number'])" 2>/dev/null || true)
         PR_TITLE=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['title'])" 2>/dev/null || true)
         PR_BRANCH=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['headRefName'])" 2>/dev/null || true)
+        # Sanitize PR_TITLE and PR_BRANCH before injecting into prompts -- strip
+        # characters that could carry instruction-like content (prompt injection).
+        PR_TITLE=$(echo "$PR_TITLE" | tr -cd '[:alnum:] /()\-_.,:#' | cut -c1-80)
+        PR_BRANCH=$(echo "$PR_BRANCH" | tr -cd '[:alnum:]/_.-' | cut -c1-80)
         if [ -n "$PR_NUM" ]; then
             OPEN_PR="OPEN PR FROM PREVIOUS SESSION: PR #${PR_NUM} (${PR_TITLE}) on branch ${PR_BRANCH}. Check its CI status. If CI passes, merge it with: gh pr merge ${PR_NUM} --merge --delete-branch --admin. If CI fails, checkout the branch, fix the issue, push, and merge. Do NOT rebuild this feature from scratch."
             echo "  Found open PR #${PR_NUM}: ${PR_TITLE}"
@@ -208,6 +212,10 @@ ${PENTEST_PROMPT}"
         PENTEST_STATUS="failed (exit $PENTEST_EXIT_CODE)"
     fi
     PENTEST_REPORT=$(extract_result_summary "$PENTEST_LOG_FILE")
+    # Sanitize: prevent agent-crafted closing tags from escaping the data wrapper.
+    # If the pentest agent quotes daemon.sh source (which contains the literal tag),
+    # the raw tag would break the pentest_data XML boundary in the builder prompt.
+    PENTEST_REPORT=$(printf '%s' "$PENTEST_REPORT" | sed 's|</pentest_data>|[/pentest_data]|g')
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
     fi
