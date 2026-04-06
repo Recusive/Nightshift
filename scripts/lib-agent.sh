@@ -37,6 +37,8 @@ PROMPT_GUARD_FILES=(
     "scripts/check.sh"
     "scripts/format-stream.py"
     ".nightshift.json"
+    ".github/workflows/ci.yml"
+    ".github/workflows/notify-orbitweb.yml"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
@@ -45,6 +47,7 @@ PROMPT_GUARD_DIRS=(
     "docs/prompt"
     "docs/prompt/feedback"
     "scripts"
+    ".github/workflows"
 )
 
 # save_prompt_snapshots REPO_DIR
@@ -242,19 +245,16 @@ check_origin_integrity() {
         return 0
     fi
 
-    # Distinguish PR merges from direct pushes.  gh pr merge --merge creates
-    # merge commits (2+ parents).  If every first-parent commit between snap
-    # and current is a merge commit, the changes came through the PR workflow
-    # and should NOT be reverted.  --no-merges excludes merge commits, so an
-    # empty result means all mainline commits are merges.
-    local direct_push_commits
-    direct_push_commits=$(git -C "$repo_dir" rev-list --first-parent --no-merges \
-        "$snap_hash..$current_hash" 2>/dev/null || true)
-    if [ -z "$direct_push_commits" ]; then
-        return 0
-    fi
-
     # Hash changed -- inspect which guard files were modified on origin/main.
+    # For each changed file, verify that a non-merge (direct-push) commit was
+    # responsible.  Legitimate PR merges produce two-parent merge commits; the
+    # daemon also pushes handoff commits directly to main (documented exception).
+    # Checking the per-file commit history prevents false reverts when a handoff
+    # commit follows a PR merge that legitimately changed a guard file:
+    #   snap -> [PR merge commit touching daemon.sh] -> [handoff commit (no guard files)]
+    # In that case the guard file diff is real but was caused by the merge, not
+    # a direct push of the guard file itself.
+    #
     # Use a single temp file (truncated per iteration) to avoid trailing-newline
     # stripping from command substitution and mktemp-failure leak in a loop.
     local files_to_restore=()
@@ -266,6 +266,17 @@ check_origin_integrity() {
         : > "$origin_tmp"  # truncate between iterations
         git -C "$repo_dir" show "origin/main:$f" > "$origin_tmp" 2>/dev/null || continue
         if ! diff -q "$snapshot" "$origin_tmp" >/dev/null 2>&1; then
+            # Guard file changed on origin/main.  Check whether a non-merge
+            # (direct-push) commit specifically touched this file.  If only
+            # merge commits modified it, it came through the PR workflow and is
+            # legitimate -- skip without alerting.
+            local file_direct_push
+            file_direct_push=$(git -C "$repo_dir" log --no-merges \
+                --first-parent --format="%H" \
+                "$snap_hash..$current_hash" -- "$f" 2>/dev/null || true)
+            if [ -z "$file_direct_push" ]; then
+                continue
+            fi
             if [ "$changed" -eq 0 ]; then
                 echo ""
                 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
