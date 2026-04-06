@@ -1,6 +1,6 @@
 # Module Map
 
-Last updated: 2026-04-06 by session #0080
+Last updated: 2026-04-06 by session #0083
 Generated via: `python3 -m nightshift module-map --write`
 Stale after: 5 newer sessions without a refresh
 
@@ -31,7 +31,7 @@ Read it before opening modules one by one when you need fast orientation.
 | `profiler.py` | 569 | Repo profiling for Loop 2 -- detects language, framework, dependencies, structure. | `profile_repo` | PR #78 (5cc11a3) |
 | `worktree.py` | 232 | Git worktree lifecycle: create, shift log, sync, revert, cleanup. | `canonical_repo_relative_path`, `resolve_nightshift_dir`, `resolve_shift_log_relative_dir`, `resolve_test_runtime_dir` | PR #126 (7f7131d) |
 | `cycle.py` | 925 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | PR #128 (4e32c37) |
-| `evaluation.py` | 949 | Self-evaluation loop: score nightshift runs against real repos. | `clone_target_repo`, `run_test_shift`, `parse_shift_artifacts`, `score_startup` | session #0080 |
+| `evaluation.py` | 949 | Self-evaluation loop: score nightshift runs against real repos. | `clone_target_repo`, `run_test_shift`, `parse_shift_artifacts`, `score_startup` | PR #158 (825f9f6) |
 | `planner.py` | 483 | Feature planner for Loop 2 -- builds structured plans from repo profiles. | `build_plan_prompt`, `validate_plan`, `parse_plan`, `execution_order` | PR #78 (5cc11a3) |
 | `subagent.py` | 281 | Sub-agent spawner for Loop 2 -- executes work orders via codex or claude CLI. | `spawn_task`, `spawn_wave`, `format_wave_result`, `_TASK_COMPLETION_REQUIRED_KEYS` | PR #33 (bd23cc4) |
 | `decomposer.py` | 175 | Task decomposer for Loop 2 -- converts FeaturePlans into sub-agent work orders. | `build_work_order_prompt`, `decompose_plan`, `format_work_orders` | PR #78 (5cc11a3) |
@@ -50,8 +50,8 @@ Topological order derived from internal `nightshift.*` imports.
 
 ## Recent Shipped Sessions
 
+- PR #158: docs: address review findings -- handoff sections, guard learning, follow-up tasks
 - PR #157: fix: permanently deploy pentest fixes via all-PR strategy (4th attempt)
 - PR #156: fix: re-apply pentest fixes and break false-revert loop (3rd time)
 - PR #155: fix: re-apply 2 pentest findings via PR (pipe injection + CI guard)
 - PR #154: fix: review follow-up -- early-exit comment + strip newlines from FEATURE/PR_URL
-- PR #153: fix: off-by-one in _DAEMON_CYCLE export + review follow-up tasks
