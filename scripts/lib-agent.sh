@@ -310,6 +310,9 @@ archive_done_tasks() {
 
     if [ "$count" -gt 0 ]; then
         echo "  Archived $count done task(s) to archive/"
+        git add -A "$tasks_dir/" 2>/dev/null || true
+        git commit -m "task: archive $count done task(s)" --quiet 2>/dev/null || true
+        git push origin main --quiet 2>/dev/null || true
     fi
 }
 
@@ -336,6 +339,9 @@ for e in r['errors']:
 " 2>/dev/null) || true
     if [ -n "$result" ]; then
         echo "$result"
+        git add -A "$handoffs_dir/" 2>/dev/null || true
+        git commit -m "docs: compact old handoffs" --quiet 2>/dev/null || true
+        git push origin main --quiet 2>/dev/null || true
     fi
 }
 
