@@ -22,7 +22,6 @@
 
 PROMPT_GUARD_FILES=(
     "CLAUDE.md"
-    "docs/prompt/unified.md"
     "docs/prompt/evolve.md"
     "docs/prompt/evolve-auto.md"
     "docs/prompt/pentest.md"
@@ -31,12 +30,16 @@ PROMPT_GUARD_FILES=(
     "docs/prompt/strategist.md"
     "docs/prompt/achieve.md"
     "docs/prompt/harden-daemon.md"
+    "scripts/daemon.sh"
+    "scripts/lib-agent.sh"
+    "scripts/pick-role.py"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
 # Directories to scan for new prompt-like files post-cycle.
 PROMPT_GUARD_DIRS=(
     "docs/prompt"
+    "scripts"
 )
 
 # save_prompt_snapshots REPO_DIR
