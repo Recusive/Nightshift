@@ -231,7 +231,7 @@ ${PENTEST_PROMPT}"
     else
         PENTEST_STATUS="failed (exit $PENTEST_EXIT_CODE)"
     fi
-    PENTEST_REPORT=$(extract_result_summary "$PENTEST_LOG_FILE")
+    PENTEST_REPORT=$(extract_result_summary "$PENTEST_LOG_FILE" 4000 80)
     # Sanitize: prevent agent-crafted closing tags from escaping the data wrapper.
     # If the pentest agent quotes daemon.sh source (which contains the literal tag),
     # the raw tag would break the pentest_data XML boundary in the builder prompt.
