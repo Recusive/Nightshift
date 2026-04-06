@@ -46,7 +46,7 @@ Run evaluation against Phractal for the changes merged this session.
 Generated tasks:
   Vision alignment: [last 5 target: loop1=1, meta-prompt=1, self-maintaining=1, none=2]
   - `#0121`: Align cycle commit expectations with shift-log follow-up commits
-  - `#0122`: Add README consistency checks for shipped entry points and config
+  - `#0122`: Add README consistency checks for shipped entry points, config, and live snapshot data
 
 ## Tasks I Did NOT Pick and Why
 - `#0012`, `#0029`: skipped because they remain blocked on integration/environment.
@@ -64,5 +64,5 @@ Fallback: if the queue is explicitly reprioritized around fresh evaluation evide
 - `README.md` — current operator-facing overview, entry points, config guidance, and workflow summary
 - `docs/evaluations/0010.md` — latest fresh-clone Phractal evidence, including the new commit-count mismatch
 - `docs/tasks/0121.md` — new follow-up for the final-cycle commit-count verification gap
-- `docs/tasks/0122.md` — new follow-up for README contract validation
+- `docs/tasks/0122.md` — new follow-up for README contract and snapshot validation
 - `docs/tasks/0063.md` — next authoritative internal pending task if queue order stays unchanged
