@@ -43,14 +43,13 @@ Added two new helpers: `_extract_cycle_fixes(cycle)` and `_extract_cycle_issues(
 Both handle accepted cycles (top-level `fixes` field) and rejected cycles (`cycle_result`
 nesting) transparently.
 
-Added 5 regression tests:
+Added 4 regression tests:
 - `test_rejected_cycle_fixes_counted`
 - `test_rejected_cycle_with_real_title_gets_quality_points`
 - `test_rejected_cycle_fix_quality_scored`
 - `test_rejected_cycle_usefulness_counted`
-- `TestScoreFixQuality.test_rejected_cycle_fix_quality_scored` (inside class)
 
-Tests: 1016 passing (was 1012, +4 net from this session).
+Tests: 1016 passing (was 1012, +4 this session).
 
 ## PR
 - (see this session's PR)
@@ -82,3 +81,23 @@ Tasks I Did NOT Pick and Why:
 ## Queue Status
 Pentest: 2 confirmed findings fixed (watchdog.sh + 3 legacy daemons added to guard list).
 Eval gate: #0102 done, #0139 and #0125 remain active.
+
+## Tracker Delta
+92% → 92% (no percentage movement; test count 1012 → 1016, bug note updated in Loop 1)
+
+## Learnings Applied
+- "Prompt guard origin blind spot" (2026-04-06-prompt-guard-origin-blind-spot.md)
+  Confirmed that omitting a script from PROMPT_GUARD_FILES is a real attack vector,
+  not a theoretical one. Used to validate the watchdog.sh and legacy daemon findings
+  as genuine gaps requiring fixes, not false positives.
+
+## Generated Tasks
+Vision alignment (last 5 tasks: loop1=3, loop2=0, self-maintaining=1, meta-prompt=1, none=0)
+No new tasks -- queue already covers what I observed. Two advisory notes from the
+code reviewer will be tracked as follow-up tasks per REVIEW NOTES RULE (see below).
+
+## Review Advisory Tasks Created
+- #0162: score_discovery/score_fix_quality asymmetry in mixed accepted+rejected runs
+  (dimension: code quality, vision: loop1, priority: low)
+- #0163: missing test for accepted cycle with empty fixes list in _extract_cycle_fixes
+  (dimension: code quality, vision: loop1, priority: low)
