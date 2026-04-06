@@ -205,6 +205,14 @@ cleanup_old_logs() {
     local log_dir="$1"
     local keep_days="${2:-7}"
     local result
+
+    case "$keep_days" in
+        ''|*[!0-9]*)
+            echo "  Log rotation error: keep_days must be numeric: $keep_days"
+            return 0
+            ;;
+    esac
+
     result=$(PYTHONPATH="$REPO_DIR" python3 -c "
 from nightshift.cleanup import rotate_logs
 r = rotate_logs('$log_dir', $keep_days)
