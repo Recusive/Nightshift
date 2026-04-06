@@ -82,8 +82,9 @@ python3 -m nightshift run --dry-run --agent claude > /dev/null: OK
 
 ## Generated Tasks
 
-No new tasks created — the queue already covers the known gaps (#0139, #0125 are the
-priorities). Healer observation noted that #0139 and #0125 remain next.
+- **#0170**: Deduplicate stream-json dual-format parsing logic across lib-agent.sh extractors
+  (dimension: code quality, vision: self-maintaining, priority: low)
+  — code-review advisory from this session; three functions share identical 20-line loops
 
 ---
 
