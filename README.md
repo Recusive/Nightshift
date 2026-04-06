@@ -21,14 +21,15 @@
 
 ## This repo maintains itself
 
-Most of the code in this repository was written, tested, reviewed, and merged by AI agents. The control plane currently has four daemon entry points:
+Most of the code in this repository was written, tested, reviewed, and merged by AI agents. One unified daemon (`scripts/daemon.sh`) auto-selects from five roles each cycle via `scripts/pick-role.py`:
 
 - **Builder**: reads the task queue, runs a pentest preflight, builds or fixes one scoped task, tests it, opens a PR, reviews it, and merges it
 - **Reviewer**: audits shipped code and fixes quality gaps
 - **Overseer**: audits process drift, task hygiene, and systemic issues
 - **Strategist**: produces a top-down health report for humans
+- **Achiever**: measures autonomy score (0-100), eliminates human dependencies
 
-The human role is operational: start a daemon, monitor it, and redirect when priorities change. The agents own the engineering loop.
+The human role is operational: start the daemon and monitor it. The agents own the engineering loop -- including deciding what to work on.
 
 **Proof points live in the repo, not in marketing copy.** Check them directly:
 

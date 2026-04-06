@@ -33,7 +33,7 @@ python3 -m nightshift module-map --write   # refresh docs/architecture/MODULE_MA
 
 One unified daemon that picks its own role each cycle. Full guide: `docs/ops/DAEMON.md`
 
-Each cycle the agent reads system signals (eval scores, task queue size, session history) and scores four roles. The highest score wins:
+Each cycle `scripts/pick-role.py` reads system signals (eval scores, task queue size, session history) and scores five roles. The highest score wins:
 - **BUILD**: picks up tasks, builds features, PRs, merges. Includes pentest preflight and healer observations.
 - **REVIEW**: reviews code file by file, fixes quality issues. Triggered after 5+ consecutive builds.
 - **OVERSEE**: audits task queue, fixes priorities, culls stale tasks. Triggered when 50+ pending tasks accumulate.

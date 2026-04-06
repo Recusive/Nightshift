@@ -71,11 +71,11 @@ Read these files and compute the autonomy score. Do this EVERY session before fi
 
 | Check | Points | How to verify |
 |-------|--------|---------------|
-| Unified daemon picks its own role each cycle | 5 | Check: does `unified.md` exist? Is `daemon.sh` loading it? |
+| Unified daemon picks its own role each cycle | 5 | Check: does `scripts/pick-role.py` exist? Is `daemon.sh` calling it? |
 | Task queue self-generates from system observation | 5 | Check: does `evolve.md` Step 6o (Generate Work) exist? Are tasks being created? |
 | Releases cut automatically (no release tasks needed) | 5 | Check: does `evolve.md` Step 11 have the release algorithm? Has it released anything? (check `git tag`) |
 | Stale tasks get attention (staleness multiplier or overseer culling) | 5 | Check: do stale tasks eventually get picked or culled? (check task archive) |
-| Strategy reviews trigger automatically (not manually) | 5 | Check: does `unified.md` scoring trigger STRATEGIZE? Has it run? (check `docs/strategy/`) |
+| Strategy reviews trigger automatically (not manually) | 5 | Check: does `scripts/pick-role.py` scoring trigger STRATEGIZE? Has it run? (check `docs/strategy/`) |
 
 ### Self-Validating (25 points)
 
