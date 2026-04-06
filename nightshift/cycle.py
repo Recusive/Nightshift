@@ -668,6 +668,22 @@ def expected_fix_commits(cycle_result: CycleResult | None) -> int | None:
     return len(cycle_result.get("fixes", []))
 
 
+def allowed_total_cycle_commits(cycle_result: CycleResult | None) -> tuple[int, int] | None:
+    """Return a bounded total-commit range for a cycle.
+
+    Each fix needs one non-log commit. Agents may either co-commit the shift log
+    or follow a fix with a separate shift-log-only commit, and the final wrap-up
+    may add one extra shift-log-only summary commit.
+    """
+    if cycle_result is None:
+        return None
+    fixes = cycle_result.get("fixes", [])
+    logged_issues = cycle_result.get("logged_issues", [])
+    min_commits = len(fixes) if fixes else (1 if logged_issues else 0)
+    max_commits = (len(fixes) * 2) + (1 if logged_issues and not fixes else 0) + 1
+    return (min_commits, max_commits)
+
+
 def evaluate_baseline(
     *,
     worktree_dir: Path,
@@ -772,6 +788,14 @@ def verify_cycle(
                 f"{fix_commits} commit(s) touching non-log files but structured output implies "
                 f"{expected_non_log_commits}."
             )
+        total_commit_range = allowed_total_cycle_commits(cycle_result)
+        if total_commit_range is not None:
+            min_total_commits, max_total_commits = total_commit_range
+            if len(commits) < min_total_commits or len(commits) > max_total_commits:
+                violations.append(
+                    f"Cycle created {len(commits)} total commits but allowed range is "
+                    f"{min_total_commits}-{max_total_commits}."
+                )
         for fix in cycle_result.get("fixes", []):
             if len(set(fix.get("files", []))) > int(config["max_files_per_fix"]):
                 violations.append(

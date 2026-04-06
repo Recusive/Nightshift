@@ -20,7 +20,7 @@ Read it before opening modules one by one when you need fast orientation.
 | `compact.py` | 318 | Handoff compaction -- merges numbered handoff files into weekly summaries. | `compact_handoffs`, `_NUMBERED_RE`, `_SECTION_RE`, `_DATE_RE` | PR #83 (56e0c97) |
 | `coordination.py` | 192 | Sub-agent coordination for Loop 2 -- detects file overlaps and generates hints. | `extract_file_references`, `detect_overlaps`, `generate_coordination_hints`, `inject_hints` | PR #72 (a5a3e47) |
 | `costs.py` | 672 | Cost tracking for daemon sessions -- parse token usage from logs and maintain a ledger. | `parse_session_tokens`, `calculate_cost`, `read_ledger`, `write_ledger` | PR #89 (7211bd4) |
-| `evaluation.py` | 873 | Self-evaluation loop: score nightshift runs against real repos. | `clone_target_repo`, `run_test_shift`, `parse_shift_artifacts`, `score_startup` | PR #75 (07cbf18) |
+| `evaluation.py` | 874 | Self-evaluation loop: score nightshift runs against real repos. | `clone_target_repo`, `run_test_shift`, `parse_shift_artifacts`, `score_startup` | session #0055 |
 | `module_map.py` | 298 | Generate a persistent module map for fast cross-session orientation. | `module_map_path`, `generate_module_map`, `render_module_map`, `write_module_map` | PR #86 (77e5c25) |
 | `readiness.py` | 211 | Production-readiness checks for Loop 2 feature builds. | `collect_changed_files`, `check_secrets`, `check_debug_prints`, `check_test_coverage` | PR #69 (3877225) |
 | `scoring.py` | 113 | Post-cycle diff scoring: evaluates production impact of cycle changes. | `score_diff`, `log_score` | PR #10 (3e5f98f) |
@@ -30,7 +30,7 @@ Read it before opening modules one by one when you need fast orientation.
 | `e2e.py` | 113 | End-to-end test runner for Loop 2 feature builds. | `infer_test_command`, `detect_smoke_test`, `run_e2e_tests`, `_MAKEFILE_TEST_TARGET` | PR #70 (95ef827) |
 | `profiler.py` | 569 | Repo profiling for Loop 2 -- detects language, framework, dependencies, structure. | `profile_repo` | PR #78 (5cc11a3) |
 | `worktree.py` | 213 | Git worktree lifecycle: create, shift log, sync, revert, cleanup. | `canonical_repo_relative_path`, `resolve_nightshift_dir`, `validate_worktree`, `validate_repo_checkout` | session #0055 |
-| `cycle.py` | 831 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | session #0055 |
+| `cycle.py` | 855 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | session #0055 |
 | `planner.py` | 483 | Feature planner for Loop 2 -- builds structured plans from repo profiles. | `build_plan_prompt`, `validate_plan`, `parse_plan`, `execution_order` | PR #78 (5cc11a3) |
 | `subagent.py` | 281 | Sub-agent spawner for Loop 2 -- executes work orders via codex or claude CLI. | `spawn_task`, `spawn_wave`, `format_wave_result`, `_TASK_COMPLETION_REQUIRED_KEYS` | PR #33 (bd23cc4) |
 | `decomposer.py` | 175 | Task decomposer for Loop 2 -- converts FeaturePlans into sub-agent work orders. | `build_work_order_prompt`, `decompose_plan`, `format_work_orders` | PR #78 (5cc11a3) |

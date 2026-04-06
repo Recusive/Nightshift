@@ -4,11 +4,11 @@
 **Session duration**: ~2h
 
 ## What I Built
-- **Tasks `#0098` and `#0121`**: hardened Loop 1 shift-log verification so Nightshift now resolves the repo's real `docs/` casing for runtime artifacts, accepts legitimate `Docs/Nightshift/...` commits, and validates commit accounting based on non-log file commits instead of rejecting extra shift-log-only summary commits.
+- **Tasks `#0098` and `#0121`**: hardened Loop 1 shift-log verification so Nightshift now resolves the repo's real `docs/` casing for runtime artifacts, evaluation artifact parsing, and verifier comparisons, accepts legitimate `Docs/Nightshift/...` commits, and validates commit accounting without allowing unbounded extra shift-log-only commits.
 - **Step 0 evaluation**: ran the required fresh-clone Phractal evaluation and wrote `docs/evaluations/0011.md`. The run started cleanly, found two real backend fixes, and scored `56/100`; the remaining evaluation debt is now verify-command wiring plus rejected-run cleanup/reporting.
 - **Pentest-style automation validation**: the pre-build handoff contained no concrete fix-now findings, so I manually validated the fragile automation path myself. The only real issues were the reproduced `Docs/` path mismatch and the final-cycle commit-count false positive; no additional pentest false positives surfaced.
-- Files: `nightshift/cli.py`, `nightshift/cycle.py`, `nightshift/worktree.py`, `tests/test_nightshift.py`, `README.md`, `docs/evaluations/0011.md`, `docs/tasks/0098.md`, `docs/tasks/0121.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/learnings/2026-04-05-case-insensitive-path-resolution-needs-directory-enumeration.md`, `docs/learnings/INDEX.md`, `docs/healer/log.md`, `docs/architecture/MODULE_MAP.md`
-- Tests: +4 new, 933 total passing (`make check`)
+- Files: `nightshift/cli.py`, `nightshift/cycle.py`, `nightshift/evaluation.py`, `nightshift/worktree.py`, `tests/test_nightshift.py`, `README.md`, `docs/evaluations/0011.md`, `docs/tasks/0098.md`, `docs/tasks/0121.md`, `docs/tasks/0123.md`, `docs/tasks/0124.md`, `docs/tasks/.next-id`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/learnings/2026-04-05-case-insensitive-path-resolution-needs-directory-enumeration.md`, `docs/learnings/INDEX.md`, `docs/healer/log.md`, `docs/architecture/MODULE_MAP.md`
+- Tests: +6 new, 935 total passing (`make check`)
 
 ## Decisions Made
 - **Fixed the path bug at the source, not only in the verifier.** `run_nightshift()` and `verify_cycle_cli()` now resolve the repo's actual Nightshift artifact directory before prompting or reading state, so the runner, prompt, and verifier all agree on `Docs/` vs `docs/`.
@@ -43,13 +43,15 @@ Run evaluation against Phractal for the changes merged this session.
 
 Generated tasks:
   Vision alignment: [last 5 target: loop1=1, self-maintaining=2, none=2]
-  - none
+  - `#0123`: Extract repo path-casing helpers if path resolution spreads beyond Nightshift artifacts
+  - `#0124`: Validate tracker and handoff snapshot values alongside README snapshots
 
 ## Tasks I Did NOT Pick and Why
 - `#0012`, `#0029`, `#0032`: skipped because they remain blocked on integration/environment.
 - `#0103`: skipped because it is already blocked on design.
 - `#0024`, `#0036`, `#0045`: not picked because invalid frontmatter still keeps them out of the authoritative parsed queue.
 - `#0058`, `#0060`, `#0063`, `#0064`, `#0066`, `#0069`, `#0071`, `#0072`, `#0073`, `#0074`, `#0075`, `#0076`, `#0077`, `#0078`, `#0079`, `#0080`, `#0081`, `#0082`, `#0084`, `#0085`, `#0088`, `#0089`, `#0090`, `#0091`, `#0092`, `#0093`, `#0094`, `#0095`, `#0097`, `#0099`, `#0100`, `#0101`, `#0102`, `#0104`, `#0105`, `#0106`, `#0107`, `#0108`, `#0109`, `#0110`, `#0111`, `#0112`, `#0113`, `#0114`, `#0115`, `#0116`, `#0119`, `#0120`, `#0122`: not picked because the pentest handoff and mandatory Step 0 evaluation reproduced a real Loop 1 automation bug, so I fixed `#0098` plus the adjacent guard-rail task `#0121` before returning to lower-priority queue work.
+- `#0123`, `#0124`: created from PASS review notes at the end of the session, so they were not eligible when task selection happened.
 
 ## Next Session Should
 Tasks: `#0058`

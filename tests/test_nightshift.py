@@ -3116,6 +3116,41 @@ class TestShiftLogVerificationTolerance:
         assert not valid
         assert any("touching non-log files" in v for v in verification["violations"])
 
+    def test_too_many_shift_log_only_commits_still_rejected(self, tmp_path: Path) -> None:
+        """Extra shift-log-only commits stay bounded instead of being unlimited."""
+        repo, pre_head = self._setup_repo(tmp_path)
+        shift_log_rel = "docs/Nightshift/2026-04-03.md"
+        (repo / "src").mkdir()
+        (repo / "src" / "auth.py").write_text("# fixed\n")
+        subprocess.run(["git", "add", "src/auth.py"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix: auth"], cwd=repo, capture_output=True, check=True)
+
+        for index in range(1, 4):
+            (repo / shift_log_rel).write_text(f"# Updated shift log\n## Update {index}\n")
+            subprocess.run(["git", "add", shift_log_rel], cwd=repo, capture_output=True, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", f"docs: update shift log {index}"],
+                cwd=repo,
+                capture_output=True,
+                check=True,
+            )
+
+        valid, verification = nightshift.verify_cycle(
+            worktree_dir=repo,
+            shift_log_relative=shift_log_rel,
+            pre_head=pre_head,
+            cycle_result={
+                "status": "completed",
+                "fixes": [{"title": "auth fix", "files": ["src/auth.py"]}],
+                "logged_issues": [],
+            },
+            config=self._base_config(),
+            state=self._base_state(),
+            runner_log=tmp_path / "runner.log",
+        )
+        assert not valid
+        assert any("total commits" in v for v in verification["violations"])
+
 
 # --- Dry Run Integration ----------------------------------------------------
 
@@ -11246,6 +11281,17 @@ class TestParseShiftArtifacts:
         arts = nightshift.parse_shift_artifacts(tmp_path)
         assert arts["shift_log_exists"]
         assert "Nightshift" in arts["shift_log"]
+
+    def test_uses_existing_docs_case(self, tmp_path):
+        ns_dir = tmp_path / "Docs" / "Nightshift"
+        ns_dir.mkdir(parents=True)
+        state = {"version": 1, "cycles": []}
+        (ns_dir / "test.state.json").write_text(json.dumps(state))
+        (ns_dir / "SHIFT-LOG.md").write_text("# Nightshift log")
+        arts = nightshift.parse_shift_artifacts(tmp_path)
+        assert arts["state_file_valid"]
+        assert arts["shift_log_exists"]
+        assert arts["state"] == state
 
 
 class TestRunTestShift:
