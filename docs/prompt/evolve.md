@@ -350,7 +350,7 @@ You are not a task runner. You are the engineer who owns this system. Before end
 | Security / robustness | Edge cases that crash? Input validation gaps? Auto-merge exploitable? Secrets exposed? |
 
 **Constraints:**
-- **Queue-aware cap.** Count pending tasks in `docs/tasks/`. If 40+ pending, create 0 new tasks. If 30-39 pending, max 1 task. If under 30, max 3 tasks. Creating tasks is NOT mandatory — create 0 if nothing important was discovered. The queue must not grow faster than the system can close tasks.
+- **Create only what matters.** If you found a real bug, edge case, or missing test — create a task. If you didn't discover anything new — create 0. Never create tasks just to fill a quota. Check for duplicates first (scan pending tasks). The OVERSEE role handles queue cleanup.
 - **Check for duplicates first.** Scan all pending tasks in `docs/tasks/`. If a task already covers your idea, skip it or update the existing task instead.
 - **Span multiple dimensions.** If you create 3 tasks, they should not all be "code quality." Spread across at least 2 different dimensions.
 - **Vision alignment check.** Before creating tasks, read the last 5 task files (by number). Check their `vision_section` field. If 3+ target the same section, your new tasks MUST prioritize a different section. Check `docs/vision-tracker/TRACKER.md` — lower-percentage sections need more attention. Set `vision_section` in every new task's frontmatter (`loop1`, `loop2`, `self-maintaining`, `meta-prompt`, or `none`). Exception: if a section has urgent bugs or blockers, alignment can be overridden — explain why in the task description.
