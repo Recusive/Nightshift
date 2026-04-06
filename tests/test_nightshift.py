@@ -8935,12 +8935,95 @@ exit $RC
         assert result.returncode == 0, result.stdout + result.stderr
         assert "ORIGIN/MAIN CHANGED" not in result.stdout
 
+    def test_revert_failure_returns_exit_code_2(self, tmp_path: Path) -> None:
+        """check_origin_integrity returns 2 when tampering is detected but revert push fails.
+
+        Makes origin read-only after the attacker pushes so the revert force-push
+        cannot write, forcing return code 2 (daemon must abort instead of resetting).
+        """
+        origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
+        attacker_dir = tmp_path / "attacker"
+        subprocess.run(
+            ["git", "clone", str(origin_dir), str(attacker_dir)],
+            check=True,
+            capture_output=True,
+        )
+        for key, val in [("user.email", "evil@evil.com"), ("user.name", "Evil")]:
+            subprocess.run(
+                ["git", "-C", str(attacker_dir), "config", key, val],
+                check=True,
+                capture_output=True,
+            )
+
+        script = f"""
+set -e
+source "{self.LIB}"
+cd "{repo_dir}"
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+
+# Attacker pushes malicious CLAUDE.md to origin/main
+echo "malicious content" > "{attacker_dir}/CLAUDE.md"
+git -C "{attacker_dir}" add CLAUDE.md
+git -C "{attacker_dir}" commit -m "attack" --quiet
+git -C "{attacker_dir}" push origin HEAD:main --quiet
+
+# Make origin read-only so the revert push cannot write to it.
+# git fetch still works (reads origin; writes to local repo_dir refs).
+# git push fails (needs to write to origin_dir).
+chmod -R a-w "{origin_dir}"
+
+set +e
+check_origin_integrity "{repo_dir}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+
+# Restore permissions so pytest can remove tmp_path
+chmod -R u+w "{origin_dir}"
+
+exit $RC
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 2, (
+            f"Expected revert-failed exit code 2, got rc={result.returncode}:\n" + result.stdout + result.stderr
+        )
+        assert "ORIGIN/MAIN CHANGED" in result.stdout
+        assert "WARNING" in result.stdout
+
+    def test_nightshift_json_in_prompt_guard_files(self, tmp_path: Path) -> None:
+        """check .nightshift.json is in PROMPT_GUARD_FILES (notify_human webhook risk).
+
+        notify_human() already reads notification_webhook from .nightshift.json.
+        A builder agent could redirect all daemon alerts to an attacker URL if
+        this file is not guarded.
+        """
+        script = f"""
+source "{self.LIB}"
+for f in "${{PROMPT_GUARD_FILES[@]}}"; do
+    if [ "$f" = ".nightshift.json" ]; then
+        echo "FOUND"
+        exit 0
+    fi
+done
+echo "MISSING"
+exit 1
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 0, (
+            ".nightshift.json not in PROMPT_GUARD_FILES -- notify_human webhook SSRF risk:\n"
+            + result.stdout
+            + result.stderr
+        )
+        assert "FOUND" in result.stdout
+
     def test_detects_push_without_working_tree_change(self, tmp_path: Path) -> None:
         """check_origin_integrity detects a guard file pushed to origin/main.
 
         Simulates the blind spot attack: agent modifies a prompt file, pushes to
         origin/main, then reverts the local working tree so check_prompt_integrity
         sees nothing -- but check_origin_integrity catches the push.
+
+        Returns 1 (tampered + revert succeeded) because the test bare repo allows
+        force-pushes (no branch protection).
         """
         origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
 
@@ -8979,7 +9062,7 @@ exit $RC
 """
         result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
         assert result.returncode == 1, (
-            f"Expected blind spot detection (rc=1), got rc={result.returncode}:\n" + result.stdout + result.stderr
+            f"Expected tampered+reverted (rc=1), got rc={result.returncode}:\n" + result.stdout + result.stderr
         )
         assert "ORIGIN/MAIN CHANGED" in result.stdout
 
