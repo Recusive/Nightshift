@@ -82,7 +82,7 @@ pick_session_role() {
     # Last line is the clean role name (stdout), everything else is reasoning (stderr)
     SESSION_ROLE=$(echo "$role_output" | tail -1 | tr -d '[:space:]')
     # Print reasoning to daemon output (everything except last line)
-    echo "$role_output" | head -n -1
+    echo "$role_output" | sed '$d'
     case "$SESSION_ROLE" in
         build)      ROLE_PROMPT="$REPO_DIR/docs/prompt/evolve.md" ;;
         review)     ROLE_PROMPT="$REPO_DIR/docs/prompt/review.md" ;;
@@ -157,6 +157,7 @@ while true; do
     NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon.sh" 2>/dev/null | cut -d' ' -f1)
     if [ -n "${_DAEMON_HASH:-}" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
         echo "  daemon.sh changed on main -- restarting with new code..."
+        rmdir "$LOCKFILE" 2>/dev/null || true
         exec bash "$SCRIPT_DIR/daemon.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
     fi
     export _DAEMON_HASH="$NEW_HASH"
@@ -316,7 +317,7 @@ for line in open('$LOG_FILE'):
                 if l.startswith('Built:'):
                     print(l.replace('Built:', '').strip()[:50])
                     sys.exit(0)
-    except: pass
+    except Exception: pass
 print('-')
 " 2>/dev/null || echo "-")
 
@@ -331,7 +332,7 @@ for line in open('$LOG_FILE'):
                 if l.startswith('PR:'):
                     print(l.replace('PR:', '').strip()[:60])
                     sys.exit(0)
-    except: pass
+    except Exception: pass
 print('-')
 " 2>/dev/null || echo "-")
 

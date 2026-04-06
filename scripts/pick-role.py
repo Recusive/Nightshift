@@ -235,7 +235,7 @@ def compute_scores(signals: dict) -> dict[str, int]:
     review = 10
     if cb >= 5:
         review += 40
-    if hs == "concern":
+    if hs in ("concern", "caution"):
         review += 30
     if sr >= 10:
         review += 20
@@ -248,7 +248,7 @@ def compute_scores(signals: dict) -> dict[str, int]:
         oversee += 50
     if st >= 3:
         oversee += 40
-    if hs == "concern" and pt >= 30:
+    if hs in ("concern", "caution") and pt >= 30:
         oversee += 30
 
     # STRATEGIZE
