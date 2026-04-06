@@ -85,6 +85,7 @@ class CycleResult(TypedDict, total=False):
     files_touched: list[str]
     tests_run: list[str]
     notes: str
+    fixes_count_only: int  # set when agent used count fields instead of fixes[]
 
 
 class CycleVerification(TypedDict):

@@ -456,3 +456,15 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Opening-tag gap closed.** Closing `</pentest_data>` was sanitized; opening `<pentest_data...>` was not. Both now sanitized via two-expression sed. Consistent with the original fix rationale.
 
 - **Next priority: #0139 (Claude cycle-result contract drift).** Eval gate still active at 53/100. #0125 after that.
+
+## 2026-04-06 -- Session cycle-result-count-only-fallback (#0139)
+
+**System health:** good
+
+- **Eval gate fix confirmed viable.** Task #0139 was the confirmed root cause of the 53/100 eval score: `_as_cycle_result` captured `fixes_committed: 1` in prose notes only. All three downstream verifiers (`expected_fix_commits`, `allowed_total_cycle_commits`, `expected_cycle_commits`) read `fixes == []` and returned 0 / (0,1). Added `fixes_count_only: int` typed field and updated all three functions. 18 regression tests. Gate remains blocked until a real evaluation is re-run.
+
+- **Vision alignment: 4 of last 5 tasks targeted self-maintaining.** The queue is skewing toward security/infrastructure. After #0125 (eval clean-state scoring, loop1), the next session should look at loop1 or meta-prompt tasks to rebalance.
+
+- **Test count: 1079 (+18).** Clean `make check`.
+
+- **Next priority: #0125 (eval clean-state scoring).** Re-running the evaluation after this merge should lift the score above 80 if the count-only drift was the primary blocker.

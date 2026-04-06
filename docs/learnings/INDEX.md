@@ -40,6 +40,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [README must match shipped entry points](2026-04-05-readme-must-match-shipped-entrypoints.md) — If there is no console script, document the real module/wrapper entry points and treat README commands as contracts
 
 - [Eval scorer rejected-cycle fallback](2026-04-06-eval-scorer-rejected-cycle-fallback.md) — Rejected cycles store fixes under `cycle_result`, not at top level; scorers must check both paths when counters stay zero
+- [Count-only fallback must thread to all verifier callers](2026-04-06-count-only-fallback-thread-to-verifiers.md) — When agent returns count fields instead of a list, store a typed fallback field and update every downstream verifier; prose notes alone are invisible to code
 - [sed POSIX space-before-slash bypass](2026-04-06-sed-posix-space-before-slash.md) — `</ *tag *>` does not match `< /tag>`; use `[[:space:]]*/[[:space:]]*` to catch all whitespace arrangements around the slash
 - [Origin guard new-file blind spot](2026-04-06-origin-guard-new-file-detection.md) — check_origin_integrity must scan PROMPT_GUARD_DIRS for new files (via git ls-tree vs snapshot filelist), not just check PROMPT_GUARD_FILES; guarding eval/autonomy dirs requires this second loop
 - [PROMPT_GUARD_FILES must cover agent-invoking scripts](2026-04-06-prompt-guard-agent-invoker-scripts.md) — Every script that invokes an agent or sources lib-agent.sh must be in PROMPT_GUARD_FILES; PROMPT_GUARD_DIRS only catches new files, not existing ones
