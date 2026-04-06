@@ -47,6 +47,14 @@ PROMPT_GUARD_FILES=(
 )
 
 # Directories to scan for new prompt-like files post-cycle.
+#
+# docs/evaluations/ and docs/autonomy/ are included because pick-role.py reads
+# them to gate BUILD sessions.  False-positive risk is low:
+#   - Daemon-triggered eval files (run_evaluation) are written after the guards
+#     run and are never committed; reset_repo_state wipes them at cycle start.
+#   - Agent-created eval files go through the PR workflow (merge commits), so
+#     the non-merge-commit filter in check_origin_integrity allows them.
+# Only direct-push new files in these dirs are flagged -- the intended behavior.
 PROMPT_GUARD_DIRS=(
     "docs/prompt"
     "docs/prompt/feedback"
