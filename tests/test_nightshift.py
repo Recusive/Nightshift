@@ -11576,6 +11576,52 @@ class TestScoreDiscovery:
         s = nightshift.score_discovery(arts)
         assert s["score"] == 0
 
+    def test_rejected_cycle_fixes_counted(self):
+        """Fixes nested in rejected-cycle cycle_result are counted when counters are zero."""
+        state = _make_good_state()
+        state["counters"]["fixes"] = 0
+        state["counters"]["issues_logged"] = 0
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "rejected",
+                "cycle_result": {
+                    "fixes": [
+                        {"title": "Fix CORS headers", "category": "Security", "impact": "high", "files": ["api.py"]},
+                    ],
+                    "logged_issues": [
+                        {"title": "Missing rate limit", "category": "Security", "severity": "high"},
+                    ],
+                },
+                "verification": {},
+            }
+        ]
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_discovery(arts)
+        assert s["score"] > 0
+        assert "fix(es)" in s["notes"]
+        assert "issue(s)" in s["notes"]
+
+    def test_rejected_cycle_with_real_title_gets_quality_points(self):
+        """Rejected-cycle fixes with real titles earn the title-quality bonus."""
+        state = _make_good_state()
+        state["counters"]["fixes"] = 0
+        state["counters"]["issues_logged"] = 0
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "rejected",
+                "cycle_result": {
+                    "fixes": [{"title": "Add input validation", "category": "Security", "impact": "high", "files": []}],
+                },
+                "verification": {},
+            }
+        ]
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_discovery(arts)
+        # Title is >5 chars, so quality bonus should apply
+        assert s["score"] >= 7  # 3 (fix) + 4 (title quality)
+
 
 class TestScoreFixQuality:
     def test_good_fixes(self):
@@ -11607,6 +11653,31 @@ class TestScoreFixQuality:
         arts = _make_eval_artifacts(state=state)
         s = nightshift.score_fix_quality(arts)
         assert "all fixes low impact" in s["notes"]
+
+    def test_rejected_cycle_fix_quality_scored(self):
+        """Fix quality scoring uses cycle_result data for rejected cycles."""
+        state = _make_good_state()
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "rejected",
+                "cycle_result": {
+                    "fixes": [
+                        {
+                            "title": "Add error handling to payments",
+                            "category": "Error Handling",
+                            "impact": "high",
+                            "files": ["payments.py"],
+                        }
+                    ]
+                },
+                "verification": {},
+            }
+        ]
+        arts = _make_eval_artifacts(state=state)
+        s = nightshift.score_fix_quality(arts)
+        assert s["score"] > 0
+        assert "no fixes" not in s["notes"]
 
 
 class TestScoreShiftLog:
@@ -11771,6 +11842,31 @@ class TestScoreUsefulness:
         arts = _make_eval_artifacts(state={}, shift_log="", shift_log_exists=False)
         s = nightshift.score_usefulness(arts)
         assert s["score"] == 0
+
+    def test_rejected_cycle_usefulness_counted(self):
+        """Rejected-cycle fixes contribute to usefulness when counters are zero."""
+        state = _make_good_state()
+        state["counters"]["fixes"] = 0
+        state["counters"]["issues_logged"] = 0
+        state["counters"]["tests_written"] = 0
+        state["cycles"] = [
+            {
+                "cycle": 1,
+                "status": "rejected",
+                "cycle_result": {
+                    "fixes": [
+                        {"title": "Fix auth bug", "files": ["auth.py"]},
+                        {"title": "Add validation", "files": ["api.py"]},
+                        {"title": "Handle edge case", "files": ["utils.py"]},
+                    ],
+                },
+                "verification": {},
+            }
+        ]
+        arts = _make_eval_artifacts(state=state, shift_log="", shift_log_exists=False)
+        s = nightshift.score_usefulness(arts)
+        # 3 fixes from rejected cycle should score >= 4 (the >=3 threshold)
+        assert s["score"] >= 4
 
 
 class TestScoreAllDimensions:

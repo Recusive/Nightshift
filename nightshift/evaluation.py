@@ -171,6 +171,41 @@ def _get_counters(state: dict[str, object]) -> dict[str, object]:
     return dict(counters) if isinstance(counters, dict) else {}
 
 
+def _extract_cycle_fixes(cycle: object) -> list[dict[str, object]]:
+    """Extract the fix list from a cycle record regardless of accept/reject status.
+
+    Accepted cycles store fixes at the top level (promoted by append_cycle_state).
+    Rejected cycles store fixes nested under cycle_result, which is preserved
+    in state but not counted in the aggregate counters.
+    """
+    if not isinstance(cycle, dict):
+        return []
+    direct = cycle.get("fixes")
+    if isinstance(direct, list):
+        return [f for f in direct if isinstance(f, dict)]
+    cycle_result = cycle.get("cycle_result")
+    if isinstance(cycle_result, dict):
+        nested = cycle_result.get("fixes")
+        if isinstance(nested, list):
+            return [f for f in nested if isinstance(f, dict)]
+    return []
+
+
+def _extract_cycle_issues(cycle: object) -> list[dict[str, object]]:
+    """Extract logged_issues from a cycle record regardless of accept/reject status."""
+    if not isinstance(cycle, dict):
+        return []
+    direct = cycle.get("logged_issues")
+    if isinstance(direct, list):
+        return [i for i in direct if isinstance(i, dict)]
+    cycle_result = cycle.get("cycle_result")
+    if isinstance(cycle_result, dict):
+        nested = cycle_result.get("logged_issues")
+        if isinstance(nested, list):
+            return [i for i in nested if isinstance(i, dict)]
+    return []
+
+
 def score_startup(artifacts: ShiftArtifacts) -> DimensionScore:
     """Score: did the runner start correctly?"""
     score = 0
@@ -214,11 +249,23 @@ def score_discovery(artifacts: ShiftArtifacts) -> DimensionScore:
 
     state = _get_state_dict(artifacts)
     counters = _get_counters(state)
+    cycles = _get_cycles(state)
 
     fixes = counters.get("fixes", 0)
     fixes_count = int(fixes) if isinstance(fixes, (int, float)) else 0
     issues = counters.get("issues_logged", 0)
     issues_count = int(issues) if isinstance(issues, (int, float)) else 0
+
+    # When all cycles were rejected the aggregate counters stay at zero.
+    # Fall back to nested cycle_result data so rejected runs aren't scored
+    # as if no work was done.
+    if fixes_count == 0 and issues_count == 0:
+        all_cycle_fixes = [f for c in cycles for f in _extract_cycle_fixes(c)]
+        all_cycle_issues = [i for c in cycles for i in _extract_cycle_issues(c)]
+        if all_cycle_fixes or all_cycle_issues:
+            fixes_count = len(all_cycle_fixes)
+            issues_count = len(all_cycle_issues)
+            notes_parts.append("(from rejected cycles)")
 
     if fixes_count >= 1:
         score += 3
@@ -232,18 +279,13 @@ def score_discovery(artifacts: ShiftArtifacts) -> DimensionScore:
     else:
         notes_parts.append("no issues logged")
 
-    # Check fix quality in cycle data
-    cycles = _get_cycles(state)
+    # Check fix quality across all cycles (accepted and rejected).
     has_real_titles = False
     for cycle in cycles:
-        if isinstance(cycle, dict):
-            cycle_fixes = cycle.get("fixes")
-            if isinstance(cycle_fixes, list):
-                for fix in cycle_fixes:
-                    if isinstance(fix, dict):
-                        title = fix.get("title", "")
-                        if isinstance(title, str) and len(title) > 5:
-                            has_real_titles = True
+        for fix in _extract_cycle_fixes(cycle):
+            title = fix.get("title", "")
+            if isinstance(title, str) and len(title) > 5:
+                has_real_titles = True
 
     if has_real_titles:
         score += 4
@@ -267,14 +309,8 @@ def score_fix_quality(artifacts: ShiftArtifacts) -> DimensionScore:
     state = _get_state_dict(artifacts)
     cycles = _get_cycles(state)
 
-    all_fixes: list[dict[str, object]] = []
-    for cycle in cycles:
-        if isinstance(cycle, dict):
-            cycle_fixes = cycle.get("fixes")
-            if isinstance(cycle_fixes, list):
-                for fix in cycle_fixes:
-                    if isinstance(fix, dict):
-                        all_fixes.append(fix)
+    # Collect fixes from all cycles including rejected ones (via cycle_result).
+    all_fixes: list[dict[str, object]] = [f for c in cycles for f in _extract_cycle_fixes(c)]
 
     if not all_fixes:
         return DimensionScore(
@@ -626,12 +662,19 @@ def score_usefulness(artifacts: ShiftArtifacts) -> DimensionScore:
 
     state = _get_state_dict(artifacts)
     counters = _get_counters(state)
+    cycles = _get_cycles(state)
 
-    # Produced actionable output
+    # Produced actionable output.  When all cycles were rejected the aggregate
+    # counters stay at zero; fall back to nested cycle_result data.
     raw_fixes = counters.get("fixes", 0)
     fixes = int(raw_fixes) if isinstance(raw_fixes, (int, float)) else 0
     raw_issues = counters.get("issues_logged", 0)
     issues = int(raw_issues) if isinstance(raw_issues, (int, float)) else 0
+    if fixes == 0 and issues == 0:
+        all_cycle_fixes = [f for c in cycles for f in _extract_cycle_fixes(c)]
+        all_cycle_issues = [i for c in cycles for i in _extract_cycle_issues(c)]
+        fixes = len(all_cycle_fixes)
+        issues = len(all_cycle_issues)
     if fixes + issues >= 3:
         score += 4
     elif fixes + issues >= 1:
