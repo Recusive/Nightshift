@@ -20,7 +20,9 @@ read_latest_eval_score = pick_role_mod.read_latest_eval_score
 read_latest_autonomy_score = pick_role_mod.read_latest_autonomy_score
 read_healer_status = pick_role_mod.read_healer_status
 count_pending_tasks = pick_role_mod.count_pending_tasks
+count_stale_tasks = pick_role_mod.count_stale_tasks
 has_urgent_tasks = pick_role_mod.has_urgent_tasks
+_read_frontmatter = pick_role_mod._read_frontmatter
 
 
 def make_signals(**overrides: object) -> dict:
@@ -386,3 +388,90 @@ class TestPickRoleTiebreaker:
     def test_urgent_always_build(self) -> None:
         scores = {"build": 10, "review": 100, "oversee": 100, "strategize": 100, "achieve": 100}
         assert pick_role(scores, urgent=True) == "build"
+
+
+# ---------------------------------------------------------------------------
+# Frontmatter helper and body-injection regression tests (tasks #0167, #0168)
+# ---------------------------------------------------------------------------
+
+
+class TestReadFrontmatter:
+    """Unit tests for the _read_frontmatter helper."""
+
+    def test_returns_frontmatter_content(self, tmp_path: Path) -> None:
+        f = tmp_path / "0001.md"
+        f.write_text("---\nstatus: pending\npriority: normal\n---\n# Body\n")
+        fm = _read_frontmatter(f)
+        assert fm == "status: pending\npriority: normal"
+
+    def test_no_frontmatter_returns_none(self, tmp_path: Path) -> None:
+        f = tmp_path / "0001.md"
+        f.write_text("# No frontmatter\nstatus: pending\n")
+        assert _read_frontmatter(f) is None
+
+    def test_crlf_line_endings_parsed(self, tmp_path: Path) -> None:
+        f = tmp_path / "0001.md"
+        f.write_bytes(b"---\r\nstatus: pending\r\npriority: urgent\r\n---\r\n# Body\r\n")
+        fm = _read_frontmatter(f)
+        assert fm is not None
+        assert "status: pending" in fm
+        assert "priority: urgent" in fm
+
+    def test_missing_file_returns_none(self, tmp_path: Path) -> None:
+        assert _read_frontmatter(tmp_path / "nonexistent.md") is None
+
+
+class TestCountPendingTasksFrontmatterScope:
+    """Regression: count_pending_tasks must not count body content (task #0167)."""
+
+    def test_counts_pending_in_frontmatter(self, tmp_path: Path) -> None:
+        (tmp_path / "0001.md").write_text("---\nstatus: pending\n---\n# Task")
+        (tmp_path / "0002.md").write_text("---\nstatus: done\n---\n# Task")
+        assert count_pending_tasks(tmp_path) == 1
+
+    def test_body_status_pending_is_not_counted(self, tmp_path: Path) -> None:
+        # Task is done in frontmatter; body happens to contain 'status: pending'
+        (tmp_path / "0001.md").write_text("---\nstatus: done\n---\n\nstatus: pending\nSome body text.\n")
+        assert count_pending_tasks(tmp_path) == 0
+
+    def test_no_frontmatter_not_counted(self, tmp_path: Path) -> None:
+        (tmp_path / "0001.md").write_text("status: pending\nNo delimiters.\n")
+        assert count_pending_tasks(tmp_path) == 0
+
+    def test_crlf_task_file_counted(self, tmp_path: Path) -> None:
+        (tmp_path / "0001.md").write_bytes(b"---\r\nstatus: pending\r\n---\r\n# Task\r\n")
+        assert count_pending_tasks(tmp_path) == 1
+
+
+class TestCountStaleTasksFrontmatterScope:
+    """Regression: count_stale_tasks must not count body content (task #0167)."""
+
+    def test_body_status_pending_not_counted_as_stale(self, tmp_path: Path) -> None:
+        # Frontmatter says done; body has 'status: pending' AND old created date
+        (tmp_path / "0001.md").write_text(
+            "---\nstatus: done\ncreated: 2020-01-01\n---\n\nstatus: pending\ncreated: 2020-01-01\n"
+        )
+        assert count_stale_tasks(tmp_path, threshold=1) == 0
+
+    def test_old_pending_task_counted(self, tmp_path: Path) -> None:
+        (tmp_path / "0001.md").write_text("---\nstatus: pending\ncreated: 2020-01-01\n---\n# Old task\n")
+        assert count_stale_tasks(tmp_path, threshold=1) == 1
+
+    def test_new_pending_task_not_counted(self, tmp_path: Path) -> None:
+        from datetime import date
+
+        today = date.today().isoformat()
+        (tmp_path / "0001.md").write_text(f"---\nstatus: pending\ncreated: {today}\n---\n# New task\n")
+        assert count_stale_tasks(tmp_path, threshold=20) == 0
+
+
+class TestHasUrgentTasksCRLF:
+    """Regression: has_urgent_tasks must detect urgent tasks in CRLF files (task #0168)."""
+
+    def test_crlf_urgent_task_detected(self, tmp_path: Path) -> None:
+        (tmp_path / "0001.md").write_bytes(b"---\r\nstatus: pending\r\npriority: urgent\r\n---\r\n# Body\r\n")
+        assert has_urgent_tasks(tmp_path) is True
+
+    def test_crlf_non_urgent_task_not_detected(self, tmp_path: Path) -> None:
+        (tmp_path / "0001.md").write_bytes(b"---\r\nstatus: pending\r\npriority: normal\r\n---\r\n# Body\r\n")
+        assert has_urgent_tasks(tmp_path) is False

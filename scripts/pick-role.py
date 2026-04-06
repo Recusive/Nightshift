@@ -99,64 +99,73 @@ def count_sessions_since_role(rows: list[dict[str, str]], role: str) -> int:
     return len(rows)
 
 
+def _read_frontmatter(f: Path) -> str | None:
+    """Read and return the YAML frontmatter block of a task file.
+
+    Returns the content between the opening and closing '---' delimiters,
+    or None if the file cannot be read or has no valid frontmatter block.
+    Handles both Unix (LF) and Windows (CRLF) line endings.
+
+    Restricting reads to frontmatter prevents issue body content from
+    influencing role-selection signals (task #0167, task #0168).
+    """
+    try:
+        text = f.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    fm_match = re.match(r"^---\r?\n(.*?)\r?\n---", text, re.DOTALL)
+    if not fm_match:
+        return None
+    return fm_match.group(1)
+
+
 def count_pending_tasks(tasks_dir: Path) -> int:
-    """Count task files with status: pending."""
+    """Count task files with status: pending in their YAML frontmatter."""
     count = 0
     for f in tasks_dir.glob("[0-9]*.md"):
-        try:
-            head = f.read_text(encoding="utf-8")[:500]
-            if re.search(r"^status:\s*pending", head, re.MULTILINE):
-                count += 1
-        except OSError:
+        frontmatter = _read_frontmatter(f)
+        if frontmatter is None:
             continue
+        if re.search(r"^status:\s*pending", frontmatter, re.MULTILINE):
+            count += 1
     return count
 
 
 def count_stale_tasks(tasks_dir: Path, threshold: int = 20) -> int:
-    """Count pending tasks older than threshold sessions."""
+    """Count pending tasks older than threshold days using YAML frontmatter only."""
     count = 0
     for f in tasks_dir.glob("[0-9]*.md"):
-        try:
-            head = f.read_text(encoding="utf-8")[:500]
-            if not re.search(r"^status:\s*pending", head, re.MULTILINE):
-                continue
-            # Rough staleness: check created date vs today
-            match = re.search(r"^created:\s*(\d{4}-\d{2}-\d{2})", head, re.MULTILINE)
-            if match:
-                from datetime import datetime, timezone
+        frontmatter = _read_frontmatter(f)
+        if frontmatter is None:
+            continue
+        if not re.search(r"^status:\s*pending", frontmatter, re.MULTILINE):
+            continue
+        match = re.search(r"^created:\s*(\d{4}-\d{2}-\d{2})", frontmatter, re.MULTILINE)
+        if match:
+            from datetime import datetime, timezone
 
+            try:
                 created = datetime.strptime(match.group(1), "%Y-%m-%d").replace(
                     tzinfo=timezone.utc
                 )
                 age_days = (datetime.now(tz=timezone.utc) - created).days
                 if age_days >= threshold:
                     count += 1
-        except (OSError, ValueError):
-            continue
+            except ValueError:
+                continue
     return count
 
 
 def has_urgent_tasks(tasks_dir: Path) -> bool:
-    """Check if any pending task has priority: urgent in its YAML frontmatter.
-
-    Reads only the YAML frontmatter block (between the opening and closing ---
-    delimiters) to prevent issue body content from triggering the urgent-task
-    fast path and manipulating role selection.
-    """
+    """Check if any pending task has priority: urgent in its YAML frontmatter."""
     for f in tasks_dir.glob("[0-9]*.md"):
-        try:
-            text = f.read_text(encoding="utf-8")
-            # Extract only the YAML frontmatter block; reject body content.
-            fm_match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-            if not fm_match:
-                continue
-            frontmatter = fm_match.group(1)
-            if re.search(r"^status:\s*pending", frontmatter, re.MULTILINE) and re.search(
-                r"^priority:\s*urgent", frontmatter, re.MULTILINE
-            ):
-                return True
-        except OSError:
+        frontmatter = _read_frontmatter(f)
+        if frontmatter is None:
             continue
+        if re.search(r"^status:\s*pending", frontmatter, re.MULTILINE) and re.search(
+            r"^priority:\s*urgent", frontmatter, re.MULTILINE
+        ):
+            return True
     return False
 
 
