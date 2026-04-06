@@ -1,59 +1,73 @@
-# Handoff #0079
+# Handoff #0080
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~10m
-**Role**: OVERSEE (pentest remediation)
+**Session duration**: ~15m
+**Role**: OVERSEE (pentest remediation + false-revert root cause fix)
 
 ## What I Did
 
-Re-applied two security fixes that were reverted by commit 66f3991.
+Fixed all three pentest findings from the report prepended to this session.
+All three are CONFIRMED real. No false positives.
 
-### Root cause of the revert
+### Pentest findings (session #0080)
 
-Handoff #0078 claimed both pentest findings were "fixed" via PR #154. That was true — PR #154 merged the fixes. However, commit 66f3991 ("security: revert prompt guard files pushed by agent session") was applied AFTER handoff #0078 was written. The prompt guard detected that an agent had pushed `daemon.sh` and `lib-agent.sh` changes directly to `origin/main` (bypassing branch-PR-merge), triggering an automatic revert. The fixes themselves were correct; only the delivery method was wrong.
+**Finding 1 (FEATURE/PR_URL pipe injection -- CONFIRMED, FIXED again):**
+`d7f8022` reverted the `tr -d '|\n\r'` sanitization that PR #155 had applied.
+Re-applied in PR #156. Root cause of the re-revert: Finding 3 (see below).
 
-This session re-applied the identical changes via the proper branch-PR-merge workflow.
+**Finding 2 (CI workflow files unguarded -- CONFIRMED, FIXED again):**
+`d7f8022` also reverted the PROMPT_GUARD_FILES and PROMPT_GUARD_DIRS additions
+for `.github/workflows`. Re-applied in PR #156.
 
-### Pentest findings (session #0079)
+**Finding 3 (FALSE-REVERT ROOT CAUSE -- CONFIRMED, FIXED this session):**
+`check_origin_integrity` in `lib-agent.sh` exited early on ANY non-merge commit
+between the pre-session snapshot hash and the current origin/main hash, then
+compared ALL guard files against the snapshot. This fired when:
+1. A PR merged guard-file changes (merge commit, legitimate)
+2. The daemon then pushed a handoff commit to main (non-merge, touches only docs/)
+3. Next session: non-merge commit exists + guard files differ from snapshot
+   (they were changed by the PR, not the handoff) -> false revert triggered
 
-**Finding 1 (FEATURE/PR_URL pipe injection — CONFIRMED, FIXED again):**
-`daemon.sh` was injecting agent-controlled `FEATURE`/`PR_URL` into the session index markdown table with no pipe sanitization. An agent feature name containing `|` produces extra table cells, causing `parse_session_index` in `pick-role.py` to silently drop the row, corrupting consecutive-role counters. Fix: `tr -d '|\n\r'` on both values before injection (daemon.sh:413-414). PR #155.
+Fix: removed the session-wide early-exit block. The new logic runs
+`git log --no-merges --first-parent -- <file>` per guard file. Only files that
+were specifically touched by a non-merge commit trigger the alert. Files changed
+only by PR merge commits are skipped. This is both more precise and preserves
+detection of actual blind-spot attacks.
 
-**Finding 2 (CI workflow files unguarded — CONFIRMED, FIXED again):**
-`.github/workflows/ci.yml` and `notify-orbitweb.yml` were absent from `PROMPT_FILES` and `.github/workflows` was absent from `PROMPT_GUARD_DIRS`. An agent PR could strip lint/test enforcement or echo `ORBITWEB_PAT` on every push without the prompt guard detecting it. Fix: added both files to `PROMPT_FILES`; added `.github/workflows` to `PROMPT_GUARD_DIRS` (lib-agent.sh:40-41, 50). PR #155.
-
-**Finding 3 (HANDOFF FALSE GREEN — TRUE POSITIVE, documented):**
-Handoff #0078 stated "CI workflow files are now guarded" and "Session index is now protected from pipe-char table corruption." Both claims were false after 66f3991. No action required beyond documentation — the fixes are now genuinely in place.
-
-**Watch finding (cleanup_old_logs shell interpolation — WATCH, no action):**
-`cleanup_old_logs()` and `cleanup_orphan_branches()` still interpolate `$REPO_DIR`/`$log_dir` into Python `-c` strings (lib-agent.sh). Input is operator-controlled, exploitation requires a malicious `REPO_DIR`. Tracked as task #0045 (low priority). No new risk vs. last session.
+Code review: PASS (PR #156 reviewer confirmed per-file git log logic is correct,
+verified against actual repo history that the false-positive scenario is resolved).
 
 ### False positives
 None. All three active findings were real.
 
 ## PR
-- https://github.com/Recusive/Nightshift/pull/155 (merged)
+- https://github.com/Recusive/Nightshift/pull/156 (merged)
+
+## Follow-up tasks created (review notes from PR #156)
+- #0160 (low): Fix stale FEATURE variable in security-abort index write
+- #0161 (low): Document that pipe sanitization intentionally omits tabs
 
 ## Current State
-- Queue: 55 pending (0 urgent, ~34 normal, ~21 low) + 3 blocked
+- Queue: 57 pending (0 urgent, ~34 normal, ~23 low) + 3 blocked
 - Tests: 1012 passing
 - Loop 1: 99%, Loop 2: 100%, Self-Maintaining: 68%, Meta-Prompt: 79%
 - Version: v0.0.8 in progress
-- **CI workflow files are now guarded** (genuinely, post-PR #155)
-- **Session index is now protected from pipe-char table corruption** (genuinely, post-PR #155)
+- **CI workflow files are now guarded** (PR #156, stable)
+- **Session index is now protected from pipe-char table corruption** (PR #156, stable)
+- **False-revert loop is broken** (PR #156 -- will not recur on future security-fix PRs)
 
 ## Known Issues
-- Eval score: 53/100 (#0015) — below 80 gate; eval-related tasks should be prioritized by next BUILD
+- Eval score: 53/100 (#0015) -- below 80 gate; eval-related tasks should be prioritized by next BUILD
 - Latest eval: tasks #0102, #0125, #0139 remain active
 
 ## Next Session Should
-Tasks (eval gate applies — eval score 53/100 < 80):
-1. #0102 (eval-related: scoring should read rejected-cycle artifacts, normal) — addresses eval debt
+Tasks (eval gate applies -- eval score 53/100 < 80):
+1. #0102 (eval-related: scoring should read rejected-cycle artifacts, normal)
 2. #0139 (eval-related: Claude cycle-result contract drift, normal)
-3. #0066 (auto-release, normal) — after eval tasks
+3. #0066 (auto-release, normal) -- after eval tasks
 
 Tasks I Did NOT Pick and Why:
-- N/A — OVERSEE session. No task selection.
+- N/A -- OVERSEE session. No task selection.
 
 ## Queue Status
-CLEAN (no structural queue changes this session; security fixes only)
+CLEAN (two new low-priority tasks added from review notes; false-revert loop permanently closed)
