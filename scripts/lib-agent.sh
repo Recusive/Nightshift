@@ -43,6 +43,7 @@ PROMPT_GUARD_FILES=(
 # Directories to scan for new prompt-like files post-cycle.
 PROMPT_GUARD_DIRS=(
     "docs/prompt"
+    "docs/prompt/feedback"
     "scripts"
 )
 
