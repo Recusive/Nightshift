@@ -24,6 +24,22 @@ from pathlib import Path
 # Signal readers — each returns a typed value, never raises
 # ---------------------------------------------------------------------------
 
+def _is_valid_eval_file(text: str) -> bool:
+    """Return True if text looks like a real evaluation report.
+
+    Requires both:
+    - A **Date**: metadata line (standard eval header)
+    - At least 3 scored dimension rows (N/10 format)
+
+    This prevents a fabricated single-line file like "Total: 99/100"
+    from influencing role selection via the eval score gate.
+    """
+    if not re.search(r"\*\*Date\*\*:", text):
+        return False
+    dimension_rows = re.findall(r"^\|[^|]+\|\s*\d+/10\b", text, re.MULTILINE)
+    return len(dimension_rows) >= 3
+
+
 def read_latest_eval_score(evaluations_dir: Path) -> int | None:
     """Extract total score from the latest evaluation report."""
     files = sorted(evaluations_dir.glob("[0-9]*.md"))
@@ -31,10 +47,9 @@ def read_latest_eval_score(evaluations_dir: Path) -> int | None:
         return None
     try:
         text = files[-1].read_text(encoding="utf-8")
+        if not _is_valid_eval_file(text):
+            return None
         match = re.search(r"\*\*Total\*\*\s*\|\s*\*\*(\d+)/100\*\*", text)
-        if match:
-            return int(match.group(1))
-        match = re.search(r"Total.*?(\d+)\s*/\s*100", text)
         if match:
             return int(match.group(1))
     except OSError:
@@ -43,15 +58,19 @@ def read_latest_eval_score(evaluations_dir: Path) -> int | None:
 
 
 def read_latest_autonomy_score(autonomy_dir: Path) -> int | None:
-    """Extract autonomy score from the latest autonomy report."""
+    """Extract autonomy score from the latest autonomy report.
+
+    Uses findall and returns the LAST match so that ACHIEVE reports
+    with both a baseline and an updated score return the updated value.
+    """
     files = sorted(autonomy_dir.glob("[0-9]*.md"))
     if not files:
         return None
     try:
         text = files[-1].read_text(encoding="utf-8")
-        match = re.search(r"TOTAL:\s*(\d+)\s*/\s*100", text)
-        if match:
-            return int(match.group(1))
+        matches = re.findall(r"TOTAL:\s*(\d+)\s*/\s*100", text)
+        if matches:
+            return int(matches[-1])
     except OSError:
         pass
     return None
