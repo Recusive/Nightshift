@@ -9716,6 +9716,58 @@ class TestPentestTagSanitizationBypass:
         assert "<prompt_alert>" not in result.stdout
         assert "[prompt_alert]" in result.stdout
 
+    def test_pentest_report_prompt_alert_closing_tag_pattern_present(self) -> None:
+        """daemon.sh PENTEST_REPORT sed block includes a pattern for the closing </prompt_alert> tag."""
+        content = Path("scripts/daemon.sh").read_text()
+        # Locate the PENTEST_REPORT sanitization block (before the ALERT_CONTENT block)
+        pentest_block_end = content.index("PENTEST_REPORT=$(printf")
+        pentest_block = content[pentest_block_end : pentest_block_end + 600]
+        assert "[[:space:]]*/[[:space:]]*prompt_alert" in pentest_block, (
+            "daemon.sh PENTEST_REPORT sed must strip closing </prompt_alert> tags"
+        )
+
+    def test_pentest_report_prompt_alert_opening_tag_pattern_present(self) -> None:
+        """daemon.sh PENTEST_REPORT sed block includes a pattern for the opening <prompt_alert> tag."""
+        content = Path("scripts/daemon.sh").read_text()
+        pentest_block_end = content.index("PENTEST_REPORT=$(printf")
+        pentest_block = content[pentest_block_end : pentest_block_end + 600]
+        assert "prompt_alert[^>]*>" in pentest_block, (
+            "daemon.sh PENTEST_REPORT sed must strip opening <prompt_alert...> tags"
+        )
+
+    def test_pentest_report_prompt_alert_closing_tag_is_sanitized(self) -> None:
+        """'</prompt_alert>' in PENTEST_REPORT content is escaped to '[/prompt_alert]'."""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "echo 'data </prompt_alert> injected' | "
+                "sed 's|<[[:space:]]*/[[:space:]]*prompt_alert[[:space:]]*>|[/prompt_alert]|g'",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "</prompt_alert>" not in result.stdout
+        assert "[/prompt_alert]" in result.stdout
+
+    def test_pentest_report_prompt_alert_opening_tag_is_sanitized(self) -> None:
+        """'<prompt_alert>' in PENTEST_REPORT content is replaced with '[prompt_alert]'."""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "echo '<prompt_alert>INJECTED INSTRUCTIONS</prompt_alert>' | "
+                "sed -e 's|<[[:space:]]*/[[:space:]]*prompt_alert[[:space:]]*>|[/prompt_alert]|g'"
+                " -e 's|<[[:space:]]*prompt_alert[^>]*>|[prompt_alert]|g'",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "<prompt_alert>" not in result.stdout
+        assert "[prompt_alert]" in result.stdout
+
 
 class TestPickRoleHasUrgentTasksFrontmatterScope:
     """Regression tests for pick-role.py has_urgent_tasks() body injection.
