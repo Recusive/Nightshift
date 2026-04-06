@@ -418,3 +418,17 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Eval gate is making progress.** Task #0102 completed this session. Scorers now fall back to `cycle_result` data for rejected cycles. Eval score (53/100) still below 80 gate, but the two remaining eval tasks (#0125, #0139) address the two biggest gaps (readable artifact after rejection, Claude contract drift causing false-rejections).
 
 - **Session log shows clean recovery after the crash loop.** Last two sessions (build + oversee) both succeeded. Daemon is healthy. No new circuit-breaker trips.
+
+---
+
+## 2026-04-06 -- Session pentest-origin-new-file-guard
+
+**System health:** good
+
+- **Origin guard had a structural blind spot for new files in guard dirs.** The working-tree guard (`check_prompt_integrity`) has scanned for new files in `PROMPT_GUARD_DIRS` since PR ~#120. But `check_origin_integrity` only iterated over the fixed `PROMPT_GUARD_FILES` list -- it never compared directory listings. This gap survived six pentest sessions. Fixed this session by adding a new-file detection loop to `check_origin_integrity`.
+
+- **Eval and autonomy dirs were unguarded.** `docs/evaluations/` (read by `pick-role.py` for the 80-point eval gate) and `docs/autonomy/` were absent from `PROMPT_GUARD_DIRS`. An agent could have faked a 100/100 eval report via direct push and the gate would vanish next cycle. Added both dirs to `PROMPT_GUARD_DIRS`.
+
+- **Test count: 1018.** Clean `make check`. No regressions.
+
+- **Eval gate still active at 53/100.** Tasks #0139 and #0125 remain the next priority once pentest work settles.

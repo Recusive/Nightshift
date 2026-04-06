@@ -47,11 +47,21 @@ PROMPT_GUARD_FILES=(
 )
 
 # Directories to scan for new prompt-like files post-cycle.
+#
+# docs/evaluations/ and docs/autonomy/ are included because pick-role.py reads
+# them to gate BUILD sessions.  False-positive risk is low:
+#   - Daemon-triggered eval files (run_evaluation) are written after the guards
+#     run and are never committed; reset_repo_state wipes them at cycle start.
+#   - Agent-created eval files go through the PR workflow (merge commits), so
+#     the non-merge-commit filter in check_origin_integrity allows them.
+# Only direct-push new files in these dirs are flagged -- the intended behavior.
 PROMPT_GUARD_DIRS=(
     "docs/prompt"
     "docs/prompt/feedback"
     "scripts"
     ".github/workflows"
+    "docs/evaluations"
+    "docs/autonomy"
 )
 
 # save_prompt_snapshots REPO_DIR
@@ -215,9 +225,13 @@ cleanup_prompt_snapshots() {
 #   2. Fetch latest origin state.
 #   3. If the hash changed, diff each PROMPT_GUARD_FILE on origin/main against
 #      the snapshot copy taken before the agent ran.
-#   4. If any guard file changed: log details, write to ALERT_FILE, restore the
-#      snapshot version of each changed file, and force-push the revert to
-#      origin/main so that the subsequent reset_repo_state pulls a clean state.
+#   4. Also scan each PROMPT_GUARD_DIR for new files added to origin/main
+#      (mirrors the new-file detection in check_prompt_integrity).
+#   5. If any guard file changed or new file was injected: log details, write to
+#      ALERT_FILE, restore the snapshot version of each changed file, and
+#      force-push the revert to origin/main so that the subsequent
+#      reset_repo_state pulls a clean state.  New injected files cannot be
+#      auto-reverted; if detected, exit code 2 is returned to abort the daemon.
 #
 # Returns 0 if clean (or PR merge -- legitimate workflow),
 #         1 if tampering detected and revert succeeded,
@@ -262,6 +276,7 @@ check_origin_integrity() {
     # Use a single temp file (truncated per iteration) to avoid trailing-newline
     # stripping from command substitution and mktemp-failure leak in a loop.
     local files_to_restore=()
+    local new_files_to_remove=()
     local origin_tmp
     origin_tmp=$(mktemp) || return 0  # Can't create tmpfile; skip check
     for f in "${PROMPT_GUARD_FILES[@]}"; do
@@ -301,6 +316,51 @@ check_origin_integrity() {
     done
     rm -f "$origin_tmp"
 
+    # New-file detection: check if any files were injected into PROMPT_GUARD_DIRS
+    # on origin/main via non-merge commits during the agent cycle.  Uses the same
+    # snapshot filelists saved by save_prompt_snapshots() and the same non-merge-
+    # commit filter as the PROMPT_GUARD_FILES loop to avoid false positives from
+    # legitimate PR merges that happen to add files to a guard directory.
+    for d in "${PROMPT_GUARD_DIRS[@]}"; do
+        local listing="$snap_dir/${d}.filelist"
+        [ -f "$listing" ] || continue
+        # Get the current file list for this directory on origin/main (filenames only)
+        local dir_current_files
+        dir_current_files=$(git -C "$repo_dir" ls-tree --name-only \
+            "origin/main:${d}/" 2>/dev/null || true)
+        [ -z "$dir_current_files" ] && continue
+        # Find files present in current origin/main but absent from the pre-session snapshot
+        local dir_new_files
+        dir_new_files=$(comm -13 \
+            <(LC_ALL=C sort "$listing") \
+            <(printf '%s\n' "$dir_current_files" | LC_ALL=C sort))
+        [ -z "$dir_new_files" ] && continue
+        while IFS= read -r new_file; do
+            [ -z "$new_file" ] && continue
+            local file_path="${d}/${new_file}"
+            # Apply the same non-merge-commit filter to avoid false positives from
+            # legitimate PR merges that add files to a guard directory.
+            local file_direct_push
+            file_direct_push=$(git -C "$repo_dir" log --no-merges \
+                --first-parent --format="%H" \
+                "$snap_hash..$current_hash" -- "$file_path" 2>/dev/null || true)
+            [ -z "$file_direct_push" ] && continue
+            if [ "$changed" -eq 0 ]; then
+                echo ""
+                echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                echo "  PROMPT GUARD: origin/main MODIFIED DURING AGENT CYCLE"
+                echo "  An agent pushed prompt/control file changes to origin/main"
+                echo "  without touching the working tree (blind spot attack)."
+                echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            fi
+            echo ""
+            echo "NEW FILE ON ORIGIN/MAIN: $file_path"
+            alert_body="${alert_body}NEW FILE ON ORIGIN/MAIN: ${file_path}"$'\n\n'
+            changed=1
+            new_files_to_remove+=("$file_path")
+        done <<< "$dir_new_files"
+    done
+
     if [ "$changed" -ne 0 ]; then
         echo ""
         echo "  Reverting origin/main guard files to pre-session snapshot..."
@@ -308,6 +368,14 @@ check_origin_integrity() {
         for f in "${files_to_restore[@]}"; do
             cp "$snap_dir/$f" "$repo_dir/$f" 2>/dev/null || revert_failed=1
         done
+        # New injected files cannot be auto-reverted without risking loss of
+        # legitimate intervening commits.  Signal revert failure so the daemon
+        # aborts and a human can remove the injected file(s) manually.
+        if [ "${#new_files_to_remove[@]}" -gt 0 ]; then
+            echo "  NOTE: New injected file(s) cannot be auto-reverted -- manual removal required:"
+            printf "    %s\n" "${new_files_to_remove[@]}"
+            revert_failed=1
+        fi
         if [ "$revert_failed" -eq 0 ]; then
             git -C "$repo_dir" add -- "${files_to_restore[@]}" 2>/dev/null || true
             git -C "$repo_dir" \

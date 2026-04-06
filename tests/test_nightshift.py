@@ -9173,6 +9173,96 @@ exit $RC
             "Guard reverted the PR-merged content -- bootstrap self-revert bug"
         )
 
+    def test_detects_new_file_in_guard_dir_direct_push(self, tmp_path: Path) -> None:
+        """check_origin_integrity detects a new file injected into a guard dir via direct push.
+
+        Simulates the blind spot: attacker pushes scripts/evil.sh directly to
+        origin/main (non-merge commit). The working-tree guard sees nothing because
+        the attacker never touched the local working tree. check_origin_integrity
+        detects the new file via its new-file detection loop, cannot auto-revert,
+        and returns exit code 2 (daemon must abort; human intervention required).
+        """
+        origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
+        attacker_dir = tmp_path / "attacker"
+        subprocess.run(
+            ["git", "clone", str(origin_dir), str(attacker_dir)],
+            check=True,
+            capture_output=True,
+        )
+        for key, val in [("user.email", "evil@evil.com"), ("user.name", "Evil")]:
+            subprocess.run(
+                ["git", "-C", str(attacker_dir), "config", key, val],
+                check=True,
+                capture_output=True,
+            )
+
+        script = f"""
+set -e
+source "{self.LIB}"
+cd "{repo_dir}"
+
+# Establish scripts/ in the repo before the snapshot so its directory listing
+# is recorded and new files can be detected.
+mkdir -p "{repo_dir}/scripts"
+echo "safe daemon" > "{repo_dir}/scripts/daemon.sh"
+git -C "{repo_dir}" add scripts/
+git -C "{repo_dir}" commit -m "add scripts dir" --quiet
+git -C "{repo_dir}" push origin main --quiet
+
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+
+# Attacker pulls the latest main (gets scripts/daemon.sh), then injects a new file
+git -C "{attacker_dir}" pull origin main --quiet 2>/dev/null
+echo "evil backdoor" > "{attacker_dir}/scripts/evil.sh"
+git -C "{attacker_dir}" add scripts/evil.sh
+git -C "{attacker_dir}" commit -m "inject" --quiet
+git -C "{attacker_dir}" push origin HEAD:main --quiet
+
+set +e
+check_origin_integrity "{repo_dir}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 2, (
+            "Expected exit code 2 (new file detected, auto-revert not supported for new files), "
+            f"got rc={result.returncode}:\n" + result.stdout + result.stderr
+        )
+        assert "NEW FILE ON ORIGIN/MAIN: scripts/evil.sh" in result.stdout, (
+            "Guard should report the injected file path:\n" + result.stdout + result.stderr
+        )
+
+    def test_eval_dirs_in_prompt_guard_dirs(self, tmp_path: Path) -> None:
+        """docs/evaluations/ and docs/autonomy/ are in PROMPT_GUARD_DIRS.
+
+        These directories influence role selection via pick-role.py (eval score gate)
+        and the ACHIEVE role. Guarding them prevents eval score manipulation attacks
+        where an agent fakes a 100/100 report to bypass the eval gate.
+        """
+        script = f"""
+source "{self.LIB}"
+found_eval=0
+found_autonomy=0
+for d in "${{PROMPT_GUARD_DIRS[@]}}"; do
+    [ "$d" = "docs/evaluations" ] && found_eval=1
+    [ "$d" = "docs/autonomy" ] && found_autonomy=1
+done
+[ "$found_eval" -eq 1 ] && echo "FOUND_EVAL"
+[ "$found_autonomy" -eq 1 ] && echo "FOUND_AUTONOMY"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert "FOUND_EVAL" in result.stdout, (
+            "docs/evaluations not in PROMPT_GUARD_DIRS -- eval score manipulation possible:\n"
+            + result.stdout
+            + result.stderr
+        )
+        assert "FOUND_AUTONOMY" in result.stdout, (
+            "docs/autonomy not in PROMPT_GUARD_DIRS -- ACHIEVE role manipulation possible:\n"
+            + result.stdout
+            + result.stderr
+        )
+
 
 # ---------------------------------------------------------------------------
 # Handoff compaction
