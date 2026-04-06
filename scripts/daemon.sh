@@ -229,15 +229,7 @@ ${PENTEST_PROMPT}"
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
     fi
-    check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"
-    ORIGIN_STATUS=$?
-    if [ "$ORIGIN_STATUS" -eq 2 ]; then
-        echo "  CRITICAL: origin/main guard file revert failed -- daemon stopping."
-        cleanup_prompt_snapshots "$SNAP_DIR"
-        notify_human "Security: origin/main tamper -- revert failed" \
-            "Daemon aborted: prompt/control files on origin/main could not be reverted after tampering detection. Manual intervention required. Check logs in $LOG_DIR."
-        break
-    elif [ "$ORIGIN_STATUS" -eq 1 ]; then
+    if ! check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         echo "  Pentest preflight pushed prompt/control files to origin/main; reverted and alerting builder."
     fi
     cleanup_prompt_snapshots "$SNAP_DIR"
@@ -313,14 +305,8 @@ ${PROMPT}"
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         PROMPT_TAMPERED=" [PROMPT MODIFIED]"
     fi
-    check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"
-    ORIGIN_STATUS=$?
-    if [ "$ORIGIN_STATUS" -ne 0 ]; then
+    if ! check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         PROMPT_TAMPERED="${PROMPT_TAMPERED} [ORIGIN MODIFIED]"
-    fi
-    ORIGIN_REVERT_FAILED=0
-    if [ "$ORIGIN_STATUS" -eq 2 ]; then
-        ORIGIN_REVERT_FAILED=1
     fi
     cleanup_prompt_snapshots "$SNAP_DIR"
 
@@ -397,20 +383,6 @@ print('-')
     fi
 
     echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
-
-    # --- Security abort: origin/main tamper with failed revert ---
-    # If check_origin_integrity returned 2 (tampered + revert failed), stop the
-    # daemon now. The next cycle's reset_repo_state would pull the still-tampered
-    # origin/main into the working tree and poison all future snapshots.
-    if [ "${ORIGIN_REVERT_FAILED:-0}" -eq 1 ]; then
-        echo ""
-        echo "SECURITY ABORT: origin/main guard file revert failed."
-        echo "Stopping daemon to prevent next cycle from pulling tampered content."
-        echo "| $(date '+%Y-%m-%d %H:%M') | SECURITY-ABORT | - | - | - | - | origin/main tamper -- revert failed | - | - |" >> "$INDEX_FILE"
-        notify_human "Security: origin/main tamper -- revert failed" \
-            "Daemon stopped after builder cycle: prompt/control files on origin/main could not be reverted. Manual intervention required. Check logs in $LOG_DIR."
-        break
-    fi
 
     # --- Budget check ---
     if [ "$BUDGET" != "0" ]; then

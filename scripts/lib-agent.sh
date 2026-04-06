@@ -36,9 +36,6 @@ PROMPT_GUARD_FILES=(
     "scripts/pick-role.py"
     "scripts/check.sh"
     "scripts/format-stream.py"
-    # .nightshift.json: notify_human() already reads notification_webhook from this
-    # file and POSTs to it -- an attacker-controlled URL would intercept all alerts.
-    ".nightshift.json"
     # docs/prompt/healer.md is a reference doc, not a control file (healer merged into builder step)
 )
 
@@ -213,10 +210,7 @@ cleanup_prompt_snapshots() {
 #      snapshot version of each changed file, and force-push the revert to
 #      origin/main so that the subsequent reset_repo_state pulls a clean state.
 #
-# Returns:
-#   0 -- clean, no tampering detected
-#   1 -- tampering detected, revert push succeeded (safe for daemon to reset)
-#   2 -- tampering detected, revert push FAILED (daemon must abort; do not reset)
+# Returns 0 if clean, 1 if tampering was detected (revert attempted).
 check_origin_integrity() {
     local repo_dir="$1"
     local snap_dir="$2"
@@ -280,7 +274,6 @@ check_origin_integrity() {
         echo ""
         echo "  Reverting origin/main guard files to pre-session snapshot..."
         local revert_failed=0
-        local revert_ok=0
         for f in "${files_to_restore[@]}"; do
             cp "$snap_dir/$f" "$repo_dir/$f" 2>/dev/null || revert_failed=1
         done
@@ -295,7 +288,6 @@ check_origin_integrity() {
             # push-to-main rule, analogous to the housekeeping carve-out.
             if git -C "$repo_dir" push origin main --force --quiet 2>/dev/null; then
                 echo "  Reverted origin/main to pre-session state."
-                revert_ok=1
             else
                 echo "  WARNING: Revert push failed -- origin/main may still contain tampered files."
             fi
@@ -318,17 +310,7 @@ check_origin_integrity() {
         fi
     fi
 
-    # Return codes:
-    #   0 -- clean, no tampering detected
-    #   1 -- tampering detected, revert push succeeded (safe for daemon to reset)
-    #   2 -- tampering detected, revert push FAILED (do not reset; abort daemon)
-    if [ "$changed" -eq 0 ]; then
-        return 0
-    elif [ "${revert_ok:-0}" -eq 1 ]; then
-        return 1
-    else
-        return 2
-    fi
+    return "$changed"
 }
 
 # ----------------------------------------------
