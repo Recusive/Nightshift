@@ -34,7 +34,7 @@
 - Tracker delta: 92% -> 92%
 
 ## Evaluate
-No Phractal evaluation required: this session changed prompt, docs, task metadata, and regression coverage, but it did not alter Nightshift's runtime repo-fixing behavior.
+Run evaluation against Phractal for the changes merged this session.
 
 ## Generated Tasks
 - `#0140`: Move prompt/document contract coverage into a dedicated test module
