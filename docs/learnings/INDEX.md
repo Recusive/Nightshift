@@ -80,6 +80,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Plan agent is simpler than cycle agent](2026-04-04-plan-agent-simpler-than-cycle.md) — Plan invocation needs fewer args than full cycle
 - [Symlink check before is_file](2026-04-04-symlink-before-is-file.md) — Check is_symlink() first for security; symlinks pass is_file()
 - [gitignored dirs survive git clean](2026-04-04-costs-json-survives-git-clean.md) — git clean -fd does NOT remove gitignored files
+- [Prompt-alert pre-poison guard](2026-04-06-prompt-alert-pre-poison-guard.md) — `rm -f $PROMPT_ALERT` must precede check_prompt_integrity; gitignored files survive reset_repo_state
 
 ## Type System / Linting
 

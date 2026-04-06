@@ -9962,6 +9962,53 @@ class TestPentestTagSanitizationBypass:
         assert "[/open_pr_data]" in result.stdout
 
 
+class TestPentestAgentPromptAlertPoisoningGuard:
+    """Regression tests for W1: pentest-agent pre-poisoning of PROMPT_ALERT.
+
+    docs/sessions/ is gitignored, so git clean -fd does NOT remove
+    docs/sessions/prompt-alert.md.  A pentest agent that writes arbitrary
+    content to that file during its 120-turn window could inject misleading
+    instructions into the builder prompt on the next cycle.
+
+    Fix: daemon.sh now runs 'rm -f "$PROMPT_ALERT"' immediately before
+    check_prompt_integrity so the pentest agent's window is closed.
+    check_prompt_integrity is then the only code that may write the alert file.
+    """
+
+    def test_rm_prompt_alert_present_before_check_prompt_integrity(self) -> None:
+        """daemon.sh removes $PROMPT_ALERT immediately before check_prompt_integrity."""
+        content = Path("scripts/daemon.sh").read_text()
+        # Locate the rm -f and check_prompt_integrity calls inside the pentest block.
+        rm_pos = content.find('rm -f "$PROMPT_ALERT"')
+        cpi_pos = content.find('if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"')
+        assert rm_pos != -1, "daemon.sh must contain 'rm -f \"$PROMPT_ALERT\"'"
+        assert cpi_pos != -1, "daemon.sh must contain check_prompt_integrity call"
+        assert rm_pos < cpi_pos, (
+            'rm -f "$PROMPT_ALERT" must appear BEFORE check_prompt_integrity '
+            "so the pentest agent cannot pre-poison the alert file"
+        )
+
+    def test_rm_prompt_alert_is_adjacent_to_check_prompt_integrity(self) -> None:
+        """The rm -f line is within a few lines of check_prompt_integrity (not far away)."""
+        lines = Path("scripts/daemon.sh").read_text().splitlines()
+        rm_line = next((i for i, ln in enumerate(lines) if 'rm -f "$PROMPT_ALERT"' in ln), None)
+        cpi_line = next(
+            (
+                i
+                for i, ln in enumerate(lines)
+                if 'if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"' in ln
+            ),
+            None,
+        )
+        assert rm_line is not None, "rm -f line not found in daemon.sh"
+        assert cpi_line is not None, "check_prompt_integrity line not found in daemon.sh"
+        gap = cpi_line - rm_line
+        assert 0 < gap <= 10, (
+            f"rm -f and check_prompt_integrity are {gap} lines apart; "
+            "they should be adjacent (within 10 lines) so the guard is clear"
+        )
+
+
 class TestPickRoleHasUrgentTasksFrontmatterScope:
     """Regression tests for pick-role.py has_urgent_tasks() body injection.
 

@@ -246,6 +246,12 @@ ${PENTEST_PROMPT}"
             -e 's|<[[:space:]]*prompt_alert[^>]*>|[prompt_alert]|g' \
             -e 's|<[[:space:]]*/[[:space:]]*open_pr_data[[:space:]]*>|[/open_pr_data]|g' \
             -e 's|<[[:space:]]*open_pr_data[^>]*>|[open_pr_data]|g')
+    # Remove any stale or pentest-agent-written alert file before integrity check.
+    # docs/sessions/ is gitignored so reset_repo_state (git clean -fd) does NOT
+    # remove it.  Without this rm, a pentest agent could pre-write arbitrary content
+    # to $PROMPT_ALERT during its window and have it injected into the builder prompt
+    # on the next cycle.  check_prompt_integrity is the only legitimate writer.
+    rm -f "$PROMPT_ALERT"
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
     fi
