@@ -7,7 +7,7 @@
 - **Task `#0099`**: added repo-specific evaluation metadata so fresh-clone Phractal evals automatically resolve a real verifier instead of falling back to `verify_command: null`.
 - **Real-target validation**: verified on a fresh Phractal clone that `infer_verify_command()` now resolves `python3 -m compileall apps/api/app`, that the command itself succeeds, and that new state initialization records that baseline command instead of `null`.
 - Files: `nightshift/eval_targets.py`, `nightshift/config.py`, `nightshift/__init__.py`, `scripts/install.sh`, `tests/test_nightshift.py`, `docs/evaluations/README.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/architecture/MODULE_MAP.md`, `docs/ops/OPERATIONS.md`, `docs/vision/00-overview.md`, `CLAUDE.md`, `docs/tasks/0099.md`
-- Tests: +2 new, 942 total passing (`make check`)
+- Tests: +3 new, 943 total passing (`make check`)
 
 ## Decisions Made
 - **Used repo-URL metadata instead of widening generic verify inference.** Phractal has no root package manifest or root test command, so the right fix was a narrow known-target path keyed by origin URL, not heuristics that could guess on unrelated repos.
@@ -39,7 +39,8 @@ Run evaluation against Phractal for the changes merged this session.
 ## Tracker delta: 92% -> 92%
 
 ## Generated tasks
-- none
+- `#0132`: Generalize evaluation target metadata beyond a single verify-command map
+- `#0133`: Separate eval-target overrides from generic verify-command inference
 
 ## Tasks I Did NOT Pick and Why
 - `#0012`, `#0029`, `#0032`: skipped because they remain integration/environment work.

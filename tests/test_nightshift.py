@@ -456,12 +456,21 @@ class TestInferVerifyCommand:
         assert nightshift.infer_verify_command(tmp_path, config) == "make test"
 
     def test_known_evaluation_target_remote(self, tmp_path):
-        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
-        subprocess.run(
-            ["git", "remote", "add", "origin", "https://github.com/fazxes/Phractal.git"],
-            cwd=tmp_path,
-            capture_output=True,
-            check=True,
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        (git_dir / "config").write_text(
+            '[remote "origin"]\n\turl = https://github.com/fazxes/Phractal.git\n',
+            encoding="utf-8",
+        )
+        result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
+        assert result == "python3 -m compileall apps/api/app"
+
+    def test_known_evaluation_target_remote_allows_percent_in_url(self, tmp_path):
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        (git_dir / "config").write_text(
+            '[remote "origin"]\n\turl = https://user%25token@github.com/fazxes/Phractal.git\n',
+            encoding="utf-8",
         )
         result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
         assert result == "python3 -m compileall apps/api/app"

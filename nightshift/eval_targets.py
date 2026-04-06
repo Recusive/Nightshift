@@ -51,7 +51,7 @@ def _origin_remote_url(repo_dir: Path) -> str | None:
     if config_path is None:
         return None
 
-    parser = configparser.ConfigParser()
+    parser = configparser.ConfigParser(interpolation=None)
     try:
         parser.read(config_path, encoding="utf-8")
     except configparser.Error:
