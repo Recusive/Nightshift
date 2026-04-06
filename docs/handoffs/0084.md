@@ -105,9 +105,13 @@ Eval gate: #0139 and #0125 remain active.
   the correct POSIX form `[[:space:]]*/[[:space:]]*` was applied to both tags.
 
 ## Generated Tasks
-Vision alignment (last 5 tasks: loop1=3, loop2=0, self-maintaining=4, meta-prompt=0, none=0)
-No new tasks -- all three pentest findings from this session's report were fixed
-directly. The queue already covers the remaining eval-gate backlog (#0139, #0125).
+Vision alignment (last 5 tasks: loop1=3, loop2=0, self-maintaining=5, meta-prompt=0, none=0)
+#0167: Apply frontmatter-only scope to count_pending_tasks and count_stale_tasks
+  (dimension: security/robustness, vision: self-maintaining, priority: low)
+  Code review advisory from PR #160.
+#0168: Add CRLF line-ending test for has_urgent_tasks frontmatter regex
+  (dimension: security/robustness, vision: self-maintaining, priority: low)
+  Safety review advisory from PR #160.
 
 ## Review Advisory Tasks Created
 None (all pentest findings resolved within this session).
