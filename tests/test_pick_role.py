@@ -80,6 +80,23 @@ class TestScenario3ExactThresholds:
         assert scores["oversee"] >= 50  # 10 + 40
 
 
+class TestHealerCautionTriggers:
+    def test_caution_triggers_review_bonus(self) -> None:
+        signals = make_signals(healer_status="caution", consecutive_builds=5)
+        scores = compute_scores(signals)
+        assert scores["review"] >= 80  # 10 + 40 + 30
+
+    def test_concern_also_triggers_review_bonus(self) -> None:
+        signals = make_signals(healer_status="concern", consecutive_builds=5)
+        scores = compute_scores(signals)
+        assert scores["review"] >= 80
+
+    def test_good_does_not_trigger(self) -> None:
+        signals = make_signals(healer_status="good", consecutive_builds=5)
+        scores = compute_scores(signals)
+        assert scores["review"] == 50  # 10 + 40 only
+
+
 class TestScenario4OverseeMax:
     def test_oversee_beats_build_with_pending_and_stale(self) -> None:
         signals = make_signals(eval_score=95, pending_tasks=50, stale_tasks=3)
