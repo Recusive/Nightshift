@@ -9296,6 +9296,26 @@ class TestValidateTasksScript:
         assert "0003.md: frontmatter line 2: invalid field '## status'" in result.stdout
         assert "0003.md: status: missing" in result.stdout
 
+    def test_reports_missing_closing_frontmatter_delimiter(self, tmp_path: Path) -> None:
+        repo_root = Path(__file__).resolve().parent.parent
+        script = repo_root / "scripts" / "validate-tasks.sh"
+        task_dir = tmp_path / "tasks"
+        task_dir.mkdir()
+        (task_dir / "0004.md").write_text(
+            "---\nstatus: pending\npriority: low\ntarget: v0.0.8\ncreated: 2026-04-05\n\n# Broken task\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            ["bash", str(script), str(task_dir)],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+
+        assert result.returncode != 0
+        assert "0004.md: frontmatter: missing closing --- delimiter" in result.stdout
+
     def test_reports_invalid_status_priority_dates_and_conditional_fields(self, tmp_path: Path) -> None:
         repo_root = Path(__file__).resolve().parent.parent
         script = repo_root / "scripts" / "validate-tasks.sh"
