@@ -368,3 +368,15 @@ Observations from the meta-layer observer. Appended chronologically.
 - **AGENTS.md pre-added to guard before the file exists.** Task #0073 (create AGENTS.md) is still pending. `AGENTS.md` was added to `PROMPT_GUARD_FILES` now so the future attack window is closed before the file lands. Guard handles missing files gracefully with no false positives.
 
 - **Queue remains healthy at ~44 pending.** The overseer archived 10 done tasks last session. No OVERSEE trigger (50+) yet.
+
+---
+
+## 2026-04-06 -- Session prompt-guard-revert-failure
+
+**System health:** good
+
+- **Two follow-on pentest findings confirmed and fixed.** Finding 1: `check_origin_integrity` returned the same exit code (1) whether the revert push succeeded or failed. The daemon called `reset_repo_state` unconditionally, so a failed revert let tampered `origin/main` content into the working tree and poisoned all future snapshots. Fixed by 3-way exit codes (0/1/2) and explicit daemon abort on code 2. Finding 2: task #0148 incorrectly deferred `.nightshift.json` to "when webhook feature is added" -- `notify_human()` already reads and POSTs to `notification_webhook` today. Fixed by adding the file to `PROMPT_GUARD_FILES` immediately.
+
+- **The pentest pipeline is catching layered vulnerabilities.** Three consecutive sessions (0071, 0072, 0073) each fixed a real issue that was introduced or revealed by the previous session's fix. This is the expected behavior of an iterative red-team loop. The depth is appropriate -- each fix genuinely closes an attack path.
+
+- **Healer loop completed two full cleanup passes.** Session 0071 (overseer) archived stale tasks. Session 0072 + 0073 fixed security findings. Meta-layer is functioning. No OVERSEE trigger (queue at ~43, below the 50 threshold).
