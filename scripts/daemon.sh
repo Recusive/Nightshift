@@ -33,6 +33,7 @@ KEEP_HEALER_ENTRIES="${NIGHTSHIFT_KEEP_HEALER_ENTRIES:-50}"
 LOG_DIR="$REPO_DIR/docs/sessions"
 INDEX_FILE="$LOG_DIR/index.md"
 AUTO_PREFIX="$REPO_DIR/docs/prompt/evolve-auto.md"
+UNIFIED_PROMPT="$REPO_DIR/docs/prompt/unified.md"
 EVOLVE_PROMPT="$REPO_DIR/docs/prompt/evolve.md"
 PENTEST_PROMPT_FILE="$REPO_DIR/docs/prompt/pentest.md"
 LOCKFILE="$REPO_DIR/.nightshift-daemon.lock"
@@ -70,14 +71,14 @@ if [ ! -f "$INDEX_FILE" ]; then
     {
         echo "# Session Index"
         echo ""
-        echo "| Timestamp | Session | Exit | Duration | Cost | Status | Feature | PR |"
-        echo "|-----------|---------|------|----------|------|--------|---------|-----|"
+        echo "| Timestamp | Session | Role | Exit | Duration | Cost | Status | Feature | PR |"
+        echo "|-----------|---------|------|------|----------|------|--------|---------|-----|"
     } > "$INDEX_FILE"
 fi
 
 build_prompt() {
     cat "$AUTO_PREFIX"
-    cat "$EVOLVE_PROMPT"
+    cat "$UNIFIED_PROMPT"
 }
 
 build_pentest_prompt() {
@@ -279,6 +280,33 @@ print(format_session_cost(entry))
         STATUS="failed (exit $EXIT_CODE; pentest: ${PENTEST_STATUS})"
     fi
 
+    # Extract role from log (best-effort, works for both Claude and Codex)
+    SESSION_ROLE=$(python3 -c "
+import json, sys, re
+for line in open('$LOG_FILE'):
+    try:
+        e = json.loads(line.strip())
+        # Claude format
+        if e.get('type') == 'assistant':
+            for b in e.get('message', {}).get('content', []):
+                t = b.get('text', '')
+                m = re.search(r'EXECUTING ROLE:\s*(BUILD|REVIEW|OVERSEE|STRATEGIZE)', t)
+                if m:
+                    print(m.group(1).lower())
+                    sys.exit(0)
+        # Codex format
+        if e.get('type') == 'item.completed':
+            item = e.get('item', {})
+            if item.get('type') == 'agent_message':
+                t = item.get('text', '')
+                m = re.search(r'EXECUTING ROLE:\s*(BUILD|REVIEW|OVERSEE|STRATEGIZE)', t)
+                if m:
+                    print(m.group(1).lower())
+                    sys.exit(0)
+    except: pass
+print('build')
+" 2>/dev/null || echo "build")
+
     # Extract feature name and PR from log (best-effort)
     FEATURE=$(python3 -c "
 import json, sys
@@ -315,7 +343,7 @@ print('-')
         run_evaluation "$AGENT" "$FEATURE"
     fi
 
-    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
+    echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL |" >> "$INDEX_FILE"
 
     # --- Budget check ---
     if [ "$BUDGET" != "0" ]; then

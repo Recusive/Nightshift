@@ -22,6 +22,7 @@
 
 PROMPT_GUARD_FILES=(
     "CLAUDE.md"
+    "docs/prompt/unified.md"
     "docs/prompt/evolve.md"
     "docs/prompt/evolve-auto.md"
     "docs/prompt/pentest.md"
