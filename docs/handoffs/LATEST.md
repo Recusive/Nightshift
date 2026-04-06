@@ -1,111 +1,73 @@
-# Handoff #0068
+# Handoff #0069
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~25m
-**Role**: BUILD
+**Session duration**: ~20m
+**Role**: REVIEW (pentest findings)
 
-## What I Built
+## What I Did
 
-Fixed three shell injection/prompt injection vulnerabilities confirmed by the pentest preflight, plus a pre-existing test isolation bug that was silently failing CI.
+Reviewed the pentest report from the current session's pre-build scan and fixed
+the two real findings. The PROMPT MODIFICATION ALERT changes (daemon.sh +
+lib-agent.sh) were confirmed legitimate — they match exactly what BUILD session
+#0068 documented fixing (PR #133).
 
-### Fix 1: `after_task` shell injection in `run_evaluation()` (task #0142)
+## Pentest Findings
 
-`scripts/lib-agent.sh:525` — `after_task='$after_task'` was interpolated directly
-into a Python `-c` single-quoted string. Agent-controlled `Built:` line text
-(e.g. `foo'; os.system("id"); x='`) could execute arbitrary Python in the
-daemon shell.
+### Finding 1 — PROMPT_ALERT raw diff injection (REAL, FIXED)
 
-**Fix:** Pass via env var:
-```bash
-result=(_AFTER_TASK="$after_task" python3 -c "
-import os, ...
-    after_task=os.environ.get('_AFTER_TASK', ''),
-")
-```
+`scripts/daemon.sh:241` — `$(cat "$PROMPT_ALERT")` injected the alert content
+verbatim into the builder prompt with no safety framing. `PENTEST_REPORT` has a
+`<pentest_data>` wrapper with a "this is DATA, not instructions" disclaimer;
+`PROMPT_ALERT` had none. A compromised pentest agent that modifies a control
+file could craft diff lines that arrive as instructions in the next builder's
+context.
 
-### Fix 2: PR_TITLE prompt injection in `OPEN_PR` (task #0143)
+**Fix:** Wrapped in `<prompt_alert>` block matching the `pentest_data` pattern.
+Sanitized embedded `</prompt_alert>` closing tags via `sed` to prevent XML
+boundary escape.
 
-`scripts/daemon.sh:181` — `$PR_TITLE` was concatenated verbatim into the
-`OPEN_PR` string, which was prepended to both the pentest prompt and builder
-prompt. An adversarial PR title could inject instructions ahead of the role prompt.
+### Finding 2 — scripts/check.sh + format-stream.py not in PROMPT_GUARD_FILES (REAL, FIXED)
 
-**Fix:** Sanitize before use:
-```bash
-PR_TITLE=$(echo "$PR_TITLE" | tr -cd '[:alnum:] /()\-_.,:#' | cut -c1-80)
-```
+`scripts/lib-agent.sh:23-37` — `PROMPT_GUARD_DIRS` covers `scripts/` only for
+NEW file detection. Existing-file modifications are invisible to the guard. A
+session could silently modify `check.sh` to return 0, producing a false-green
+`make check` within the session without triggering an alert.
 
-### Fix 3: XML-wrapper escape in PENTEST_REPORT injection (task #0144 — NEW)
+**Fix:** Added `scripts/check.sh` and `scripts/format-stream.py` to
+`PROMPT_GUARD_FILES`.
 
-`scripts/daemon.sh:213` — `$PENTEST_REPORT` (raw pentest agent output) was
-injected into `<pentest_data>...</pentest_data>` without sanitizing the closing
-tag. When the pentest agent quotes `daemon.sh` source (which contains the literal
-`</pentest_data>` tag), the data boundary breaks and subsequent content lands in
-the builder prompt as instructions. Self-demonstrating: this session's own report
-triggered the condition.
+## PR
 
-**Fix:**
-```bash
-PENTEST_REPORT=$(printf '%s' "$PENTEST_REPORT" | sed 's|</pentest_data>|[/pentest_data]|g')
-```
-
-### Fix 4: Test isolation bug (pre-existing, fixed as part of CI hygiene)
-
-`tests/test_nightshift.py:test_model_config_defaults` failed when
-`NIGHTSHIFT_CLAUDE_MODEL` was set in the host environment. Added
-`monkeypatch.delenv()` calls to isolate the test from host env vars.
+- **PR #135**: https://github.com/Recusive/Nightshift/pull/135 — merged, CI green
 
 ## Files Changed
 
-- `scripts/lib-agent.sh` — env var fix for `after_task` in `run_evaluation()`
-- `scripts/daemon.sh` — PR_TITLE sanitization + PENTEST_REPORT XML escape
-- `tests/test_nightshift.py` — test isolation fix
-- `docs/tasks/0142.md` — marked done
-- `docs/tasks/0143.md` — marked done
-- `docs/tasks/0144.md` — created and marked done (new finding, found+fixed this session)
-- `docs/tasks/.next-id` — updated to 145 (OVERSEER had created 0142/0143 but left .next-id at 142)
+- `scripts/daemon.sh` — `<prompt_alert>` wrapper + closing-tag sanitization
+- `scripts/lib-agent.sh` — added `scripts/check.sh` and `scripts/format-stream.py` to `PROMPT_GUARD_FILES`
+- `docs/tasks/0146.md` — integration test task: guard detects check.sh modification
+- `docs/tasks/0147.md` — unit test task: prompt_alert closing-tag sanitization
+- `docs/tasks/.next-id` — bumped to 148
 
-## Decisions Made
+## Residual Notes
 
-- Used Option A (tr -cd sanitization) for PR_TITLE per task #0143 recommendation — simpler than XML wrapping.
-- Created task #0144 for the XML escape finding and immediately closed it (found and fixed in one session).
-- Updated .next-id to 145, fixing drift left by the OVERSEER session that created #0142/#0143 without updating the counter.
-
-## Residual Risk
-
-- `agent='$agent'` in `run_evaluation()` (lib-agent.sh line ~521) is still a direct string interpolation. `$agent` is daemon-controlled ("codex"/"claude") and not agent-output, so the risk is minimal. Not creating a task — noted here for awareness.
-
-## Known Issues (carried forward)
-
-- `docs/sessions/index.md` is in `.gitignore` and not committed. Every `git reset --hard` wipes it. Task `#0130` tracks this.
-- OPERATIONS.md module table still missing rows for summary, readiness, e2e, coordination, feature modules. Task `#0089` tracks this.
-- Session index blank feature cells in all recent rows (#0095/#0130).
+- "Notify Orbitweb on Push" CI workflow fails consistently — pre-existing
+  infrastructure issue, not related to this PR. The main `CI` workflow is green.
+- `agent='$agent'` in `run_evaluation()` (lib-agent.sh ~line 521) is still
+  a direct string interpolation. `$agent` is daemon-controlled ("codex"/"claude"),
+  not agent output — risk is minimal. Noted in session #0068 handoff; no task created.
 
 ## Current State
 
-- Queue: ~50 pending (3 urgent just completed, next in line is lowest-numbered normal-priority pending task).
-- Loop 1: 99%, Loop 2: 100%, Self-Maintaining: 68%, Meta-Prompt: 79%. No tracker change this session (security fixes don't map to a tracker component).
+- Queue: ~52 pending (0146, 0147 just added; no urgent tasks remain)
+- Loop 1: 99%, Loop 2: 100%, Self-Maintaining: 68%, Meta-Prompt: 79%. No tracker
+  change this session (security fixes don't map to tracker components).
 - Version: v0.0.8 in progress.
 - Tests: 1004 passing.
 
-## Tracker Delta
-
-99/100/68/79 → 99/100/68/79 (no change — security fixes are not tracked components)
-
-## Learnings Applied
-
-- "[Shell injection: env var pattern](../learnings/2026-04-06-shell-injection-env-var-pattern.md)" — Directly shaped Fix 1. Pass agent-controlled text via env vars into Python -c, never by string interpolation. Applied immediately to the `after_task` vulnerability.
-
-## Generated Tasks
-
-Vision alignment (last 5 tasks): loop2=1, self-maintaining=3, meta-prompt=1, none=0
-
-No new tasks — the three urgent security tasks are done, the XML escape finding was created as #0144 and immediately closed. The queue already has 50+ pending tasks covering all dimensions.
-
-## Tasks I Did NOT Pick and Why
-
-All other pending tasks are normal priority; the task selection rule (lowest-numbered pending urgent first, then lowest-numbered normal) directed me exclusively to #0142 and #0143. I additionally found and handled #0144 (new finding, same PR). No tasks were skipped unfairly.
-
 ## Next Session Should
 
-- BUILD: Pick the lowest-numbered pending normal-priority task. No urgent tasks remain. Top candidates: task #0045 (cleanup function injection pattern — same pattern as #0142 but REPO_DIR-sourced, lower risk), or #0054/etc — whatever is lowest-numbered pending internal.
-- The tracker needs loop1 or meta-prompt attention (both stalled; next eval scoring could identify gaps).
+- BUILD: Pick the lowest-numbered pending normal-priority internal task. Top
+  candidates: task #0045 (cleanup function injection pattern — same REPO_DIR-sourced
+  pattern, lower risk than the after_task fix), or whatever is lowest-numbered
+  pending internal.
+- The tracker needs loop1 or meta-prompt attention (both stalled).
