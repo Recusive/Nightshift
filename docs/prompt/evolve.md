@@ -505,6 +505,9 @@ After merging, verify main is healthy:
 # Wait for CI on main (check latest run)
 gh run list --branch main --limit 1
 # If status is "completed" + "success": proceed
+# Required post-merge smoke check on main (both agent entry paths)
+python3 -m nightshift run --dry-run --agent codex > /dev/null
+python3 -m nightshift run --dry-run --agent claude > /dev/null
 # If status is "failure": fix via branch+PR or revert. NEVER push directly to main.
 git checkout -b fix/ci-failure
 # ... fix the issue ...
@@ -512,7 +515,7 @@ gh pr create --title "fix: ..." --body "..."
 gh pr merge --merge --delete-branch --admin
 ```
 
-Do NOT proceed to the next step if CI on main is failing. Fix it first or revert. **Always fix via a branch and PR — never push directly to main, even for trivial fixes.**
+Do NOT proceed to the next step if CI on main is failing or either dry-run breaks. The post-merge smoke check is mandatory even if `make check` passed before merge, because main must still boot both agent entry paths after the PR lands. **Always fix via a branch and PR — never push directly to main, even for trivial fixes.**
 
 ## STEP 10 — HANDOFF WITH EVALUATION FLAG
 
