@@ -7,7 +7,7 @@
 - **Reviewed `nightshift/cycle.py`**: hardened instruction ingestion and cycle guardrail helpers so malformed repo instructions, cap-edge truncation, hot-path overlap detection, and structured forbidden-command parsing no longer misbehave.
 - Files: `nightshift/cycle.py`, `tests/test_nightshift.py`, `docs/reviews/2026-04-06-cycle.md`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `docs/architecture/MODULE_MAP.md`
 - Tests: +6 new, 998 total passing (`make check`)
-- PR: pending
+- PR: https://github.com/Recusive/Nightshift/pull/127
 
 ## Decisions Made
 - **Kept the review scoped to helpers around `verify_cycle()`**: fixed confirmed defects without reshaping the main verifier, because this role reviews one module per session and the large-function refactor was not required for correctness.
