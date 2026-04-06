@@ -229,8 +229,12 @@ ${PENTEST_PROMPT}"
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         echo "  Pentest preflight modified prompt/control files; reset to origin/main and alerting builder."
     fi
-    if ! check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+    check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"
+    local origin_rc=$?
+    if [ "$origin_rc" -eq 1 ]; then
         echo "  Pentest preflight pushed prompt/control files to origin/main; reverted and alerting builder."
+    elif [ "$origin_rc" -eq 2 ]; then
+        echo "  CRITICAL: Pentest pushed to origin/main and revert FAILED. Resetting to origin/main."
     fi
     cleanup_prompt_snapshots "$SNAP_DIR"
     reset_repo_state
@@ -305,8 +309,12 @@ ${PROMPT}"
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         PROMPT_TAMPERED=" [PROMPT MODIFIED]"
     fi
-    if ! check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+    check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"
+    local origin_rc=$?
+    if [ "$origin_rc" -eq 1 ]; then
         PROMPT_TAMPERED="${PROMPT_TAMPERED} [ORIGIN MODIFIED]"
+    elif [ "$origin_rc" -eq 2 ]; then
+        PROMPT_TAMPERED="${PROMPT_TAMPERED} [ORIGIN MODIFIED - REVERT FAILED]"
     fi
     cleanup_prompt_snapshots "$SNAP_DIR"
 
