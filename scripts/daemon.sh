@@ -302,7 +302,7 @@ for line in open('$LOG_FILE'):
         if e.get('type') == 'assistant':
             for b in e.get('message', {}).get('content', []):
                 t = b.get('text', '')
-                m = re.search(r'EXECUTING ROLE:\s*(BUILD|REVIEW|OVERSEE|STRATEGIZE)', t)
+                m = re.search(r'EXECUTING ROLE:\s*(BUILD|REVIEW|OVERSEE|STRATEGIZE|ACHIEVE)', t)
                 if m:
                     print(m.group(1).lower())
                     sys.exit(0)
@@ -311,7 +311,7 @@ for line in open('$LOG_FILE'):
             item = e.get('item', {})
             if item.get('type') == 'agent_message':
                 t = item.get('text', '')
-                m = re.search(r'EXECUTING ROLE:\s*(BUILD|REVIEW|OVERSEE|STRATEGIZE)', t)
+                m = re.search(r'EXECUTING ROLE:\s*(BUILD|REVIEW|OVERSEE|STRATEGIZE|ACHIEVE)', t)
                 if m:
                     print(m.group(1).lower())
                     sys.exit(0)

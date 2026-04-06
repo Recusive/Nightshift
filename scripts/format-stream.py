@@ -37,7 +37,8 @@ def format_claude(event: dict) -> str | None:
             for marker in [
                 "SYSTEM SIGNALS", "ROLE DECISION", "EXECUTING ROLE",
                 "SESSION STATUS", "PROPOSAL", "PRE-PUSH CHECKLIST",
-                "SESSION COMPLETE", "GENERATED TASKS",
+                "SESSION COMPLETE", "GENERATED TASKS", "AUTONOMY SCORE",
+                "ACHIEVE PROPOSAL", "ACHIEVE SESSION COMPLETE",
             ]:
                 if marker in text:
                     return f"  >>>   {marker}"

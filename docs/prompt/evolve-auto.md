@@ -96,6 +96,11 @@ do NOT wait for human input. Write the strategy report, then auto-create
 tasks for your top 3 recommendations. The human reviews asynchronously via
 the task queue. Do not stall waiting for approval.
 
+ACHIEVE CONTEXT: When the unified daemon picks ACHIEVE, follow
+`docs/prompt/achieve.md`. Measure the autonomy score, fix the highest-impact
+human dependency, and write a report to `docs/autonomy/`. The autonomy score
+(0-100) measures how close the system is to zero human intervention.
+
 DAEMON CONTEXT: You are running inside the unified daemon (`scripts/daemon.sh`) via tmux.
 - The unified prompt (`docs/prompt/unified.md`) selected your role this cycle
 - Your output is captured as stream-json to `docs/sessions/YYYYMMDD-HHMMSS.log`
