@@ -177,9 +177,10 @@ while true; do
         PR_NUM=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['number'])" 2>/dev/null || true)
         PR_TITLE=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['title'])" 2>/dev/null || true)
         PR_BRANCH=$(echo "$OPEN_PR_INFO" | python3 -c "import json,sys; print(json.load(sys.stdin)['headRefName'])" 2>/dev/null || true)
-        # Sanitize PR_TITLE before injecting into prompts -- strip characters that
-        # could be used for prompt injection (instruction-like content).
+        # Sanitize PR_TITLE and PR_BRANCH before injecting into prompts -- strip
+        # characters that could carry instruction-like content (prompt injection).
         PR_TITLE=$(echo "$PR_TITLE" | tr -cd '[:alnum:] /()\-_.,:#' | cut -c1-80)
+        PR_BRANCH=$(echo "$PR_BRANCH" | tr -cd '[:alnum:]/_.-' | cut -c1-80)
         if [ -n "$PR_NUM" ]; then
             OPEN_PR="OPEN PR FROM PREVIOUS SESSION: PR #${PR_NUM} (${PR_TITLE}) on branch ${PR_BRANCH}. Check its CI status. If CI passes, merge it with: gh pr merge ${PR_NUM} --merge --delete-branch --admin. If CI fails, checkout the branch, fix the issue, push, and merge. Do NOT rebuild this feature from scratch."
             echo "  Found open PR #${PR_NUM}: ${PR_TITLE}"
