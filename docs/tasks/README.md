@@ -32,4 +32,4 @@ See `GUIDE.md` for step-by-step instructions on creating tasks.
 - One task per file
 - Sequential numbers, zero-padded to 4 digits
 - Never reuse a number, never delete files
-- Done tasks stay as history
+- Done tasks are archived to `docs/tasks/archive/` and remain as history
