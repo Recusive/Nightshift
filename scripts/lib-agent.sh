@@ -509,8 +509,8 @@ run_evaluation() {
     local after_task="${2:-}"
     echo "  Running self-evaluation..."
     local result
-    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
-import json
+    result=$(PYTHONPATH="$REPO_DIR" _AFTER_TASK="$after_task" python3 -c "
+import os, json
 from pathlib import Path
 from nightshift.evaluation import evaluate
 from nightshift.config import merge_config
@@ -522,7 +522,7 @@ r = evaluate(
     nightshift_dir=Path('${REPO_DIR:-.}'),
     eval_dir=Path('${REPO_DIR:-.}/docs/evaluations'),
     task_dir=Path('${REPO_DIR:-.}/docs/tasks'),
-    after_task='$after_task',
+    after_task=os.environ.get('_AFTER_TASK', ''),
 )
 print(f\"  Evaluation #{r['evaluation_id']:04d}: {r['total_score']}/{r['max_total']}\")
 if r['tasks_created']:
