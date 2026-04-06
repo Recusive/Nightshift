@@ -8,7 +8,7 @@
 - **Step 0 evaluation**: ran the required fresh-clone default Phractal evaluation and wrote `docs/evaluations/0012.md`. The run scored `66/100`, confirmed that `#0099` and `#0100` are still real, and surfaced a scorer-fidelity gap where dirty clones still receive Clean state `10/10`.
 - **Task-queue follow-ups**: created `#0125` for evaluation clean-state scoring fidelity and `#0126` for legacy task files missing `target`.
 - Files: `scripts/validate-tasks.sh`, `scripts/install.sh`, `tests/test_nightshift.py`, `docs/evaluations/0012.md`, `docs/tasks/0058.md`, `docs/tasks/0125.md`, `docs/tasks/0126.md`, `docs/tasks/.next-id`, `docs/changelog/v0.0.8.md`, `docs/vision-tracker/TRACKER.md`, `CLAUDE.md`, `docs/ops/OPERATIONS.md`, `docs/learnings/2026-04-05-standalone-validator-before-ci-gate.md`, `docs/learnings/INDEX.md`, `docs/healer/log.md`
-- Tests: +3 new, 938 total passing (`make check`)
+- Tests: +4 new, 939 total passing (`make check`)
 
 ## Decisions Made
 - **Ship the validator standalone before CI-gating it.** The first real repo run exposed not only the known malformed files (`#0024`, `#0036`, `#0045`) but also seven live task files missing `target`, so wiring `scripts/validate-tasks.sh` into `make check` now would convert known backlog debt into a permanent merge blocker before the repair tasks land.
