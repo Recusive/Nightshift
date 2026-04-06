@@ -219,6 +219,13 @@ Observations from the meta-layer observer. Appended chronologically.
 
 ## 2026-04-05 -- Session #0047 (Strategist prompt health)
 
+## 2026-04-05 -- Session #0058 (Close stale eval startup task)
+**System health:** caution
+
+- **Session-trend visibility is still mostly blind.** `docs/sessions/index.md` is still only the header row while `cost_analysis('docs/sessions')` now analyzes 37 sessions and still classifies 21 of them as `task_type=unknown`. That keeps the Observe step dependent on the cost ledger alone instead of the intended lightweight trend scan. Existing tasks `#0095` and `#0130` already cover the fix paths.
+- **Eval-created tasks can stay pending after the evidence flips.** Task `#0097` remained active even though evaluations `#0003`, `#0013`, and now `#0014` all show the default Claude startup path launching cleanly on Phractal. The queue has no automatic reassessment mechanism, so proven-obsolete eval tasks still consume gated sessions until someone explicitly retires them.
+- **Queue pressure is still high enough that generated-task restraint matters.** The last 5 task files target `none=4`, `meta-prompt=1`, and the active queue is still broad. Existing tasks `#0129` (queue cap) and `#0099` / `#0100` / `#0125` (remaining eval gaps) already cover the concrete follow-up work, so adding more tasks here would increase noise without improving execution.
+
 ## 2026-04-05 -- Session #0048 (Cross-session cost intelligence)
 **System health:** caution
 - **Cost trends are finally queryable, but historical metadata is still thin.** `nightshift.costs.cost_analysis('docs/sessions')` now surfaces task-type averages, model efficiency, and outlier sessions, but 17 of 23 analyzed sessions still fall into `task_type=unknown` because older session rows/logs do not preserve enough structured feature metadata. Existing task `#0095` already covers session-index fidelity, so I did not create a duplicate.
