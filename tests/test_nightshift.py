@@ -12643,8 +12643,7 @@ class TestEvaluationConstants:
         )
 
     def test_clone_dest_is_string(self):
-        assert isinstance(nightshift.EVALUATION_CLONE_DEST, str)
-        assert nightshift.EVALUATION_CLONE_DEST.startswith("/tmp/")
+        assert nightshift.EVALUATION_CLONE_DEST == "/tmp/nightshift-eval"
 
 
 class TestEvaluationTypes:
