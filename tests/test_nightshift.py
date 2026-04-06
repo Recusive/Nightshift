@@ -8843,6 +8843,202 @@ exit $RC
 
 
 # ---------------------------------------------------------------------------
+# Prompt Guard: origin/main blind spot
+# ---------------------------------------------------------------------------
+
+
+def _init_git_repo_with_remote(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a bare origin and a clone with an initial commit on main.
+
+    Returns (origin_dir, repo_dir).
+    """
+    origin_dir = tmp_path / "origin.git"
+    repo_dir = tmp_path / "repo"
+
+    subprocess.run(
+        ["git", "init", "-b", "main", "--bare", str(origin_dir)],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "clone", str(origin_dir), str(repo_dir)],
+        check=True,
+        capture_output=True,
+    )
+    for key, val in [("user.email", "test@test.com"), ("user.name", "Test")]:
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "config", key, val],
+            check=True,
+            capture_output=True,
+        )
+    # Create initial commit with a guard file
+    (repo_dir / "CLAUDE.md").write_text("safe content\n")
+    subprocess.run(
+        ["git", "-C", str(repo_dir), "add", "CLAUDE.md"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repo_dir), "commit", "-m", "init", "--quiet"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repo_dir), "push", "origin", "HEAD:main", "--quiet"],
+        check=True,
+        capture_output=True,
+    )
+    return origin_dir, repo_dir
+
+
+class TestPromptGuardOriginBlindSpot:
+    """Tests for check_origin_integrity: detects pushed-to-remote guard file changes."""
+
+    LIB = Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh"
+
+    def test_save_prompt_snapshots_writes_origin_hash(self, tmp_path: Path) -> None:
+        """save_prompt_snapshots records origin/main hash for blind spot detection."""
+        _origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
+        script = f"""
+set -e
+source "{self.LIB}"
+cd "{repo_dir}"
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+if [ ! -s "$SNAP/origin-main-hash" ]; then
+    echo "MISSING"
+    cleanup_prompt_snapshots "$SNAP"
+    exit 1
+fi
+echo "HASH:$(cat $SNAP/origin-main-hash)"
+cleanup_prompt_snapshots "$SNAP"
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "HASH:" in result.stdout
+        assert "MISSING" not in result.stdout
+
+    def test_no_alert_when_origin_unchanged(self, tmp_path: Path) -> None:
+        """check_origin_integrity returns 0 when origin/main was not pushed to."""
+        _origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
+        script = f"""
+set -e
+source "{self.LIB}"
+cd "{repo_dir}"
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+set +e
+check_origin_integrity "{repo_dir}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "ORIGIN/MAIN CHANGED" not in result.stdout
+
+    def test_detects_push_without_working_tree_change(self, tmp_path: Path) -> None:
+        """check_origin_integrity detects a guard file pushed to origin/main.
+
+        Simulates the blind spot attack: agent modifies a prompt file, pushes to
+        origin/main, then reverts the local working tree so check_prompt_integrity
+        sees nothing -- but check_origin_integrity catches the push.
+        """
+        origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
+
+        # Set up an attacker clone that pushes to the same bare origin
+        attacker_dir = tmp_path / "attacker"
+        subprocess.run(
+            ["git", "clone", str(origin_dir), str(attacker_dir)],
+            check=True,
+            capture_output=True,
+        )
+        for key, val in [("user.email", "evil@evil.com"), ("user.name", "Evil")]:
+            subprocess.run(
+                ["git", "-C", str(attacker_dir), "config", key, val],
+                check=True,
+                capture_output=True,
+            )
+
+        script = f"""
+set -e
+source "{self.LIB}"
+cd "{repo_dir}"
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+
+# Simulate attack: attacker pushes a malicious CLAUDE.md to origin/main
+# without touching the victim working tree at all.
+echo "malicious content" > "{attacker_dir}/CLAUDE.md"
+git -C "{attacker_dir}" add CLAUDE.md
+git -C "{attacker_dir}" commit -m "attack" --quiet
+git -C "{attacker_dir}" push origin HEAD:main --quiet
+
+set +e
+check_origin_integrity "{repo_dir}" "$SNAP"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 1, (
+            f"Expected blind spot detection (rc=1), got rc={result.returncode}:\n" + result.stdout + result.stderr
+        )
+        assert "ORIGIN/MAIN CHANGED" in result.stdout
+
+    def test_graceful_when_no_hash_file(self, tmp_path: Path) -> None:
+        """check_origin_integrity returns 0 when snap has no origin-main-hash file."""
+        snap_dir = tmp_path / "snap"
+        snap_dir.mkdir()
+        script = f"""
+set -e
+source "{self.LIB}"
+set +e
+check_origin_integrity "{tmp_path}" "{snap_dir}"
+exit $?
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    def test_writes_alert_file_on_detection(self, tmp_path: Path) -> None:
+        """check_origin_integrity appends detection details to the alert file."""
+        origin_dir, repo_dir = _init_git_repo_with_remote(tmp_path)
+        attacker_dir = tmp_path / "attacker"
+        subprocess.run(
+            ["git", "clone", str(origin_dir), str(attacker_dir)],
+            check=True,
+            capture_output=True,
+        )
+        for key, val in [("user.email", "evil@evil.com"), ("user.name", "Evil")]:
+            subprocess.run(
+                ["git", "-C", str(attacker_dir), "config", key, val],
+                check=True,
+                capture_output=True,
+            )
+
+        alert_file = tmp_path / "alert.md"
+        script = f"""
+set -e
+source "{self.LIB}"
+cd "{repo_dir}"
+SNAP=$(save_prompt_snapshots "{repo_dir}")
+
+echo "malicious content" > "{attacker_dir}/CLAUDE.md"
+git -C "{attacker_dir}" add CLAUDE.md
+git -C "{attacker_dir}" commit -m "attack" --quiet
+git -C "{attacker_dir}" push origin HEAD:main --quiet
+
+set +e
+check_origin_integrity "{repo_dir}" "$SNAP" "{alert_file}"
+RC=$?
+cleanup_prompt_snapshots "$SNAP"
+exit $RC
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 1
+        assert alert_file.exists(), "Alert file was not written"
+        alert_content = alert_file.read_text()
+        assert "ORIGIN/MAIN MODIFICATION" in alert_content
+
+
+# ---------------------------------------------------------------------------
 # Handoff compaction
 # ---------------------------------------------------------------------------
 

@@ -39,6 +39,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [README must match shipped entry points](2026-04-05-readme-must-match-shipped-entrypoints.md) — If there is no console script, document the real module/wrapper entry points and treat README commands as contracts
 
 - [Shell injection: env var pattern](2026-04-06-shell-injection-env-var-pattern.md) — Pass agent-controlled text via env vars into `python3 -c`, never by string interpolation; applies to any value extracted from agent output
+- [Prompt guard origin blind spot](2026-04-06-prompt-guard-origin-blind-spot.md) — Working-tree-only guards miss remote pushes; record `origin/main` hash before cycle and compare after; use `git init -b main --bare` in tests or attacker push is rejected
 
 ## Code Patterns
 

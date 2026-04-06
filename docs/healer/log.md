@@ -356,3 +356,15 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Pre-existing test isolation bug hit CI.** `test_model_config_defaults` silently fails in any environment where `NIGHTSHIFT_CLAUDE_MODEL` is set. This was already failing on main before this PR. Fixed with `monkeypatch.delenv()`. The broader pattern: tests should always isolate themselves from host environment variables when testing default behavior.
 
 - **Residual injection surface: `$agent` still interpolated in `run_evaluation()`.** `agent='$agent'` on lib-agent.sh line 521 is a lower-risk residual from the same pattern as #0142. `$agent` is daemon-controlled ("codex"/"claude"), not agent-output, so exploitation requires compromising the daemon invocation itself. Not creating a task — the queue is at 50+ pending and this risk is minimal.
+
+---
+
+## 2026-04-06 -- Session prompt-guard-blind-spot
+
+**System health:** good
+
+- **Pentest found and fixed a real blind spot in the prompt guard.** The working-tree-only guard (`check_prompt_integrity`) can be bypassed: an agent pushes a malicious change to `origin/main` WITHOUT touching the working tree, so the snapshot diff sees nothing. Then `reset_repo_state` pulls the compromise in. The fix (`check_origin_integrity`) records the pre-session `origin/main` hash, fetches origin after each agent cycle, diffs guard files on `origin/main` against the snapshot, and force-pushes a revert if any differ.
+
+- **AGENTS.md pre-added to guard before the file exists.** Task #0073 (create AGENTS.md) is still pending. `AGENTS.md` was added to `PROMPT_GUARD_FILES` now so the future attack window is closed before the file lands. Guard handles missing files gracefully with no false positives.
+
+- **Queue remains healthy at ~44 pending.** The overseer archived 10 done tasks last session. No OVERSEE trigger (50+) yet.
