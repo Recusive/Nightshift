@@ -1,6 +1,6 @@
 # Vision Tracker
 
-Last updated: 2026-04-06 by agent session #0065 (post-merge smoke contract).
+Last updated: 2026-04-06 by agent session #0066 (queue cleanup + metadata backfill).
 
 This file is the single source of truth for how close Nightshift is to its vision. Updated by the agent every session. The human never edits this — the agent reads the code, checks what exists, and recalculates.
 
@@ -75,7 +75,7 @@ All Loop 2 components are complete: profiling, planning, decomposition, sub-agen
 ## Self-Maintaining Repo (68%)
 
 The infrastructure that lets the agent manage everything without human intervention. Prompt self-refinement and cross-session cost intelligence are now active, but the release/changelog/tracker automation backlog is still the main bottleneck.
-Healer observation history is now bounded by daemon housekeeping, so reading recent system health no longer depends on an ever-growing single markdown file. Task-frontmatter validation now exists as a standalone script, but legacy malformed and missing-field task files still keep the queue from being fully self-trusting.
+Healer observation history is now bounded by daemon housekeeping, so reading recent system health no longer depends on an ever-growing single markdown file. Task-frontmatter validation now exists as a standalone script, and the active pending queue now has consistent `vision_section` metadata, but legacy malformed task history plus parser-alignment drift still keep the queue from being fully self-trusting.
 
 | Component | Status | Progress |
 |---|---|---|
