@@ -96,12 +96,18 @@ sessions_since_review >= 10:   +20  (overdue for review)
 sessions_since_review >= 5:    +10  (review getting stale)
 ```
 
-**OVERSEE** -- audit task queue, fix priorities, cull stale tasks
+**OVERSEE** -- close tasks, reduce queue, organize for other roles
 ```
-base:                           10
-pending_task_count >= 50:      +50  (queue is noisy, needs cleanup)
-stale_task_count >= 3:         +40  (tasks rotting, need attention)
-healer flagged queue issues:   +30  (system identified queue problems)
+base:                            5
+pending_task_count >= 80:      +50  (queue critically large)
+pending >= 50 AND not recently
+  overseen (5+ sessions ago):  +35  (queue large, needs attention)
+stale_task_count >= 5:         +30  (tasks rotting)
+new tasks synced from GitHub:  +25  (queue needs organizing)
+last overseer said NEEDS MORE
+  WORK:                        +20  (previous cleanup incomplete)
+CAP: if overseer ran < 3
+  sessions ago AND said CLEAN:   5  (don't re-run, queue is fine)
 ```
 
 **STRATEGIZE** -- big picture review, write strategy report
