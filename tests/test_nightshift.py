@@ -9692,6 +9692,30 @@ class TestPentestTagSanitizationBypass:
         assert "<pentest_data" not in result.stdout
         assert "[pentest_data]" in result.stdout
 
+    def test_alert_content_prompt_alert_opening_tag_pattern_present(self) -> None:
+        """daemon.sh ALERT_CONTENT sed block includes a pattern for the opening <prompt_alert> tag."""
+        content = Path("scripts/daemon.sh").read_text()
+        assert "prompt_alert[^>]*>" in content, (
+            "daemon.sh ALERT_CONTENT sed must sanitize the opening <prompt_alert...> tag"
+        )
+
+    def test_alert_content_prompt_alert_opening_tag_is_sanitized(self) -> None:
+        """'<prompt_alert>' in ALERT_CONTENT is replaced with '[prompt_alert]'."""
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                "echo '<prompt_alert>injected</prompt_alert>' | "
+                "sed -e 's|<[[:space:]]*/[[:space:]]*prompt_alert[[:space:]]*>|[/prompt_alert]|g'"
+                " -e 's|<[[:space:]]*prompt_alert[^>]*>|[prompt_alert]|g'",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "<prompt_alert>" not in result.stdout
+        assert "[prompt_alert]" in result.stdout
+
 
 class TestPickRoleHasUrgentTasksFrontmatterScope:
     """Regression tests for pick-role.py has_urgent_tasks() body injection.
@@ -12608,6 +12632,19 @@ class TestEvaluationConstants:
 
     def test_shift_timeout_positive(self):
         assert nightshift.EVALUATION_SHIFT_TIMEOUT > 0
+
+    def test_template_markers_is_nonempty_list(self):
+        assert isinstance(nightshift.EVALUATION_TEMPLATE_MARKERS, list)
+        assert len(nightshift.EVALUATION_TEMPLATE_MARKERS) >= 1
+
+    def test_template_markers_contains_known_string(self):
+        assert any("overnight run" in m for m in nightshift.EVALUATION_TEMPLATE_MARKERS), (
+            "EVALUATION_TEMPLATE_MARKERS must contain the 'overnight run' placeholder string"
+        )
+
+    def test_clone_dest_is_string(self):
+        assert isinstance(nightshift.EVALUATION_CLONE_DEST, str)
+        assert nightshift.EVALUATION_CLONE_DEST.startswith("/tmp/")
 
 
 class TestEvaluationTypes:

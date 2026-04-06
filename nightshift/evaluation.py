@@ -13,12 +13,14 @@ import subprocess
 from pathlib import Path
 
 from nightshift.constants import (
+    EVALUATION_CLONE_DEST,
     EVALUATION_DEFAULT_CYCLE_MINUTES,
     EVALUATION_DEFAULT_CYCLES,
     EVALUATION_DIMENSIONS,
     EVALUATION_MAX_PER_DIMENSION,
     EVALUATION_SCORE_THRESHOLD,
     EVALUATION_SHIFT_TIMEOUT,
+    EVALUATION_TEMPLATE_MARKERS,
 )
 from nightshift.types import DimensionScore, EvaluationResult, ShiftArtifacts
 from nightshift.worktree import resolve_runtime_dir
@@ -361,13 +363,6 @@ def score_fix_quality(artifacts: ShiftArtifacts) -> DimensionScore:
     )
 
 
-_TEMPLATE_MARKERS = [
-    "will be rewritten as the overnight run accumulates",
-    "Number sequentially",
-    "Issues too large to fix autonomously",
-]
-
-
 def score_shift_log(artifacts: ShiftArtifacts) -> DimensionScore:
     """Score: is the shift log useful?"""
     score = 0
@@ -389,7 +384,7 @@ def score_shift_log(artifacts: ShiftArtifacts) -> DimensionScore:
         notes_parts.append("shift log very short")
 
     # Check template was replaced
-    is_template = any(marker in log for marker in _TEMPLATE_MARKERS)
+    is_template = any(marker in log for marker in EVALUATION_TEMPLATE_MARKERS)
     if not is_template:
         score += 3
     else:
@@ -572,11 +567,11 @@ def score_clean_state(artifacts: ShiftArtifacts) -> DimensionScore:
 
     if artifacts["runner_exit_code"] == 0:
         score += 5
+    elif artifacts["runner_exit_code"] == -1:
+        score += 2
+        notes_parts.append("exit code unknown")
     else:
         notes_parts.append(f"non-zero exit: {artifacts['runner_exit_code']}")
-        if artifacts["runner_exit_code"] == -1:
-            score += 2
-            notes_parts[-1] = "exit code unknown"
 
     state = _get_state_dict(artifacts)
     halt = state.get("halt_reason")
@@ -878,7 +873,7 @@ def evaluate(
 
     # Clone
     clone_dir: Path | None = None
-    clone_dest = Path("/tmp/nightshift-eval")
+    clone_dest = Path(EVALUATION_CLONE_DEST)
     try:
         clone_dir = clone_target_repo(target_repo, clone_dest)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
@@ -940,10 +935,7 @@ def evaluate(
         write_evaluation_report(eval_dir, result)
 
     # Cleanup clone
-    try:
-        if clone_dir is not None:
-            shutil.rmtree(clone_dir, ignore_errors=True)
-    except OSError:
-        pass
+    if clone_dir is not None:
+        shutil.rmtree(clone_dir, ignore_errors=True)
 
     return result
