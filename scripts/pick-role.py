@@ -276,6 +276,8 @@ def compute_scores(signals: dict) -> dict[str, int]:
         oversee += 45  # large queue, not recently overseen
     elif pt >= 50 and so >= 1:
         oversee += 20  # large queue but was recently overseen
+    elif pt >= 30 and so >= 5:
+        oversee += 25  # medium queue, hasn't been overseen in a while
     if st >= 5:
         oversee += 25
     # Cap: don't re-run immediately after a CLEAN signal
@@ -293,10 +295,12 @@ def compute_scores(signals: dict) -> dict[str, int]:
     achieve = 5
     if auto < 70:
         achieve += 50
+    elif auto < 90:
+        achieve += 20  # room for improvement even above 70
     if nh >= 3:
         achieve += 30
-    if ev < 80 and sr >= 10:
-        achieve += 20
+    if sa >= 15:
+        achieve += 25  # hasn't run in a long time, system needs autonomy check
     if cb >= 10:
         achieve += 15
 
