@@ -35,6 +35,7 @@ from nightshift.types import (
     ShiftState,
 )
 from nightshift.worktree import (
+    canonical_repo_relative_path,
     cleanup_safe_artifacts,
     git_changed_files_for_commit,
     git_name_status_for_commit,
@@ -660,6 +661,13 @@ def expected_cycle_commits(cycle_result: CycleResult | None) -> tuple[int, int] 
     return (base, base + 1)
 
 
+def expected_fix_commits(cycle_result: CycleResult | None) -> int | None:
+    """Return the exact number of commits that should touch non-log files."""
+    if cycle_result is None:
+        return None
+    return len(cycle_result.get("fixes", []))
+
+
 def evaluate_baseline(
     *,
     worktree_dir: Path,
@@ -707,16 +715,18 @@ def verify_cycle(
     verify_command = state["verify_command"]
     commit_output = git(worktree_dir, "rev-list", "--reverse", f"{pre_head}..HEAD", check=False)
     commits = [entry for entry in commit_output.splitlines() if entry.strip()]
+    canonical_shift_log = canonical_repo_relative_path(worktree_dir, shift_log_relative)
     union_files: list[str] = []
     violations: list[str] = []
     shift_log_seen = False
     fix_commits = 0
     for commit in commits:
         commit_files = git_changed_files_for_commit(worktree_dir, commit)
+        canonical_commit_files = [canonical_repo_relative_path(worktree_dir, file_path) for file_path in commit_files]
         name_status = git_name_status_for_commit(worktree_dir, commit)
-        if shift_log_relative in commit_files:
+        if canonical_shift_log in canonical_commit_files:
             shift_log_seen = True
-        has_non_log_files = any(f != shift_log_relative for f in commit_files)
+        has_non_log_files = any(file_path != canonical_shift_log for file_path in canonical_commit_files)
         if has_non_log_files:
             fix_commits += 1
         for line in name_status:
@@ -727,11 +737,11 @@ def verify_cycle(
             reason = blocked_file(file_path, config)
             if reason:
                 violations.append(f"Blocked file touched: {file_path} ({reason})")
-        union_files.extend(commit_files)
+        union_files.extend(canonical_commit_files)
     if commits and not shift_log_seen:
         violations.append("No commit in this cycle includes the shift log update.")
     unique_files = sorted(set(union_files))
-    non_log_files = [entry for entry in unique_files if entry != shift_log_relative]
+    non_log_files = [entry for entry in unique_files if entry != canonical_shift_log]
 
     if fix_commits > int(config["max_fixes_per_cycle"]):
         violations.append(
@@ -755,13 +765,13 @@ def verify_cycle(
     if cycle_result is None and config["agent"] == "codex":
         violations.append("Agent cycle did not produce a structured JSON result.")
     if cycle_result is not None:
-        expected_range = expected_cycle_commits(cycle_result)
-        if expected_range is not None:
-            min_commits, max_commits = expected_range
-            if len(commits) < min_commits or len(commits) > max_commits:
-                violations.append(
-                    f"Cycle created {len(commits)} commits but structured output implies {min_commits}-{max_commits}."
-                )
+        expected_non_log_commits = expected_fix_commits(cycle_result)
+        if expected_non_log_commits is not None and fix_commits != expected_non_log_commits:
+            violations.append(
+                "Cycle created "
+                f"{fix_commits} commit(s) touching non-log files but structured output implies "
+                f"{expected_non_log_commits}."
+            )
         for fix in cycle_result.get("fixes", []):
             if len(set(fix.get("files", []))) > int(config["max_files_per_fix"]):
                 violations.append(
