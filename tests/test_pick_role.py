@@ -475,3 +475,8 @@ class TestHasUrgentTasksCRLF:
     def test_crlf_non_urgent_task_not_detected(self, tmp_path: Path) -> None:
         (tmp_path / "0001.md").write_bytes(b"---\r\nstatus: pending\r\npriority: normal\r\n---\r\n# Body\r\n")
         assert has_urgent_tasks(tmp_path) is False
+
+    def test_body_priority_urgent_not_detected(self, tmp_path: Path) -> None:
+        # Frontmatter says priority: normal; body has 'priority: urgent'
+        (tmp_path / "0001.md").write_text("---\nstatus: pending\npriority: normal\n---\n\npriority: urgent\n")
+        assert has_urgent_tasks(tmp_path) is False
