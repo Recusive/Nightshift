@@ -323,7 +323,7 @@ ${PROMPT}"
         END_TIME=$(date +%s)
         DURATION=$(( END_TIME - START_TIME ))
         DURATION_MIN=$(( DURATION / 60 ))
-        echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | - | SECURITY ABORT: origin revert failed${PROMPT_TAMPERED} | $FEATURE | - |" >> "$INDEX_FILE"
+        echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | - | SECURITY ABORT: origin revert failed${PROMPT_TAMPERED} | ${FEATURE:--} | - |" >> "$INDEX_FILE"
         notify_human "Origin revert failed (post-builder)" \
             "check_origin_integrity returned exit code 2 after builder session $SESSION_ID. Origin/main may contain tampered prompt/control files. The exec self-restart would run attacker code. Manual intervention required." || true
         cleanup_prompt_snapshots "$SNAP_DIR"
