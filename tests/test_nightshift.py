@@ -932,9 +932,9 @@ class TestRunNightshiftPaths:
             ["test", "--agent", "codex", "--repo-dir", str(repo), "--cycles", "1", "--cycle-minutes", "1"]
         )
         verification = {
-            "files_touched": [],
-            "dominant_path": "(none)",
-            "commits": [],
+            "files_touched": ["apps/api/app/core/cors.py"],
+            "dominant_path": "apps",
+            "commits": ["abc1234"],
             "violations": ["simulated rejection"],
             "verify_command": None,
             "verify_status": "failed",
@@ -948,7 +948,31 @@ class TestRunNightshiftPaths:
             patch("nightshift.cli.evaluate_baseline"),
             patch("nightshift.cli.install_dependencies_if_needed"),
             patch("nightshift.cli.command_for_agent", return_value=["python3", "-c", "print('{}')"]),
-            patch("nightshift.cli.parse_cycle_result", return_value={"fixes": [], "logged_issues": []}),
+            patch(
+                "nightshift.cli.parse_cycle_result",
+                return_value={
+                    "status": "completed",
+                    "notes": "Fixed CORS misconfiguration for preview domains.",
+                    "fixes": [
+                        {
+                            "title": "Use allow_origin_regex for preview domains",
+                            "category": "Security",
+                            "impact": "medium",
+                            "files": ["apps/api/app/core/cors.py"],
+                            "commit": "abc1234",
+                        }
+                    ],
+                    "logged_issues": [
+                        {
+                            "title": "Fast auth middleware needs follow-up review",
+                            "category": "Error Handling",
+                            "severity": "medium",
+                            "files": ["apps/api/app/middleware/fast_auth.py"],
+                            "reason": "Rejected run preserved this only as a note.",
+                        }
+                    ],
+                },
+            ),
             patch("nightshift.cli.verify_cycle", return_value=(False, verification)),
         ):
             result = nightshift.run_nightshift(args, test_mode=True)
@@ -968,6 +992,15 @@ class TestRunNightshiftPaths:
         today = nightshift.now_local().strftime("%Y-%m-%d")
         assert (runtime_dir / f"{today}.state.json").exists()
         assert (runtime_dir / f"{today}.runner.log").exists()
+        summary_path = runtime_dir / f"{today}.md"
+        assert summary_path.exists()
+        summary = summary_path.read_text(encoding="utf-8")
+        assert "rejected findings" in summary.lower()
+        assert "Cycle 1" in summary
+        assert "Fixed CORS misconfiguration for preview domains." in summary
+        assert "Use allow_origin_regex for preview domains" in summary
+        assert "Fast auth middleware needs follow-up review" in summary
+        assert "simulated rejection" in summary
 
 
 class TestValidateWorktree:
@@ -1904,6 +1937,28 @@ class TestParseCycleResult:
         assert result["cycle"] == 1
         assert result["tests_run"] == ["npm run lint"]
         assert result["notes"] == "done"
+
+    def test_preserves_summary_style_fields_for_readable_rejections(self, tmp_path: Path) -> None:
+        msg = tmp_path / "msg.json"
+        result = nightshift.parse_cycle_result(
+            agent="claude",
+            message_path=msg,
+            raw_output=json.dumps(
+                {
+                    "status": "completed",
+                    "summary": "Fixed CORS misconfiguration for preview domains.",
+                    "fixes_applied": 1,
+                    "issues_logged": 1,
+                    "categories_covered": ["Security"],
+                }
+            ),
+        )
+
+        assert result is not None
+        assert result["categories"] == ["Security"]
+        assert "Fixed CORS misconfiguration for preview domains." in result["notes"]
+        assert "1 fix(es)" in result["notes"]
+        assert "1 logged issue(s)" in result["notes"]
 
 
 class TestForbiddenCycleCommands:

@@ -7,6 +7,7 @@ import json
 import os
 import shlex
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 from nightshift.config import infer_verify_command, merge_config, resolve_agent
@@ -34,6 +35,7 @@ from nightshift.profiler import profile_repo
 from nightshift.scoring import score_diff
 from nightshift.shell import command_exists, git, run_command
 from nightshift.state import append_cycle_state, load_json, read_state, write_json
+from nightshift.types import CycleResult, CycleVerification
 from nightshift.worktree import (
     discover_base_branch,
     ensure_shift_log,
@@ -47,6 +49,116 @@ from nightshift.worktree import (
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _write_rejected_cycle_artifact(
+    *,
+    runtime_dir: Path,
+    today: str,
+    cycle_number: int,
+    cycle_result: CycleResult | None,
+    verification: CycleVerification,
+) -> None:
+    artifact_path = runtime_dir / f"{today}.md"
+    if artifact_path.exists():
+        lines = artifact_path.read_text(encoding="utf-8").rstrip().splitlines()
+        if lines:
+            lines.append("")
+    else:
+        lines = [
+            f"# Nightshift -- {today}",
+            "",
+            "## Summary",
+            "This validation run produced rejected findings. The work below was reverted after cycle verification rejected the cycle, so none of it shipped.",
+            "",
+            "## Rejected Findings",
+            "",
+        ]
+
+    notes = ""
+    fixes: Sequence[object] = ()
+    logged_issues: Sequence[object] = ()
+    if isinstance(cycle_result, dict):
+        raw_notes = cycle_result.get("notes")
+        notes = raw_notes.strip() if isinstance(raw_notes, str) else ""
+        raw_fixes = cycle_result.get("fixes")
+        fixes = raw_fixes if isinstance(raw_fixes, list) else []
+        raw_logged = cycle_result.get("logged_issues")
+        logged_issues = raw_logged if isinstance(raw_logged, list) else []
+
+    files_touched_raw = verification.get("files_touched")
+    files_touched = files_touched_raw if isinstance(files_touched_raw, list) else []
+    violations_raw = verification.get("violations")
+    violations = violations_raw if isinstance(violations_raw, list) else []
+    verify_command = verification.get("verify_command")
+    verify_status = verification.get("verify_status")
+    verify_exit_code = verification.get("verify_exit_code")
+
+    verify_line = f"- Verification: `{verify_command}` -> {verify_status}"
+    if isinstance(verify_exit_code, int):
+        verify_line += f" (exit {verify_exit_code})"
+
+    if files_touched:
+        files_line = ", ".join(f"`{entry}`" for entry in files_touched if isinstance(entry, str))
+    else:
+        files_line = "(none)"
+
+    lines.extend(
+        [
+            f"### Cycle {cycle_number}",
+            "",
+            "- Result: rejected and reverted",
+            verify_line,
+            f"- Files touched before revert: {files_line}",
+        ]
+    )
+    if notes:
+        lines.append(f"- Agent summary: {notes}")
+
+    if fixes:
+        lines.extend(["", "Rejected fixes:"])
+        for index, fix in enumerate(fixes, start=1):
+            if not isinstance(fix, dict):
+                continue
+            title = str(fix.get("title", "Untitled fix"))
+            category = fix.get("category")
+            impact = fix.get("impact")
+            files = fix.get("files")
+            file_list = (
+                ", ".join(f"`{entry}`" for entry in files if isinstance(entry, str)) if isinstance(files, list) else ""
+            )
+            suffix_parts = [part for part in (category, impact) if isinstance(part, str) and part]
+            suffix = f" ({', '.join(suffix_parts)})" if suffix_parts else ""
+            line = f"{index}. {title}{suffix}"
+            if file_list:
+                line += f" -- {file_list}"
+            lines.append(line)
+    elif not notes:
+        lines.extend(["", "Rejected fixes:", "1. No structured fix details were preserved in the cycle result."])
+
+    if logged_issues:
+        lines.extend(["", "Rejected logged issues:"])
+        for index, issue in enumerate(logged_issues, start=1):
+            if not isinstance(issue, dict):
+                continue
+            title = str(issue.get("title", "Untitled issue"))
+            category = issue.get("category")
+            severity = issue.get("severity")
+            reason = issue.get("reason")
+            suffix_parts = [part for part in (category, severity) if isinstance(part, str) and part]
+            suffix = f" ({', '.join(suffix_parts)})" if suffix_parts else ""
+            line = f"{index}. {title}{suffix}"
+            if isinstance(reason, str) and reason:
+                line += f" -- {reason}"
+            lines.append(line)
+
+    if violations:
+        lines.extend(["", "Rejected because:"])
+        for violation in violations:
+            if isinstance(violation, str):
+                lines.append(f"- {violation}")
+
+    artifact_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
 def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
@@ -252,6 +364,14 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
 
         if not valid:
             state["counters"]["failed_verifications"] += 1
+            if test_mode:
+                _write_rejected_cycle_artifact(
+                    runtime_dir=runtime_dir,
+                    today=today,
+                    cycle_number=cycle_number,
+                    cycle_result=cycle_result,
+                    verification=verification,
+                )
             revert_cycle(worktree_dir, pre_head)
             state["cycles"].append(
                 {
