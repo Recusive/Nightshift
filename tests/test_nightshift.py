@@ -10001,9 +10001,11 @@ is_auth_failure "{log_file}"
         return result.returncode
 
     def test_detects_not_logged_in(self, tmp_path: Path) -> None:
-        """is_auth_failure returns 0 for a Claude 'Not logged in' result."""
+        """is_auth_failure returns 0 for a Claude 'Not logged in' result (UTF-8 middot)."""
         import json
 
+        # Use ensure_ascii=False to match the real log format where the middot
+        # is stored as UTF-8 bytes rather than the \u00b7 ASCII escape.
         log_line = json.dumps(
             {
                 "type": "result",
@@ -10011,7 +10013,8 @@ is_auth_failure "{log_file}"
                 "is_error": True,
                 "result": "Not logged in \u00b7 Please run /login",
                 "total_cost_usd": 0,
-            }
+            },
+            ensure_ascii=False,
         )
         rc = self._run_is_auth_failure(log_line, tmp_path)
         assert rc == 0, "is_auth_failure should return 0 for 'Not logged in' result"
@@ -10026,10 +10029,28 @@ is_auth_failure "{log_file}"
                 "is_error": True,
                 "result": "Session expired. Please run /login to continue.",
                 "total_cost_usd": 0,
-            }
+            },
+            ensure_ascii=False,
         )
         rc = self._run_is_auth_failure(log_line, tmp_path)
         assert rc == 0
+
+    def test_detects_codex_auth_failure(self, tmp_path: Path) -> None:
+        """is_auth_failure returns 0 for Codex item.completed/agent_message auth errors."""
+        import json
+
+        log_line = json.dumps(
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "agent_message",
+                    "text": "Not logged in. Please run /login to authenticate.",
+                },
+            },
+            ensure_ascii=False,
+        )
+        rc = self._run_is_auth_failure(log_line, tmp_path)
+        assert rc == 0, "is_auth_failure should detect auth failures in Codex item.completed events"
 
     def test_ignores_code_errors(self, tmp_path: Path) -> None:
         """is_auth_failure returns 1 for a regular code failure (not an auth issue)."""
@@ -10041,7 +10062,8 @@ is_auth_failure "{log_file}"
                 "is_error": True,
                 "result": "Error: make check failed with 3 lint errors",
                 "total_cost_usd": 2.5,
-            }
+            },
+            ensure_ascii=False,
         )
         rc = self._run_is_auth_failure(log_line, tmp_path)
         assert rc == 1, "is_auth_failure should return 1 for non-auth failures"
