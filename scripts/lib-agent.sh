@@ -239,18 +239,16 @@ check_origin_integrity() {
     fi
 
     # Hash changed -- inspect which guard files were modified on origin/main.
-    # Use temp files to avoid command-substitution trailing-newline stripping.
+    # Use a single temp file (truncated per iteration) to avoid trailing-newline
+    # stripping from command substitution and mktemp-failure leak in a loop.
     local files_to_restore=()
     local origin_tmp
-    origin_tmp=$(mktemp)
+    origin_tmp=$(mktemp) || return 0  # Can't create tmpfile; skip check
     for f in "${PROMPT_GUARD_FILES[@]}"; do
         local snapshot="$snap_dir/$f"
         [ -f "$snapshot" ] || continue
-        git -C "$repo_dir" show "origin/main:$f" > "$origin_tmp" 2>/dev/null || {
-            rm -f "$origin_tmp"
-            origin_tmp=$(mktemp)
-            continue
-        }
+        : > "$origin_tmp"  # truncate between iterations
+        git -C "$repo_dir" show "origin/main:$f" > "$origin_tmp" 2>/dev/null || continue
         if ! diff -q "$snapshot" "$origin_tmp" >/dev/null 2>&1; then
             if [ "$changed" -eq 0 ]; then
                 echo ""
@@ -284,7 +282,11 @@ check_origin_integrity() {
             git -C "$repo_dir" \
                 commit -m "security: revert prompt guard files pushed by agent session" \
                 --quiet 2>/dev/null || true
-            if git -C "$repo_dir" push origin main --quiet 2>/dev/null; then
+            # Force-push is intentional here: the tampered origin/main commit is
+            # ahead of the pre-session hash, so a regular push would be rejected
+            # as non-fast-forward. This is an emergency exception to the no-direct-
+            # push-to-main rule, analogous to the housekeeping carve-out.
+            if git -C "$repo_dir" push origin main --force --quiet 2>/dev/null; then
                 echo "  Reverted origin/main to pre-session state."
             else
                 echo "  WARNING: Revert push failed -- origin/main may still contain tampered files."

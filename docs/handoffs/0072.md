@@ -84,7 +84,7 @@ archival fix, handoff #0071). Not malicious.
 
 ## PR
 
-- **PR #138**: (to be created)
+- **PR #139**: https://github.com/Recusive/Nightshift/pull/139
 
 ## Files Changed
 
