@@ -520,6 +520,11 @@ print(format_session_cost(entry))
 
     echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL | $OVERRIDE_NOTE |" >> "$INDEX_FILE"
 
+    # --- Commit session metadata to main (survives next cycle's git reset) ---
+    git add "$INDEX_FILE" "$COST_FILE" 2>/dev/null || true
+    git commit -m "session: $SESSION_ROLE #$CYCLE ($SESSION_ID)" --quiet 2>/dev/null || true
+    git push origin main --quiet 2>/dev/null || true
+
     # --- Budget check ---
     if [ "$BUDGET" != "0" ]; then
         CUMULATIVE=$(_NS_COST="$COST_FILE" PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR" python3 -c "
