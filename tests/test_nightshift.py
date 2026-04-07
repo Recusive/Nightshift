@@ -7928,11 +7928,65 @@ class TestRecordSession:
 class TestTotalCost:
     def test_returns_cumulative(self, tmp_path: Path) -> None:
         path = str(tmp_path / "costs.json")
-        nightshift.write_ledger(path, {"total_cost_usd": 42.5, "sessions": []})
+        session: nightshift.SessionCost = {
+            "session_id": "s1",
+            "agent": "claude",
+            "model": "claude-opus-4-6",
+            "input_tokens": 0,
+            "cache_creation_tokens": 0,
+            "cache_read_tokens": 0,
+            "output_tokens": 0,
+            "total_cost_usd": 42.5,
+        }
+        nightshift.write_ledger(path, {"total_cost_usd": 42.5, "sessions": [session]})
         assert nightshift.total_cost(path) == 42.5
 
     def test_missing_ledger_returns_zero(self, tmp_path: Path) -> None:
         assert nightshift.total_cost(str(tmp_path / "nope.json")) == 0.0
+
+
+class TestCostBudgetPoisoningGuard:
+    """Regression tests for costs.json budget-stop poisoning (pentest finding)."""
+
+    def test_poisoned_stored_total_empty_sessions_returns_zero(self, tmp_path: Path) -> None:
+        """Inflated total_cost_usd with no sessions must not be trusted."""
+        path = str(tmp_path / "costs.json")
+        nightshift.write_ledger(path, {"total_cost_usd": 999.0, "sessions": []})
+        assert nightshift.total_cost(path) == 0.0
+
+    def test_real_session_cost_not_inflated_by_poisoned_total(self, tmp_path: Path) -> None:
+        """After a real session is recorded, total reflects only real costs."""
+        path = str(tmp_path / "costs.json")
+        # Attacker pre-poisons: stored total just under a $25 budget
+        nightshift.write_ledger(path, {"total_cost_usd": 24.99, "sessions": []})
+        # Builder records one real session from an empty log (0 tokens, 0 cost)
+        nightshift.record_session(path, str(tmp_path / "missing.log"), "s1", "claude")
+        # total_cost() sums sessions[], not the poisoned stored field
+        assert nightshift.total_cost(path) < 1.0
+
+    def test_zeroed_ledger_does_not_disable_enforcement(self, tmp_path: Path) -> None:
+        """Zeroing the file to disable enforcement also zeroes the session sum."""
+        path = str(tmp_path / "costs.json")
+        # Attacker writes zeroed file to suppress budget stop
+        nightshift.write_ledger(path, {"total_cost_usd": 0.0, "sessions": []})
+        # Three real sessions each costing $10 are recorded
+        for i in range(3):
+            session: nightshift.SessionCost = {
+                "session_id": f"s{i}",
+                "agent": "claude",
+                "model": "claude-opus-4-6",
+                "input_tokens": 0,
+                "cache_creation_tokens": 0,
+                "cache_read_tokens": 0,
+                "output_tokens": 0,
+                "total_cost_usd": 10.0,
+            }
+            ledger = nightshift.read_ledger(path)
+            ledger["sessions"].append(session)
+            ledger["total_cost_usd"] = round(ledger["total_cost_usd"] + 10.0, 6)
+            nightshift.write_ledger(path, ledger)
+        # total_cost() sums the 3 real sessions regardless of stored field
+        assert nightshift.total_cost(path) == 30.0
 
 
 class TestFormatSessionCost:
@@ -12212,6 +12266,8 @@ def _make_eval_artifacts(
     runner_exit_code=0,
     state_file_valid=True,
     shift_log_exists=True,
+    git_status_output="",
+    repo_is_clean=True,
 ):
     """Helper to build ShiftArtifacts for testing."""
     return nightshift.ShiftArtifacts(
@@ -12220,6 +12276,8 @@ def _make_eval_artifacts(
         runner_exit_code=runner_exit_code,
         state_file_valid=state_file_valid,
         shift_log_exists=shift_log_exists,
+        git_status_output=git_status_output,
+        repo_is_clean=repo_is_clean,
     )
 
 
@@ -12625,6 +12683,57 @@ class TestScoreCleanState:
         arts = _make_eval_artifacts(state=state, runner_exit_code=-1)
         s = nightshift.score_clean_state(arts)
         assert "exit code unknown" in s["notes"]
+
+    def test_dirty_clone_penalized(self):
+        """Dirty clone loses 2 points even when runner exits 0 and halt is clean."""
+        state = _make_good_state()
+        arts = _make_eval_artifacts(
+            state=state,
+            runner_exit_code=0,
+            repo_is_clean=False,
+            git_status_output="?? Docs/Nightshift/\n",
+        )
+        s = nightshift.score_clean_state(arts)
+        assert s["score"] < 10
+        assert "dirty" in s["notes"]
+
+    def test_dirty_clone_note_includes_first_entry(self):
+        """Note should surface the first dirty file entry for diagnostics."""
+        state = _make_good_state()
+        arts = _make_eval_artifacts(
+            state=state,
+            runner_exit_code=0,
+            repo_is_clean=False,
+            git_status_output="?? Docs/Nightshift/\n?? tmp/\n",
+        )
+        s = nightshift.score_clean_state(arts)
+        assert "Docs/Nightshift" in s["notes"]
+
+    def test_clean_clone_gets_full_score(self):
+        """Clean repo (empty git status) with clean exit earns max score."""
+        state = _make_good_state()
+        arts = _make_eval_artifacts(
+            state=state,
+            runner_exit_code=0,
+            repo_is_clean=True,
+            git_status_output="",
+        )
+        s = nightshift.score_clean_state(arts)
+        assert s["score"] == 10
+
+    def test_dirty_clone_with_successful_exit_scores_below_clean(self):
+        """Verify dirty-clone detection fires even when everything else looks good."""
+        state = _make_good_state()
+        clean_arts = _make_eval_artifacts(state=state, runner_exit_code=0, repo_is_clean=True)
+        dirty_arts = _make_eval_artifacts(
+            state=state,
+            runner_exit_code=0,
+            repo_is_clean=False,
+            git_status_output="?? Docs/Nightshift/",
+        )
+        clean_score = nightshift.score_clean_state(clean_arts)["score"]
+        dirty_score = nightshift.score_clean_state(dirty_arts)["score"]
+        assert dirty_score < clean_score
 
 
 class TestScoreBreadth:
@@ -13081,9 +13190,12 @@ class TestEvaluationTypes:
             runner_exit_code=0,
             state_file_valid=True,
             shift_log_exists=True,
+            git_status_output="",
+            repo_is_clean=True,
         )
         assert sa["state_file_valid"]
         assert sa["shift_log"] == "log"
+        assert sa["repo_is_clean"] is True
 
 
 class TestEvaluationConfig:

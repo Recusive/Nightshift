@@ -560,3 +560,5 @@ class ShiftArtifacts(TypedDict):
     runner_exit_code: int
     state_file_valid: bool
     shift_log_exists: bool
+    git_status_output: str
+    repo_is_clean: bool

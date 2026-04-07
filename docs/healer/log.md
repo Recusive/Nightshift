@@ -490,3 +490,17 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Vision section imbalance: 6+ consecutive self-maintaining tasks.** Session index shows all recent BUILD sessions targeting self-maintaining security. eval-gate is still blocked at 53/100 (task #0177 is integration-blocked). Next BUILD session should prioritize #0125 (loop1 git-status check) to rebalance.
 
 - **.next-id was stale.** OVERSEE session created tasks 0182-0185 but left .next-id at 182 instead of 186. Fixed inline. This is a recurring pattern when OVERSEE creates multiple tasks in one session — the write-back should be atomic after all tasks are created.
+
+## 2026-04-06 -- Session pentest-costs-budget-poison-and-dirty-clone (#0098)
+
+**System health:** good
+
+- **Two findings fixed, one session.** Pentest found costs.json budget-stop poisoning (new, fix-now); task #0125 (dirty-clone detection) was the highest-value normal-priority loop1 task. Both fit in the same session cleanly.
+
+- **costs.json fix is architecturally sound.** `total_cost()` now always sums from sessions[]; the stored total_cost_usd field is decoupled from the budget gate. The attack surface for a pre-session poisoning is eliminated without changing the write path.
+
+- **Test count: 1111 (+7 from 1104, +5 cost poisoning tests, +5 dirty-clone tests, -3 adjusted).** All new tests are targeted regressions.
+
+- **Vision section balance: loop1 task completed.** Task #0125 was the only pending loop1 task. The next session should scan for loop1 or loop2 tasks before continuing self-maintaining security work.
+
+- **Eval gate: still at 53/100 (stale).** Task #0177 remains integration-blocked. The dirty-clone fix in #0125 should improve the Clean state dimension score when re-evaluated.

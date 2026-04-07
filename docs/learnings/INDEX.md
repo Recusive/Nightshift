@@ -81,6 +81,7 @@ Read this file FIRST. Only open individual learning files when they are relevant
 - [Symlink check before is_file](2026-04-04-symlink-before-is-file.md) — Check is_symlink() first for security; symlinks pass is_file()
 - [gitignored dirs survive git clean](2026-04-04-costs-json-survives-git-clean.md) — git clean -fd does NOT remove gitignored files
 - [Prompt-alert pre-poison guard](2026-04-06-prompt-alert-pre-poison-guard.md) — `rm -f $PROMPT_ALERT` must precede check_prompt_integrity; gitignored files survive reset_repo_state
+- [Sum ledger costs from sessions not cached total](2026-04-06-costs-sum-from-sessions-not-cached.md) — total_cost() must sum sessions[*].total_cost_usd; cached root field is poisonable via pre-written costs.json
 
 ## Type System / Linting
 

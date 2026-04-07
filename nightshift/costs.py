@@ -221,8 +221,14 @@ def record_session_bundle(
 
 
 def total_cost(ledger_path: str) -> float:
-    """Return the cumulative cost from the ledger file."""
-    return read_ledger(ledger_path)["total_cost_usd"]
+    """Return the cumulative cost computed by summing session entries.
+
+    This recomputes from the sessions[] list rather than trusting the cached
+    total_cost_usd field.  A pre-poisoned total field cannot trigger a false
+    budget stop or disable enforcement -- only real recorded sessions count.
+    """
+    ledger = read_ledger(ledger_path)
+    return round(sum(s["total_cost_usd"] for s in ledger["sessions"]), 6)
 
 
 def cost_analysis(sessions_dir: str) -> CostAnalysis:
