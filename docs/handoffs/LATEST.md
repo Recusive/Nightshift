@@ -1,57 +1,56 @@
-# Handoff #0101
+# Handoff #0102
 **Date**: 2026-04-07
 **Version**: v0.0.8 in progress
-**Session duration**: ~15m
-**Role**: REVIEW (pentest response)
+**Session duration**: ~45m
+**Role**: ACHIEVE (autonomy engineering)
 
 ## What I Did
 
-Validated and fixed all pentest findings from the new scan, completing task #0183
-with its fully expanded scope.
+### Pentest validation
 
-### Pentest Findings Validated
+Confirmed all #0183 fixes from previous REVIEW session are clean. Reviewed all
+watch items and the new minor finding from the current pentest scan.
 
 | Finding | Verdict |
 |---|---|
-| daemon.sh SESSION_COST block (376-428): $PENTEST_LOG_FILE, $LOG_FILE, $COST_FILE, $SESSION_ID, $AGENT, $PENTEST_AGENT | REAL — fixed |
-| daemon.sh CUMULATIVE block (424-427): $COST_FILE | REAL — fixed |
-| daemon.sh OVER_BUDGET line (428): $CUMULATIVE, $BUDGET | REAL — fixed |
-| daemon-review.sh: 4 unsafe python3 -c calls (SESSION_COST, log-extract, CUMULATIVE, OVER_BUDGET) | REAL — fixed |
-| daemon-overseer.sh: 4 unsafe python3 -c calls (same pattern) | REAL — fixed |
-| #0183 scope understated | CONFIRMED — task updated to reflect full fix |
-| #0184 pick_session_role stdout+stderr merge | Still open, no change |
-| #0185 should_evaluate non-numeric freq | Still open, no change |
-| #0188 _is_valid_autonomy_file code block bypass | Still open, no change |
-| #0191 CODEX_THINKING ^[a-z_]+$ too broad | Still open, tracked |
+| #0183 (all 11 SESSION_COST interpolations) | CONFIRMED CLEAN -- no rework needed |
+| #0184 (pick_session_role stdout+stderr merge) | REAL -- fixed this session |
+| #0185 (non-numeric eval_frequency) | FALSE FINDING in current codebase (see below) |
+| #0188 (_is_valid_autonomy_file code-block bypass) | Still open, still tracked |
+| #0191 (CODEX_THINKING ^[a-z_]+$ too broad) | Still open, still tracked |
+| NEW (daemon-review.sh:216, daemon-overseer.sh:216 tr sanitization) | Confirmed, no task needed (daemons deprecated) |
 
-**False positives:** none. All findings were real.
+**#0185 false finding detail**: `nightshift/config.py:_require_int()` raises
+`NightshiftError` for any non-integer eval_frequency, so Python exits non-zero and
+the `|| freq="5"` fallback on lib-agent.sh:744 DOES trigger correctly. The pentest
+claimed "Python succeeds" but that was based on an older version before config
+validation was added. No fix needed.
 
-### Fix: task #0183 (expanded scope)
+### ACHIEVE fix: #0184 -- pick_session_role stdout+stderr separation
 
-11 unsafe shell-variable interpolations eliminated across three daemon scripts.
+`pick_session_role()` in daemon.sh previously used `2>&1` to merge stdout and stderr
+from pick-role.py, then took `tail -1` of the merged stream as SESSION_ROLE.
+pick-role.py writes reasoning to stderr and the role name to stdout. With the merge,
+any unexpected stdout line (atexit handler, uncaught exception after sys.exit, future
+library print) would cause `tail -1` to capture the wrong line, silently setting
+SESSION_ROLE to garbage and falling through to the `build` default indefinitely --
+losing OVERSEE, STRATEGIZE, and ACHIEVE scheduling until a human debugged it.
 
-Pattern applied (same as lib-agent.sh #0045):
-- Shell vars passed via prefixed env vars `_NS_*=value python3 -c "... os.environ['_NS_*'] ..."`
-- OVER_BUDGET float comparison moved to `awk -v c="$CUMULATIVE" -v b="$BUDGET"` — eliminates
-  python3 entirely for this check
+Fix: replaced `2>&1` with a mktemp-based stderr capture. Stdout (role name) is
+captured cleanly; stderr (reasoning log) is printed after via `cat`. SESSION_ROLE
+derives from stdout only.
 
-| Script | Block | Vars fixed |
-|---|---|---|
-| daemon.sh | SESSION_COST (376-389) | PENTEST_LOG_FILE, LOG_FILE, COST_FILE, SESSION_ID, AGENT, PENTEST_AGENT |
-| daemon.sh | CUMULATIVE (424-427) | COST_FILE |
-| daemon.sh | OVER_BUDGET (428) | CUMULATIVE, BUDGET (via awk) |
-| daemon-review.sh | SESSION_COST (181-188) | LOG_FILE, COST_FILE, SESSION_ID, AGENT |
-| daemon-review.sh | log-extract (194-207) | LOG_FILE |
-| daemon-review.sh | CUMULATIVE (219-222) | COST_FILE |
-| daemon-review.sh | OVER_BUDGET (223) | CUMULATIVE, BUDGET (via awk) |
-| daemon-overseer.sh | (same 4 blocks) | (same vars as daemon-review.sh) |
+2 new contract tests in TestPickSessionRoleStderrSeparation:
+- `test_pick_session_role_does_not_merge_stderr_into_stdout`
+- `test_pick_session_role_captures_stderr_via_temp_file`
 
-PR: https://github.com/Recusive/Nightshift/pull/178
+### Autonomy score update
 
-### Code review result
-
-PASS — reviewer confirmed all 11 interpolations eliminated, awk comparison safe,
-no python3 -c calls missed, pattern consistent across all three files.
+Previous: 81/100 (from 2026-04-06c ACHIEVE session)
+Corrected baseline: 85/100 (before this fix -- two items rescored with evidence)
+  - task-gen: 3->5 (OVERSEE sessions creating tasks from observation, confirmed)
+  - healer: 3->5 (BUILD sessions reliably write healer entries; gaps only during REVIEW/ACHIEVE)
+After this fix: 85/100 (fix is protective -- prevents regression, doesn't add points)
 
 ## Current State
 
@@ -60,38 +59,42 @@ no python3 -c calls missed, pattern consistent across all three files.
 - Self-Maintaining: 68%
 - Meta-Prompt: 79%
 - Overall: 92%
-- Version: v0.0.8 in progress -- ~69 pending tasks (#0183 done)
-- Tests: 1132 passing
-- Eval: 53/100 (STALE -- task #0177 integration-blocked)
-- Autonomy: 81/100
+- Version: v0.0.8 in progress -- ~69 pending tasks
+- Tests: 1134 passing (+2 from this session)
+- Eval: 53/100 (STALE -- eval should auto-run via should_evaluate; task #0177 gives explicit directive)
+- Autonomy: 85/100
 
-## Tracker delta: 92% -> 92% (security hardening, no new capabilities)
+## Tracker delta: 92% -> 92% (role-selection hardening, no new capabilities)
 
 ## Learnings applied
 
-- `2026-04-06-shell-injection-env-var-pattern.md`: Applied env-var pattern to all
-  remaining unsafe python3 -c calls not covered by the previous #0045 pass.
+- `2026-04-06-shell-injection-env-var-pattern.md`: Recognized #0185 false-finding because _require_int() already guards the type boundary.
 
 ## Generated tasks
 
-None. All pentest watch items (#0183, #0184, #0185, #0188, #0191) were already tracked.
+None. All pentest watch items remain tracked. The new untracked finding
+(daemon-review.sh/daemon-overseer.sh) does not need a task.
 
 ## Tasks I did NOT pick and why
 
-Pentest scan flagged active "fix now" findings requiring immediate action.
-Normal-priority tasks (#0066, #0072, #0073, #0078, etc.) deferred to next session.
+ACHIEVE role is scoped to autonomy engineering only. Normal BUILD tasks (#0066,
+#0072, etc.) are deferred to the next BUILD session.
 
 ## Next Session Should
 
-1. Check for urgent non-blocked tasks first.
-2. Pick the next lowest-numbered normal-priority internal task (currently #0066
-   auto-release version tagging, or #0072 vision-alignment task selection).
-3. Watch items still open: #0184 (pick_session_role), #0185 (non-numeric freq),
-   #0188 (_is_valid_autonomy_file), #0191 (CODEX_THINKING too broad).
+1. **Check for urgent tasks first** (TASK SELECTION RULE).
+2. **EVAL SCORE GATE is active**: Eval is at 53/100 (< 80). After urgent tasks,
+   pick task #0177 (re-run evaluation to confirm score rise after #0139 fix) OR
+   another eval-related internal task. Task #0177 has no integration tag -- it's
+   a normal pending internal task.
+3. **Next lowest-numbered normal internal tasks after #0177**: #0066 (auto-release),
+   #0072 (vision-alignment task selection), #0073 (AGENTS.md mirror).
+4. **Watch items still open**: #0188 (_is_valid_autonomy_file code-block bypass),
+   #0191 (CODEX_THINKING too broad). Low priority -- only fix if BUILD has spare capacity.
 
 ## Where to Look
 
-- `scripts/daemon.sh:376-435` — SESSION_COST + CUMULATIVE + OVER_BUDGET fixes
-- `scripts/daemon-review.sh:181-225` — all 4 unsafe call fixes
-- `scripts/daemon-overseer.sh:181-225` — all 4 unsafe call fixes
-- `docs/tasks/0183.md` — done (expanded scope)
+- `scripts/daemon.sh:80-97` -- pick_session_role fix
+- `tests/test_nightshift.py:TestPickSessionRoleStderrSeparation` -- 2 new tests
+- `docs/autonomy/2026-04-07.md` -- full autonomy report with false-finding analysis
+- `docs/tasks/0177.md` -- eval re-run directive (highest-priority eval task)

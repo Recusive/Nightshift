@@ -10261,6 +10261,64 @@ is_auth_failure "{log_file}"
         assert "is_auth_failure()" in content
 
 
+class TestPickSessionRoleStderrSeparation:
+    """Regression tests for #0184: pick_session_role stdout+stderr separation.
+
+    pick-role.py intentionally writes reasoning to stderr and the role name
+    to stdout.  Merging them with 2>&1 and taking tail -1 of the combined
+    stream would let any unexpected stdout line (atexit handler, uncaught
+    exception message, future library print emitted after sys.exit) overwrite
+    SESSION_ROLE, silently falling through to the 'build' default for all
+    future cycles.
+    """
+
+    def test_pick_session_role_does_not_merge_stderr_into_stdout(self) -> None:
+        """pick_session_role must not use 2>&1 when calling python3 pick-role.py."""
+        content = Path("scripts/daemon.sh").read_text()
+        func_start = content.find("pick_session_role()")
+        assert func_start != -1, "pick_session_role function not found in daemon.sh"
+        # Find the closing brace of the function
+        func_body_start = content.find("{", func_start)
+        depth = 0
+        func_end = func_body_start
+        for i, ch in enumerate(content[func_body_start:], start=func_body_start):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    func_end = i
+                    break
+        func_body = content[func_start : func_end + 1]
+        assert "2>&1" not in func_body, (
+            "pick_session_role must not merge stderr into stdout via 2>&1; "
+            "use a temp file to capture stderr separately so unexpected stdout "
+            "cannot corrupt SESSION_ROLE"
+        )
+
+    def test_pick_session_role_captures_stderr_via_temp_file(self) -> None:
+        """pick_session_role must route pick-role.py stderr through a temp file."""
+        content = Path("scripts/daemon.sh").read_text()
+        func_start = content.find("pick_session_role()")
+        assert func_start != -1
+        func_body_start = content.find("{", func_start)
+        depth = 0
+        func_end = func_body_start
+        for i, ch in enumerate(content[func_body_start:], start=func_body_start):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    func_end = i
+                    break
+        func_body = content[func_start : func_end + 1]
+        assert "mktemp" in func_body, (
+            "pick_session_role must use mktemp to capture pick-role.py stderr "
+            "separately from stdout so the role name is isolated on stdout"
+        )
+
+
 class TestEvaluationPromptContracts:
     def test_evolve_prompt_step_zero_targets_the_cloned_repo(self) -> None:
         content = Path("docs/prompt/evolve.md").read_text()
