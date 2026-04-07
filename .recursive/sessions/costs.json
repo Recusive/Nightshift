@@ -6,5 +6,13 @@
     "input_tokens": 123,
     "output_tokens": 36490,
     "cost_usd": 0.5477
+  },
+  {
+    "session": "20260407-113020",
+    "agent": "claude",
+    "model": "sonnet",
+    "input_tokens": 175,
+    "output_tokens": 26052,
+    "cost_usd": 0.3913
   }
 ]
