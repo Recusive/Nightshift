@@ -399,8 +399,9 @@ ${PROMPT}"
     echo "-- Session $CYCLE done (exit: $EXIT_CODE, ${DURATION_MIN}m) --- $(date '+%H:%M') --"
 
     # --- Cost tracking ---
-    SESSION_COST=$(_NS_LOG="$LOG_FILE" _NS_COST="$COST_FILE" _NS_SID="$SESSION_ID" _NS_AGENT="$AGENT" PYTHONPATH="$RECURSIVE_DIR/lib" python3 -c "
-import os
+    SESSION_COST=$(_NS_LOG="$LOG_FILE" _NS_COST="$COST_FILE" _NS_SID="$SESSION_ID" _NS_AGENT="$AGENT" _NS_LIB="$RECURSIVE_DIR/lib" python3 -c "
+import sys, os
+sys.path.insert(0, os.environ['_NS_LIB'])
 from costs import record_session_bundle, total_cost
 entry = record_session_bundle(
     [os.environ['_NS_LOG']],
@@ -494,8 +495,9 @@ json.dump(meta, open(os.environ['_NS_META'], 'w'), indent=2)
 
     # --- Budget check ---
     if [ "$BUDGET" != "0" ]; then
-        CUMULATIVE=$(_NS_COST="$COST_FILE" PYTHONPATH="$RECURSIVE_DIR/lib" python3 -c "
-import os
+        CUMULATIVE=$(_NS_COST="$COST_FILE" _NS_LIB="$RECURSIVE_DIR/lib" python3 -c "
+import sys, os
+sys.path.insert(0, os.environ['_NS_LIB'])
 from costs import total_cost
 print(f'{total_cost(os.environ[\"_NS_COST\"]):.2f}')
 " 2>/dev/null || echo "0.00")
