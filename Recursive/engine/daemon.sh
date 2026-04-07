@@ -344,6 +344,10 @@ ${PROMPT}"
     PROMPT_TAMPERED=""
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
         PROMPT_TAMPERED=" [PROMPT MODIFIED]"
+        # Revert Recursive/ changes — target operators must never modify framework files.
+        # The prompt guard already logged the diffs for auditing.
+        echo "  Reverting unauthorized Recursive/ changes..."
+        git checkout -- Recursive/ 2>/dev/null || true
     fi
     check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"
     origin_rc=$?
@@ -433,8 +437,11 @@ print(f\"  Cost: \${entry['cost_usd']:.4f} (cumulative: \${cumulative:.2f})\")
 
     echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL | $OVERRIDE_NOTE |" >> "$INDEX_FILE"
 
-    # --- Commit session metadata to main (survives next cycle's git reset) ---
-    git add "$INDEX_FILE" "$COST_FILE" 2>/dev/null || true
+    # --- Commit all .recursive/ state to main (survives next cycle's git reset) ---
+    # The agent writes handoffs, tasks, structured logs, learnings, etc.
+    # If we only commit index+costs, everything else gets wiped by the
+    # next cycle's `git reset --hard origin/main`.
+    git add .recursive/ 2>/dev/null || true
     git commit -m "session: $SESSION_ROLE #$CYCLE ($SESSION_ID)" --quiet 2>/dev/null || true
     git push origin main --quiet 2>/dev/null || true
 

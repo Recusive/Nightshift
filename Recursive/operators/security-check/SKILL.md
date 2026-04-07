@@ -16,12 +16,13 @@ Think like an attacker, a chaos engineer, and a tired operator at 3 AM.
 
 ## Boundaries
 
-- **Read-only.** Do NOT edit files.
+- **Read-only on project and framework files.** Do NOT edit source code, scripts, configs, or anything in `Recursive/`.
 - Do NOT create branches, commits, PRs, or releases.
 - Do NOT run the daemon recursively.
 - Do NOT make network or destructive changes.
 - Safe reproduction commands are allowed if they don't modify the repo.
 - Destructive reproductions: describe them instead of running them.
+- **You MAY write to `.recursive/`**: tasks, handoffs, and friction log. The daemon commits these after your session. Without this, your findings are lost on the next cycle's reset.
 
 ## Read First
 
