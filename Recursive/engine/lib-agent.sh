@@ -1002,24 +1002,18 @@ run_agent() {
             # --json: JSONL stream to stdout
             # --model: configurable (default gpt-5.4)
             # -c reasoning_effort: thinking level
-            if [ -n "$structured_file" ]; then
-                codex exec \
-                    --dangerously-bypass-approvals-and-sandbox \
-                    --json \
-                    --model "$CODEX_MODEL" \
-                    -c "reasoning_effort=\"$CODEX_THINKING\"" \
-                    "$prompt" \
-                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py" | tee "$structured_file"
-            else
-                codex exec \
-                    --dangerously-bypass-approvals-and-sandbox \
-                    --json \
-                    --model "$CODEX_MODEL" \
-                    -c "reasoning_effort=\"$CODEX_THINKING\"" \
-                    "$prompt" \
-                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
-            fi
+            codex exec \
+                --dangerously-bypass-approvals-and-sandbox \
+                --json \
+                --model "$CODEX_MODEL" \
+                -c "reasoning_effort=\"$CODEX_THINKING\"" \
+                "$prompt" \
+                2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
             EXIT_CODE=${PIPESTATUS[0]}
+            # Generate structured report from raw log
+            if [ -n "$structured_file" ] && [ -f "$log_file" ]; then
+                python3 "$ENGINE_DIR/format-stream.py" --report "$log_file" > "$structured_file" 2>/dev/null || true
+            fi
             ;;
         claude)
             # Claude non-interactive mode
@@ -1027,24 +1021,20 @@ run_agent() {
             # --output-format stream-json: JSONL stream
             # --max-turns: session turn limit
             # --model: configurable (default opus)
-            if [ -n "$structured_file" ]; then
-                claude -p "$prompt" \
-                    --max-turns "$max_turns" \
-                    --model "$CLAUDE_MODEL" \
-                    --effort "${CLAUDE_EFFORT:-max}" \
-                    --output-format stream-json \
-                    --verbose \
-                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py" | tee "$structured_file"
-            else
-                claude -p "$prompt" \
-                    --max-turns "$max_turns" \
-                    --model "$CLAUDE_MODEL" \
-                    --effort "${CLAUDE_EFFORT:-max}" \
-                    --output-format stream-json \
-                    --verbose \
-                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
-            fi
+            # Live terminal shows --pretty (concise timestamps).
+            # Structured report is generated post-session from raw JSONL.
+            claude -p "$prompt" \
+                --max-turns "$max_turns" \
+                --model "$CLAUDE_MODEL" \
+                --effort "${CLAUDE_EFFORT:-max}" \
+                --output-format stream-json \
+                --verbose \
+                2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
             EXIT_CODE=${PIPESTATUS[0]}
+            # Generate structured report from raw log
+            if [ -n "$structured_file" ] && [ -f "$log_file" ]; then
+                python3 "$ENGINE_DIR/format-stream.py" --report "$log_file" > "$structured_file" 2>/dev/null || true
+            fi
             ;;
         *)
             echo "ERROR: Unknown agent '$agent'. Supported: claude, codex"
