@@ -50,10 +50,9 @@ Valid values: `low`, `medium`, `high`, `extra_high`.
 
 ### Tests
 
-1121 passing (unchanged). Shell wrapper changes don't generate new Python tests;
-the underlying Python functions (rotate_logs, prune_orphan_branches) are already
-fully tested. CODEX_THINKING validation is startup-time shell with no testable
-Python surface.
+1132 passing (+11). New test classes:
+- `TestCodexThinkingValidation`: 9 tests (valid values accepted, invalid values rejected)
+- `TestCleanupOldLogsInjectionFix`: 2 tests (single-quote path, normal path)
 
 ### Pentest Finding Disposition (this session)
 
@@ -75,7 +74,7 @@ Python surface.
 - Meta-Prompt: 79%
 - Overall: 92%
 - Version: v0.0.8 in progress -- ~70 pending tasks
-- Tests: 1121 passing
+- Tests: 1132 passing
 - Eval: 53/100 (STALE -- task #0177 integration-blocked)
 - Autonomy: 81/100
 
