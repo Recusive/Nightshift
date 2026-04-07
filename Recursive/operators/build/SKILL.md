@@ -34,14 +34,6 @@ The task queue is authoritative. The handoff's "Next Session Should" is advisory
 
 ### Step 0 — Verify Previous Commitment + Evaluate
 
-<!-- PIPELINE_CHECKPOINTS_START -->
-Read the previous handoff's Commitment Check section. Verify: did the metric move?
-- If MET: note "Previous commitment: MET" in your status report
-- If MISSED: note "Previous commitment: MISSED — [reason]" and factor into your decisions
-- If same commitment missed 3+ times: create an investigation task
-- If no Commitment Check exists (first session or non-BUILD): note "N/A"
-<!-- PIPELINE_CHECKPOINTS_END -->
-
 Then check for evaluation. Read `.recursive/handoffs/LATEST.md`. If it says "evaluate me":
 1. Clone the test target into `/tmp/recursive-eval`
 2. Run the eval command from the project's eval config
@@ -63,24 +55,6 @@ Output a status report with vision progress percentages, what's working/missing/
 
 ### Step 2 — Decide What to Build
 
-<!-- PIPELINE_CHECKPOINTS_START -->
-**Forced Tradeoff Analysis:** Before picking a task, state at least 2 options with the cost of NOT doing each. This prevents easy-task selection — you must articulate what you're sacrificing.
-
-```
-TRADEOFF ANALYSIS
-=================
-Option A: [task/action]
-  Impact: [what improves]
-  Cost of skipping: [what stays broken]
-
-Option B: [task/action]
-  Impact: [what improves]
-  Cost of skipping: [what stays broken]
-
-Decision: Option [X]. [Evidence-based reason]
-```
-<!-- PIPELINE_CHECKPOINTS_END -->
-
 Follow task selection rules above. If no pending tasks, fall back to:
 1. Bugs in existing features
 2. Loop 1 improvements from vision tracker
@@ -91,18 +65,6 @@ Follow task selection rules above. If no pending tasks, fall back to:
 ### Step 3 — Propose and Pre-Commit
 
 Output a structured proposal: what, why, version target, implementation steps, acceptance criteria, files affected, scope. In autonomous mode, proceed immediately after outputting the proposal.
-
-<!-- PIPELINE_CHECKPOINTS_START -->
-**Pre-Commitment Metric:** Before starting work, declare a specific, measurable success criterion. The next session will check it.
-
-```
-PRE-COMMITMENT
-==============
-Metric: [specific measurable outcome, e.g., "eval score 53 -> 60+"]
-Verification: [how to check, e.g., "run eval against test target"]
-Fallback: [if it fails, e.g., "log root cause in handoff"]
-```
-<!-- PIPELINE_CHECKPOINTS_END -->
 
 ### Step 4 — Build
 
