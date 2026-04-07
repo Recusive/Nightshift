@@ -78,13 +78,20 @@ if [ ! -f "$INDEX_FILE" ]; then
 fi
 
 pick_session_role() {
-    # Python scoring engine: stdout = role name, stderr = reasoning log
-    local role_output
-    role_output=$(python3 "$PICK_ROLE" "$REPO_DIR" 2>&1)
-    # Last line is the clean role name (stdout), everything else is reasoning (stderr)
-    SESSION_ROLE=$(echo "$role_output" | tail -1 | tr -d '[:space:]')
-    # Print reasoning to daemon output (everything except last line)
-    echo "$role_output" | sed '$d'
+    # Python scoring engine: stdout = role name only, stderr = reasoning log.
+    # Capture them separately so that unexpected stdout (atexit handlers, future
+    # library prints, uncaught exception messages emitted after sys.exit) cannot
+    # corrupt SESSION_ROLE via tail -1 picking the wrong merged line.
+    local role_stdout _pick_stderr
+    # Fall back to /dev/null if mktemp fails (e.g. full filesystem) so the
+    # daemon can still pick a role rather than aborting under set -uo pipefail.
+    _pick_stderr=$(mktemp) || _pick_stderr="/dev/null"
+    role_stdout=$(python3 "$PICK_ROLE" "$REPO_DIR" 2>"$_pick_stderr" || true)
+    cat "$_pick_stderr"  # Print reasoning to daemon output
+    rm -f "$_pick_stderr"
+    # tail -1 guards against leading blank lines; the case *) wildcard catches
+    # any unrecognized value and safely defaults to build.
+    SESSION_ROLE=$(echo "$role_stdout" | tail -1 | tr -d '[:space:]')
     case "$SESSION_ROLE" in
         build)      ROLE_PROMPT="$REPO_DIR/docs/prompt/evolve.md" ;;
         review)     ROLE_PROMPT="$REPO_DIR/docs/prompt/review.md" ;;

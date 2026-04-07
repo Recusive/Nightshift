@@ -1,6 +1,6 @@
 # Module Map
 
-Last updated: 2026-04-06 by session #0099
+Last updated: 2026-04-06 by session #0001
 Generated via: `python3 -m nightshift module-map --write`
 Stale after: 5 newer sessions without a refresh
 
@@ -50,8 +50,8 @@ Topological order derived from internal `nightshift.*` imports.
 
 ## Recent Shipped Sessions
 
+- PR #178: fix: eliminate shell-var interpolation in daemon SESSION_COST python3 -c blocks (#0183)
+- PR #177: docs: add follow-up tasks #0190 #0191 from PR #176 review advisories
+- PR #176: test: add 11 regression tests for CODEX_THINKING validation and cleanup_old_logs injection fix
 - PR #175: fix: stale .next-id silent-drop and autonomy score fabrication bypass
 - PR #174: fix: address review findings -- extract git_status_short, fix swapped test args, fix docs
-- PR #173: security: close prompt-alert pre-poisoning path (pentest W1)
-- PR #172: security: close open_pr_data injection vector in daemon.sh sed sanitizers (#0182)
-- PR #171: overseer: add 4 pentest tasks from 2026-04-06 scan + update handoff
