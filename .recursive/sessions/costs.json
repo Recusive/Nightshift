@@ -1,0 +1,1085 @@
+{
+  "total_cost_usd": 931.595261,
+  "sessions": [
+    {
+      "session_id": "20260405-003639",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 23,
+      "cache_creation_tokens": 106219,
+      "cache_read_tokens": 540517,
+      "output_tokens": 259,
+      "total_cost_usd": 2.822152
+    },
+    {
+      "session_id": "20260405-003749",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 1467,
+      "cache_creation_tokens": 337204,
+      "cache_read_tokens": 12730962,
+      "output_tokens": 3286,
+      "total_cost_usd": 25.687473
+    },
+    {
+      "session_id": "20260405-010235",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 221,
+      "cache_creation_tokens": 463109,
+      "cache_read_tokens": 16778404,
+      "output_tokens": 4273,
+      "total_cost_usd": 34.17469
+    },
+    {
+      "session_id": "20260405-011815",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 249,
+      "cache_creation_tokens": 292451,
+      "cache_read_tokens": 7381663,
+      "output_tokens": 2182,
+      "total_cost_usd": 16.723336
+    },
+    {
+      "session_id": "20260405-013213",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 229,
+      "cache_creation_tokens": 1044371,
+      "cache_read_tokens": 8774274,
+      "output_tokens": 2761,
+      "total_cost_usd": 32.953877
+    },
+    {
+      "session_id": "20260405-015845",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 207,
+      "cache_creation_tokens": 425633,
+      "cache_read_tokens": 13529904,
+      "output_tokens": 3711,
+      "total_cost_usd": 28.556905
+    },
+    {
+      "session_id": "20260405-021709",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 181,
+      "cache_creation_tokens": 301296,
+      "cache_read_tokens": 9985700,
+      "output_tokens": 3050,
+      "total_cost_usd": 20.859315
+    },
+    {
+      "session_id": "20260405-023217",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 158,
+      "cache_creation_tokens": 302606,
+      "cache_read_tokens": 9541357,
+      "output_tokens": 2419,
+      "total_cost_usd": 20.169693
+    },
+    {
+      "session_id": "20260405-025231",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 232,
+      "cache_creation_tokens": 430116,
+      "cache_read_tokens": 16954345,
+      "output_tokens": 4493,
+      "total_cost_usd": 33.836648
+    },
+    {
+      "session_id": "20260405-030951",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 37,
+      "cache_creation_tokens": 171090,
+      "cache_read_tokens": 959946,
+      "output_tokens": 529,
+      "total_cost_usd": 4.688086
+    },
+    {
+      "session_id": "20260405-032755",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 193,
+      "cache_creation_tokens": 371009,
+      "cache_read_tokens": 12199971,
+      "output_tokens": 3602,
+      "total_cost_usd": 25.52942
+    },
+    {
+      "session_id": "20260405-034435",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 20562,
+      "cache_creation_tokens": 411170,
+      "cache_read_tokens": 17103014,
+      "output_tokens": 2956,
+      "total_cost_usd": 33.894088
+    },
+    {
+      "session_id": "20260405-040204",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 668,
+      "cache_creation_tokens": 809808,
+      "cache_read_tokens": 29576836,
+      "output_tokens": 5397,
+      "total_cost_usd": 59.963949
+    },
+    {
+      "session_id": "20260405-042927",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 23617,
+      "cache_creation_tokens": 749315,
+      "cache_read_tokens": 26933813,
+      "output_tokens": 4882,
+      "total_cost_usd": 55.170781
+    },
+    {
+      "session_id": "20260405-045447",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 15675,
+      "cache_creation_tokens": 686473,
+      "cache_read_tokens": 25958546,
+      "output_tokens": 4289,
+      "total_cost_usd": 52.365988
+    },
+    {
+      "session_id": "20260405-052307",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 396,
+      "cache_creation_tokens": 1254145,
+      "cache_read_tokens": 37105692,
+      "output_tokens": 7497,
+      "total_cost_usd": 79.741972
+    },
+    {
+      "session_id": "20260405-062357",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 222827,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 6861440,
+      "output_tokens": 52293,
+      "total_cost_usd": 3.056822
+    },
+    {
+      "session_id": "20260405-064453",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 224253,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 10686336,
+      "output_tokens": 54900,
+      "total_cost_usd": 4.055716
+    },
+    {
+      "session_id": "20260405-071642",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 366631,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 11048832,
+      "output_tokens": 50487,
+      "total_cost_usd": 4.43609
+    },
+    {
+      "session_id": "20260405-073943",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 45143,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 263936,
+      "output_tokens": 9589,
+      "total_cost_usd": 0.322676
+    },
+    {
+      "session_id": "20260405-074326",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 312614,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 8638336,
+      "output_tokens": 53036,
+      "total_cost_usd": 3.736659
+    },
+    {
+      "session_id": "20260405-080655",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 138983,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 6989312,
+      "output_tokens": 41523,
+      "total_cost_usd": 2.71763
+    },
+    {
+      "session_id": "20260405-082611",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 213831,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 7704320,
+      "output_tokens": 43334,
+      "total_cost_usd": 3.110667
+    },
+    {
+      "session_id": "20260405-090242",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 495183,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 10310784,
+      "output_tokens": 48692,
+      "total_cost_usd": 4.546034
+    },
+    {
+      "session_id": "20260405-092009",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 391485,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 19783808,
+      "output_tokens": 72362,
+      "total_cost_usd": 7.010095
+    },
+    {
+      "session_id": "20260405-095020",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 63171,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 314496,
+      "output_tokens": 9338,
+      "total_cost_usd": 0.376621
+    },
+    {
+      "session_id": "20260405-095402",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 139587,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 6529792,
+      "output_tokens": 40817,
+      "total_cost_usd": 2.59367
+    },
+    {
+      "session_id": "20260405-101355",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 208756,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 13306240,
+      "output_tokens": 57640,
+      "total_cost_usd": 4.71305
+    },
+    {
+      "session_id": "20260405-192633",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 48084,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 342272,
+      "output_tokens": 3158,
+      "total_cost_usd": 0.253148
+    },
+    {
+      "session_id": "20260405-193051",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 531582,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 12227968,
+      "output_tokens": 72340,
+      "total_cost_usd": 5.471047
+    },
+    {
+      "session_id": "20260405-200112",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 286643,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 5602560,
+      "output_tokens": 58924,
+      "total_cost_usd": 3.001107
+    },
+    {
+      "session_id": "20260405-202215",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 285750,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 7964032,
+      "output_tokens": 56830,
+      "total_cost_usd": 3.557833
+    },
+    {
+      "session_id": "20260405-204521",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 711128,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 9025280,
+      "output_tokens": 68520,
+      "total_cost_usd": 5.06194
+    },
+    {
+      "session_id": "20260405-211756",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 823402,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 19855104,
+      "output_tokens": 106863,
+      "total_cost_usd": 8.625227
+    },
+    {
+      "session_id": "20260405-220332",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 398695,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 15917184,
+      "output_tokens": 79109,
+      "total_cost_usd": 6.162668
+    },
+    {
+      "session_id": "20260405-223918",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 257673,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 6615040,
+      "output_tokens": 58183,
+      "total_cost_usd": 3.170687
+    },
+    {
+      "session_id": "20260405-230354",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 369699,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 3713408,
+      "output_tokens": 37821,
+      "total_cost_usd": 2.419915
+    },
+    {
+      "session_id": "20260405-231606",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 287731,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 7746432,
+      "output_tokens": 51340,
+      "total_cost_usd": 3.426035
+    },
+    {
+      "session_id": "20260405-233730",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 659635,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 21874816,
+      "output_tokens": 83616,
+      "total_cost_usd": 8.372032
+    },
+    {
+      "session_id": "20260406-014935",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 301436,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 4996608,
+      "output_tokens": 41517,
+      "total_cost_usd": 2.625496
+    },
+    {
+      "session_id": "20260406-020357",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 271556,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 2206208,
+      "output_tokens": 31848,
+      "total_cost_usd": 1.708162
+    },
+    {
+      "session_id": "20260406-021428",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 199594,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 2912768,
+      "output_tokens": 38998,
+      "total_cost_usd": 1.812148
+    },
+    {
+      "session_id": "20260406-022650",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 306242,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 3436800,
+      "output_tokens": 36935,
+      "total_cost_usd": 2.17883
+    },
+    {
+      "session_id": "20260406-033811",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 434330,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 9548032,
+      "output_tokens": 69202,
+      "total_cost_usd": 4.510863
+    },
+    {
+      "session_id": "20260406-040148",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 267552,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 9233408,
+      "output_tokens": 56528,
+      "total_cost_usd": 3.825152
+    },
+    {
+      "session_id": "20260406-042142",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 589593,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 14405632,
+      "output_tokens": 76636,
+      "total_cost_usd": 6.22493
+    },
+    {
+      "session_id": "20260406-045709",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 545637,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 25836032,
+      "output_tokens": 82374,
+      "total_cost_usd": 9.05871
+    },
+    {
+      "session_id": "20260406-054142",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 343992,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 9170560,
+      "output_tokens": 56811,
+      "total_cost_usd": 4.004785
+    },
+    {
+      "session_id": "20260406-060534",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-061103",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-061925",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-062754",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-063251",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-063723",
+      "agent": "codex",
+      "model": "gpt-5.4",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-064635",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 20461,
+      "cache_creation_tokens": 564179,
+      "cache_read_tokens": 9599478,
+      "output_tokens": 2149,
+      "total_cost_usd": 5.089132
+    },
+    {
+      "session_id": "20260406-070413",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 4562,
+      "cache_creation_tokens": 531386,
+      "cache_read_tokens": 14525377,
+      "output_tokens": 4611,
+      "total_cost_usd": 6.433162
+    },
+    {
+      "session_id": "20260406-080246",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 8840,
+      "cache_creation_tokens": 353477,
+      "cache_read_tokens": 5679391,
+      "output_tokens": 2449,
+      "total_cost_usd": 3.092611
+    },
+    {
+      "session_id": "20260406-081850",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 3038,
+      "cache_creation_tokens": 390618,
+      "cache_read_tokens": 3846077,
+      "output_tokens": 1724,
+      "total_cost_usd": 2.653615
+    },
+    {
+      "session_id": "20260406-082827",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 8180,
+      "cache_creation_tokens": 412656,
+      "cache_read_tokens": 6374764,
+      "output_tokens": 1951,
+      "total_cost_usd": 3.513694
+    },
+    {
+      "session_id": "20260406-084641",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 276,
+      "cache_creation_tokens": 665317,
+      "cache_read_tokens": 19430931,
+      "output_tokens": 5503,
+      "total_cost_usd": 8.407591
+    },
+    {
+      "session_id": "20260406-091621",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 268,
+      "cache_creation_tokens": 644542,
+      "cache_read_tokens": 16185255,
+      "output_tokens": 5271,
+      "total_cost_usd": 7.352478
+    },
+    {
+      "session_id": "20260406-094216",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 6653,
+      "cache_creation_tokens": 520077,
+      "cache_read_tokens": 14205048,
+      "output_tokens": 4868,
+      "total_cost_usd": 6.304782
+    },
+    {
+      "session_id": "20260406-103855",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 179,
+      "cache_creation_tokens": 758966,
+      "cache_read_tokens": 8961488,
+      "output_tokens": 2897,
+      "total_cost_usd": 27.892804
+    },
+    {
+      "session_id": "20260406-105418",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 216,
+      "cache_creation_tokens": 595283,
+      "cache_read_tokens": 10436279,
+      "output_tokens": 3446,
+      "total_cost_usd": 27.077665
+    },
+    {
+      "session_id": "20260406-110906",
+      "agent": "claude",
+      "model": "mixed:<synthetic>,claude-opus-4-6",
+      "input_tokens": 67,
+      "cache_creation_tokens": 330392,
+      "cache_read_tokens": 2775420,
+      "output_tokens": 851,
+      "total_cost_usd": 10.42281
+    },
+    {
+      "session_id": "20260406-111609",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-111847",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-111955",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-112234",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-112510",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-112607",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-112834",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-113100",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-113159",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-113426",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-113652",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-113749",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-114016",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-114242",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-114340",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-114606",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-114832",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-114929",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-115156",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-115422",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-115520",
+      "agent": "claude",
+      "model": "<synthetic>",
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "total_cost_usd": 0.0
+    },
+    {
+      "session_id": "20260406-124154",
+      "agent": "claude",
+      "model": "claude-opus-4-6",
+      "input_tokens": 239,
+      "cache_creation_tokens": 699911,
+      "cache_read_tokens": 13954812,
+      "output_tokens": 4080,
+      "total_cost_usd": 34.365135
+    },
+    {
+      "session_id": "20260406-135018",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 748,
+      "cache_creation_tokens": 687264,
+      "cache_read_tokens": 15552153,
+      "output_tokens": 5370,
+      "total_cost_usd": 7.32568
+    },
+    {
+      "session_id": "20260406-141125",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 14892,
+      "cache_creation_tokens": 684338,
+      "cache_read_tokens": 24337447,
+      "output_tokens": 7156,
+      "total_cost_usd": 10.019517
+    },
+    {
+      "session_id": "20260406-144838",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 13826,
+      "cache_creation_tokens": 758947,
+      "cache_read_tokens": 23039400,
+      "output_tokens": 5213,
+      "total_cost_usd": 9.877544
+    },
+    {
+      "session_id": "20260406-152150",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 12150,
+      "cache_creation_tokens": 671675,
+      "cache_read_tokens": 17949384,
+      "output_tokens": 6380,
+      "total_cost_usd": 8.035747
+    },
+    {
+      "session_id": "20260406-154517",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 152,
+      "cache_creation_tokens": 358554,
+      "cache_read_tokens": 7168780,
+      "output_tokens": 3348,
+      "total_cost_usd": 3.545888
+    },
+    {
+      "session_id": "20260406-160543",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 11021,
+      "cache_creation_tokens": 402121,
+      "cache_read_tokens": 9025637,
+      "output_tokens": 3091,
+      "total_cost_usd": 4.295073
+    },
+    {
+      "session_id": "20260406-162428",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 136,
+      "cache_creation_tokens": 348590,
+      "cache_read_tokens": 5616567,
+      "output_tokens": 2499,
+      "total_cost_usd": 3.030075
+    },
+    {
+      "session_id": "20260406-164011",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 207,
+      "cache_creation_tokens": 434634,
+      "cache_read_tokens": 11335941,
+      "output_tokens": 3492,
+      "total_cost_usd": 5.083661
+    },
+    {
+      "session_id": "20260406-170248",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 197,
+      "cache_creation_tokens": 524683,
+      "cache_read_tokens": 10502169,
+      "output_tokens": 3981,
+      "total_cost_usd": 5.178518
+    },
+    {
+      "session_id": "20260406-172001",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 498,
+      "cache_creation_tokens": 452329,
+      "cache_read_tokens": 11275486,
+      "output_tokens": 3129,
+      "total_cost_usd": 5.127308
+    },
+    {
+      "session_id": "20260406-174019",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 18643,
+      "cache_creation_tokens": 609813,
+      "cache_read_tokens": 20086631,
+      "output_tokens": 5818,
+      "total_cost_usd": 8.455987
+    },
+    {
+      "session_id": "20260406-182510",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 127,
+      "cache_creation_tokens": 417653,
+      "cache_read_tokens": 6032977,
+      "output_tokens": 2181,
+      "total_cost_usd": 3.409188
+    },
+    {
+      "session_id": "20260406-183801",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 236,
+      "cache_creation_tokens": 654593,
+      "cache_read_tokens": 14678712,
+      "output_tokens": 4215,
+      "total_cost_usd": 6.92227
+    },
+    {
+      "session_id": "20260406-185956",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 116,
+      "cache_creation_tokens": 426217,
+      "cache_read_tokens": 5874796,
+      "output_tokens": 1726,
+      "total_cost_usd": 3.38699
+    },
+    {
+      "session_id": "20260406-191800",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 19180,
+      "cache_creation_tokens": 424260,
+      "cache_read_tokens": 9405891,
+      "output_tokens": 2945,
+      "total_cost_usd": 4.514457
+    },
+    {
+      "session_id": "20260406-193131",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 154,
+      "cache_creation_tokens": 450265,
+      "cache_read_tokens": 7480524,
+      "output_tokens": 2660,
+      "total_cost_usd": 3.973013
+    },
+    {
+      "session_id": "20260406-194944",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 17813,
+      "cache_creation_tokens": 875851,
+      "cache_read_tokens": 31471984,
+      "output_tokens": 7368,
+      "total_cost_usd": 12.889995
+    },
+    {
+      "session_id": "20260406-201545",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 530,
+      "cache_creation_tokens": 464196,
+      "cache_read_tokens": 7663278,
+      "output_tokens": 3128,
+      "total_cost_usd": 4.088229
+    },
+    {
+      "session_id": "20260406-203326",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 10343,
+      "cache_creation_tokens": 872016,
+      "cache_read_tokens": 31499977,
+      "output_tokens": 8250,
+      "total_cost_usd": 12.874832
+    },
+    {
+      "session_id": "20260406-211252",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 821,
+      "cache_creation_tokens": 435534,
+      "cache_read_tokens": 6238876,
+      "output_tokens": 2861,
+      "total_cost_usd": 3.550293
+    },
+    {
+      "session_id": "20260406-212627",
+      "agent": "claude",
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 297,
+      "cache_creation_tokens": 760248,
+      "cache_read_tokens": 23910741,
+      "output_tokens": 6377,
+      "total_cost_usd": 10.120699
+    }
+  ]
+}

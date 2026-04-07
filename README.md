@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.png" alt="Nightshift" width="240" />
+  <img src="nightshift/assets/icon.png" alt="Nightshift" width="240" />
 </p>
 
 <h1 align="center">Nightshift</h1>
@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/Claude-Supported-F97316" alt="Claude Code" />
   <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
   <img src="https://img.shields.io/badge/Tracker-92%25-2563EB" alt="Vision Tracker" />
-  <img src="https://img.shields.io/badge/Tests-935-blue" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-847-blue" alt="Tests" />
   <img src="https://img.shields.io/badge/License-MIT-22C55E" alt="MIT License" />
 </p>
 
@@ -21,7 +21,7 @@
 
 ## This repo maintains itself
 
-Most of the code in this repository was written, tested, reviewed, and merged by AI agents. One unified daemon (`scripts/daemon.sh`) auto-selects from five roles each cycle via `scripts/pick-role.py`:
+Most of the code in this repository was written, tested, reviewed, and merged by AI agents. One unified daemon (`Recursive/engine/daemon.sh`) auto-selects from five roles each cycle via `Recursive/engine/pick-role.py`:
 
 - **Builder**: reads the task queue, runs a pentest preflight, builds or fixes one scoped task, tests it, opens a PR, reviews it, and merges it
 - **Reviewer**: audits shipped code and fixes quality gaps
@@ -35,28 +35,28 @@ The human role is operational: start the daemon and monitor it. The agents own t
 
 ```bash
 gh pr list --state merged --limit 50          # every merged PR
-cat docs/sessions/index.md                    # daemon sessions with timestamps
-cat docs/handoffs/LATEST.md                   # what the last session built
+cat .recursive/sessions/index.md              # daemon sessions with timestamps
+cat .recursive/handoffs/LATEST.md             # what the last session built
 make tasks                                    # authoritative task queue summary
 ```
 
 ## Current state
 
-Snapshot taken from live repo data on `2026-04-05`. Generated docs such as the
-[vision tracker](docs/vision-tracker/TRACKER.md) and
-[module map](docs/architecture/MODULE_MAP.md) are the source of truth when these
+Snapshot taken from live repo data on `2026-04-07`. Generated docs such as the
+[vision tracker](.recursive/vision-tracker/TRACKER.md) and
+[module map](.recursive/architecture/MODULE_MAP.md) are the source of truth when these
 numbers change.
 
 | Signal | Current reading | Source |
 |--------|-----------------|--------|
-| Overall vision progress | 92% | `docs/vision-tracker/TRACKER.md` |
-| Loop 1 hardening | 99% | `docs/vision-tracker/TRACKER.md` |
-| Loop 2 feature builder | 100% | `docs/vision-tracker/TRACKER.md` |
-| Self-maintaining repo | 68% | `docs/vision-tracker/TRACKER.md` |
-| Meta-prompt system | 78% | `docs/vision-tracker/TRACKER.md` |
-| Tests | 935 passing | `python3 -m pytest tests/ -q` |
-| Python modules | 28 | `docs/architecture/MODULE_MAP.md` |
-| Merged PRs | 80 | `gh pr list --state merged --json number` |
+| Overall vision progress | 92% | `.recursive/vision-tracker/TRACKER.md` |
+| Loop 1 hardening | 99% | `.recursive/vision-tracker/TRACKER.md` |
+| Loop 2 feature builder | 100% | `.recursive/vision-tracker/TRACKER.md` |
+| Self-maintaining repo | 68% | `.recursive/vision-tracker/TRACKER.md` |
+| Meta-prompt system | 78% | `.recursive/vision-tracker/TRACKER.md` |
+| Tests | 847 passing | `python3 -m pytest nightshift/tests/ -q` |
+| Python modules | 34 | `.recursive/architecture/MODULE_MAP.md` |
+| Merged PRs | 30+ | `gh pr list --state merged --json number` |
 
 ---
 
@@ -64,14 +64,14 @@ numbers change.
 
 Nightshift has two loops:
 
-**Loop 1 -- Hardening** (99% in the tracker): point it at a repository, let it
+**Loop 1 -- Hardening (Owl)** (99% in the tracker): point it at a repository, let it
 profile the stack, create an isolated worktree, find one production-readiness
 issue per cycle, and either reject or commit the fix behind guard rails. This
 loop already supports Codex and Claude, diff scoring, multi-repo mode, prompt
 injection boundaries for repo instructions, and evaluation against Phractal.
 The main remaining gap is evaluation fidelity on rejected runs.
 
-**Loop 2 -- Feature Building** (100% in the tracker): give it a feature request
+**Loop 2 -- Feature Building (Raven)** (100% in the tracker): give it a feature request
 in plain English and it will profile the repo, plan the work, decompose it into
 waves, spawn sub-agents, integrate the results, run E2E and readiness checks,
 and persist build state for resume/status flows.
@@ -91,7 +91,7 @@ The self-maintaining layer around those loops already ships:
 ### Install the skill bundle
 
 ```bash
-curl -sL https://raw.githubusercontent.com/Recusive/Nightshift/main/scripts/install.sh | bash
+curl -sL https://raw.githubusercontent.com/Recusive/Nightshift/main/nightshift/scripts/install.sh | bash
 ```
 
 This installs Nightshift's wrapper scripts and prompt assets into:
@@ -109,16 +109,16 @@ Add runtime artifacts to the target repo's `.gitignore`:
 
 ```bash
 cat <<'EOF' >> .gitignore
-docs/Nightshift/worktree-*/
-docs/Nightshift/*.runner.log
-docs/Nightshift/*.state.json
+Runtime/Nightshift/worktree-*/
+Runtime/Nightshift/*.runner.log
+Runtime/Nightshift/*.state.json
 EOF
 ```
 
 Optional per-repo config:
 
 ```bash
-cp ~/.codex/skills/nightshift/.nightshift.json.example .nightshift.json
+cp .recursive.json.example .recursive.json
 ```
 
 ## Running Nightshift
@@ -142,15 +142,15 @@ python3 -m nightshift module-map --write
 `python3 -m nightshift test ...` now keeps its state files, runner logs, and
 linked worktree under `$TMPDIR/nightshift-test-runs/...` so evaluation clones
 stay clean. Full `run` mode still writes repo-local runtime artifacts under
-`docs/Nightshift/`.
+`Runtime/Nightshift/`.
 
 ### From the installed skill bundle
 
 Use the bundled wrapper scripts:
 
 ```bash
-~/.codex/skills/nightshift/scripts/run.sh --agent claude
-~/.codex/skills/nightshift/scripts/test.sh --agent claude --cycles 2 --cycle-minutes 5
+~/.codex/skills/nightshift/nightshift/scripts/run.sh --agent claude
+~/.codex/skills/nightshift/nightshift/scripts/test.sh --agent claude --cycles 2 --cycle-minutes 5
 ```
 
 ### Self-maintaining mode
@@ -164,11 +164,11 @@ make tasks       # task queue summary
 make check       # local CI gate
 ```
 
-Builder daemon examples:
+Daemon examples:
 
 ```bash
-tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
-NIGHTSHIFT_PENTEST_AGENT=codex tmux new-session -d -s nightshift "bash scripts/daemon.sh claude 60"
+tmux new-session -d -s nightshift "bash Recursive/engine/daemon.sh claude 60"
+RECURSIVE_PENTEST_AGENT=codex tmux new-session -d -s nightshift "bash Recursive/engine/daemon.sh claude 60"
 tmux capture-pane -t nightshift -p -S -15
 ```
 
@@ -210,27 +210,27 @@ signals such as `pyproject.toml`, `package.json`, `Cargo.toml`, or `go.mod`.
 
 Environment variables:
 
-- `NIGHTSHIFT_CLAUDE_MODEL`
-- `NIGHTSHIFT_CODEX_MODEL`
-- `NIGHTSHIFT_CODEX_THINKING`
-- `NIGHTSHIFT_BUDGET`
-- `NIGHTSHIFT_PENTEST_AGENT`
-- `NIGHTSHIFT_PENTEST_MAX_TURNS`
+- `RECURSIVE_CLAUDE_MODEL`
+- `RECURSIVE_CODEX_MODEL`
+- `RECURSIVE_CODEX_THINKING`
+- `RECURSIVE_BUDGET`
+- `RECURSIVE_PENTEST_AGENT`
+- `RECURSIVE_PENTEST_MAX_TURNS`
 
 ## How it keeps context between sessions
 
 Nightshift is designed for stateless agents, so the repo carries the memory:
 
-- **Handoffs**: every session writes a structured summary to `docs/handoffs/`, and the next session starts from `LATEST.md`
-- **Learnings**: agents read `docs/learnings/INDEX.md` first, then open only the relevant learning files
-- **Task queue**: work lives in `docs/tasks/`; urgent pending tasks outrank normal ones, then the queue falls back to lowest-numbered pending internal work
+- **Handoffs**: every session writes a structured summary to `.recursive/handoffs/`, and the next session starts from `LATEST.md`
+- **Learnings**: agents read `.recursive/learnings/INDEX.md` first, then open only the relevant learning files
+- **Task queue**: work lives in `.recursive/tasks/`; urgent pending tasks outrank normal ones, then the queue falls back to lowest-numbered pending internal work
 - **Evaluations**: after each merge, the next session runs Nightshift against Phractal and turns low scores into tracked follow-up work
 
 ```bash
-cat docs/handoffs/LATEST.md
-cat docs/learnings/INDEX.md
+cat .recursive/handoffs/LATEST.md
+cat .recursive/learnings/INDEX.md
 make tasks
-ls docs/evaluations/
+ls .recursive/evaluations/
 ```
 
 Humans can add work by opening GitHub issues with the `task` label:
@@ -272,26 +272,167 @@ Any control-file diff is surfaced explicitly in the next builder prompt.
 ### Cost tracking
 
 Session costs are parsed from stream-json logs. Budget enforcement can stop the
-daemon when cumulative spend exceeds `NIGHTSHIFT_BUDGET`.
+daemon when cumulative spend exceeds `RECURSIVE_BUDGET`.
 
 ---
 
 ## Architecture
 
-Nightshift has 28 Python modules today. The generated
-[module map](docs/architecture/MODULE_MAP.md) is the authoritative inventory.
+### Product -- `nightshift/`
 
-High-level layout:
+The Python package is organized into subdirectories by concern. 34 modules
+across 5 subdirectories. The generated
+[module map](.recursive/architecture/MODULE_MAP.md) is the authoritative inventory.
 
 ```text
 nightshift/
-├── Core runtime:     types.py, constants.py, errors.py, shell.py, state.py, config.py
-├── Loop 1 runtime:   worktree.py, cycle.py, scoring.py, evaluation.py, multi.py
-├── Loop 2 runtime:   profiler.py, planner.py, decomposer.py, subagent.py,
-│                     coordination.py, integrator.py, e2e.py, readiness.py,
-│                     summary.py, feature.py
-├── Self-maintenance: cleanup.py, compact.py, costs.py, module_map.py
-└── CLI surface:      cli.py, __init__.py, __main__.py
+├── cli.py                    # CLI entry point
+├── __init__.py / __main__.py
+│
+├── core/                     # Shared foundations
+│   ├── types.py              # TypedDicts for all data structures
+│   ├── constants.py          # Thresholds, patterns, score maps
+│   ├── errors.py             # Exception hierarchy
+│   ├── shell.py              # Subprocess helpers
+│   └── state.py              # Shift-state persistence
+│
+├── settings/                 # Configuration layer
+│   ├── config.py             # Config loading and defaults
+│   └── eval_targets.py       # Repo-specific eval defaults (Phractal)
+│
+├── owl/                      # Loop 1 -- Hardening
+│   ├── cycle.py              # Single-cycle orchestrator
+│   ├── scoring.py            # Diff scorer (1-10)
+│   └── readiness.py          # Production-readiness checks
+│
+├── raven/                    # Loop 2 -- Feature Builder
+│   ├── profiler.py           # Repo profiling
+│   ├── planner.py            # Feature plan generation
+│   ├── decomposer.py         # Plan -> waves -> sub-tasks
+│   ├── subagent.py           # Sub-agent spawning
+│   ├── coordination.py       # Wave coordination
+│   ├── integrator.py         # Result integration
+│   ├── e2e.py                # End-to-end verification
+│   ├── summary.py            # Build summaries
+│   └── feature.py            # Top-level build command
+│
+├── infra/                    # Infrastructure modules
+│   ├── worktree.py           # Git worktree isolation
+│   ├── multi.py              # Multi-repo mode
+│   └── module_map.py         # Module-map generation
+│
+├── schemas/                  # JSON schemas
+│   ├── nightshift.schema.json
+│   ├── feature.schema.json
+│   └── task.schema.json
+│
+├── scripts/                  # Shell wrappers
+│   ├── install.sh            # Skill-bundle installer
+│   ├── run.sh / test.sh      # Convenience runners
+│   ├── check.sh              # Local CI gate
+│   └── smoke-test.sh         # Quick sanity check
+│
+├── assets/
+│   └── icon.png
+│
+└── tests/                    # Product test suite (847 tests)
+    ├── test_nightshift.py
+    ├── test_feature_build.py
+    └── test_module_map.py
+```
+
+### Framework -- `Recursive/`
+
+The autonomous orchestration framework that drives the daemon, role selection,
+operator prompts, and agent lifecycle.
+
+```text
+Recursive/
+├── engine/                   # Daemon runtime
+│   ├── daemon.sh             # Main daemon loop
+│   ├── lib-agent.sh          # Agent lifecycle helpers
+│   ├── pick-role.py          # Role scoring engine
+│   ├── watchdog.sh           # Process watchdog
+│   └── format-stream.py      # Stream-log formatter
+│
+├── operators/                # Role-specific prompt sets
+│   ├── build/
+│   ├── review/
+│   ├── oversee/
+│   ├── strategize/
+│   ├── achieve/
+│   └── security-check/
+│
+├── agents/                   # Sub-agent prompts (reviewers)
+│   ├── code-reviewer.md
+│   ├── architecture-reviewer.md
+│   ├── docs-reviewer.md
+│   ├── safety-reviewer.md
+│   └── meta-reviewer.md
+│
+├── lib/                      # Shared Python helpers
+│   ├── cleanup.py
+│   ├── compact.py
+│   ├── config.py
+│   ├── costs.py
+│   └── evaluation.py
+│
+├── prompts/                  # System prompts
+│   ├── autonomous.md
+│   └── checkpoints.md
+│
+├── ops/                      # Operations documentation
+│   ├── DAEMON.md
+│   ├── OPERATIONS.md
+│   ├── PRE-PUSH-CHECKLIST.md
+│   └── ROLE-SCORING.md
+│
+├── scripts/                  # Framework utilities
+│   ├── init.sh
+│   ├── list-tasks.sh
+│   ├── rollback.sh
+│   └── validate-tasks.sh
+│
+├── templates/                # Structured-doc templates
+│   ├── handoff.md
+│   ├── evaluation.md
+│   ├── session-index.md
+│   ├── task.md
+│   └── project-config.json
+│
+└── tests/                    # Framework tests
+    └── test_pick_role.py
+```
+
+### Runtime state -- `.recursive/`
+
+14 directories of persistent state that the daemon reads and writes each cycle.
+Not checked into source control for target repos; versioned here because
+Nightshift is its own target.
+
+```text
+.recursive/
+├── architecture/     # Generated module map
+├── autonomy/         # Autonomy score reports
+├── changelog/        # Per-version changelogs
+├── evaluations/      # Phractal eval results
+├── handoffs/         # Session handoff summaries
+├── healer/           # Healer observation logs
+├── learnings/        # Hard-won knowledge index
+├── plans/            # Feature build plans
+├── reviews/          # Code review artifacts
+├── sessions/         # Session index and logs
+├── strategy/         # Strategy reports
+├── tasks/            # Task queue (frontmatter YAML)
+├── vision/           # Vision documents
+└── vision-tracker/   # Auto-generated progress tracker
+```
+
+### Product output -- `Runtime/`
+
+```text
+Runtime/
+└── Nightshift/       # Shift logs, state files, worktree links
 ```
 
 Type checking is `mypy --strict`. Linting is Ruff. The local gate is
@@ -301,8 +442,8 @@ Type checking is `mypy --strict`. Linting is Ruff. The local gate is
 
 Shipped already:
 
-- hardening loop with worktrees, scoring, and guard rails
-- feature builder loop with plan/build/resume/status flows
+- hardening loop (Owl) with worktrees, scoring, and guard rails
+- feature builder loop (Raven) with plan/build/resume/status flows
 - multi-repo mode
 - module map generation
 - self-evaluation against Phractal
@@ -315,10 +456,9 @@ Still open in the queue:
 - automate release tagging and changelog/tracker updates
 - improve task queue hygiene and session-index fidelity
 - add monitoring / alerting integrations
-- deepen Orbit integration
 
-See [docs/vision-tracker/TRACKER.md](docs/vision-tracker/TRACKER.md) for the
-current scoreboard and [docs/tasks/](docs/tasks/) for the active backlog.
+See [.recursive/vision-tracker/TRACKER.md](.recursive/vision-tracker/TRACKER.md) for the
+current scoreboard and [.recursive/tasks/](.recursive/tasks/) for the active backlog.
 
 ---
 

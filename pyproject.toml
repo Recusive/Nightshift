@@ -7,6 +7,7 @@ dependencies = []
 strict = true
 warn_unreachable = true
 python_version = "3.9"
+exclude = ["nightshift/tests/", "Recursive/"]
 
 [tool.ruff]
 target-version = "py39"
@@ -19,13 +20,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S108", "C408", "S603", "S607"]
-"nightshift/constants.py" = ["T201", "S108"]  # EVALUATION_CLONE_DEST uses /tmp by design
+"nightshift/tests/*" = ["S101", "S108", "C408", "S603", "S607"]
+"Recursive/tests/*" = ["S101", "S108", "C408", "S603", "S607"]
+"nightshift/core/constants.py" = ["T201", "S108"]
 "nightshift/cli.py" = ["T201"]
-"nightshift/shell.py" = ["S603", "S607"]  # subprocess with variable args -- this is the orchestrator's job
-"nightshift/cycle.py" = ["S603", "S607"]
-"nightshift/worktree.py" = ["S603", "S607"]
-"nightshift/evaluation.py" = ["S603", "S607"]  # subprocess calls for clone + shift runner
+"nightshift/core/shell.py" = ["S603", "S607"]
+"nightshift/owl/cycle.py" = ["S603", "S607"]
+"nightshift/infra/worktree.py" = ["S603", "S607"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["nightshift/tests", "Recursive/tests"]

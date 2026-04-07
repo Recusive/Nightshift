@@ -10,9 +10,25 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from nightshift.config import infer_verify_command, merge_config, resolve_agent
-from nightshift.constants import now_local, print_status
-from nightshift.cycle import (
+from nightshift.core.constants import now_local, print_status
+from nightshift.core.errors import NightshiftError
+from nightshift.core.shell import command_exists, git, run_command
+from nightshift.core.state import append_cycle_state, load_json, read_state, write_json
+from nightshift.core.types import CycleResult, CycleVerification
+from nightshift.infra.module_map import generate_module_map, render_module_map, write_module_map
+from nightshift.infra.multi import run_multi_shift
+from nightshift.infra.worktree import (
+    discover_base_branch,
+    ensure_shift_log,
+    ensure_shift_log_committed,
+    ensure_worktree,
+    install_dependencies_if_needed,
+    resolve_runtime_dir,
+    resolve_shift_log_relative_dir,
+    revert_cycle,
+    sync_shift_log,
+)
+from nightshift.owl.cycle import (
     _as_cycle_result,
     build_backend_escalation,
     build_category_balancing,
@@ -26,27 +42,11 @@ from nightshift.cycle import (
     recent_hot_files,
     verify_cycle,
 )
-from nightshift.errors import NightshiftError
-from nightshift.feature import build_feature
-from nightshift.module_map import generate_module_map, render_module_map, write_module_map
-from nightshift.multi import run_multi_shift
-from nightshift.planner import build_plan_prompt, format_plan, parse_plan, run_plan_agent, scope_check
-from nightshift.profiler import profile_repo
-from nightshift.scoring import score_diff
-from nightshift.shell import command_exists, git, run_command
-from nightshift.state import append_cycle_state, load_json, read_state, write_json
-from nightshift.types import CycleResult, CycleVerification
-from nightshift.worktree import (
-    discover_base_branch,
-    ensure_shift_log,
-    ensure_shift_log_committed,
-    ensure_worktree,
-    install_dependencies_if_needed,
-    resolve_runtime_dir,
-    resolve_shift_log_relative_dir,
-    revert_cycle,
-    sync_shift_log,
-)
+from nightshift.owl.scoring import score_diff
+from nightshift.raven.feature import build_feature
+from nightshift.raven.planner import build_plan_prompt, format_plan, parse_plan, run_plan_agent, scope_check
+from nightshift.raven.profiler import profile_repo
+from nightshift.settings.config import infer_verify_command, merge_config, resolve_agent
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -247,9 +247,9 @@ def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     evaluate_baseline(worktree_dir=worktree_dir, runner_log=runner_log, state=state)
     write_json(state_path, state)
 
-    schema_path = (SCRIPT_DIR / ".." / "nightshift.schema.json").resolve()
+    schema_path = (SCRIPT_DIR / "schemas" / "nightshift.schema.json").resolve()
     if not schema_path.exists():
-        schema_path = (SCRIPT_DIR / "nightshift.schema.json").resolve()
+        schema_path = (SCRIPT_DIR / ".." / "nightshift.schema.json").resolve()
     if not schema_path.exists():
         raise NightshiftError(f"Missing bundled schema file at {schema_path}")
     print_status("")
@@ -637,7 +637,7 @@ def build_parser() -> argparse.ArgumentParser:
     module_map_parser = subparsers.add_parser(
         "module-map",
         parents=[common],
-        help="Render the persistent module map for docs/architecture/MODULE_MAP.md",
+        help="Render the persistent module map for .recursive/architecture/MODULE_MAP.md",
     )
     module_map_parser.add_argument("--write", action="store_true", help="Write the module map file instead of printing")
     module_map_parser.set_defaults(func=module_map_cli)

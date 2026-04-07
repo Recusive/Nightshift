@@ -9,3 +9,6 @@ docs/context-map.md
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+# Recursive session logs (large, not needed in repo)
+.recursive/sessions/*.log

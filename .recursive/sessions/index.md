@@ -1,0 +1,79 @@
+# Session Index
+
+| Timestamp | Session | Role | Exit | Duration | Cost | Status | Feature | PR |
+|-----------|---------|------|------|----------|------|--------|---------|-----|
+| 2026-04-06 02:25 | 20260406-021428 | oversee | 0 | 11m | $1.8121 | success (pentest: success) | - | - |
+| 2026-04-06 02:38 | 20260406-022650 | oversee | 0 | 11m | $2.1788 | success (pentest: success) | - | - |
+| 2026-04-06 04:00 | 20260406-033811 | build | 0 | 22m | $4.5109 | success (pentest: success) | - | - |
+| 2026-04-06 04:20 | 20260406-040148 | review | 0 | 18m | $3.8252 | success (pentest: success) | - | - |
+| 2026-04-06 04:56 | 20260406-042142 | build | 0 | 34m | $6.2249 | success (pentest: success) | - | - |
+| 2026-04-06 05:40 | 20260406-045709 | achieve | 0 | 43m | $9.0587 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 06:05 | 20260406-054142 | oversee | 0 | 18m | $4.0048 | success (pentest: success) | - | - |
+| 2026-04-06 06:09 | 20260406-060534 | build | 1 | 3m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 06:15 | 20260406-061103 | build | 1 | 4m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 06:23 | 20260406-061925 | build | 1 | 3m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 06:30 | 20260406-062754 | oversee | 137 | 2m | $0.0000 | failed (exit 137; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 06:35 | 20260406-063251 | strategize | 137 | 2m | $0.0000 | failed (exit 137; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 06:41 | 20260406-063723 | build | 1 | 4m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 06:41 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 07:03 | 20260406-064635 | oversee | 0 | 16m | $5.0891 | success (pentest: success) | - | https://github.com/Recusive/Nightshift/pull/132 |
+| 2026-04-06 07:24 | 20260406-070413 | build | 0 | 20m | $6.4332 | success (pentest: success) [PROMPT MODIFIED] | Security — 3 confirmed pentest findings fixed (+ 1 | https://github.com/Recusive/Nightshift/pull/133 |
+| 2026-04-06 08:17 | 20260406-080246 | review | 0 | 15m | $3.0926 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 08:27 | 20260406-081850 | build | 0 | 8m | $2.6536 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 08:45 | 20260406-082827 | oversee | 0 | 17m | $3.5137 | success (pentest: success) [PROMPT MODIFIED] | - | https://github.com/Recusive/Nightshift/pull/137 |
+| 2026-04-06 09:15 | 20260406-084641 | build | 0 | 28m | $8.4076 | success (pentest: success) [PROMPT MODIFIED] | Prompt guard blind spot fix (check_origin_integrit | https://github.com/Recusive/Nightshift/pull/139 |
+| 2026-04-06 09:41 | 20260406-091621 | build | 0 | 24m | $7.3525 | success (pentest: success) [PROMPT MODIFIED] [ORIGIN MODIFIED] | - | - |
+| 2026-04-06 10:13 | 20260406-094216 | achieve | 0 | 31m | $6.3048 | success (pentest: success) [PROMPT MODIFIED] [ORIGIN MODIFIED] | - | https://github.com/Recusive/Nightshift/pull/142 |
+| 2026-04-06 10:53 | 20260406-103855 | oversee | 0 | 14m | $27.8928 | success (pentest: success) | - | https://github.com/Recusive/Nightshift/pull/144 |
+| 2026-04-06 11:08 | 20260406-105418 | build | 0 | 13m | $27.0777 | success (pentest: success) [PROMPT MODIFIED] | Fix daemon crash + restore security abort on rever | https://github.com/Recusive/Nightshift/pull/145 |
+| 2026-04-06 11:14 | 20260406-110906 | review | 1 | 5m | $10.4228 | failed (exit 1; pentest: success) | - | - |
+| 2026-04-06 11:16 | 20260406-111609 | strategize | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:19 | 20260406-111847 | oversee | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:19 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 11:20 | 20260406-111955 | achieve | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:23 | 20260406-112234 | build | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:25 | 20260406-112510 | oversee | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:25 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 11:26 | 20260406-112607 | review | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:29 | 20260406-112834 | build | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:31 | 20260406-113100 | achieve | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:31 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 11:32 | 20260406-113159 | oversee | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:34 | 20260406-113426 | review | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:37 | 20260406-113652 | strategize | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:37 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 11:38 | 20260406-113749 | achieve | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:40 | 20260406-114016 | build | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:43 | 20260406-114242 | oversee | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:43 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 11:44 | 20260406-114340 | review | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:46 | 20260406-114606 | build | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:48 | 20260406-114832 | achieve | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:48 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 11:49 | 20260406-114929 | oversee | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:52 | 20260406-115156 | review | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:54 | 20260406-115422 | strategize | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 11:54 | CIRCUIT-BREAK | - | - | - | - | Stopped after 3 consecutive failures | - | - |
+| 2026-04-06 11:55 | 20260406-115520 | achieve | 1 | 0m | $0.0000 | failed (exit 1; pentest: failed (exit 1)) | - | - |
+| 2026-04-06 12:59 | 20260406-124154 | build | 0 | 17m | $34.3651 | success (pentest: success) [PROMPT MODIFIED] | Daemon exec-restart state preservation + prompt gu | https://github.com/Recusive/Nightshift/pull/153 |
+| 2026-04-06 14:10 | 20260406-135018 | oversee | 0 | 20m | $7.3257 | success (pentest: success) [PROMPT MODIFIED] | - | https://github.com/Recusive/Nightshift/pull/157 (merged) |
+| 2026-04-06 14:47 | 20260406-141125 | build | 0 | 36m | $10.0195 | success (pentest: success) [PROMPT MODIFIED] | Pentest guard + eval scorer rejected-cycle fallbac | https://github.com/Recusive/Nightshift/pull/158 |
+| 2026-04-06 15:20 | 20260406-144838 | build | 0 | 32m | $9.8775 | success (pentest: success) [PROMPT MODIFIED] | Pentest origin guard — new-file detection + eval/a | https://github.com/Recusive/Nightshift/pull/159 |
+| 2026-04-06 15:44 | 20260406-152150 | build | 0 | 22m | $8.0357 | success (pentest: success) [PROMPT MODIFIED] | 3 confirmed pentest findings fixed (PR #160) | https://github.com/Recusive/Nightshift/pull/160 |
+| 2026-04-06 16:04 | 20260406-154517 | achieve | 0 | 17m | $3.5459 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 16:23 | 20260406-160543 | oversee | 0 | 17m | $4.2951 | success (pentest: success) [PROMPT MODIFIED] | - | https://github.com/Recusive/Nightshift/pull/162 |
+| 2026-04-06 16:39 | 20260406-162428 | build | 0 | 14m | $3.0301 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 17:01 | 20260406-164011 | build | 0 | 21m | $5.0837 | success (pentest: success) [PROMPT MODIFIED] | #0169 — Codex extractor false-green fix + opening- | https://github.com/Recusive/Nightshift/pull/164 |
+| 2026-04-06 17:19 | 20260406-170248 | review | 0 | 16m | $5.1785 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 17:39 | 20260406-172001 | oversee | 0 | 19m | $5.1273 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 18:00 | 20260406-174019 | build | 0 | 20m | $8.4560 | success (pentest: success) | Claude cycle-result count-only fallback (#0139) | https://github.com/Recusive/Nightshift/pull/167 |
+| 2026-04-06 18:37 | 20260406-182510 | strategize | 0 | 11m | $3.4092 | success (pentest: success) | - | - |
+| 2026-04-06 18:58 | 20260406-183801 | build | 0 | 20m | $6.9223 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 19:17 | 20260406-185956 | oversee | 0 | 17m | $3.3870 | success (pentest: success) | - | https://github.com/Recusive/Nightshift/pull/171 (merged) |
+| 2026-04-06 19:30 | 20260406-191800 | build | 0 | 12m | $4.5145 | success (pentest: success) [PROMPT MODIFIED] | Fix #0182 — open_pr_data injection vector in daemo | https://github.com/Recusive/Nightshift/pull/172 |
+| 2026-04-06 19:48 | 20260406-193131 | build | 0 | 17m | $3.9730 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 20:14 | 20260406-194944 | build | 0 | 25m | $12.8900 | success (pentest: success) | Pentest costs.json budget-stop poisoning fix + dir | https://github.com/Recusive/Nightshift/pull/174 |
+| 2026-04-06 20:32 | 20260406-201545 | oversee | 0 | 16m | $4.0882 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 21:11 | 20260406-203326 | build | 0 | 38m | $12.8748 | success (pentest: success) [PROMPT MODIFIED] | Comprehensive python3 -c shell injection fix + COD | https://github.com/Recusive/Nightshift/pull/176 |
+| 2026-04-06 21:25 | 20260406-211252 | review | 0 | 12m | $3.5503 | success (pentest: success) [PROMPT MODIFIED] | - | - |
+| 2026-04-06 22:00 | 20260406-212627 | achieve | 0 | 33m | $10.1207 | success (pentest: success) [PROMPT MODIFIED] | - | - |

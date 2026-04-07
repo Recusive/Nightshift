@@ -1,0 +1,46 @@
+{
+  "$schema": "Recursive project configuration",
+  "$comment": "Place this as .recursive.json in your project root",
+
+  "project": {
+    "name": "your-project-name",
+    "description": "One-line description of what this project does",
+    "test_target": "https://github.com/org/repo-to-eval-against"
+  },
+
+  "commands": {
+    "check": "make check",
+    "test": "make test",
+    "dry_run_codex": "python3 -m yourpackage run --dry-run --agent codex > /dev/null",
+    "dry_run_claude": "python3 -m yourpackage run --dry-run --agent claude > /dev/null"
+  },
+
+  "agents": {
+    "default": "claude",
+    "pentest": "claude",
+    "model": "claude-sonnet-4-6",
+    "effort": "high"
+  },
+
+  "daemon": {
+    "pause_seconds": 60,
+    "max_sessions": 0,
+    "budget": "0",
+    "pentest_max_turns": 8
+  },
+
+  "paths": {
+    "handoffs": ".recursive/handoffs",
+    "tasks": ".recursive/tasks",
+    "sessions": ".recursive/sessions",
+    "evaluations": ".recursive/evaluations",
+    "learnings": ".recursive/learnings",
+    "strategy": ".recursive/strategy",
+    "autonomy": ".recursive/autonomy",
+    "healer": ".recursive/healer",
+    "reviews": ".recursive/reviews",
+    "changelog": ".recursive/changelog",
+    "vision": "docs/vision",
+    "vision_tracker": ".recursive/vision-tracker"
+  }
+}
