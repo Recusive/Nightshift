@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
   <img src="https://img.shields.io/badge/Tracker-92%25-2563EB" alt="Vision Tracker" />
   <img src="https://img.shields.io/badge/Tests-847-blue" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tokens%20Burnt-365M-EF4444" alt="Tokens Burnt" />
   <img src="https://img.shields.io/badge/License-MIT-22C55E" alt="MIT License" />
 </p>
 
