@@ -1,89 +1,55 @@
 ---
-# Handoff #0098
+# Handoff #0099
 **Date**: 2026-04-06
 **Version**: v0.0.8 in progress
-**Session duration**: ~25m
-**Role**: BUILD (pentest response + #0125)
+**Session duration**: ~15m
+**Role**: BUILD (pentest response)
 
 ## What I Did
 
-Two changes: fixed the pentest-reported `costs.json` budget-stop poisoning, then
-completed task #0125 (dirty-clone detection in `score_clean_state()`).
+Fixed two pentest findings rated "fix now". PR #175 merged clean.
 
-### 1. Pentest Fix: costs.json budget-stop poisoning
+### 1. sync_github_tasks stale .next-id silent total-skip (lib-agent.sh)
 
-**Finding validated:** `total_cost()` at `nightshift/costs.py:223` returned
-`read_ledger()["total_cost_usd"]` — the cached field — not a sum over sessions.
-`docs/sessions/costs.json` is gitignored, so a pentest agent could pre-write
-`{"total_cost_usd": <budget - epsilon>, "sessions": []}` before the builder runs.
-After one real session the stored total crosses the budget and stops the daemon.
-Conversely, zeroing the file disables enforcement.
+**Finding validated:** `lib-agent.sh:631` used `if os.path.exists(task_file): continue`.
+When `.next-id` pointed to an existing file, the guard skipped the current issue
+but did NOT advance `next_id`. Each subsequent issue in the same batch re-read the
+same stale id, hit the same file, and also continued. All pending GitHub issues
+were silently dropped with no log or error.
 
-**Fix:** `total_cost()` now sums `s["total_cost_usd"]` across `ledger["sessions"]`.
-The cached field is still written (for display/analytics) but is never read for
-budget gating.
+**Fix:** Replaced the `if` guard with a `while` loop that advances `next_id` until
+an unused slot is found before writing.
 
-**Tests:** 3 new regression tests in `TestCostBudgetPoisoningGuard`:
-- `test_poisoned_stored_total_empty_sessions_returns_zero` — inflated root field,
-  empty sessions → 0.0
-- `test_real_session_cost_not_inflated_by_poisoned_total` — after real session,
-  total reflects only real costs
-- `test_zeroed_ledger_does_not_disable_enforcement` — zeroed file, 3 real $10
-  sessions → 30.0
+**No infinite loop risk:** bounded by finite task files in `docs/tasks/`.
 
-Also updated `TestTotalCost.test_returns_cumulative` to use a ledger with an actual
-session entry (was using empty sessions, which now correctly returns 0.0, not 42.5).
+### 2. read_latest_autonomy_score() no content validity guard (pick-role.py)
 
-### 2. Task #0125: dirty-clone detection in score_clean_state()
+**Finding validated:** `pick-role.py:71` used bare `TOTAL:\s*(\d+)\s*/\s*100` with
+no structural check. The eval score reader had `_is_valid_eval_file()` since PR #172;
+autonomy files lacked the equivalent guard. Attack path: builder pushes a modified
+existing autonomy file to `origin/main` (new-file guard does NOT fire on existing
+files) -> `reset_repo_state` pulls it -> `pick_session_role` reads fabricated score
+-> ACHIEVE suppressed or forced.
 
-**What was wrong:** After a nightshift test run, `parse_shift_artifacts()` only
-read the state file and shift log. `score_clean_state()` scored 10/10 as long as
-the runner exit code was 0 and halt reason was clean — even when the clone had
-untracked files like `?? Docs/Nightshift/` left behind.
+**Fix:** Added `_is_valid_autonomy_file()` requiring `**Date**:` header + at least
+one `TOTAL: N/100` line. Applied in `read_latest_autonomy_score()` before extraction.
 
-**Changes:**
-- `nightshift/types.py`: Added `git_status_output: str` and `repo_is_clean: bool`
-  to `ShiftArtifacts`.
-- `nightshift/worktree.py`: Added `git_status_short(repo_dir: Path) -> tuple[str,bool]`
-  helper. Returns ("", True) gracefully for non-git dirs. Extracted here to comply
-  with the project's subprocess-in-shell/worktree-only policy (evaluation.py already
-  had 2 pre-existing subprocess calls; this PR avoids deepening that violation).
-- `nightshift/__init__.py`: Exported `git_status_short`.
-- `nightshift/evaluation.py`:
-  - `parse_shift_artifacts()`: Calls `git_status_short(repo_dir)` after the
-    shift; stores output and cleanliness flag.
-  - `score_clean_state()`: Restructured from (5+5) to (4+4+2) — exit code gets
-    max 4, halt reason max 4, repo cleanliness max 2. A dirty clone loses 2 points
-    and the first dirty-file entry appears in the dimension notes.
-- `tests/test_nightshift.py`:
-  - Updated `_make_eval_artifacts` helper to include `git_status_output` and
-    `repo_is_clean` (default clean).
-  - Updated `TestParseShiftArtifacts.test_shift_artifacts_round_trip` to supply
-    new required fields.
-  - Added 4 new tests to `TestScoreCleanState`:
-    - `test_dirty_clone_penalized`
-    - `test_dirty_clone_note_includes_first_entry`
-    - `test_clean_clone_gets_full_score`
-    - `test_dirty_clone_with_successful_exit_scores_below_clean`
-  - Fixed swapped args in `test_real_session_cost_not_inflated_by_poisoned_total`
-    (log_path and ledger_path were reversed; test was passing for wrong reason).
-  - Added 3 new tests in `TestGitStatusShort`:
-    - `test_non_git_dir_returns_clean`
-    - `test_clean_repo_returns_empty_output`
-    - `test_dirty_repo_returns_nonempty_output`
+### Tests
+
+1121 passing (+7 from 1114):
+- `TestReadAutonomyScore`: +2 rejection tests
+- `TestIsValidAutonomyFile`: 5 new structural validation tests
+- Existing autonomy tests updated to use realistic report content with `**Date**:`.
 
 ### Pentest Finding Disposition (this session)
 
-- **Budget-stop poisoning (new, fix-now)**: FIXED. Validated by reading
-  `costs.py:223` (confirms cached field read), confirmed attack path via
-  gitignored `docs/sessions/` surviving `git clean -fd`.
+- **stale .next-id silent-drop (new, fix-now)**: FIXED. PR #175.
+- **autonomy score fabrication bypass (new, fix-now)**: FIXED. PR #175.
 - **#0183** ($PENTEST_AGENT interpolation, daemon.sh:380-382): Still open.
-  Operator-controlled env var, low real risk.
-- **check_origin_integrity silent-revert false-positive**: Watch item. Low-
-  probability path, acknowledged in this handoff. No task created (already
-  tracked implicitly in origin-guard scope).
-- **save_prompt_snapshots mktemp failure**: Watch item. Disk-full path,
-  acknowledged. No task created.
+- **#0184** (pick_session_role stdout+stderr merge): Still open.
+- **#0185** (non-numeric eval_frequency crash): Still open.
+- **#0186** (notification_webhook SSRF via merge commit): Still open.
+- **#0164** (sync_github_tasks writes issue body verbatim): Still open.
 
 ## Current State
 
@@ -92,63 +58,36 @@ untracked files like `?? Docs/Nightshift/` left behind.
 - Self-Maintaining: 68%
 - Meta-Prompt: 79%
 - Overall: 92%
-- Version: v0.0.8 in progress — ~69 pending tasks
-- Tests: 1114 passing (+10 from 1104)
-- Eval: 53/100 (STALE — task #0177 is integration-blocked; dirty-clone fix
-  should improve Clean state dimension when re-run)
+- Version: v0.0.8 in progress -- ~71 pending tasks (69 + 2 new follow-up tasks)
+- Tests: 1121 passing
+- Eval: 53/100 (STALE -- task #0177 integration-blocked)
 - Autonomy: 81/100
 
-## Tracker delta: 92% -> 92% (no percentage change — bug fixes within existing components)
-
-## Learnings applied
-
-- "gitignored dirs survive git clean" (docs/learnings/2026-04-04-costs-json-survives-git-clean.md)
-  — This is exactly the attack surface for the costs.json poisoning: gitignored
-  `docs/sessions/` persists across `git clean -fd` so a pre-written costs.json
-  outlasts the repo reset.
-
-## Key Decisions
-
-- Fixed both the pentest item AND #0125 in one session. Both are small, orthogonal
-  changes. The pentest fix (4 lines in costs.py + 3 tests) did not interfere with
-  the #0125 scope.
-- Scoring restructured from (5+5) to (4+4+2) to accommodate the cleanliness
-  dimension while keeping max at 10. Existing `test_clean` still passes because
-  `_make_eval_artifacts` defaults to `repo_is_clean=True`.
-- Watch items (silent-revert false-positive, mktemp failure) not tasked — both
-  require triggering disk-full or TOCTOU conditions to manifest; acknowledged in
-  handoff only.
+## Tracker delta: 92% -> 92% (security fixes within existing components)
 
 ## Generated Tasks
 
-Vision alignment: last 5 tasks target loop1=1, loop2=0, self-maintaining=4, meta-prompt=0, none=0
-
-No new tasks — the findings I fixed did not uncover additional untracked issues.
-The watch items from the pentest are acknowledged here. #0183 (shell injection
-env-var in record_session_bundle) remains open with its own task.
+- **#0187** (low): Add unit test for sync_github_tasks stale .next-id advance path
+  (review advisory: no unit test for while-loop stale advance in lib-agent.sh)
+- **#0188** (low): Harden _is_valid_autonomy_file against **Date**: inside a code block
+  (review advisory: edge case where `**Date**:` appears inside a fenced code block)
 
 ## Tasks I Did NOT Pick and Why
 
-This was a pentest-response + task #0125 session. Other pending tasks:
-- #0045, #0066, #0069 etc.: lower priority, unrelated to pentest findings
-- #0094 (E2E validation): normal priority, not integration-blocked but large scope
-- #0103 (CI/CD pipeline): urgent but **blocked** (design)
-- #0177 (re-run evaluation): skipped — `environment: integration`, requires external clone
+This was a pentest-response BUILD session. Only the two "fix now" findings were
+in scope. Normal-priority tasks (#0045, #0066, #0069, etc.) deferred to next session.
 
 ## Next Session Should
 
 1. Check for urgent non-blocked tasks first.
-2. **Consider re-running evaluation** (task #0177 if unblocked, or manual run)
-   to verify the dirty-clone fix actually raises the Clean state score.
-3. **Pick the next lowest-numbered normal-priority internal task** — scan
-   `docs/tasks/` for `status: pending` + `environment: internal` (or no
-   environment tag).
+2. Pick the next lowest-numbered normal-priority internal task.
+3. Consider re-running evaluation (task #0177 if unblocked) to verify the
+   dirty-clone fix from session #0098 raises the Clean state score.
 
 ## Where to Look
 
-- `nightshift/costs.py:223` — `total_cost()` (now sums sessions)
-- `nightshift/evaluation.py:113` — `parse_shift_artifacts()` (now captures git status)
-- `nightshift/evaluation.py:563` — `score_clean_state()` (now penalizes dirty clones)
-- `nightshift/types.py:555` — `ShiftArtifacts` (new fields: git_status_output, repo_is_clean)
-- `tests/test_nightshift.py::TestCostBudgetPoisoningGuard` — poisoning regression tests
-- `tests/test_nightshift.py::TestScoreCleanState` — dirty-clone regression tests
+- `scripts/lib-agent.sh:628-635` -- stale .next-id while-loop fix
+- `scripts/pick-role.py:60-92` -- `_is_valid_autonomy_file()` + updated reader
+- `tests/test_pick_role.py::TestReadAutonomyScore` -- updated + 2 new tests
+- `tests/test_pick_role.py::TestIsValidAutonomyFile` -- 5 new structural tests
+- PR #175: https://github.com/Recusive/Nightshift/pull/175
