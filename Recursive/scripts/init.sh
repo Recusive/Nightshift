@@ -39,8 +39,8 @@ echo ""
 
 # --- Create all runtime directories ---
 echo "Creating .recursive/ directories..."
-mkdir -p "$REPO_DIR/.recursive"/{handoffs,tasks,sessions,evaluations,learnings,strategy,autonomy,healer,reviews,plans,architecture,changelog,vision,vision-tracker}
-echo "  Created 14 subdirectories"
+mkdir -p "$REPO_DIR/.recursive"/{handoffs,tasks,sessions,evaluations,learnings,strategy,autonomy,healer,reviews,plans,architecture,changelog,vision,vision-tracker,friction}
+echo "  Created 15 subdirectories"
 
 # --- Symlink agents for Claude Code ---
 echo "Setting up .claude/agents/ symlinks..."
@@ -140,6 +140,14 @@ _create "$REPO_DIR/.recursive/healer/log.md" << 'EOF'
 # Healer Log
 
 System health observations from daemon sessions.
+EOF
+
+# Friction — framework feedback from target operators
+_create "$REPO_DIR/.recursive/friction/log.md" << 'EOF'
+# Friction Log
+
+Framework friction reported by agents during sessions.
+Read by the evolve and audit operators to improve the framework.
 EOF
 
 # Learnings — cross-session knowledge

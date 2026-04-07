@@ -276,6 +276,15 @@ def read_healer_status(healer_path: Path) -> str:
     return "good"
 
 
+def count_friction_entries(friction_path: Path) -> int:
+    """Count entries in the friction log (## headers)."""
+    try:
+        text = friction_path.read_text(encoding="utf-8")
+        return len(re.findall(r"^## \d{4}-\d{2}-\d{2}", text, re.MULTILINE))
+    except OSError:
+        return 0
+
+
 def count_needs_human_issues() -> int:
     """Count open GitHub issues with the needs-human label."""
     try:
@@ -433,6 +442,25 @@ def compute_scores(signals: dict) -> dict[str, int]:
     if cb >= 5 and sc >= 3:
         security += 15  # lots of builds without security review
 
+    # EVOLVE — framework improvement (reads friction log)
+    se = signals.get("sessions_since_evolve", 0)
+    fe = signals.get("friction_entries", 0)
+    evolve = 5
+    if fe >= 5:
+        evolve += 50  # lots of friction accumulated
+    if fe >= 3 and se >= 5:
+        evolve += 30  # moderate friction, hasn't evolved recently
+    if se >= 20:
+        evolve += 20  # overdue regardless of friction count
+
+    # AUDIT — framework quality review
+    saud = signals.get("sessions_since_audit", 0)
+    audit = 5
+    if saud >= 25:
+        audit += 50  # overdue for framework audit
+    if saud >= 15:
+        audit += 20  # getting stale
+
     # Hard constraints: caps
     if sa < 5:
         achieve = -1
@@ -440,6 +468,12 @@ def compute_scores(signals: dict) -> dict[str, int]:
         strategize = min(strategize, 5)
     if sc < 3:
         security = min(security, 5)  # don't re-run too frequently
+    if se < 5:
+        evolve = min(evolve, 5)  # don't re-run too frequently
+    if saud < 10:
+        audit = min(audit, 5)  # don't re-run too frequently
+    if fe == 0:
+        evolve = min(evolve, 5)  # no friction = nothing to evolve
 
     return {
         "build": build,
@@ -448,6 +482,8 @@ def compute_scores(signals: dict) -> dict[str, int]:
         "strategize": strategize,
         "achieve": achieve,
         "security-check": security,
+        "evolve": evolve,
+        "audit": audit,
     }
 
 
@@ -456,7 +492,7 @@ def pick_role(scores: dict[str, int], urgent: bool, recent_security: int = 0) ->
     if urgent and recent_security < 3:
         return "build"
     # Sort by score descending, then prefer build on ties
-    priority = ["build", "oversee", "review", "security-check", "achieve", "strategize"]
+    priority = ["build", "oversee", "review", "security-check", "evolve", "achieve", "strategize", "audit"]
     best_score = max(scores.values())
     for role in priority:
         if scores[role] == best_score:
@@ -476,7 +512,7 @@ def main() -> None:
 
     repo = Path(sys.argv[1])
     force_role = os.environ.get("RECURSIVE_FORCE_ROLE", "").lower().strip()
-    if force_role in ("build", "review", "oversee", "strategize", "achieve"):
+    if force_role in ("build", "review", "oversee", "strategize", "achieve", "security-check", "evolve", "audit"):
         print(f"ROLE DECISION (pick-role.py)", file=sys.stderr)
         print(f"============================", file=sys.stderr)
         print(f"FORCED: {force_role} (via RECURSIVE_FORCE_ROLE)", file=sys.stderr)
@@ -507,6 +543,9 @@ def main() -> None:
         "sessions_since_achieve": count_sessions_since_role(index_rows, "achieve"),
         "sessions_since_security": count_sessions_since_role(index_rows, "security-check"),
         "sessions_since_oversee": count_sessions_since_role(index_rows, "oversee"),
+        "sessions_since_evolve": count_sessions_since_role(index_rows, "evolve"),
+        "sessions_since_audit": count_sessions_since_role(index_rows, "audit"),
+        "friction_entries": count_friction_entries(repo / ".recursive" / "friction" / "log.md"),
         "pending_tasks": pending,
         "stale_tasks": stale,
         "healer_status": healer_status,

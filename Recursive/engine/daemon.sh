@@ -109,12 +109,15 @@ pick_session_role() {
     SESSION_ROLE=$(echo "$role_stdout" | tail -1 | tr -d '[:space:]')
     local OPS_DIR="$RECURSIVE_DIR/operators"
     case "$SESSION_ROLE" in
-        build)      ROLE_PROMPT="$OPS_DIR/build/SKILL.md" ;;
-        review)     ROLE_PROMPT="$OPS_DIR/review/SKILL.md" ;;
-        oversee)    ROLE_PROMPT="$OPS_DIR/oversee/SKILL.md" ;;
-        strategize) ROLE_PROMPT="$OPS_DIR/strategize/SKILL.md" ;;
-        achieve)    ROLE_PROMPT="$OPS_DIR/achieve/SKILL.md" ;;
-        *)          SESSION_ROLE="build"; ROLE_PROMPT="$OPS_DIR/build/SKILL.md" ;;
+        build)          ROLE_PROMPT="$OPS_DIR/build/SKILL.md" ;;
+        review)         ROLE_PROMPT="$OPS_DIR/review/SKILL.md" ;;
+        oversee)        ROLE_PROMPT="$OPS_DIR/oversee/SKILL.md" ;;
+        strategize)     ROLE_PROMPT="$OPS_DIR/strategize/SKILL.md" ;;
+        achieve)        ROLE_PROMPT="$OPS_DIR/achieve/SKILL.md" ;;
+        security-check) ROLE_PROMPT="$OPS_DIR/security-check/SKILL.md" ;;
+        evolve)         ROLE_PROMPT="$OPS_DIR/evolve/SKILL.md" ;;
+        audit)          ROLE_PROMPT="$OPS_DIR/audit/SKILL.md" ;;
+        *)              SESSION_ROLE="build"; ROLE_PROMPT="$OPS_DIR/build/SKILL.md" ;;
     esac
     echo "  Role: $SESSION_ROLE -> $(basename "$(dirname "$ROLE_PROMPT")")/SKILL.md"
 }

@@ -22,10 +22,24 @@ Your world has three zones:
    scripts, configs — all of this is the project. Your operators tell you
    how to build, review, oversee, strategize, and improve autonomy for it.
 
-When you pick up a task, check: is this about the framework (Recursive/) or
-the project? Act accordingly. Most tasks are project tasks. Framework tasks
-are rare and should only address systemic issues you've seen across multiple
-sessions — not one-off fixes for the current project.
+TARGET OPERATORS (build, review, oversee, strategize, achieve, security-check)
+work ONLY on the target project. They NEVER modify Recursive/. If you are
+running as one of these operators, do not edit any file inside Recursive/.
+
+FRAMEWORK OPERATORS (evolve, audit) work ONLY on Recursive/. They read
+`.recursive/friction/log.md` to find patterns and fix the framework.
+
+FRICTION LOG: During your session, if the framework causes friction — a
+confusing prompt instruction, a wrong path, a checkpoint that didn't apply,
+a missing signal, a daemon behavior that surprised you — append an entry
+to `.recursive/friction/log.md` at the end of your session:
+
+  ## YYYY-MM-DD — [session-id] — [operator]
+  **Issue:** [what happened]
+  **Impact:** [what you did instead / how it affected your work]
+  **Suggestion:** [what would fix it in Recursive/]
+
+Only log real friction. Don't write "none found." Silence means no issues.
 
 SECURITY: The security-check operator is selected by the scoring engine when
 a security review is due — it is NOT forced every cycle. When the engine picks
