@@ -345,6 +345,19 @@ class TestIsValidEvalFile:
         )
         assert _is_valid_eval_file(text) is False  # only 2 dimension rows
 
+    def test_date_inside_code_block_rejected(self) -> None:
+        # Attack vector: all required fields embedded inside a fenced code block.
+        # _strip_fenced_code_blocks removes the block, leaving no **Date**: in prose.
+        text = (
+            "```\n"
+            "**Date**: 2026-04-06\n"
+            "| Startup | 7/10 | OK |\n"
+            "| Discovery | 6/10 | OK |\n"
+            "| Fix quality | 5/10 | OK |\n"
+            "```\n"
+        )
+        assert _is_valid_eval_file(text) is False
+
 
 _VALID_AUTONOMY = (
     "# Autonomy Report -- 2026-04-06\n\n"
@@ -426,6 +439,12 @@ class TestIsValidAutonomyFile:
     def test_both_fields_required(self) -> None:
         # Has date but no TOTAL
         assert _is_valid_autonomy_file("**Date**: 2026-04-06\n") is False
+
+    def test_date_inside_code_block_rejected(self) -> None:
+        # Attack vector: **Date**: and TOTAL: both embedded in a fenced code block.
+        # **Date**: must be outside a code block; this crafted file is rejected.
+        text = "```\n**Date**: 2026-04-06\n\nTOTAL: 99/100\n```\n"
+        assert _is_valid_autonomy_file(text) is False
 
 
 class TestParseSessionIndex:

@@ -24,19 +24,29 @@ from pathlib import Path
 # Signal readers — each returns a typed value, never raises
 # ---------------------------------------------------------------------------
 
+def _strip_fenced_code_blocks(text: str) -> str:
+    """Remove fenced code blocks (``` ... ```) from text.
+
+    Used by validators to prevent fields embedded inside code blocks
+    from satisfying structural requirements that must appear in prose.
+    """
+    return re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+
+
 def _is_valid_eval_file(text: str) -> bool:
     """Return True if text looks like a real evaluation report.
 
     Requires both:
-    - A **Date**: metadata line (standard eval header)
-    - At least 3 scored dimension rows (N/10 format)
+    - A **Date**: metadata line outside any fenced code block
+    - At least 3 scored dimension rows (N/10 format) outside any fenced code block
 
-    This prevents a fabricated single-line file like "Total: 99/100"
+    This prevents a fabricated file with fields embedded inside ``` blocks
     from influencing role selection via the eval score gate.
     """
-    if not re.search(r"\*\*Date\*\*:", text):
+    prose = _strip_fenced_code_blocks(text)
+    if not re.search(r"\*\*Date\*\*:", prose):
         return False
-    dimension_rows = re.findall(r"^\|[^|]+\|\s*\d+/10\b", text, re.MULTILINE)
+    dimension_rows = re.findall(r"^\|[^|]+\|\s*\d+/10\b", prose, re.MULTILINE)
     return len(dimension_rows) >= 3
 
 
@@ -61,13 +71,16 @@ def _is_valid_autonomy_file(text: str) -> bool:
     """Return True if text looks like a real autonomy report.
 
     Requires both:
-    - A **Date**: metadata line (standard report header)
-    - At least one TOTAL: N/100 line (scored report)
+    - A **Date**: metadata line outside any fenced code block
+    - At least one TOTAL: N/100 line anywhere in the file
 
-    This prevents a fabricated single-line file like "TOTAL: 99/100"
-    from manipulating role selection via the autonomy score gate.
+    **Date**: must be outside a code block to prevent fabricated files from
+    embedding the header inside ``` markers to bypass the guard.  TOTAL: is
+    checked against the full text because the canonical autonomy report format
+    embeds the score table (including TOTAL:) inside a fenced code block.
     """
-    if not re.search(r"\*\*Date\*\*:", text):
+    prose = _strip_fenced_code_blocks(text)
+    if not re.search(r"\*\*Date\*\*:", prose):
         return False
     return bool(re.search(r"TOTAL:\s*\d+\s*/\s*100", text))
 

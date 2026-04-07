@@ -65,6 +65,21 @@ PROMPT_GUARD_DIRS=(
     "docs/autonomy"
 )
 
+# Directories where modifications to EXISTING score-gating files are tracked.
+#
+# PROMPT_GUARD_DIRS above only detects NEW files in watched dirs.  An agent
+# that directly pushes a modified existing eval or autonomy report to
+# origin/main (bypassing the PR workflow) would go undetected because the
+# file-list comparison produces no diff -- the file existed before.
+#
+# This list enables per-file content comparison on origin/main for all
+# numbered reports that were present at snapshot time, closing that blind spot
+# (pentest finding reported 2026-04-07).
+PROMPT_GUARD_CONTENT_DIRS=(
+    "docs/evaluations"
+    "docs/autonomy"
+)
+
 # save_prompt_snapshots REPO_DIR
 # Copies all prompt files to a temp directory for comparison after the cycle.
 # Also saves a directory listing of watched directories to detect new files.
@@ -90,6 +105,20 @@ save_prompt_snapshots() {
             mkdir -p "$(dirname "$listing")"
             LC_ALL=C ls -1 "$src_dir" 2>/dev/null | LC_ALL=C sort > "$listing"
         fi
+    done
+    # Save per-file content snapshots for score-gating dirs so
+    # check_origin_integrity can detect modifications to EXISTING reports
+    # pushed directly to origin/main (blind spot closed by pentest 2026-04-07).
+    for d in "${PROMPT_GUARD_CONTENT_DIRS[@]}"; do
+        local src_dir="$repo_dir/$d"
+        [ -d "$src_dir" ] || continue
+        for f_path in "$src_dir"/[0-9]*.md; do
+            [ -f "$f_path" ] || continue
+            local rel_path="${f_path#"$repo_dir/"}"
+            local dst="$snap_dir/$rel_path"
+            mkdir -p "$(dirname "$dst")"
+            cp "$f_path" "$dst"
+        done
     done
     # Record origin/main commit hash so check_origin_integrity can detect pushes
     # that bypass the working-tree guard (blind spot described in pentest #0072).
@@ -315,6 +344,46 @@ check_origin_integrity() {
             changed=1
             files_to_restore+=("$f")
         fi
+    done
+
+    # Content-modification detection for score-gating dirs (existing files).
+    # PROMPT_GUARD_DIRS above only detects new files via file-list comparison.
+    # This loop covers modifications to EXISTING numbered reports in
+    # docs/evaluations/ and docs/autonomy/ -- files that are not in
+    # PROMPT_GUARD_FILES but can manipulate role selection if falsified.
+    # Uses the same non-merge-commit filter to allow legitimate PR merges.
+    for d in "${PROMPT_GUARD_CONTENT_DIRS[@]}"; do
+        local snap_subdir="$snap_dir/$d"
+        [ -d "$snap_subdir" ] || continue
+        for snap_file in "$snap_subdir"/[0-9]*.md; do
+            [ -f "$snap_file" ] || continue
+            local rel_path="${snap_file#"$snap_dir/"}"
+            : > "$origin_tmp"
+            git -C "$repo_dir" show "origin/main:$rel_path" > "$origin_tmp" 2>/dev/null || continue
+            if ! diff -q "$snap_file" "$origin_tmp" >/dev/null 2>&1; then
+                local file_direct_push
+                file_direct_push=$(git -C "$repo_dir" log --no-merges \
+                    --first-parent --format="%H" \
+                    "$snap_hash..$current_hash" -- "$rel_path" 2>/dev/null || true)
+                [ -z "$file_direct_push" ] && continue
+                if [ "$changed" -eq 0 ]; then
+                    echo ""
+                    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                    echo "  PROMPT GUARD: origin/main MODIFIED DURING AGENT CYCLE"
+                    echo "  An agent pushed prompt/control file changes to origin/main"
+                    echo "  without touching the working tree (blind spot attack)."
+                    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                fi
+                echo ""
+                echo "ORIGIN/MAIN CHANGED (score-gate file): $rel_path"
+                local file_diff
+                file_diff=$(diff -u "$snap_file" "$origin_tmp" 2>/dev/null || true)
+                echo "$file_diff"
+                alert_body="${alert_body}ORIGIN/MAIN CHANGED (score-gate): ${rel_path}"$'\n'"${file_diff}"$'\n\n'
+                changed=1
+                files_to_restore+=("$rel_path")
+            fi
+        done
     done
     rm -f "$origin_tmp"
 
