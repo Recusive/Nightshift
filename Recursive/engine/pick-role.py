@@ -423,11 +423,23 @@ def compute_scores(signals: dict) -> dict[str, int]:
     if cb >= 10:
         achieve += 15
 
+    # SECURITY-CHECK — red team / adversarial audit
+    sc = signals.get("sessions_since_security", 0)
+    security = 5
+    if sc >= 10:
+        security += 50  # overdue for security review
+    if sc >= 5:
+        security += 20  # getting stale
+    if cb >= 5 and sc >= 3:
+        security += 15  # lots of builds without security review
+
     # Hard constraints: caps
     if sa < 5:
         achieve = -1
     if ss < 10:
         strategize = min(strategize, 5)
+    if sc < 3:
+        security = min(security, 5)  # don't re-run too frequently
 
     return {
         "build": build,
@@ -435,6 +447,7 @@ def compute_scores(signals: dict) -> dict[str, int]:
         "oversee": oversee,
         "strategize": strategize,
         "achieve": achieve,
+        "security-check": security,
     }
 
 
@@ -443,7 +456,7 @@ def pick_role(scores: dict[str, int], urgent: bool, recent_security: int = 0) ->
     if urgent and recent_security < 3:
         return "build"
     # Sort by score descending, then prefer build on ties
-    priority = ["build", "oversee", "review", "achieve", "strategize"]
+    priority = ["build", "oversee", "review", "security-check", "achieve", "strategize"]
     best_score = max(scores.values())
     for role in priority:
         if scores[role] == best_score:
@@ -492,6 +505,7 @@ def main() -> None:
         "sessions_since_review": count_sessions_since_role(index_rows, "review"),
         "sessions_since_strategy": count_sessions_since_role(index_rows, "strategize"),
         "sessions_since_achieve": count_sessions_since_role(index_rows, "achieve"),
+        "sessions_since_security": count_sessions_since_role(index_rows, "security-check"),
         "sessions_since_oversee": count_sessions_since_role(index_rows, "oversee"),
         "pending_tasks": pending,
         "stale_tasks": stale,
