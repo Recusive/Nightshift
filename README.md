@@ -11,6 +11,8 @@
 </p>
 
 <p align="center">
+  <img src="https://github.com/Recusive/Nightshift/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" />
+  <img src="https://img.shields.io/badge/version-0.0.7-8B5CF6" alt="Version" />
   <img src="https://img.shields.io/badge/Claude-Supported-F97316" alt="Claude Code" />
   <img src="https://img.shields.io/badge/Codex-Supported-10B981" alt="Codex" />
   <img src="https://img.shields.io/badge/Tracker-92%25-2563EB" alt="Vision Tracker" />
