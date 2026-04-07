@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="nightshift/assets/icon.png" alt="Nightshift" width="200" />&nbsp;&nbsp;<img src="Recursive/assets/separator.svg" height="100" alt="" />&nbsp;&nbsp;<img src="Recursive/assets/recursive-icon.png" alt="Recursive" width="200" />
+  <img src="Recursive/assets/repo-banner.png" alt="Nightshift + Recursive" width="560" />
 </p>
 
 <h1 align="center">Nightshift + Recursive</h1>
