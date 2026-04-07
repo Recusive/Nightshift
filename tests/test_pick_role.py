@@ -561,6 +561,119 @@ class TestPickRoleTiebreaker:
 
 
 # ---------------------------------------------------------------------------
+# Anti-security-loop tests
+# ---------------------------------------------------------------------------
+
+count_recent_pentest_tasks = pick_role_mod.count_recent_pentest_tasks
+count_recent_security_sessions = pick_role_mod.count_recent_security_sessions
+
+
+class TestSecurityLoopDemotion:
+    """The anti-loop demotes BUILD when 3+ recent sessions were security-driven."""
+
+    def test_security_loop_demotes_build(self) -> None:
+        signals = make_signals(
+            urgent_tasks=True,
+            recent_security_sessions=3,
+            sessions_since_achieve=10,
+        )
+        scores = compute_scores(signals)
+        # BUILD gets -15 from anti-loop (would normally get +20 from urgent)
+        base_urgent = compute_scores(make_signals(urgent_tasks=True, sessions_since_achieve=10))
+        assert scores["build"] == base_urgent["build"] - 15
+
+    def test_no_demotion_below_threshold(self) -> None:
+        signals = make_signals(
+            urgent_tasks=True,
+            recent_security_sessions=2,
+            sessions_since_achieve=10,
+        )
+        scores = compute_scores(signals)
+        base_urgent = compute_scores(make_signals(urgent_tasks=True, sessions_since_achieve=10))
+        assert scores["build"] == base_urgent["build"]
+
+
+class TestUrgentBypassRespectsSecurityLoop:
+    """pick_role() urgent bypass is disabled when in a security loop."""
+
+    def test_urgent_forces_build_without_loop(self) -> None:
+        scores = {"build": 10, "review": 100, "oversee": 100, "strategize": 5, "achieve": -1}
+        assert pick_role(scores, urgent=True, recent_security=0) == "build"
+
+    def test_urgent_does_not_force_build_in_loop(self) -> None:
+        scores = {"build": 10, "review": 100, "oversee": 100, "strategize": 5, "achieve": -1}
+        # With recent_security >= 3, urgent no longer forces BUILD
+        result = pick_role(scores, urgent=True, recent_security=3)
+        assert result != "build"  # scores-based selection picks review or oversee
+
+    def test_urgent_still_forces_build_at_threshold_minus_one(self) -> None:
+        scores = {"build": 10, "review": 100, "oversee": 100, "strategize": 5, "achieve": -1}
+        assert pick_role(scores, urgent=True, recent_security=2) == "build"
+
+
+class TestSecuritySignalUsesFeatureNotStatus:
+    """The anti-loop signal uses the Feature field, not Status."""
+
+    def test_feature_keyword_counts(self) -> None:
+        rows = [
+            {"role": "build", "feature": "Security fix for injection", "status": "success"},
+            {"role": "build", "feature": "security hardening", "status": "success"},
+            {"role": "build", "feature": "pentest finding fix", "status": "success"},
+            {"role": "oversee", "feature": "-", "status": "success"},
+            {"role": "build", "feature": "eval parsing fix", "status": "success"},
+        ]
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as td:
+            result = count_recent_security_sessions(rows, Path(td))
+        assert result == 3  # 3 of 5 rows are build + security keyword
+
+    def test_status_pentest_not_counted(self) -> None:
+        """Status always has 'pentest: success' -- must NOT trigger the signal."""
+        rows = [
+            {"role": "build", "feature": "eval fix", "status": "success (pentest: success)"},
+            {"role": "build", "feature": "new feature", "status": "success (pentest: success)"},
+            {"role": "build", "feature": "-", "status": "success (pentest: success)"},
+        ]
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as td:
+            result = count_recent_security_sessions(rows, Path(td))
+        assert result == 0  # no security keywords in Feature
+
+
+class TestRecentPentestTasks:
+    """Task provenance signal counts archived pentest tasks within window."""
+
+    def test_recent_pentest_task_counted(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        (archive / "0050.md").write_text("---\nstatus: done\nsource: pentest\ncompleted: 2026-04-06\n---\n# Fix\n")
+        result = count_recent_pentest_tasks(tmp_path, days=3)
+        assert result == 1
+
+    def test_old_pentest_task_not_counted(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        (archive / "0010.md").write_text("---\nstatus: done\nsource: pentest\ncompleted: 2026-03-01\n---\n# Old\n")
+        result = count_recent_pentest_tasks(tmp_path, days=3)
+        assert result == 0
+
+    def test_non_pentest_task_not_counted(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        (archive / "0050.md").write_text("---\nstatus: done\ncompleted: 2026-04-06\n---\n# Feature\n")
+        result = count_recent_pentest_tasks(tmp_path, days=3)
+        assert result == 0
+
+    def test_no_archive_returns_zero(self, tmp_path: Path) -> None:
+        result = count_recent_pentest_tasks(tmp_path, days=3)
+        assert result == 0
+
+
+# ---------------------------------------------------------------------------
 # Frontmatter helper and body-injection regression tests (tasks #0167, #0168)
 # ---------------------------------------------------------------------------
 
