@@ -13259,3 +13259,110 @@ class TestEvaluationConfig:
         (tmp_path / ".nightshift.json").write_text(json.dumps({"eval_frequency": 0}))
         config = nightshift.merge_config(tmp_path)
         assert config["eval_frequency"] == 0
+
+
+class TestCodexThinkingValidation:
+    """Regression tests for CODEX_THINKING startup validation (PR #176 / task #0189).
+
+    The validation block runs at global scope when lib-agent.sh is sourced.
+    Invalid values call `exit 1`, which exits the calling shell with code 1.
+    """
+
+    LIB = str(Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh")
+    REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+
+    def _source_lib(self, thinking_value: str) -> subprocess.CompletedProcess[str]:
+        script = f'REPO_DIR="{self.REPO_ROOT}" source "{self.LIB}"'
+        env = {**os.environ, "NIGHTSHIFT_CODEX_THINKING": thinking_value}
+        return subprocess.run(["bash", "-c", script], capture_output=True, text=True, env=env)
+
+    def test_extra_high_accepted(self) -> None:
+        """extra_high (the default) is accepted."""
+        result = self._source_lib("extra_high")
+        assert result.returncode == 0, result.stderr
+
+    def test_high_accepted(self) -> None:
+        """high is a valid reasoning_effort value."""
+        result = self._source_lib("high")
+        assert result.returncode == 0, result.stderr
+
+    def test_medium_accepted(self) -> None:
+        """medium is a valid reasoning_effort value."""
+        result = self._source_lib("medium")
+        assert result.returncode == 0, result.stderr
+
+    def test_low_accepted(self) -> None:
+        """low is a valid reasoning_effort value."""
+        result = self._source_lib("low")
+        assert result.returncode == 0, result.stderr
+
+    def test_default_accepted_when_env_unset(self) -> None:
+        """When NIGHTSHIFT_CODEX_THINKING is unset, the default extra_high is used."""
+        env = {k: v for k, v in os.environ.items() if k != "NIGHTSHIFT_CODEX_THINKING"}
+        script = f'REPO_DIR="{self.REPO_ROOT}" source "{self.LIB}"'
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, env=env)
+        assert result.returncode == 0, result.stderr
+
+    def test_double_quote_rejected(self) -> None:
+        """A double-quote in CODEX_THINKING is rejected at startup with exit 1."""
+        result = self._source_lib('extra"high')
+        assert result.returncode == 1
+        assert "ERROR" in result.stderr
+
+    def test_semicolon_rejected(self) -> None:
+        """A semicolon is rejected -- would break the codex exec arg list."""
+        result = self._source_lib("high;evil")
+        assert result.returncode == 1
+        assert "ERROR" in result.stderr
+
+    def test_space_rejected(self) -> None:
+        """A space is rejected -- would split the double-quoted CLI arg."""
+        result = self._source_lib("extra high")
+        assert result.returncode == 1
+        assert "ERROR" in result.stderr
+
+    def test_uppercase_rejected(self) -> None:
+        """Uppercase letters are rejected by ^[a-z_]+$."""
+        result = self._source_lib("EXTRA_HIGH")
+        assert result.returncode == 1
+        assert "ERROR" in result.stderr
+
+
+class TestCleanupOldLogsInjectionFix:
+    """Regression tests for cleanup_old_logs heredoc fix (PR #176 / task #0045).
+
+    The old python3 -c implementation interpolated $log_dir directly into the
+    Python source string. A path containing a single quote caused a Python
+    SyntaxError that was swallowed by || true, silently stopping log rotation.
+    """
+
+    LIB = str(Path(__file__).resolve().parent.parent / "scripts" / "lib-agent.sh")
+    REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+
+    def test_single_quote_in_path_does_not_crash(self, tmp_path: Path) -> None:
+        """cleanup_old_logs must not crash when the log dir path contains a single quote."""
+        log_dir = tmp_path / "o'brien-logs"
+        log_dir.mkdir()
+        script = f"""
+set -e
+REPO_DIR="{self.REPO_ROOT}"
+source "{self.LIB}"
+cleanup_old_logs "{log_dir}" 7
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "SyntaxError" not in result.stderr
+        assert "SyntaxError" not in result.stdout
+
+    def test_normal_path_still_works(self, tmp_path: Path) -> None:
+        """cleanup_old_logs continues to work for normal paths after the heredoc conversion."""
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        script = f"""
+set -e
+REPO_DIR="{self.REPO_ROOT}"
+source "{self.LIB}"
+cleanup_old_logs "{log_dir}" 7
+"""
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr

@@ -441,14 +441,16 @@ cleanup_old_logs() {
             ;;
     esac
 
-    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
+    result=$(PYTHONPATH="$REPO_DIR" python3 - "$log_dir" "$keep_days" <<'PY' 2>/dev/null
 from nightshift.cleanup import rotate_logs
-r = rotate_logs('$log_dir', $keep_days)
+import sys
+r = rotate_logs(sys.argv[1], int(sys.argv[2]))
 if r['deleted']:
-    print(f\"  Rotated {len(r['deleted'])} old log(s) (>${keep_days}d)\")
+    print(f"  Rotated {len(r['deleted'])} old log(s) (>{sys.argv[2]}d)")
 for e in r['errors']:
-    print(f\"  Log rotation error: {e}\")
-" 2>/dev/null) || true
+    print(f"  Log rotation error: {e}")
+PY
+) || true
     if [ -n "$result" ]; then
         echo "$result"
     fi
@@ -499,14 +501,16 @@ PY
 # Prunes remote branches from nightshift that have no open PR.
 cleanup_orphan_branches() {
     local result
-    result=$(PYTHONPATH="$REPO_DIR" python3 -c "
+    result=$(PYTHONPATH="$REPO_DIR" python3 - "$REPO_DIR" <<'PY' 2>/dev/null
 from nightshift.cleanup import prune_orphan_branches
-r = prune_orphan_branches('$REPO_DIR')
+import sys
+r = prune_orphan_branches(sys.argv[1])
 if r['pruned']:
-    print(f\"  Pruned {len(r['pruned'])} orphan branch(es): {', '.join(r['pruned'])}\")
+    print(f"  Pruned {len(r['pruned'])} orphan branch(es): {', '.join(r['pruned'])}")
 for e in r['errors']:
-    print(f\"  Branch prune error: {e}\")
-" 2>/dev/null) || true
+    print(f"  Branch prune error: {e}")
+PY
+) || true
     if [ -n "$result" ]; then
         echo "$result"
     fi
@@ -730,12 +734,14 @@ for task_num, issue_num, title in created_files:
 should_evaluate() {
     local session_count="${1:-0}"
     local freq
-    freq=$(PYTHONPATH="$REPO_DIR" python3 -c "
+    freq=$(PYTHONPATH="$REPO_DIR" _REPO_DIR="${REPO_DIR:-.}" python3 <<'PY' 2>/dev/null
+import os
 from nightshift.config import merge_config
 from pathlib import Path
-c = merge_config(Path('${REPO_DIR:-.}'))
-print(c['eval_frequency'])
-" 2>/dev/null) || freq="5"
+c = merge_config(Path(os.environ.get("_REPO_DIR", ".")))
+print(c["eval_frequency"])
+PY
+) || freq="5"
 
     if [ "$freq" = "0" ] || [ -z "$freq" ]; then
         return 1  # disabled
@@ -754,25 +760,31 @@ run_evaluation() {
     local after_task="${2:-}"
     echo "  Running self-evaluation..."
     local result
-    result=$(PYTHONPATH="$REPO_DIR" _AFTER_TASK="$after_task" python3 -c "
-import os, json
+    result=$(PYTHONPATH="$REPO_DIR" \
+        _AFTER_TASK="$after_task" \
+        _AGENT="$agent" \
+        _REPO_DIR="${REPO_DIR:-.}" \
+        python3 <<'PY' 2>/dev/null
+import os
 from pathlib import Path
 from nightshift.evaluation import evaluate
 from nightshift.config import merge_config
 
-cfg = merge_config(Path('${REPO_DIR:-.}'))
+repo_dir = Path(os.environ.get("_REPO_DIR", "."))
+cfg = merge_config(repo_dir)
 r = evaluate(
-    target_repo=cfg['eval_target_repo'],
-    agent='$agent',
-    nightshift_dir=Path('${REPO_DIR:-.}'),
-    eval_dir=Path('${REPO_DIR:-.}/docs/evaluations'),
-    task_dir=Path('${REPO_DIR:-.}/docs/tasks'),
-    after_task=os.environ.get('_AFTER_TASK', ''),
+    target_repo=cfg["eval_target_repo"],
+    agent=os.environ["_AGENT"],
+    nightshift_dir=repo_dir,
+    eval_dir=repo_dir / "docs/evaluations",
+    task_dir=repo_dir / "docs/tasks",
+    after_task=os.environ.get("_AFTER_TASK", ""),
 )
-print(f\"  Evaluation #{r['evaluation_id']:04d}: {r['total_score']}/{r['max_total']}\")
-if r['tasks_created']:
-    print(f\"  Created {len(r['tasks_created'])} follow-up task(s)\")
-" 2>/dev/null) || result="  Evaluation failed (non-blocking)"
+print(f"  Evaluation #{r['evaluation_id']:04d}: {r['total_score']}/{r['max_total']}")
+if r["tasks_created"]:
+    print(f"  Created {len(r['tasks_created'])} follow-up task(s)")
+PY
+) || result="  Evaluation failed (non-blocking)"
     echo "$result"
 }
 
@@ -784,6 +796,12 @@ if r['tasks_created']:
 CLAUDE_MODEL="${NIGHTSHIFT_CLAUDE_MODEL:-claude-opus-4-6}"
 CODEX_MODEL="${NIGHTSHIFT_CODEX_MODEL:-gpt-5.4}"
 CODEX_THINKING="${NIGHTSHIFT_CODEX_THINKING:-extra_high}"
+# Validate CODEX_THINKING to prevent shell injection via double-quoted CLI arg.
+# Valid values are lowercase letters and underscores (e.g. extra_high, high, medium, low).
+if ! printf '%s' "$CODEX_THINKING" | grep -qE '^[a-z_]+$'; then
+    echo "ERROR: NIGHTSHIFT_CODEX_THINKING must match ^[a-z_]+$ (got: '$CODEX_THINKING')" >&2
+    exit 1
+fi
 
 # ----------------------------------------------
 # Interactive Setup
@@ -1172,13 +1190,14 @@ notify_human() {
 
     # Optional: webhook (Slack, Discord, etc.)
     local webhook
-    webhook=$(python3 -c "
-import json, pathlib
-p = pathlib.Path('${REPO_DIR:-.}') / '.nightshift.json'
+    webhook=$(_REPO_DIR="${REPO_DIR:-.}" python3 <<'PY' 2>/dev/null || true
+import json, os, pathlib
+p = pathlib.Path(os.environ.get("_REPO_DIR", ".")) / ".nightshift.json"
 if p.exists():
     cfg = json.loads(p.read_text())
-    print(cfg.get('notification_webhook', ''))
-" 2>/dev/null || true)
+    print(cfg.get("notification_webhook", ""))
+PY
+)
     if [ -n "$webhook" ]; then
         local payload
         payload=$(python3 -c "
