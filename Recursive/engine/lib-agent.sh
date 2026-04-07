@@ -988,6 +988,7 @@ run_agent() {
     local prompt="$2"
     local log_file="$3"
     local max_turns="${4:-500}"
+    local structured_file="${5:-}"
 
     set +e
     case "$agent" in
@@ -999,13 +1000,23 @@ run_agent() {
             # --json: JSONL stream to stdout
             # --model: configurable (default gpt-5.4)
             # -c reasoning_effort: thinking level
-            codex exec \
-                --dangerously-bypass-approvals-and-sandbox \
-                --json \
-                --model "$CODEX_MODEL" \
-                -c "reasoning_effort=\"$CODEX_THINKING\"" \
-                "$prompt" \
-                2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
+            if [ -n "$structured_file" ]; then
+                codex exec \
+                    --dangerously-bypass-approvals-and-sandbox \
+                    --json \
+                    --model "$CODEX_MODEL" \
+                    -c "reasoning_effort=\"$CODEX_THINKING\"" \
+                    "$prompt" \
+                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py" | tee "$structured_file"
+            else
+                codex exec \
+                    --dangerously-bypass-approvals-and-sandbox \
+                    --json \
+                    --model "$CODEX_MODEL" \
+                    -c "reasoning_effort=\"$CODEX_THINKING\"" \
+                    "$prompt" \
+                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
+            fi
             EXIT_CODE=${PIPESTATUS[0]}
             ;;
         claude)
@@ -1014,13 +1025,23 @@ run_agent() {
             # --output-format stream-json: JSONL stream
             # --max-turns: session turn limit
             # --model: configurable (default opus)
-            claude -p "$prompt" \
-                --max-turns "$max_turns" \
-                --model "$CLAUDE_MODEL" \
-                --effort "${CLAUDE_EFFORT:-max}" \
-                --output-format stream-json \
-                --verbose \
-                2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
+            if [ -n "$structured_file" ]; then
+                claude -p "$prompt" \
+                    --max-turns "$max_turns" \
+                    --model "$CLAUDE_MODEL" \
+                    --effort "${CLAUDE_EFFORT:-max}" \
+                    --output-format stream-json \
+                    --verbose \
+                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py" | tee "$structured_file"
+            else
+                claude -p "$prompt" \
+                    --max-turns "$max_turns" \
+                    --model "$CLAUDE_MODEL" \
+                    --effort "${CLAUDE_EFFORT:-max}" \
+                    --output-format stream-json \
+                    --verbose \
+                    2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
+            fi
             EXIT_CODE=${PIPESTATUS[0]}
             ;;
         *)

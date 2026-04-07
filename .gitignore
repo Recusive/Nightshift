@@ -10,5 +10,5 @@ docs/context-map.md
 .pytest_cache/
 .ruff_cache/
 
-# Recursive session logs (large, not needed in repo)
-.recursive/sessions/*.log
+# Recursive session logs — raw JSONL (large, not needed in repo)
+.recursive/sessions/raw/

@@ -50,7 +50,10 @@ CHECKPOINTS_FILE="$RECURSIVE_DIR/prompts/checkpoints.md"
 
 # --- Project paths (in target repo) ---
 LOG_DIR="$REPO_DIR/.recursive/sessions"
+RAW_DIR="$LOG_DIR/raw"
+STRUCTURED_DIR="$LOG_DIR/structured"
 INDEX_FILE="$LOG_DIR/index.md"
+mkdir -p "$RAW_DIR" "$STRUCTURED_DIR"
 LOCKFILE="$REPO_DIR/.recursive-daemon.lock"
 PROMPT_ALERT="$LOG_DIR/prompt-alert.md"
 COST_FILE="$LOG_DIR/costs.json"
@@ -211,7 +214,8 @@ while true; do
 
     CYCLE=$((CYCLE + 1))
     SESSION_ID=$(date +%Y%m%d-%H%M%S)
-    LOG_FILE="$LOG_DIR/$SESSION_ID.log"
+    LOG_FILE="$RAW_DIR/$SESSION_ID.log"
+    STRUCTURED_FILE="$STRUCTURED_DIR/$SESSION_ID.md"
     START_TIME=$(date +%s)
 
     echo "-- Session $CYCLE --- $(date '+%H:%M') --- $SESSION_ID --"
@@ -333,7 +337,7 @@ ${PROMPT}"
     fi
 
     # --- Run the agent ---
-    run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS"
+    run_agent "$AGENT" "$PROMPT" "$LOG_FILE" "$MAX_TURNS" "$STRUCTURED_FILE"
 
     # --- Prompt guard: check for self-modification ---
     PROMPT_TAMPERED=""
