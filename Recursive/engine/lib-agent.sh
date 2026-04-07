@@ -35,6 +35,8 @@ PROMPT_GUARD_FILES=(
     "Recursive/operators/strategize/SKILL.md"
     "Recursive/operators/achieve/SKILL.md"
     "Recursive/operators/security-check/SKILL.md"
+    "Recursive/operators/evolve/SKILL.md"
+    "Recursive/operators/audit/SKILL.md"
     # --- Project-level control files ---
     "AGENTS.md"
     "CLAUDE.md"
