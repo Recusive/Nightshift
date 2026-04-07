@@ -222,14 +222,14 @@ while true; do
     reset_repo_state
 
     # --- Hot reload: re-source lib-agent.sh to pick up new functions ---
-    source "$SCRIPT_DIR/lib-agent.sh"
+    source "$ENGINE_DIR/lib-agent.sh"
 
     # --- Self-restart: if daemon.sh changed, exec into new version ---
     # Hash is computed AFTER reset_repo_state so it reflects origin/main.
     # On first iteration _DAEMON_HASH is unset, so we just record it.
     # On subsequent iterations, a mismatch means origin/main was updated
     # between cycles (not by our own reset), so we restart.
-    NEW_HASH=$(md5 -q "$SCRIPT_DIR/daemon.sh" 2>/dev/null || md5sum "$SCRIPT_DIR/daemon.sh" 2>/dev/null | cut -d' ' -f1)
+    NEW_HASH=$(md5 -q "$ENGINE_DIR/daemon.sh" 2>/dev/null || md5sum "$ENGINE_DIR/daemon.sh" 2>/dev/null | cut -d' ' -f1)
     if [ -n "${_DAEMON_HASH:-}" ] && [ "$NEW_HASH" != "$_DAEMON_HASH" ]; then
         echo "  daemon.sh changed on main -- restarting with new code..."
         export _DAEMON_HASH="$NEW_HASH"
@@ -242,7 +242,7 @@ while true; do
         export _DAEMON_CYCLE="$((CYCLE - 1))"
         export _DAEMON_FAILURES="$CONSECUTIVE_FAILURES"
         rmdir "$LOCKFILE" 2>/dev/null || true
-        exec bash "$SCRIPT_DIR/daemon.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
+        exec bash "$ENGINE_DIR/daemon.sh" "$AGENT" "$PAUSE" "$MAX_SESSIONS"
     fi
     export _DAEMON_HASH="$NEW_HASH"
 

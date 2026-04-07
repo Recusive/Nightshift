@@ -1005,7 +1005,7 @@ run_agent() {
                 --model "$CODEX_MODEL" \
                 -c "reasoning_effort=\"$CODEX_THINKING\"" \
                 "$prompt" \
-                2>&1 | tee "$log_file" | python3 -u "$SCRIPT_DIR/format-stream.py"
+                2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
             EXIT_CODE=${PIPESTATUS[0]}
             ;;
         claude)
@@ -1020,7 +1020,7 @@ run_agent() {
                 --effort "${CLAUDE_EFFORT:-max}" \
                 --output-format stream-json \
                 --verbose \
-                2>&1 | tee "$log_file" | python3 -u "$SCRIPT_DIR/format-stream.py"
+                2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
             EXIT_CODE=${PIPESTATUS[0]}
             ;;
         *)
