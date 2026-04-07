@@ -169,7 +169,9 @@ build_prompt() {
 }
 
 build_pentest_prompt() {
-    cat "$PENTEST_PROMPT_FILE"
+    # Strip YAML frontmatter (--- block) from SKILL.md before passing as prompt.
+    # Claude CLI interprets leading '---' as an option flag.
+    sed '1{/^---$/d}; /^---$/,/^---$/d' "$PENTEST_PROMPT_FILE"
 }
 
 reset_repo_state() {
