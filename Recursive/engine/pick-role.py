@@ -471,11 +471,11 @@ def main() -> None:
         sys.exit(0)
 
     # Read signals
-    eval_score = read_latest_eval_score(repo / "docs" / "evaluations")
-    autonomy_score = read_latest_autonomy_score(repo / "docs" / "autonomy")
-    index_rows = parse_session_index(repo / "docs" / "sessions" / "index.md")
-    healer_status = read_healer_status(repo / "docs" / "healer" / "log.md")
-    tasks_dir = repo / "docs" / "tasks"
+    eval_score = read_latest_eval_score(repo / ".recursive" / "evaluations")
+    autonomy_score = read_latest_autonomy_score(repo / ".recursive" / "autonomy")
+    index_rows = parse_session_index(repo / ".recursive" / "sessions" / "index.md")
+    healer_status = read_healer_status(repo / ".recursive" / "healer" / "log.md")
+    tasks_dir = repo / ".recursive" / "tasks"
     pending = count_pending_tasks(tasks_dir)
     stale = count_stale_tasks(tasks_dir)
     urgent = has_urgent_tasks(tasks_dir)
