@@ -23,7 +23,7 @@ from nightshift.constants import (
     EVALUATION_TEMPLATE_MARKERS,
 )
 from nightshift.types import DimensionScore, EvaluationResult, ShiftArtifacts
-from nightshift.worktree import resolve_runtime_dir
+from nightshift.worktree import git_status_short, resolve_runtime_dir
 
 # ---------------------------------------------------------------------------
 # Clone / run helpers
@@ -111,18 +111,7 @@ def parse_shift_artifacts(repo_dir: Path) -> ShiftArtifacts:
             pass
 
     # Git cleanliness: untracked or modified files left behind by the shift
-    git_status_output = ""
-    repo_is_clean = True
-    with contextlib.suppress(subprocess.TimeoutExpired, OSError):
-        result = subprocess.run(
-            ["git", "-C", str(repo_dir), "status", "--short"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode == 0:
-            git_status_output = result.stdout
-            repo_is_clean = not git_status_output.strip()
+    git_status_output, repo_is_clean = git_status_short(repo_dir)
 
     return ShiftArtifacts(
         state=state,

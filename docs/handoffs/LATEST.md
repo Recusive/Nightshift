@@ -44,10 +44,14 @@ untracked files like `?? Docs/Nightshift/` left behind.
 **Changes:**
 - `nightshift/types.py`: Added `git_status_output: str` and `repo_is_clean: bool`
   to `ShiftArtifacts`.
+- `nightshift/worktree.py`: Added `git_status_short(repo_dir: Path) -> tuple[str,bool]`
+  helper. Returns ("", True) gracefully for non-git dirs. Extracted here to comply
+  with the project's subprocess-in-shell/worktree-only policy (evaluation.py already
+  had 2 pre-existing subprocess calls; this PR avoids deepening that violation).
+- `nightshift/__init__.py`: Exported `git_status_short`.
 - `nightshift/evaluation.py`:
-  - `parse_shift_artifacts()`: Runs `git -C repo_dir status --short` after the
-    shift; stores output and cleanliness flag. Failures are suppressed (non-git
-    dirs remain "clean" with empty output).
+  - `parse_shift_artifacts()`: Calls `git_status_short(repo_dir)` after the
+    shift; stores output and cleanliness flag.
   - `score_clean_state()`: Restructured from (5+5) to (4+4+2) — exit code gets
     max 4, halt reason max 4, repo cleanliness max 2. A dirty clone loses 2 points
     and the first dirty-file entry appears in the dimension notes.
@@ -56,11 +60,17 @@ untracked files like `?? Docs/Nightshift/` left behind.
     `repo_is_clean` (default clean).
   - Updated `TestParseShiftArtifacts.test_shift_artifacts_round_trip` to supply
     new required fields.
-  - Added 5 new tests to `TestScoreCleanState`:
+  - Added 4 new tests to `TestScoreCleanState`:
     - `test_dirty_clone_penalized`
     - `test_dirty_clone_note_includes_first_entry`
     - `test_clean_clone_gets_full_score`
     - `test_dirty_clone_with_successful_exit_scores_below_clean`
+  - Fixed swapped args in `test_real_session_cost_not_inflated_by_poisoned_total`
+    (log_path and ledger_path were reversed; test was passing for wrong reason).
+  - Added 3 new tests in `TestGitStatusShort`:
+    - `test_non_git_dir_returns_clean`
+    - `test_clean_repo_returns_empty_output`
+    - `test_dirty_repo_returns_nonempty_output`
 
 ### Pentest Finding Disposition (this session)
 
@@ -83,7 +93,7 @@ untracked files like `?? Docs/Nightshift/` left behind.
 - Meta-Prompt: 79%
 - Overall: 92%
 - Version: v0.0.8 in progress — ~69 pending tasks
-- Tests: 1111 passing (+7 from 1104)
+- Tests: 1114 passing (+10 from 1104)
 - Eval: 53/100 (STALE — task #0177 is integration-blocked; dirty-clone fix
   should improve Clean state dimension when re-run)
 - Autonomy: 81/100

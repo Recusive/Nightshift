@@ -7959,8 +7959,8 @@ class TestCostBudgetPoisoningGuard:
         path = str(tmp_path / "costs.json")
         # Attacker pre-poisons: stored total just under a $25 budget
         nightshift.write_ledger(path, {"total_cost_usd": 24.99, "sessions": []})
-        # Builder records one real session from an empty log (0 tokens, 0 cost)
-        nightshift.record_session(path, str(tmp_path / "missing.log"), "s1", "claude")
+        # Builder records one real session from a missing log (0 tokens, 0 cost)
+        nightshift.record_session(str(tmp_path / "missing.log"), path, "s1", "claude")
         # total_cost() sums sessions[], not the poisoned stored field
         assert nightshift.total_cost(path) < 1.0
 
@@ -12935,6 +12935,34 @@ class TestWriteEvaluationReport:
         path = nightshift.write_evaluation_report(eval_dir, result)
         assert path.exists()
         assert path.name == "0005.md"
+
+
+class TestGitStatusShort:
+    def test_non_git_dir_returns_clean(self, tmp_path: Path) -> None:
+        """Non-git directory should return ('', True) not raise."""
+        output, is_clean = nightshift.git_status_short(tmp_path)
+        assert output == ""
+        assert is_clean is True
+
+    def test_clean_repo_returns_empty_output(self, tmp_path: Path) -> None:
+        """Freshly initialised repo with no unstaged changes is clean."""
+        import subprocess as sp
+
+        sp.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+        sp.run(["git", "-C", str(tmp_path), "commit", "--allow-empty", "-m", "init"], check=True, capture_output=True)
+        output, is_clean = nightshift.git_status_short(tmp_path)
+        assert output == ""
+        assert is_clean is True
+
+    def test_dirty_repo_returns_nonempty_output(self, tmp_path: Path) -> None:
+        """Untracked file makes the repo dirty."""
+        import subprocess as sp
+
+        sp.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+        (tmp_path / "untracked.txt").write_text("hello")
+        output, is_clean = nightshift.git_status_short(tmp_path)
+        assert "untracked.txt" in output
+        assert is_clean is False
 
 
 class TestCreateFollowupTasks:

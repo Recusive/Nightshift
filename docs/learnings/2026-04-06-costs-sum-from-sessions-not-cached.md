@@ -1,8 +1,10 @@
 ---
-name: Sum ledger costs from sessions not cached total
-description: total_cost() must sum sessions[*].total_cost_usd to prevent budget-gate poisoning via pre-written costs.json
-type: feedback
+date: 2026-04-06
+topic: costs-sum-from-sessions-not-cached
+category: Security
 ---
+
+# Sum ledger costs from sessions, not cached total
 
 ## Rule
 

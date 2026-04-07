@@ -221,6 +221,19 @@ def revert_cycle(worktree_dir: Path, pre_head: str) -> None:
     subprocess.run(["git", "clean", "-fd"], cwd=str(worktree_dir), check=False)
 
 
+def git_status_short(repo_dir: Path) -> tuple[str, bool]:
+    """Return (git status --short output, is_clean) for a repository.
+
+    Returns ("", True) for non-git directories or when git is unavailable,
+    treating cleanliness as unknown rather than crashing.
+    """
+    try:
+        output = git(repo_dir, "status", "--short", check=False)
+        return output, not output.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return "", True
+
+
 def cleanup_safe_artifacts(worktree_dir: Path) -> None:
     for directory_name in SAFE_ARTIFACT_DIRS:
         for path in worktree_dir.rglob(directory_name):
