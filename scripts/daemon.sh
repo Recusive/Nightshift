@@ -83,11 +83,14 @@ pick_session_role() {
     # library prints, uncaught exception messages emitted after sys.exit) cannot
     # corrupt SESSION_ROLE via tail -1 picking the wrong merged line.
     local role_stdout _pick_stderr
-    _pick_stderr=$(mktemp)
+    # Fall back to /dev/null if mktemp fails (e.g. full filesystem) so the
+    # daemon can still pick a role rather than aborting under set -uo pipefail.
+    _pick_stderr=$(mktemp) || _pick_stderr="/dev/null"
     role_stdout=$(python3 "$PICK_ROLE" "$REPO_DIR" 2>"$_pick_stderr" || true)
     cat "$_pick_stderr"  # Print reasoning to daemon output
     rm -f "$_pick_stderr"
-    # tail -1 is still defensive in case a future stdout addition slips in
+    # tail -1 guards against leading blank lines; the case *) wildcard catches
+    # any unrecognized value and safely defaults to build.
     SESSION_ROLE=$(echo "$role_stdout" | tail -1 | tr -d '[:space:]')
     case "$SESSION_ROLE" in
         build)      ROLE_PROMPT="$REPO_DIR/docs/prompt/evolve.md" ;;
