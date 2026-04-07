@@ -221,10 +221,14 @@ while true; do
 
     # --- Clean slate: hard reset to origin/main ---
     cd "$REPO_DIR"
+    echo "  Resetting to origin/main..."
     reset_repo_state
+    echo "  Reset done."
 
     # --- Hot reload: re-source lib-agent.sh to pick up new functions ---
+    echo "  Sourcing lib-agent.sh..."
     source "$ENGINE_DIR/lib-agent.sh"
+    echo "  Source done."
 
     # --- Self-restart: if daemon.sh changed, exec into new version ---
     # Hash is computed AFTER reset_repo_state so it reflects origin/main.
@@ -248,13 +252,20 @@ while true; do
     fi
     export _DAEMON_HASH="$NEW_HASH"
 
-    # --- Housekeeping: rotate old logs, prune stale branches, compact handoffs, archive tasks, sync issues ---
+    # --- Housekeeping ---
+    echo "  Housekeeping: logs..."
     cleanup_old_logs "$LOG_DIR" "$KEEP_LOGS"
+    echo "  Housekeeping: healer..."
     cleanup_healer_log "$REPO_DIR/.recursive/healer/log.md" "$KEEP_HEALER_ENTRIES"
+    echo "  Housekeeping: branches..."
     cleanup_orphan_branches
+    echo "  Housekeeping: compact..."
     compact_handoffs "$REPO_DIR/.recursive/handoffs"
+    echo "  Housekeeping: archive..."
     archive_done_tasks "$REPO_DIR/.recursive/tasks"
+    echo "  Housekeeping: sync issues..."
     sync_github_tasks "$REPO_DIR/.recursive/tasks"
+    echo "  Housekeeping done."
 
     # --- Check for open PRs from previous sessions ---
     OPEN_PR=""
