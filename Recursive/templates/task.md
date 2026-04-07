@@ -8,6 +8,7 @@ title: [Descriptive title]
 status: pending
 priority: [urgent|normal|low]
 created: YYYY-MM-DD
+target: [project|recursive]
 environment: [internal|integration]
 vision_section: [loop1|loop2|self-maintaining|meta-prompt|none]
 source: [manual|pentest|evaluation|healer|generated]
