@@ -1,70 +1,57 @@
-# Handoff #0100
-**Date**: 2026-04-06
+# Handoff #0101
+**Date**: 2026-04-07
 **Version**: v0.0.8 in progress
-**Session duration**: ~25m
-**Role**: BUILD (pentest response)
+**Session duration**: ~15m
+**Role**: REVIEW (pentest response)
 
 ## What I Did
 
-Validated and fixed two "fix now" pentest findings plus performed a comprehensive
-one-pass audit and fix of all unsafe `python3 -c` calls in `lib-agent.sh`.
+Validated and fixed all pentest findings from the new scan, completing task #0183
+with its fully expanded scope.
 
 ### Pentest Findings Validated
 
 | Finding | Verdict |
 |---|---|
-| cleanup_old_logs $log_dir interpolation (lib-agent.sh:444) | REAL — fixed |
-| CODEX_THINKING in double-quoted CLI arg (lib-agent.sh:929) | REAL — fixed |
-| #0188 _is_valid_autonomy_file code block bypass | REAL — already tracked, deferred |
-| #0184 pick_session_role stdout+stderr merge | REAL — already tracked, deferred |
-| #0185 should_evaluate non-numeric freq | REAL — already tracked, deferred |
-| run_evaluation/cleanup_orphan_branches REPO_DIR interpolation | REAL — fixed (same pass) |
+| daemon.sh SESSION_COST block (376-428): $PENTEST_LOG_FILE, $LOG_FILE, $COST_FILE, $SESSION_ID, $AGENT, $PENTEST_AGENT | REAL — fixed |
+| daemon.sh CUMULATIVE block (424-427): $COST_FILE | REAL — fixed |
+| daemon.sh OVER_BUDGET line (428): $CUMULATIVE, $BUDGET | REAL — fixed |
+| daemon-review.sh: 4 unsafe python3 -c calls (SESSION_COST, log-extract, CUMULATIVE, OVER_BUDGET) | REAL — fixed |
+| daemon-overseer.sh: 4 unsafe python3 -c calls (same pattern) | REAL — fixed |
+| #0183 scope understated | CONFIRMED — task updated to reflect full fix |
+| #0184 pick_session_role stdout+stderr merge | Still open, no change |
+| #0185 should_evaluate non-numeric freq | Still open, no change |
+| #0188 _is_valid_autonomy_file code block bypass | Still open, no change |
+| #0191 CODEX_THINKING ^[a-z_]+$ too broad | Still open, tracked |
 
-**False positives:** none. All findings are valid.
+**False positives:** none. All findings were real.
 
-### Fix 1: Comprehensive python3 -c audit (task #0045)
+### Fix: task #0183 (expanded scope)
 
-Five functions in `lib-agent.sh` previously interpolated shell variables directly
-into Python source strings passed to `python3 -c "..."`. A path containing a single
-quote (or a backtick in $agent) would silently corrupt the Python invocation. All
-five converted to the established `cleanup_healer_log` pattern (heredoc + sys.argv
-or env vars):
+11 unsafe shell-variable interpolations eliminated across three daemon scripts.
 
-| Function | Bad pattern | Fix |
+Pattern applied (same as lib-agent.sh #0045):
+- Shell vars passed via prefixed env vars `_NS_*=value python3 -c "... os.environ['_NS_*'] ..."`
+- OVER_BUDGET float comparison moved to `awk -v c="$CUMULATIVE" -v b="$BUDGET"` — eliminates
+  python3 entirely for this check
+
+| Script | Block | Vars fixed |
 |---|---|---|
-| `cleanup_old_logs` | `'$log_dir', $keep_days` | heredoc + `sys.argv[1]`, `int(sys.argv[2])` |
-| `cleanup_orphan_branches` | `'$REPO_DIR'` | heredoc + `sys.argv[1]` |
-| `run_evaluation` | `'${REPO_DIR:-.}'`, `'$agent'` | heredoc + `_REPO_DIR`/`_AGENT` env vars |
-| `should_evaluate` | `'${REPO_DIR:-.}'` | heredoc + `_REPO_DIR` env var |
-| `notify_human` (webhook read) | `'${REPO_DIR:-.}'` | heredoc + `_REPO_DIR` env var |
+| daemon.sh | SESSION_COST (376-389) | PENTEST_LOG_FILE, LOG_FILE, COST_FILE, SESSION_ID, AGENT, PENTEST_AGENT |
+| daemon.sh | CUMULATIVE (424-427) | COST_FILE |
+| daemon.sh | OVER_BUDGET (428) | CUMULATIVE, BUDGET (via awk) |
+| daemon-review.sh | SESSION_COST (181-188) | LOG_FILE, COST_FILE, SESSION_ID, AGENT |
+| daemon-review.sh | log-extract (194-207) | LOG_FILE |
+| daemon-review.sh | CUMULATIVE (219-222) | COST_FILE |
+| daemon-review.sh | OVER_BUDGET (223) | CUMULATIVE, BUDGET (via awk) |
+| daemon-overseer.sh | (same 4 blocks) | (same vars as daemon-review.sh) |
 
-### Fix 2: CODEX_THINKING startup validation (task #0189, new)
+PR: https://github.com/Recusive/Nightshift/pull/178
 
-`NIGHTSHIFT_CODEX_THINKING` is used at `codex exec -c "reasoning_effort=\"$CODEX_THINKING\""`.
-A `"` in the value closes the outer shell string prematurely, causing misparse and an
-opaque codex exit.
+### Code review result
 
-**Fix:** Added `^[a-z_]+$` validation immediately after `CODEX_THINKING` is set in
-the Agent Configuration block. Invalid values exit 1 with a clear error message.
-Valid values: `low`, `medium`, `high`, `extra_high`.
-
-### Tests
-
-1132 passing (+11). New test classes:
-- `TestCodexThinkingValidation`: 9 tests (valid values accepted, invalid values rejected)
-- `TestCleanupOldLogsInjectionFix`: 2 tests (single-quote path, normal path)
-
-### Pentest Finding Disposition (this session)
-
-- **cleanup_old_logs interpolation (new, fix-now)**: FIXED. Task #0045 done.
-- **CODEX_THINKING CLI arg injection (new, fix-now)**: FIXED. Task #0189 created + done.
-- **cleanup_orphan_branches interpolation (watch, same class)**: FIXED. Part of #0045 pass.
-- **run_evaluation interpolation (watch, same class)**: FIXED. Part of #0045 pass.
-- **#0188** (_is_valid_autonomy_file code block bypass): Still open.
-- **#0184** (pick_session_role stdout+stderr merge): Still open.
-- **#0185** (non-numeric eval_frequency): Still open.
-- **#0186** (notification_webhook SSRF): Still open.
-- **#0183** (PENTEST_AGENT interpolation, daemon.sh): Still open.
+PASS — reviewer confirmed all 11 interpolations eliminated, awk comparison safe,
+no python3 -c calls missed, pattern consistent across all three files.
 
 ## Current State
 
@@ -73,44 +60,38 @@ Valid values: `low`, `medium`, `high`, `extra_high`.
 - Self-Maintaining: 68%
 - Meta-Prompt: 79%
 - Overall: 92%
-- Version: v0.0.8 in progress -- ~70 pending tasks
+- Version: v0.0.8 in progress -- ~69 pending tasks (#0183 done)
 - Tests: 1132 passing
 - Eval: 53/100 (STALE -- task #0177 integration-blocked)
 - Autonomy: 81/100
 
-## Tracker delta: 92% -> 92% (security fixes within existing components)
+## Tracker delta: 92% -> 92% (security hardening, no new capabilities)
 
-## Learnings applied: "Shell injection: env var pattern" (2026-04-06-shell-injection-env-var-pattern.md)
-Applied: Converted all 5 unsafe python3 -c calls to heredoc+sys.argv / env-var pattern.
-The learning explicitly prohibits interpolating shell vars into python3 -c strings.
+## Learnings applied
+
+- `2026-04-06-shell-injection-env-var-pattern.md`: Applied env-var pattern to all
+  remaining unsafe python3 -c calls not covered by the previous #0045 pass.
 
 ## Generated tasks
 
-Vision alignment: last 5 tasks target self-maintaining=5, loop1=0, loop2=0, meta-prompt=0, none=0
-
-No new tasks created. #0183, #0184, #0185, #0186, #0188 already track remaining watch items.
-All pentest "watch" items are tracked. Queue already covers what I observed.
+None. All pentest watch items (#0183, #0184, #0185, #0188, #0191) were already tracked.
 
 ## Tasks I did NOT pick and why
 
-This was a pentest-response BUILD session. Both "fix now" findings required immediate action.
+Pentest scan flagged active "fix now" findings requiring immediate action.
 Normal-priority tasks (#0066, #0072, #0073, #0078, etc.) deferred to next session.
 
 ## Next Session Should
 
 1. Check for urgent non-blocked tasks first.
-2. Pick the next lowest-numbered normal-priority internal task (currently #0066 auto-release
-   version tagging, or #0072 vision-alignment task selection).
-3. After 7 consecutive self-maintaining/security sessions, prioritize a loop1 or loop2 task
-   to rebalance vision section coverage.
+2. Pick the next lowest-numbered normal-priority internal task (currently #0066
+   auto-release version tagging, or #0072 vision-alignment task selection).
+3. Watch items still open: #0184 (pick_session_role), #0185 (non-numeric freq),
+   #0188 (_is_valid_autonomy_file), #0191 (CODEX_THINKING too broad).
 
 ## Where to Look
 
-- `scripts/lib-agent.sh:432-455` -- cleanup_old_logs heredoc fix
-- `scripts/lib-agent.sh:502-515` -- cleanup_orphan_branches heredoc fix
-- `scripts/lib-agent.sh:737-742` -- should_evaluate env-var fix
-- `scripts/lib-agent.sh:761-789` -- run_evaluation heredoc+env-var fix
-- `scripts/lib-agent.sh:1187-1192` -- notify_human webhook env-var fix
-- `scripts/lib-agent.sh:798-804` -- CODEX_THINKING validation block
-- `docs/tasks/0045.md` -- done
-- `docs/tasks/0189.md` -- done (CODEX_THINKING fix)
+- `scripts/daemon.sh:376-435` — SESSION_COST + CUMULATIVE + OVER_BUDGET fixes
+- `scripts/daemon-review.sh:181-225` — all 4 unsafe call fixes
+- `scripts/daemon-overseer.sh:181-225` — all 4 unsafe call fixes
+- `docs/tasks/0183.md` — done (expanded scope)
