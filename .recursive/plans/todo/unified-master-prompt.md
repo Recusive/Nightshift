@@ -602,9 +602,9 @@ Checkpoint 4 adds a "Commitment Check" section to handoffs. Existing systems tha
 - `compact_handoffs()` in lib-agent.sh: compacts old handoffs into weekly summaries. Uses Python to read markdown. The Commitment Check section is just another markdown section -- no parsing changes needed. The compactor preserves all sections.
 - Overseer prompt: reads handoffs for context. The new section is informational -- overseer doesn't need to parse it specifically.
 - Builder Step 0: already reads LATEST.md. The Commitment Check verification is a new instruction in the skill prompt, not a parsing change.
-- `docs/handoffs/README.md`: update the handoff format template to include the Commitment Check section so future sessions know it's expected.
+- `.recursive/handoffs/README.md`: update the handoff format template to include the Commitment Check section so future sessions know it's expected.
 
-**Only change needed:** Add the Commitment Check section to `docs/handoffs/README.md` template. No code changes to handoff parsing.
+**Only change needed:** Add the Commitment Check section to `.recursive/handoffs/README.md` template. No code changes to handoff parsing.
 
 ---
 
@@ -723,7 +723,7 @@ These systems stay exactly as they are. Removing any of them would be a security
    - Declare measurable success metric before starting work
    - Format: "Metric: [specific measure]. Verification: [how to check]. Fallback: [if it fails]"
 6. Add Checkpoint 4 (Post-Session Audit) to:
-   - Handoff template (`docs/handoffs/README.md`): add "Commitment Check" section
+   - Handoff template (`.recursive/handoffs/README.md`): add "Commitment Check" section
    - skills/build.md Step 0: read previous handoff's Commitment Check, verify if met/missed
    - If same commitment missed 3+ times, create investigation task
 7. Add Pipeline Health section to skills/strategize.md Step 2:

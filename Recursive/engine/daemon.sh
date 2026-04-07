@@ -14,7 +14,7 @@
 #   REPO_DIR    = parent of RECURSIVE_DIR (the target project)
 #
 # All framework files come from RECURSIVE_DIR.
-# All project runtime data lives in REPO_DIR/docs/.
+# All project runtime data lives in REPO_DIR/.recursive/.
 #
 # Budget: set RECURSIVE_BUDGET=50 to stop after $50 spent
 # Stop: Ctrl+C or kill the process
@@ -255,7 +255,8 @@ while true; do
 
     # --- Housekeeping ---
     echo "  Housekeeping: logs..."
-    cleanup_old_logs "$LOG_DIR" "$KEEP_LOGS"
+    cleanup_old_logs "$RAW_DIR" "$KEEP_LOGS"
+    cleanup_old_logs "$STRUCTURED_DIR" "$KEEP_LOGS"
     echo "  Housekeeping: healer..."
     cleanup_healer_log "$REPO_DIR/.recursive/healer/log.md" "$KEEP_HEALER_ENTRIES"
     echo "  Housekeeping: branches..."
@@ -415,7 +416,7 @@ print(f\"  Cost: \${entry['cost_usd']:.4f} (cumulative: \${cumulative:.2f})\")
     if [ -n "$ROLE_OVERRIDE" ]; then
         OVERRIDE_ROLE=$(echo "$ROLE_OVERRIDE" | sed -n 's/.*-> \([a-z]*\).*/\1/p')
         case "$OVERRIDE_ROLE" in
-            build|review|oversee|strategize|achieve)
+            build|review|oversee|strategize|achieve|security-check|evolve|audit)
                 OVERRIDE_NOTE="$OVERRIDE_ROLE: $(echo "$ROLE_OVERRIDE" | sed 's/ROLE OVERRIDE: //')"
                 echo "  Agent overrode role: $ROLE_OVERRIDE"
                 ;;

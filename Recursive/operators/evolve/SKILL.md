@@ -75,5 +75,5 @@ Branch (`recursive/evolve-YYYYMMDD`), commit, PR, review, merge. Write handoff n
 ## Gotchas
 
 - **Don't fix one-off complaints.** If it happened once, it's noise. Wait for a pattern.
-- **Don't make project-specific changes.** "The nightshift tests need X" is NOT a framework fix. "The build operator's verify step doesn't account for projects without make" IS a framework fix.
+- **Don't make project-specific changes.** "The target project's tests need X" is NOT a framework fix. "The build operator's verify step doesn't account for projects without make" IS a framework fix.
 - **Don't rewrite operators for fun.** Fix the specific friction, nothing more.

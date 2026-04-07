@@ -1,24 +1,28 @@
-# System Design
+#  System Design
 
 ## Operators
 
 ### Target Operators (work on the project, never touch Recursive/)
 
-| Operator | What it does |
-|----------|-------------|
-| **BUILD** | Picks a task from the queue, writes code, writes tests, ships a PR, merges, updates changelog/tracker/handoff. The workhorse. |
-| **REVIEW** | Picks one source file, reads every function, fixes quality issues (types, error handling, dead code, naming), ships a PR. |
-| **OVERSEE** | Reads every pending task, closes duplicates, wontfixes stale ones, reorders priorities, decomposes stuck tasks. No code. |
-| **STRATEGIZE** | Reads last 10+ sessions of history, cost data, prompt health, writes a strategy report with recommendations, creates follow-up tasks. No code. |
-| **ACHIEVE** | Measures a 20-check autonomy scorecard (0-100), finds the #1 human dependency, eliminates it with code, ships a PR. |
-| **SECURITY-CHECK** | Red-teams the system read-only, finds break paths, classifies as CONFIRMED or THEORETICAL, produces a report. No code changes. |
+
+| Operator           | What it does                                                                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BUILD**          | Picks a task from the queue, writes code, writes tests, ships a PR, merges, updates changelog/tracker/handoff. The workhorse.                  |
+| **REVIEW**         | Picks one source file, reads every function, fixes quality issues (types, error handling, dead code, naming), ships a PR.                      |
+| **OVERSEE**        | Reads every pending task, closes duplicates, wontfixes stale ones, reorders priorities, decomposes stuck tasks. No code.                       |
+| **STRATEGIZE**     | Reads last 10+ sessions of history, cost data, prompt health, writes a strategy report with recommendations, creates follow-up tasks. No code. |
+| **ACHIEVE**        | Measures a 20-check autonomy scorecard (0-100), finds the #1 human dependency, eliminates it with code, ships a PR.                            |
+| **SECURITY-CHECK** | Red-teams the system read-only, finds break paths, classifies as CONFIRMED or THEORETICAL, produces a report. No code changes.                 |
+
 
 ### Framework Operators (work on Recursive/, never touch the project)
 
-| Operator | What it does |
-|----------|-------------|
+
+| Operator   | What it does                                                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **EVOLVE** | Reads `.recursive/friction/log.md`, finds patterns (same issue 3+ times), fixes the root cause in Recursive/. Only triggered when friction accumulates. |
-| **AUDIT** | Reviews all Recursive/ files for quality — contradictions, dead paths, stale instructions, gaps. Like REVIEW but for the framework. Every 25+ sessions. |
+| **AUDIT**  | Reviews all Recursive/ files for quality — contradictions, dead paths, stale instructions, gaps. Like REVIEW but for the framework. Every 25+ sessions. |
+
 
 ### Friction Loop (how target operators feed framework operators)
 
@@ -50,27 +54,27 @@ Better framework → less friction next cycle
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║                     RECURSIVE DAEMON                            ║
-║              bash Recursive/engine/daemon.sh claude 60          ║
+║                     RECURSIVE DAEMON                             ║
+║              bash Recursive/engine/daemon.sh claude 60           ║
 ╚══════════════════════════════════════════════╦═══════════════════╝
                                                │
                                                ▼
-                                    ┌─────────────────┐
+                                    ┌───────────────── ┐
                                     │   ACQUIRE LOCK   │
                                     │ .recursive-daemon│
                                     │     .lock        │
-                                    └────────┬────────┘
+                                    └────────┬──────── ┘
                                              │
                  ╔═══════════════════════════╗│╔══════════════════╗
-                 ║     CYCLE LOOP           ║│║  STOP CONDITIONS ║
-                 ║  repeats until stopped   ║│║  - max sessions  ║
+                 ║     CYCLE LOOP           ║│║  STOP CONDITIONS  ║
+                 ║  repeats until stopped   ║│║  - max sessions   ║
                  ╚═══════════════════════════╝│║  - budget limit  ║
                                               │║  - 3 failures    ║
 ┌─────────────────────────────────────────────┘║  - Ctrl+C        ║
 │                                              ╚══════════════════╝
 ▼
 ┌──────────────────────────────────┐
-│ 1. RESET TO ORIGIN/MAIN         │
+│ 1. RESET TO ORIGIN/MAIN          │
 │    git fetch origin              │
 │    git checkout main             │
 │    git reset --hard origin/main  │
@@ -121,12 +125,14 @@ Better framework → less friction next cycle
 │                                                      │
 │    Scores 6 operators:                               │
 │    ┌──────────────────┬───────┬─────────────────┐    │
-│    │ build            │ 50+   │ default          │    │
-│    │ review           │ 10+   │ after 5+ builds  │    │
-│    │ oversee          │  5+   │ 50+ pending      │    │
-│    │ strategize       │  5+   │ every 15 sess    │    │
-│    │ achieve          │  5+   │ autonomy < 70    │    │
-│    │ security-check   │  5+   │ every 10 sess    │    │
+│    │ build            │ 50+   │ default         │    │
+│    │ review           │ 10+   │ after 5+ builds │    │
+│    │ oversee          │  5+   │ 50+ pending     │    │
+│    │ strategize       │  5+   │ every 15 sess   │    │
+│    │ achieve          │  5+   │ autonomy < 70   │    │
+│    │ security-check   │  5+   │ every 10 sess   │    │
+│    │ evolve           │  5+   │ 5+ friction     │    │
+│    │ audit            │  5+   │ every 25 sess   │    │
 │    └──────────────────┴───────┴─────────────────┘    │
 │                                                      │
 │    Highest score wins. Ties → BUILD.                 │
@@ -204,10 +210,10 @@ Better framework → less friction next cycle
                         ▼
 ┌──────────────────────────────────────────────────────┐
 │ 9. PROMPT GUARD: VERIFY                              │
-│    compare post-session checksums to snapshots        │
-│    if modified: flag [PROMPT MODIFIED] in index       │
-│    check origin/main for unauthorized direct pushes   │
-│    if origin tampered: revert + alert                 │
+│    compare post-session checksums to snapshots       │
+│    if modified: flag [PROMPT MODIFIED] in index      │
+│    check origin/main for unauthorized direct pushes  │
+│    if origin tampered: revert + alert                │
 └───────────────────────┬──────────────────────────────┘
                         │
                         ▼
@@ -233,8 +239,8 @@ Better framework → less friction next cycle
 │    Append to .recursive/sessions/index.md:           │
 │    ┌──────────────────────────────────────────────┐  │
 │    │ Timestamp│Session│Role│Exit│Dur│Cost│Status  │  │
-│    │          │       │    │    │   │    │Feature  │  │
-│    │          │       │    │    │   │    │PR│Ovrrd │  │
+│    │          │       │    │    │   │    │Feature │  │
+│    │          │       │    │    │   │    │PR│Ovrrd│  │
 │    └──────────────────────────────────────────────┘  │
 │                                                      │
 │    Record costs to .recursive/sessions/costs.json    │
@@ -244,7 +250,7 @@ Better framework → less friction next cycle
                         ▼
 ┌──────────────────────────────────────────────────────┐
 │ 13. BUDGET + CIRCUIT BREAKER CHECK                   │
-│    if cumulative cost >= budget: STOP                 │
+│    if cumulative cost >= budget: STOP                │
 │    if 3+ consecutive failures: STOP                  │
 │    if max_sessions reached: STOP                     │
 └───────────────────────┬──────────────────────────────┘
@@ -264,7 +270,7 @@ Better framework → less friction next cycle
 
 
 ══════════════════════════════════════════════════════
- THE 6 OPERATORS (what the agent does in step 8)
+ THE 8 OPERATORS (what the agent does in step 8)
 ══════════════════════════════════════════════════════
 
 ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
@@ -296,7 +302,7 @@ Better framework → less friction next cycle
 
 Recursive/                ◄── THE FRAMEWORK (portable)
 ├── engine/               daemon.sh, pick-role.py, lib-agent.sh
-├── operators/            6 × SKILL.md + references/
+├── operators/            8 x SKILL.md + references/
 ├── lib/                  costs, cleanup, compact, config, eval
 ├── prompts/              autonomous.md, checkpoints.md
 ├── agents/               5 sub-agent definitions
@@ -321,6 +327,7 @@ Recursive/                ◄── THE FRAMEWORK (portable)
 ├── healer/               health observations
 ├── reviews/              code review logs
 └── plans/                meta-layer planning
+├── friction/            framework friction log
 
 nightshift/               ◄── THE TARGET PROJECT
 ├── core/                 errors, types, constants, shell, state
@@ -332,3 +339,4 @@ nightshift/               ◄── THE TARGET PROJECT
 ├── scripts/              check, install, run, test, smoke-test
 └── tests/                847 tests
 ```
+

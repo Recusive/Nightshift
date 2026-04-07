@@ -230,6 +230,20 @@ if [ ! -f "$REPO_DIR/.recursive/sessions/costs.json" ]; then
     echo "  Created .recursive/sessions/costs.json"
 fi
 
+# Reviews — code review logs
+_create "$REPO_DIR/.recursive/reviews/README.md" << 'EOF'
+# Code Reviews
+
+Review session logs. Created by the review operator.
+EOF
+
+# Strategy — strategy reports
+_create "$REPO_DIR/.recursive/strategy/README.md" << 'EOF'
+# Strategy Reports
+
+Strategic analysis reports. Created by the strategize operator.
+EOF
+
 echo ""
 echo "=================================================="
 echo "  Recursive initialized for: $PROJECT_NAME"

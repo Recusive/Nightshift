@@ -1,9 +1,3 @@
-docs/Nightshift/worktree-*/
-docs/Nightshift/*.runner.log
-docs/Nightshift/*.state.json
-docs/sessions/
-docs/context-map.md
-.nightshift-daemon.lock
 **/__pycache__/
 **/*.pyc
 .mypy_cache/
@@ -12,3 +6,11 @@ docs/context-map.md
 
 # Recursive session logs — raw JSONL (large, not needed in repo)
 .recursive/sessions/raw/
+
+# Runtime artifacts (product output)
+Runtime/Nightshift/worktree-*/
+Runtime/Nightshift/*.runner.log
+Runtime/Nightshift/*.state.json
+
+# Lock file
+.recursive-daemon.lock

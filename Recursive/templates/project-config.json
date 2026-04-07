@@ -40,7 +40,7 @@
     "healer": ".recursive/healer",
     "reviews": ".recursive/reviews",
     "changelog": ".recursive/changelog",
-    "vision": "docs/vision",
+    "vision": ".recursive/vision",
     "vision_tracker": ".recursive/vision-tracker"
   }
 }
