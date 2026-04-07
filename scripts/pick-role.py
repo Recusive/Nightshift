@@ -205,6 +205,52 @@ def count_stale_tasks(tasks_dir: Path, threshold: int = 20) -> int:
     return count
 
 
+def count_recent_pentest_tasks(tasks_dir: Path, days: int = 3) -> int:
+    """Count archived tasks with source: pentest completed in the last N days.
+
+    Uses the ``completed:`` frontmatter date (durable through git reset)
+    rather than file mtime (reset by ``git checkout``).
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    archive = tasks_dir / "archive"
+    if not archive.is_dir():
+        return 0
+    count = 0
+    for f in archive.glob("[0-9]*.md"):
+        fm = _read_frontmatter(f)
+        if not fm or "source: pentest" not in fm:
+            continue
+        m = re.search(r"^completed:\s*(\d{4}-\d{2}-\d{2})", fm, re.MULTILINE)
+        if m and m.group(1) >= cutoff:
+            count += 1
+    return count
+
+
+# Security keywords for Feature-field signal (anti-loop).
+_SECURITY_KEYWORDS = ("security", "pentest", "injection", "prompt guard", "prompt-guard")
+
+
+def count_recent_security_sessions(
+    index_rows: list[dict[str, str]], tasks_dir: Path
+) -> int:
+    """Dual-signal count of recent security-driven BUILD sessions.
+
+    Signal A (fast, lossy): Feature field contains security keywords.
+    Signal B (robust, structured): archived tasks with source: pentest.
+    Returns max(A, B) so the anti-loop activates if either signal fires.
+    """
+    feature_count = sum(
+        1
+        for r in index_rows[-5:]
+        if r.get("role", "").strip() == "build"
+        and any(kw in r.get("feature", "").lower() for kw in _SECURITY_KEYWORDS)
+    )
+    task_count = count_recent_pentest_tasks(tasks_dir)
+    return max(feature_count, task_count)
+
+
 def has_urgent_tasks(tasks_dir: Path) -> bool:
     """Check if any pending task has priority: urgent in its YAML frontmatter."""
     for f in tasks_dir.glob("[0-9]*.md"):
@@ -289,6 +335,7 @@ DEFAULTS = {
     "needs_human_issues": 0,
     "tracker_moved": False,
     "urgent_tasks": False,
+    "recent_security_sessions": 0,
 }
 
 
@@ -321,6 +368,10 @@ def compute_scores(signals: dict) -> dict[str, int]:
         build += 25  # system needs to make progress, override other roles
     if sb >= 10:
         build += 15  # critical: nothing has been built in 10 sessions
+    # Anti-loop: demote BUILD when recent sessions are security-dominated
+    rs = signals.get("recent_security_sessions", 0)
+    if rs >= 3 and signals["urgent_tasks"]:
+        build -= 15  # still eligible, but not automatically dominant
 
     # REVIEW — code quality
     review = 10
@@ -387,9 +438,9 @@ def compute_scores(signals: dict) -> dict[str, int]:
     }
 
 
-def pick_role(scores: dict[str, int], urgent: bool) -> str:
-    """Pick the winning role. Urgent forces BUILD. Ties go to BUILD."""
-    if urgent:
+def pick_role(scores: dict[str, int], urgent: bool, recent_security: int = 0) -> str:
+    """Pick the winning role. Urgent forces BUILD unless in security loop."""
+    if urgent and recent_security < 3:
         return "build"
     # Sort by score descending, then prefer build on ties
     priority = ["build", "oversee", "review", "achieve", "strategize"]
@@ -431,6 +482,8 @@ def main() -> None:
     needs_human = count_needs_human_issues()
     tracker_moved = did_tracker_move(index_rows)
 
+    recent_security = count_recent_security_sessions(index_rows, tasks_dir)
+
     signals = {
         "eval_score": eval_score if eval_score is not None else DEFAULTS["eval_score"],
         "autonomy_score": autonomy_score if autonomy_score is not None else DEFAULTS["autonomy_score"],
@@ -446,10 +499,11 @@ def main() -> None:
         "needs_human_issues": needs_human,
         "tracker_moved": tracker_moved,
         "urgent_tasks": urgent,
+        "recent_security_sessions": recent_security,
     }
 
     scores = compute_scores(signals)
-    winner = pick_role(scores, urgent)
+    winner = pick_role(scores, urgent, recent_security)
 
     # Log reasoning to stderr (daemon captures this)
     print("ROLE DECISION (pick-role.py)", file=sys.stderr)
