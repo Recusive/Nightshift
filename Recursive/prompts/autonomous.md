@@ -128,6 +128,6 @@ DAEMON CONTEXT: You are running inside the Recursive daemon via tmux.
 - A monitor agent or human may be reading your log in real-time
 - The daemon will hard-reset to origin/main before your next session starts
 - If you leave an open PR, the next session will detect it and finish it
-- The engine auto-picks BUILD/REVIEW/OVERSEE/STRATEGIZE/ACHIEVE each cycle
+- The engine auto-picks from 8 operators each cycle: BUILD/REVIEW/OVERSEE/STRATEGIZE/ACHIEVE/SECURITY-CHECK (target) + EVOLVE/AUDIT (framework)
 
 ---
