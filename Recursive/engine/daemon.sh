@@ -158,11 +158,11 @@ build_prompt() {
         [ -f "$CHECKPOINTS_FILE" ] && cat "$CHECKPOINTS_FILE"
     fi
 
-    # 3. Operator prompt (strip checkpoints if kill switch active)
+    # 3. Operator prompt (strip frontmatter + optional checkpoint stripping)
     if [ "$checkpoints_enabled" = "1" ]; then
-        cat "$ROLE_PROMPT"
+        awk 'BEGIN{skip=0} /^---$/{skip++; next} skip<2{next} {print}' "$ROLE_PROMPT"
     else
-        sed '/<!-- PIPELINE_CHECKPOINTS_START -->/,/<!-- PIPELINE_CHECKPOINTS_END -->/d' "$ROLE_PROMPT"
+        awk 'BEGIN{skip=0} /^---$/{skip++; next} skip<2{next} /<!-- PIPELINE_CHECKPOINTS_START -->/,/<!-- PIPELINE_CHECKPOINTS_END -->/{next} {print}' "$ROLE_PROMPT"
     fi
 
     rm -f "${SIGNALS_FILE:-}"
@@ -171,7 +171,8 @@ build_prompt() {
 build_pentest_prompt() {
     # Strip YAML frontmatter (--- block) from SKILL.md before passing as prompt.
     # Claude CLI interprets leading '---' as an option flag.
-    sed '1{/^---$/d}; /^---$/,/^---$/d' "$PENTEST_PROMPT_FILE"
+    # Uses awk for macOS compatibility (BSD sed doesn't support multi-command ranges).
+    awk 'BEGIN{skip=0} /^---$/{skip++; next} skip<2{next} {print}' "$PENTEST_PROMPT_FILE"
 }
 
 reset_repo_state() {

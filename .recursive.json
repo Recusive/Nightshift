@@ -1,3 +1,22 @@
 {
-  "verify_command": "python3 -m pytest tests/ -v"
+  "project": {
+    "name": "Nightshift",
+    "description": "Autonomous overnight codebase improvement agent",
+    "test_target": "https://github.com/fazxes/Phractal"
+  },
+  "commands": {
+    "check": "make check",
+    "test": "make test",
+    "verify": "python3 -m pytest nightshift/tests/ Recursive/tests/ -v"
+  },
+  "agents": {
+    "default": "claude",
+    "model": "claude-sonnet-4-6",
+    "effort": "high"
+  },
+  "daemon": {
+    "pause_seconds": 60,
+    "max_sessions": 0,
+    "budget": "0"
+  }
 }
