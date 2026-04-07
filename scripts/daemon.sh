@@ -373,16 +373,17 @@ ${PROMPT}"
     echo "-- Session $CYCLE done (exit: $EXIT_CODE, ${DURATION_MIN}m) --- $(date '+%H:%M') --"
 
     # --- Cost tracking ---
-    SESSION_COST=$(PYTHONPATH="$REPO_DIR" python3 -c "
+    SESSION_COST=$(_NS_PLOG="$PENTEST_LOG_FILE" _NS_LOG="$LOG_FILE" _NS_COST="$COST_FILE" _NS_SID="$SESSION_ID" _NS_AGENT="$AGENT" _NS_PAGENT="$PENTEST_AGENT" PYTHONPATH="$REPO_DIR" python3 -c "
+import os
 from nightshift.costs import format_session_cost, record_session_bundle, total_cost
 entry = record_session_bundle(
-    ['$PENTEST_LOG_FILE', '$LOG_FILE'],
-    '$COST_FILE',
-    '$SESSION_ID',
-    '$AGENT',
-    part_agents=['$PENTEST_AGENT', '$AGENT'],
+    [os.environ['_NS_PLOG'], os.environ['_NS_LOG']],
+    os.environ['_NS_COST'],
+    os.environ['_NS_SID'],
+    os.environ['_NS_AGENT'],
+    part_agents=[os.environ['_NS_PAGENT'], os.environ['_NS_AGENT']],
 )
-cumulative = total_cost('$COST_FILE')
+cumulative = total_cost(os.environ['_NS_COST'])
 print(f\"{entry['total_cost_usd']:.4f}\")
 print(f\"  Cost: \${entry['total_cost_usd']:.4f} (cumulative: \${cumulative:.2f})\")
 print(format_session_cost(entry))
@@ -421,11 +422,12 @@ print(format_session_cost(entry))
 
     # --- Budget check ---
     if [ "$BUDGET" != "0" ]; then
-        CUMULATIVE=$(PYTHONPATH="$REPO_DIR" python3 -c "
+        CUMULATIVE=$(_NS_COST="$COST_FILE" PYTHONPATH="$REPO_DIR" python3 -c "
+import os
 from nightshift.costs import total_cost
-print(f'{total_cost(\"$COST_FILE\"):.2f}')
+print(f'{total_cost(os.environ[\"_NS_COST\"]):.2f}')
 " 2>/dev/null || echo "0.00")
-        OVER_BUDGET=$(python3 -c "print('yes' if float('$CUMULATIVE') >= float('$BUDGET') else 'no')" 2>/dev/null || echo "no")
+        OVER_BUDGET=$(awk -v c="$CUMULATIVE" -v b="$BUDGET" 'BEGIN { print (c+0 >= b+0) ? "yes" : "no" }')
         if [ "$OVER_BUDGET" = "yes" ]; then
             echo ""
             echo "BUDGET LIMIT REACHED: \$$CUMULATIVE spent (limit: \$$BUDGET)"
