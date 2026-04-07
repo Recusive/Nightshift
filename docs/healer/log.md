@@ -504,3 +504,15 @@ Observations from the meta-layer observer. Appended chronologically.
 - **Vision section balance: loop1 task completed.** Task #0125 was the only pending loop1 task. The next session should scan for loop1 or loop2 tasks before continuing self-maintaining security work.
 
 - **Eval gate: still at 53/100 (stale).** Task #0177 remains integration-blocked. The dirty-clone fix in #0125 should improve the Clean state dimension score when re-evaluated.
+
+## 2026-04-06 -- Session pentest-python3-c-injection-codex-thinking
+
+**System health:** good
+
+- **Comprehensive python3 -c audit completed.** Pentest found two "fix now" items: `cleanup_old_logs` $log_dir interpolation and `CODEX_THINKING` in double-quoted CLI arg. Rather than fixing one at a time, this session audited ALL python3 -c calls in lib-agent.sh and converted every unsafe call to heredoc+sys.argv or env-var pattern in one pass (5 functions + 1 validation). No more per-call returns to this class.
+
+- **Test count: 1121 (unchanged).** Shell wrapper changes don't require new Python tests; the Python functions (rotate_logs, prune_orphan_branches) are already tested. CODEX_THINKING validation is startup-time shell logic with no testable unit-test surface.
+
+- **Vision section imbalance continues: all recent sessions are self-maintaining/security.** 7 consecutive pentest-response sessions. With eval gate integration-blocked (#0177) and no urgent non-security tasks pending, this is expected. Next normal-priority task should target loop2 or meta-prompt to rebalance.
+
+- **PR #175 (previous session) is the second consecutive session with NO new tests.** Security fixes to shell scripts don't naturally generate Python tests. Watch: if the next BUILD session is also test-free, flag it.
