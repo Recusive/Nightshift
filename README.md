@@ -21,13 +21,14 @@
 
 ## This repo maintains itself
 
-Most of the code in this repository was written, tested, reviewed, and merged by AI agents. One unified daemon (`Recursive/engine/daemon.sh`) auto-selects from five roles each cycle via `Recursive/engine/pick-role.py`:
+Most of the code in this repository was written, tested, reviewed, and merged by AI agents. One unified daemon (`Recursive/engine/daemon.sh`) auto-selects from six operators each cycle via `Recursive/engine/pick-role.py`:
 
-- **Builder**: reads the task queue, runs a pentest preflight, builds or fixes one scoped task, tests it, opens a PR, reviews it, and merges it
-- **Reviewer**: audits shipped code and fixes quality gaps
-- **Overseer**: audits process drift, task hygiene, and systemic issues
-- **Strategist**: produces a top-down health report for humans
-- **Achiever**: measures autonomy score (0-100), eliminates human dependencies
+- **Builder**: reads the task queue, builds or fixes one scoped task, tests it, opens a PR, reviews it via sub-agents, and merges it
+- **Reviewer**: picks one file, deep-reviews it against a checklist, fixes every issue found, and logs the review
+- **Overseer**: triages the task queue, closes duplicates and obsolete work, updates stale metadata
+- **Strategist**: gathers evidence across sessions, evaluations, and costs, then produces a top-down health report with auto-created follow-up tasks
+- **Achiever**: measures autonomy score (0-100) across a 20-check scorecard, identifies the highest-impact human dependency, and eliminates it
+- **Security checker**: red-team preflight that runs before each build -- scans for fragile paths, subprocess injection, credential leaks, and outputs a severity-classified pentest report
 
 The human role is operational: start the daemon and monitor it. The agents own the engineering loop -- including deciding what to work on.
 
@@ -53,10 +54,13 @@ numbers change.
 | Loop 1 hardening | 99% | `.recursive/vision-tracker/TRACKER.md` |
 | Loop 2 feature builder | 100% | `.recursive/vision-tracker/TRACKER.md` |
 | Self-maintaining repo | 68% | `.recursive/vision-tracker/TRACKER.md` |
-| Meta-prompt system | 78% | `.recursive/vision-tracker/TRACKER.md` |
-| Tests | 847 passing | `python3 -m pytest nightshift/tests/ -q` |
-| Python modules | 34 | `.recursive/architecture/MODULE_MAP.md` |
-| Merged PRs | 30+ | `gh pr list --state merged --json number` |
+| Meta-prompt system | 79% | `.recursive/vision-tracker/TRACKER.md` |
+| Tests | 847 passing | `python3 -m pytest nightshift/tests/ Recursive/tests/ -q` |
+| Python modules (product) | 23 | `.recursive/architecture/MODULE_MAP.md` |
+| Python modules (framework) | 7 | `Recursive/lib/` + `Recursive/engine/` |
+| Merged PRs | 155+ | `gh pr list --state merged --json number` |
+| Daemon sessions | 100+ | `.recursive/sessions/index.md` |
+| Documented learnings | 90+ | `.recursive/learnings/INDEX.md` |
 
 ---
 
@@ -78,13 +82,16 @@ and persist build state for resume/status flows.
 
 The self-maintaining layer around those loops already ships:
 
-- task queue sync and prioritization
-- structured handoffs and learnings
-- per-version changelogs
-- a generated vision tracker and module map
-- cross-session cost analysis
-- a builder pentest preflight before code changes
-- branch/PR/review/merge automation
+- signal-driven role selection (build/review/oversee/strategize/achieve)
+- security-check preflight before every build cycle
+- task queue sync from GitHub Issues and internal prioritization
+- structured handoffs, 90+ documented learnings, and cross-session memory
+- per-version changelogs and auto-generated vision tracker
+- architecture module map generation
+- cross-session cost analysis and budget enforcement
+- 5-agent sub-agent review pipeline (code, architecture, docs, safety, meta)
+- branch/PR/review/merge automation with prompt-integrity guard
+- self-evaluation against [Phractal](https://github.com/fazxes/Phractal) with 10-dimension scoring
 
 ## Install
 
@@ -115,10 +122,10 @@ Runtime/Nightshift/*.state.json
 EOF
 ```
 
-Optional per-repo config:
+Optional per-repo config (copy and edit):
 
 ```bash
-cp .recursive.json.example .recursive.json
+cp .nightshift.json.example .nightshift.json
 ```
 
 ## Running Nightshift
@@ -128,15 +135,16 @@ cp .recursive.json.example .recursive.json
 Use the Python module entry point that the codebase actually ships:
 
 ```bash
-python3 -m nightshift run --agent claude
-python3 -m nightshift test --agent claude --cycles 2 --cycle-minutes 5
-python3 -m nightshift summarize
-python3 -m nightshift plan "Add OAuth login"
-python3 -m nightshift build "Add OAuth login" --yes
-python3 -m nightshift build --status
-python3 -m nightshift build --resume
-python3 -m nightshift multi /repo1 /repo2 --agent claude --test --cycles 1
-python3 -m nightshift module-map --write
+python3 -m nightshift run --agent claude              # full overnight shift
+python3 -m nightshift test --agent claude --cycles 2   # short validation shift
+python3 -m nightshift summarize                        # print shift state JSON
+python3 -m nightshift verify-cycle --worktree-dir PATH --pre-head HASH  # verify cycle offline
+python3 -m nightshift plan "Add OAuth login"           # plan a feature build
+python3 -m nightshift build "Add OAuth login" --yes    # build a feature end-to-end
+python3 -m nightshift build --status                   # check build progress
+python3 -m nightshift build --resume                   # resume interrupted build
+python3 -m nightshift multi /repo1 /repo2 --agent claude --test --cycles 1  # multi-repo
+python3 -m nightshift module-map --write               # generate architecture map
 ```
 
 `python3 -m nightshift test ...` now keeps its state files, runner logs, and
@@ -156,12 +164,13 @@ Use the bundled wrapper scripts:
 ### Self-maintaining mode
 
 ```bash
-make daemon      # builder
-make review      # reviewer
-make overseer    # process auditor
-make strategist  # one-shot strategic report
-make tasks       # task queue summary
-make check       # local CI gate
+make daemon       # start the daemon (auto-picks operator each cycle)
+make tasks        # show pending/blocked/in-progress task queue
+make check        # full local CI gate (lint + typecheck + tests)
+make test         # run the full test suite
+make dry-run      # preview cycle prompt without spawning agents
+make quick-test   # 2-cycle validation run (~10 min)
+make clean        # remove runtime artifacts
 ```
 
 Daemon examples:
@@ -182,8 +191,8 @@ Abridged example. Full source of truth: [`.nightshift.json.example`](.nightshift
   "hours": 8,
   "cycle_minutes": 30,
   "verify_command": null,
-  "blocked_paths": [".github/", "deploy/", "deployment/", "infra/"],
-  "blocked_globs": ["*.lock", "package-lock.json", "pnpm-lock.yaml"],
+  "blocked_paths": [".github/", "deploy/", "deployment/", "infra/", "k8s/", "ops/", "terraform/", "vendor/"],
+  "blocked_globs": ["*.lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb", "Cargo.lock"],
   "max_fixes_per_cycle": 3,
   "max_files_per_fix": 5,
   "max_files_per_cycle": 12,
@@ -210,27 +219,47 @@ signals such as `pyproject.toml`, `package.json`, `Cargo.toml`, or `go.mod`.
 
 Environment variables:
 
-- `RECURSIVE_CLAUDE_MODEL`
-- `RECURSIVE_CODEX_MODEL`
-- `RECURSIVE_CODEX_THINKING`
-- `RECURSIVE_BUDGET`
-- `RECURSIVE_PENTEST_AGENT`
-- `RECURSIVE_PENTEST_MAX_TURNS`
+- `RECURSIVE_CLAUDE_MODEL` -- override Claude model (default: claude-opus-4-6)
+- `RECURSIVE_CODEX_MODEL` -- override Codex model (default: gpt-5.4)
+- `RECURSIVE_CODEX_THINKING` -- Codex thinking level (default: extra_high)
+- `RECURSIVE_BUDGET` -- max USD spend before daemon stops
+- `RECURSIVE_PENTEST_AGENT` -- agent for security preflight (default: same as main)
+- `RECURSIVE_PENTEST_MAX_TURNS` -- max turns for pentest agent
+- `RECURSIVE_FORCE_ROLE` -- bypass role scoring (build/review/oversee/strategize/achieve)
+- `RECURSIVE_PIPELINE_CHECKPOINTS` -- enable verification checkpoints (0/1)
+
+## How it picks what to do
+
+The daemon reads live system signals each cycle and scores all five roles.
+The highest score wins, with tie-break favoring build. Key signals:
+
+| Signal | Effect |
+|--------|--------|
+| 5+ consecutive builds | Triggers **review** |
+| 50+ pending tasks | Triggers **oversee** |
+| 15+ sessions since last strategy | Triggers **strategize** |
+| Autonomy score < 70 | Triggers **achieve** |
+| Urgent tasks in queue | Boosts **build** |
+
+Override with `RECURSIVE_FORCE_ROLE=review` to bypass scoring.
+Full scoring math: `Recursive/ops/ROLE-SCORING.md`.
 
 ## How it keeps context between sessions
 
 Nightshift is designed for stateless agents, so the repo carries the memory:
 
 - **Handoffs**: every session writes a structured summary to `.recursive/handoffs/`, and the next session starts from `LATEST.md`
-- **Learnings**: agents read `.recursive/learnings/INDEX.md` first, then open only the relevant learning files
-- **Task queue**: work lives in `.recursive/tasks/`; urgent pending tasks outrank normal ones, then the queue falls back to lowest-numbered pending internal work
-- **Evaluations**: after each merge, the next session runs Nightshift against Phractal and turns low scores into tracked follow-up work
+- **Learnings**: agents read `.recursive/learnings/INDEX.md` first (90+ hard-won patterns), then open only the relevant learning files
+- **Task queue**: work lives in `.recursive/tasks/`; urgent pending tasks outrank normal ones, then the queue falls back to lowest-numbered pending internal work. GitHub Issues with the `task` label are auto-synced.
+- **Evaluations**: periodically runs Nightshift against Phractal and scores across 10 dimensions; low scores become tracked follow-up tasks
+- **Session index**: every session is logged with timestamp, role, exit code, duration, cost, feature, and PR link
 
 ```bash
 cat .recursive/handoffs/LATEST.md
 cat .recursive/learnings/INDEX.md
 make tasks
 ls .recursive/evaluations/
+cat .recursive/sessions/index.md
 ```
 
 Humans can add work by opening GitHub issues with the `task` label:
@@ -244,35 +273,42 @@ gh issue create --title "Fix CI" --label "task,urgent"
 
 Nightshift does not trust the model to "be careful." It verifies:
 
-- commit + shift-log presence
-- blocked-path and lockfile violations
-- repo verification commands when configured
+- commit + shift-log presence after every cycle
+- blocked-path and lockfile violations (8 blocked paths, 6 lockfile patterns)
+- repo verification commands (auto-inferred or configured)
 - file deletion attempts
-- repeated category or path tunnel vision
+- repeated category or path tunnel vision (category balancing)
 - prompt/control-file modifications during self-maintenance
+- circuit breaker: stops after 3 consecutive failures
 
 ### Diff scorer
 
-Accepted fixes are scored `1-10` for production impact using category, content,
-test, and breadth signals. Below threshold: revert the cycle. Above threshold:
-keep the commit.
+Accepted fixes are scored `1-10` for production impact using category weight
+(Security: 8, Error Handling: 6, Tests: 6, A11y: 5, etc.), diff content
+analysis, test file bonuses, and multi-category bonuses. Below threshold
+(default 3): revert the cycle. Above threshold: keep the commit.
 
 ### Prompt injection protection
 
 Instruction files from target repos (`CLAUDE.md`, `AGENTS.md`, etc.) are wrapped
-in an untrusted boundary before the agent sees them. They are treated as coding
-convention references only, never as behavioral directives.
+in an untrusted boundary before the agent sees them. Symlinks are rejected,
+files > 100KB are truncated, and total instruction context is capped at 200KB.
+They are treated as coding convention references only, never as behavioral
+directives.
 
 ### Self-modification guard
 
-Before builder work starts, Nightshift snapshots control files, runs a pentest
-preflight, and hard-resets back to `origin/main` before the main fixer session.
-Any control-file diff is surfaced explicitly in the next builder prompt.
+Before builder work starts, Nightshift snapshots all framework control files
+(operator SKILL.mds, `daemon.sh`, `autonomous.md`, etc.), runs a red-team
+security-check preflight, and hard-resets back to `origin/main` before the
+main session. After the session, it compares pre/post snapshots and surfaces
+any control-file diff as an alert in the next cycle's prompt.
 
 ### Cost tracking
 
-Session costs are parsed from stream-json logs. Budget enforcement can stop the
-daemon when cumulative spend exceeds `RECURSIVE_BUDGET`.
+Session costs are parsed from agent stream-json logs. Per-session and cumulative
+costs are tracked in `.recursive/sessions/`. Budget enforcement via
+`RECURSIVE_BUDGET` can stop the daemon when cumulative spend exceeds the limit.
 
 ---
 
@@ -280,8 +316,8 @@ daemon when cumulative spend exceeds `RECURSIVE_BUDGET`.
 
 ### Product -- `nightshift/`
 
-The Python package is organized into subdirectories by concern. 34 modules
-across 5 subdirectories. The generated
+The Python package is organized into subdirectories by concern: 23 production
+modules across 5 subdirectories. The generated
 [module map](.recursive/architecture/MODULE_MAP.md) is the authoritative inventory.
 
 ```text
@@ -343,64 +379,68 @@ nightshift/
 
 ### Framework -- `Recursive/`
 
-The autonomous orchestration framework that drives the daemon, role selection,
-operator prompts, and agent lifecycle.
+A portable autonomous orchestration framework that drives the daemon, role
+selection, operator prompts, agent lifecycle, and session memory. Designed to
+work on any codebase -- Nightshift is just the first project it operates on.
 
 ```text
 Recursive/
 ├── engine/                   # Daemon runtime
-│   ├── daemon.sh             # Main daemon loop
-│   ├── lib-agent.sh          # Agent lifecycle helpers
-│   ├── pick-role.py          # Role scoring engine
+│   ├── daemon.sh             # Main daemon loop (hot-reloads each cycle)
+│   ├── lib-agent.sh          # Agent lifecycle, prompt guard, session utils
+│   ├── pick-role.py          # Signal-driven role scoring engine
 │   ├── watchdog.sh           # Process watchdog
 │   └── format-stream.py      # Stream-log formatter
 │
-├── operators/                # Role-specific prompt sets
-│   ├── build/
-│   ├── review/
-│   ├── oversee/
-│   ├── strategize/
-│   ├── achieve/
-│   └── security-check/
+├── operators/                # Role-specific prompt sets (SKILL.md + references/)
+│   ├── build/                # Default workhorse: pick task, build, ship PR
+│   ├── review/               # Deep file-by-file code review
+│   ├── oversee/              # Task queue triage and metadata cleanup
+│   ├── strategize/           # Big-picture health report with auto-created tasks
+│   ├── achieve/              # Autonomy measurement and human-dependency elimination
+│   └── security-check/       # Red-team preflight (read-only, runs before build)
 │
-├── agents/                   # Sub-agent prompts (reviewers)
-│   ├── code-reviewer.md
-│   ├── architecture-reviewer.md
-│   ├── docs-reviewer.md
-│   ├── safety-reviewer.md
-│   └── meta-reviewer.md
+├── agents/                   # Sub-agent prompts (specialist reviewers)
+│   ├── code-reviewer.md      # Structure, types, tests, shell correctness
+│   ├── architecture-reviewer.md  # Dependency flow, module boundaries, design
+│   ├── docs-reviewer.md      # Changelog, handoff, tracker, cross-doc consistency
+│   ├── safety-reviewer.md    # Secrets, subprocess safety, file system safety
+│   └── meta-reviewer.md      # Daemon integrity, prompt health (framework PRs only)
 │
-├── lib/                      # Shared Python helpers
-│   ├── cleanup.py
-│   ├── compact.py
-│   ├── config.py
-│   ├── costs.py
-│   └── evaluation.py
+├── lib/                      # Shared Python helpers (zero nightshift deps)
+│   ├── cleanup.py            # Log rotation, branch pruning, task archival
+│   ├── compact.py            # Handoff compression
+│   ├── config.py             # Project config loader
+│   ├── costs.py              # Session cost tracking and budget enforcement
+│   └── evaluation.py         # Self-evaluation pipeline (10-dimension scoring)
 │
 ├── prompts/                  # System prompts
-│   ├── autonomous.md
-│   └── checkpoints.md
+│   ├── autonomous.md         # Universal rules prepended to every session
+│   └── checkpoints.md        # Optional verification pipeline checkpoints
 │
 ├── ops/                      # Operations documentation
-│   ├── DAEMON.md
-│   ├── OPERATIONS.md
-│   ├── PRE-PUSH-CHECKLIST.md
-│   └── ROLE-SCORING.md
+│   ├── DAEMON.md             # Daemon guide with troubleshooting
+│   ├── OPERATIONS.md         # Complete system map (42KB reference)
+│   ├── PRE-PUSH-CHECKLIST.md # Safety checklist before pushing
+│   └── ROLE-SCORING.md       # Deep dive into scoring math per role
 │
 ├── scripts/                  # Framework utilities
-│   ├── init.sh
-│   ├── list-tasks.sh
-│   ├── rollback.sh
-│   └── validate-tasks.sh
+│   ├── init.sh               # Bootstrap new Recursive project
+│   ├── list-tasks.sh         # Task queue display
+│   ├── rollback.sh           # Revert last N commits (recovery tool)
+│   └── validate-tasks.sh     # Task YAML frontmatter validator
+│
+├── skills/                   # Skill definitions
+│   └── setup/SKILL.md        # Project setup skill
 │
 ├── templates/                # Structured-doc templates
-│   ├── handoff.md
-│   ├── evaluation.md
-│   ├── session-index.md
-│   ├── task.md
-│   └── project-config.json
+│   ├── handoff.md            # Session handoff format
+│   ├── evaluation.md         # Eval report format (10 dimensions)
+│   ├── session-index.md      # Session index table header
+│   ├── task.md               # Task file format (YAML frontmatter)
+│   └── project-config.json   # .recursive.json template
 │
-└── tests/                    # Framework tests
+└── tests/                    # Framework tests (92 tests)
     └── test_pick_role.py
 ```
 
@@ -440,21 +480,25 @@ Type checking is `mypy --strict`. Linting is Ruff. The local gate is
 
 ## Current frontier
 
-Shipped already:
+Shipped:
 
-- hardening loop (Owl) with worktrees, scoring, and guard rails
-- feature builder loop (Raven) with plan/build/resume/status flows
-- multi-repo mode
-- module map generation
-- self-evaluation against Phractal
-- builder pentest preflight and prompt-integrity checks
-- cross-session learnings, handoffs, and cost tracking
+- hardening loop (Owl) with worktrees, diff scoring, and guard rails (99%)
+- feature builder loop (Raven) with plan/build/resume/status/sub-agents (100%)
+- unified daemon with signal-driven role selection across 6 operators
+- red-team security-check preflight with severity-classified pentest reports
+- 5-agent sub-agent review pipeline (code, architecture, docs, safety, meta)
+- self-evaluation against Phractal with 10-dimension scoring
+- multi-repo mode, module map generation, prompt injection boundaries
+- cross-session learnings (90+), structured handoffs, and cost tracking
+- autonomy measurement and human-dependency elimination (score: 85/100)
+- GitHub Issues auto-sync to internal task queue
 
-Still open in the queue:
+Open in the queue (69 pending tasks):
 
-- fix the remaining real-repo evaluation gaps on rejected runs
+- fix remaining real-repo evaluation gaps on rejected runs
 - automate release tagging and changelog/tracker updates
 - improve task queue hygiene and session-index fidelity
+- budget limiter triple-failure fix (daemon cost tracking)
 - add monitoring / alerting integrations
 
 See [.recursive/vision-tracker/TRACKER.md](.recursive/vision-tracker/TRACKER.md) for the
