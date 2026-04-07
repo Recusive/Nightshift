@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Architectural Audit'
+  short_description: 'Audit Nightshift refactor plans for production readiness'
+  default_prompt: 'Use $audit-refactor-plan to audit a Nightshift plan document and write a production-readiness report to reviews/audit-plan.md.'
