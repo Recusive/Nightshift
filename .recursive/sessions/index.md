@@ -81,3 +81,4 @@
 | 2026-04-07 09:30 | 20260407-091212 | oversee    | 0    | 18m      | $0.0000  | success (pentest: success)                                     | -                                                  | -                                                                                                           |
 
 
+| 2026-04-07 11:07 | 20260407-105448 | security-check | 0 | 12m | $0.5477 | success [PROMPT MODIFIED] | pentest audit -- PYTHONPATH shadow module bypass | - (security-check, read-only) | - |
