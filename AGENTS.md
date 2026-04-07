@@ -3,7 +3,7 @@
 ## MANDATORY: Session Start
 
 1. **Read `.recursive/handoffs/LATEST.md`** -- What happened last session, what is broken, what to build next. This is your memory.
-2. **Read `Recursive/ops/OPERATIONS.md`** on your first session, or when the handoff tells you to. This is the complete map of every system, folder, and file.
+2. **Read `.recursive/ops/OPERATIONS.md`** on your first session, or when the handoff tells you to. This is the complete map of every system, folder, and file.
 3. **Read `.recursive/learnings/INDEX.md`** -- One-line summaries of hard-won knowledge. Only open individual learning files when relevant to your current task. Do NOT read every file -- the index tells you what exists.
 4. **Read `.recursive/architecture/MODULE_MAP.md`** when the task touches `nightshift/*.py`. It is the fast orientation map for modules, dependencies, and recent shipped sessions.
 
@@ -16,7 +16,7 @@ Nightshift is an autonomous engineering system with two loops:
 - **Owl** (`nightshift/owl/`) -- hardening loop. Cycle execution, readiness checks, diff scoring.
 - **Raven** (`nightshift/raven/`) -- feature builder. Planning, decomposition, sub-agent coordination, integration.
 
-The `nightshift/` package spawns headless agent cycles in an isolated git worktree, enforces guard rails, verifies each cycle, and tracks state. The orchestration layer lives in `Recursive/`.
+The `nightshift/` package spawns headless agent cycles in an isolated git worktree, enforces guard rails, verifies each cycle, and tracks state. The orchestration layer lives in `.recursive/`.
 
 Full vision: `.recursive/vision/00-overview.md`
 
@@ -27,17 +27,17 @@ make test        # run tests
 make check       # full CI locally (lint + typecheck + test + dry-run + artifacts)
 make tasks       # show pending/blocked/in-progress tasks
 make clean       # remove runtime artifacts
-bash Recursive/engine/daemon.sh claude 60   # start daemon (claude agent, 60-min cycles)
-bash Recursive/engine/daemon.sh codex 60    # start daemon (codex agent, 60-min cycles)
+bash .recursive/engine/daemon.sh claude 60   # start daemon (claude agent, 60-min cycles)
+bash .recursive/engine/daemon.sh codex 60    # start daemon (codex agent, 60-min cycles)
 python3 -m nightshift module-map --write    # refresh .recursive/architecture/MODULE_MAP.md
 ```
 
 ## Recursive (Orchestration Layer)
 
-The autonomous framework lives in `Recursive/`. It is a separate layer from the `nightshift/` package -- a portable agentic orchestrator that can run on any codebase.
+The autonomous framework lives in `.recursive/`. It is a separate layer from the `nightshift/` package -- a portable agentic orchestrator that can run on any codebase.
 
 ```
-Recursive/
+.recursive/
   engine/       daemon.sh, pick-role.py, lib-agent.sh, watchdog.sh
   operators/    6 operators (build/review/oversee/strategize/achieve/security-check)
   lib/          costs, cleanup, compact, config, evaluation (standalone Python, zero nightshift deps)
@@ -59,7 +59,7 @@ Each cycle the engine picks an **operator** based on system signals:
 
 ```bash
 # Start the daemon in tmux (recommended -- survives terminal disconnect)
-tmux new-session -d -s recursive "caffeinate -s bash Recursive/engine/daemon.sh claude 60"
+tmux new-session -d -s recursive "caffeinate -s bash .recursive/engine/daemon.sh claude 60"
 
 # Monitor
 tmux capture-pane -t recursive -p -S -15
@@ -88,7 +88,7 @@ gh pr create --head "fix/$CHANGE_NAME" && gh pr merge --merge --delete-branch --
 git worktree remove /tmp/nightshift-work
 ```
 
-Full daemon operations guide: `Recursive/ops/DAEMON.md`
+Full daemon operations guide: `.recursive/ops/DAEMON.md`
 
 ## Git Workflow
 
@@ -99,7 +99,7 @@ Full daemon operations guide: `Recursive/ops/DAEMON.md`
 - **After merge:** once CI on `main` is green, run `python3 -m nightshift run --dry-run --agent codex > /dev/null` and `python3 -m nightshift run --dry-run --agent claude > /dev/null` on `main` before reporting success.
 - **Human task creation:** Humans create tasks as GitHub Issues with the `task` label. The daemon syncs them to `.recursive/tasks/` automatically.
 - **Exception: housekeeping commits push to main directly.** Task sync commits bypass the branch-PR workflow because `git reset --hard origin/main` at cycle start would wipe uncommitted files.
-- Full workflow: `Recursive/ops/OPERATIONS.md` under "Git Workflow"
+- Full workflow: `.recursive/ops/OPERATIONS.md` under "Git Workflow"
 
 ## Environment
 
@@ -110,7 +110,7 @@ Full daemon operations guide: `Recursive/ops/DAEMON.md`
 
 ## Code Quality Rules
 
-**Always use `make check` for verification.** Never run ruff, mypy, or pytest individually as your final check -- `make check` runs all of them against `nightshift/` and `Recursive/tests/`. Partial checks miss things.
+**Always use `make check` for verification.** Never run ruff, mypy, or pytest individually as your final check -- `make check` runs all of them against `nightshift/` and `.recursive/tests/`. Partial checks miss things.
 
 These are enforced by CI. Non-negotiable.
 
@@ -169,12 +169,12 @@ New modules slot into this chain.
 ## Editing Conventions
 
 - `nightshift/eval_targets.py` stores repo-specific evaluation defaults such as the Phractal verification command
-- Shell scripts live in `nightshift/scripts/` (package-level) and `Recursive/engine/` (daemon)
-- `Recursive/scripts/validate-tasks.sh` is the standalone task-frontmatter validator; do not wire it into `make check` until the known malformed backlog is repaired
+- Shell scripts live in `nightshift/scripts/` (package-level) and `.recursive/engine/` (daemon)
+- `.recursive/scripts/validate-tasks.sh` is the standalone task-frontmatter validator; do not wire it into `make check` until the known malformed backlog is repaired
 - Per-repo config: `.recursive.json`
 - `.recursive/architecture/MODULE_MAP.md` is generated by `python3 -m nightshift module-map --write`; refresh it whenever `nightshift/*.py` changes
-- Before pushing: read `Recursive/ops/PRE-PUSH-CHECKLIST.md`
+- Before pushing: read `.recursive/ops/PRE-PUSH-CHECKLIST.md`
 
 ## Keeping This File Current
 
-When you change project structure or conventions, update this file. Keep it short -- details belong in `Recursive/ops/OPERATIONS.md`.
+When you change project structure or conventions, update this file. Keep it short -- details belong in `.recursive/ops/OPERATIONS.md`.

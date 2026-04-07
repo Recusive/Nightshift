@@ -72,6 +72,12 @@ What to build and why.
 
 **needs_human**: `true` (optional) — set by overseer after 3+ failed attempts. Task excluded from automatic pickup until a human intervenes.
 
+**touched_by**: (optional) list of agent names or session IDs that worked on this task (appended by sub-agents)
+
+**last_touched**: (optional) ISO date when this task was last worked on by any agent
+
+**attempts**: (optional) number of times an agent has attempted this task (incremented on each attempt)
+
 **skipped_by**: list of session IDs that read this task and chose not to do it (appended automatically)
 
 **target**: version from `Recursive/ops/OPERATIONS.md` milestones. Current in-progress if unsure.

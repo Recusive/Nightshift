@@ -43,10 +43,10 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Ruff check (lint rules)
-        run: ruff check nightshift/ tests/
+        run: ruff check nightshift/ .recursive/tests/ .recursive/engine/ .recursive/lib/
 
       - name: Ruff format (formatting)
-        run: ruff format --check nightshift/ tests/
+        run: ruff format --check nightshift/ .recursive/tests/ .recursive/engine/ .recursive/lib/
 
   # ──────────────────────────────────────────────────────────────────
   # Stage 2a: Type check
@@ -75,7 +75,9 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Mypy strict
-        run: mypy nightshift/
+        run: |
+          mypy nightshift/
+          mypy .recursive/engine/ .recursive/lib/
 
   # ──────────────────────────────────────────────────────────────────
   # Stage 2b: Tests
@@ -109,7 +111,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest nightshift/tests/ .recursive/tests/ -v --tb=short
 
   # ──────────────────────────────────────────────────────────────────
   # Stage 3: Integration
@@ -174,7 +176,7 @@ jobs:
           import re, sys
           from pathlib import Path
           content = Path('nightshift/scripts/install.sh').read_text()
-          files = re.findall(r'^  \"((?:nightshift/|scripts/)?[A-Za-z_.][^\"]*\.(?:py|sh|md|json|example))\"', content, re.MULTILINE)
+          files = re.findall(r'^  \"((?:nightshift/|\.recursive/)?[A-Za-z_.][^\"]*\.(?:py|sh|md|json|example))\"', content, re.MULTILINE)
           missing = [f for f in files if not Path(f).exists()]
           if missing:
               print('Missing files referenced in nightshift/scripts/install.sh:', missing)
@@ -188,8 +190,10 @@ jobs:
           import re, sys
           from pathlib import Path
           non_ascii = re.compile(r'[^\x00-\x7E]')
-          files = list(Path('nightshift').rglob('*.py')) + list(Path('tests').rglob('*.py'))
-          files += [Path(f) for f in ['nightshift/scripts/check.sh', 'nightshift/scripts/install.sh', 'nightshift/scripts/run.sh', 'nightshift/scripts/test.sh', 'pyproject.toml']]
+          files = list(Path('nightshift').rglob('*.py')) + list(Path('.recursive/tests').rglob('*.py'))
+          files += list(Path('.recursive/engine').glob('*.py')) + list(Path('.recursive/lib').glob('*.py'))
+          files += sorted(Path('nightshift/scripts').glob('*.sh'))
+          files += [Path('pyproject.toml')]
           found = []
           for f in sorted(files):
               for i, line in enumerate(f.read_text().splitlines(), 1):
@@ -205,7 +209,6 @@ jobs:
 
       - name: Shell scripts pass syntax check
         run: |
-          bash -n nightshift/scripts/run.sh
-          bash -n nightshift/scripts/test.sh
-          bash -n nightshift/scripts/install.sh
-          bash -n nightshift/scripts/check.sh
+          for script in nightshift/scripts/*.sh .recursive/engine/*.sh .recursive/scripts/*.sh; do
+            [ -f "$script" ] && bash -n "$script"
+          done

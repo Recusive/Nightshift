@@ -2,7 +2,7 @@
 
 # Run the full test suite
 test:
-	python3 -m pytest nightshift/tests/ Recursive/tests/ -v
+	python3 -m pytest nightshift/tests/ .recursive/tests/ -v
 
 # Run the full CI check locally (lint + typecheck + test + integration + artifacts)
 check:
@@ -14,7 +14,7 @@ dry-run:
 
 # Show the active task queue
 tasks:
-	bash Recursive/scripts/list-tasks.sh
+	bash .recursive/scripts/list-tasks.sh
 
 # Run a quick validation shift (2 cycles, ~10 min)
 quick-test:
@@ -42,7 +42,7 @@ endif
 
 # Run the Recursive daemon (auto-picks operator each cycle)
 daemon:
-	bash Recursive/engine/daemon.sh
+	bash .recursive/engine/daemon.sh
 
 # Remove runtime artifacts
 clean:
