@@ -289,6 +289,29 @@ while true; do
     # --- Pick role for this cycle (Python scoring engine) ---
     pick_session_role
 
+    # Save session metadata for structured report (role, scores, context)
+    # pick-role.py stderr has the scoring breakdown; capture it.
+    SESSION_META="$RAW_DIR/$SESSION_ID.meta.json"
+    _NS_ROLE="$SESSION_ROLE" _NS_SID="$SESSION_ID" _NS_CYCLE="$CYCLE" \
+    python3 -c "
+import json, os
+meta = {
+    'session_id': os.environ['_NS_SID'],
+    'cycle': int(os.environ['_NS_CYCLE']),
+    'role': os.environ['_NS_ROLE'],
+    'timestamp': '$(date '+%Y-%m-%d %H:%M:%S')',
+}
+# Read signals if available
+signals_file = '${SIGNALS_FILE:-}'
+if signals_file:
+    try:
+        with open(signals_file) as f:
+            meta['signals'] = json.load(f)
+    except Exception:
+        pass
+json.dump(meta, open('$SESSION_META', 'w'), indent=2)
+" 2>/dev/null || true
+
     # Rebuild prompt each cycle (evolve-auto.md + role-specific prompt)
     PROMPT=$(build_prompt)
 
@@ -433,6 +456,29 @@ print(f\"  Cost: \${entry['cost_usd']:.4f} (cumulative: \${cumulative:.2f})\")
     # --- Self-evaluation check ---
     if [ "$EXIT_CODE" -eq 0 ] && should_evaluate "$CYCLE"; then
         run_evaluation "$AGENT" "$FEATURE"
+    fi
+
+    # Update session metadata with post-session results
+    if [ -f "$SESSION_META" ]; then
+        _NS_META="$SESSION_META" _NS_COST="$COST_USD" _NS_DUR="$DURATION_MIN" \
+        _NS_EXIT="$EXIT_CODE" _NS_FEAT="$FEATURE" _NS_PR="$PR_URL" \
+        _NS_STATUS="$STATUS" _NS_TAMPERED="$PROMPT_TAMPERED" \
+        python3 -c "
+import json, os
+meta = json.load(open(os.environ['_NS_META']))
+meta['cost_usd'] = os.environ['_NS_COST']
+meta['duration_min'] = os.environ['_NS_DUR']
+meta['exit_code'] = int(os.environ['_NS_EXIT'])
+meta['status'] = os.environ['_NS_STATUS'].strip()
+meta['feature'] = os.environ.get('_NS_FEAT', '-')
+meta['pr_url'] = os.environ.get('_NS_PR', '-')
+tampered = os.environ.get('_NS_TAMPERED', '').strip()
+if tampered:
+    meta['prompt_tampered'] = tampered
+json.dump(meta, open(os.environ['_NS_META'], 'w'), indent=2)
+" 2>/dev/null || true
+        # Regenerate structured report with full metadata
+        python3 "$ENGINE_DIR/format-stream.py" --report "$LOG_FILE" --meta "$SESSION_META" > "$STRUCTURED_FILE" 2>/dev/null || true
     fi
 
     echo "| $(date '+%Y-%m-%d %H:%M') | $SESSION_ID | $SESSION_ROLE | $EXIT_CODE | ${DURATION_MIN}m | \$$COST_USD | ${STATUS}${PROMPT_TAMPERED} | $FEATURE | $PR_URL | $OVERRIDE_NOTE |" >> "$INDEX_FILE"

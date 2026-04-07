@@ -20,6 +20,7 @@ from pathlib import Path
 
 MODE = "pretty"
 REPORT_FILE = ""
+META_FILE = ""
 if "--raw" in sys.argv:
     MODE = "raw"
 elif "--report" in sys.argv:
@@ -27,6 +28,10 @@ elif "--report" in sys.argv:
     idx = sys.argv.index("--report")
     if idx + 1 < len(sys.argv):
         REPORT_FILE = sys.argv[idx + 1]
+if "--meta" in sys.argv:
+    idx = sys.argv.index("--meta")
+    if idx + 1 < len(sys.argv):
+        META_FILE = sys.argv[idx + 1]
 
 # Track state for live output
 _last_tool = ""
@@ -230,13 +235,25 @@ def _is_checkpoint_text(text: str) -> str | None:
     return None
 
 
-def generate_report(log_path: str) -> str:
+def _load_meta(meta_path: str) -> dict:
+    """Load session metadata JSON (role, scores, cost, duration)."""
+    if not meta_path:
+        return {}
+    try:
+        with open(meta_path) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def generate_report(log_path: str, meta_path: str = "") -> str:
     """Generate a structured markdown report from a raw JSONL session log."""
     events = _parse_events(log_path)
     if not events:
         return "# Empty Session\n\nNo events found in log.\n"
 
     meta = _extract_session_meta(events)
+    session_meta = _load_meta(meta_path)
     items = _collect_agent_content(events)
 
     # Classify content into sections
@@ -277,16 +294,64 @@ def generate_report(log_path: str) -> str:
     # Build the report
     lines: list[str] = []
     session_name = Path(log_path).stem
+    role = session_meta.get("role", "unknown")
+    cycle = session_meta.get("cycle", "?")
 
     # --- Header ---
-    lines.append(f"# Session: {session_name}")
+    lines.append(f"# Session #{cycle}: {role}")
     lines.append("")
+    lines.append(f"**ID:** {session_meta.get('session_id', session_name)}")
+    lines.append(f"**Date:** {session_meta.get('timestamp', 'unknown')}")
+    lines.append(f"**Role:** {role}")
     lines.append(f"**Model:** {meta['model']}")
+    dur = session_meta.get("duration_min", "?")
+    cost = session_meta.get("cost_usd", "?")
+    exit_code = session_meta.get("exit_code", "?")
+    lines.append(f"**Duration:** {dur}m | **Cost:** ${cost} | **Exit:** {exit_code}")
+    feat = session_meta.get("feature", "-")
+    pr = session_meta.get("pr_url", "-")
+    if feat and feat != "-":
+        lines.append(f"**Feature:** {feat}")
+    if pr and pr != "-":
+        lines.append(f"**PR:** {pr}")
+    tampered = session_meta.get("prompt_tampered", "")
+    if tampered:
+        lines.append(f"**WARNING:** {tampered}")
     lines.append(
         f"**Tokens:** {meta['total_input_tokens']:,} in "
         f"/ {meta['total_output_tokens']:,} out"
     )
     lines.append("")
+
+    # --- Role selection (why this operator was picked) ---
+    signals = session_meta.get("signals", {})
+    if signals:
+        lines.append("## Role Selection")
+        lines.append("")
+        lines.append(f"pick-role.py selected **{role}**. Key signals:")
+        lines.append("")
+        lines.append("| Signal | Value |")
+        lines.append("|--------|-------|")
+        signal_keys = [
+            ("eval_score", "Eval score"),
+            ("autonomy_score", "Autonomy"),
+            ("consecutive_builds", "Consecutive builds"),
+            ("pending_tasks", "Pending tasks"),
+            ("sessions_since_review", "Since review"),
+            ("sessions_since_strategy", "Since strategy"),
+            ("sessions_since_security", "Since security"),
+            ("sessions_since_evolve", "Since evolve"),
+            ("sessions_since_audit", "Since audit"),
+            ("friction_entries", "Friction entries"),
+        ]
+        for key, label in signal_keys:
+            if key in signals:
+                lines.append(f"| {label} | {signals[key]} |")
+        recent = signals.get("recent_roles", [])
+        if recent:
+            lines.append(f"| Recent roles | {', '.join(recent)} |")
+        lines.append("")
+
     lines.append("---")
     lines.append("")
 
@@ -599,9 +664,12 @@ def format_codex_raw(event: dict) -> str | None:
 def main() -> None:
     if MODE == "report":
         if not REPORT_FILE:
-            print("Usage: format-stream.py --report <raw-log.log>", file=sys.stderr)
+            print(
+                "Usage: format-stream.py --report <raw-log.log> [--meta <meta.json>]",
+                file=sys.stderr,
+            )
             sys.exit(1)
-        print(generate_report(REPORT_FILE))
+        print(generate_report(REPORT_FILE, META_FILE))
         return
 
     for line in sys.stdin:

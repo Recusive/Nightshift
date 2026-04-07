@@ -1010,10 +1010,6 @@ run_agent() {
                 "$prompt" \
                 2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
             EXIT_CODE=${PIPESTATUS[0]}
-            # Generate structured report from raw log
-            if [ -n "$structured_file" ] && [ -f "$log_file" ]; then
-                python3 "$ENGINE_DIR/format-stream.py" --report "$log_file" > "$structured_file" 2>/dev/null || true
-            fi
             ;;
         claude)
             # Claude non-interactive mode
@@ -1031,10 +1027,6 @@ run_agent() {
                 --verbose \
                 2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
             EXIT_CODE=${PIPESTATUS[0]}
-            # Generate structured report from raw log
-            if [ -n "$structured_file" ] && [ -f "$log_file" ]; then
-                python3 "$ENGINE_DIR/format-stream.py" --report "$log_file" > "$structured_file" 2>/dev/null || true
-            fi
             ;;
         *)
             echo "ERROR: Unknown agent '$agent'. Supported: claude, codex"
