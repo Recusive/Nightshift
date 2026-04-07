@@ -13007,7 +13007,25 @@ class TestGitStatusShort:
         import subprocess as sp
 
         sp.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
-        sp.run(["git", "-C", str(tmp_path), "commit", "--allow-empty", "-m", "init"], check=True, capture_output=True)
+        # Pass identity via -c flags so the test does not depend on the
+        # runner having a global git config (CI environments often lack one).
+        sp.run(
+            [
+                "git",
+                "-C",
+                str(tmp_path),
+                "-c",
+                "user.email=ci@test",
+                "-c",
+                "user.name=CI",
+                "commit",
+                "--allow-empty",
+                "-m",
+                "init",
+            ],
+            check=True,
+            capture_output=True,
+        )
         output, is_clean = nightshift.git_status_short(tmp_path)
         assert output == ""
         assert is_clean is True
