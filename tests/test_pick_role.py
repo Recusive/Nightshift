@@ -12,6 +12,7 @@ pick_role_mod = import_module("pick-role")
 
 compute_scores = pick_role_mod.compute_scores
 _is_valid_eval_file = pick_role_mod._is_valid_eval_file
+_is_valid_autonomy_file = pick_role_mod._is_valid_autonomy_file
 pick_role = pick_role_mod.pick_role
 DEFAULTS = pick_role_mod.DEFAULTS
 parse_session_index = pick_role_mod.parse_session_index
@@ -345,11 +346,25 @@ class TestIsValidEvalFile:
         assert _is_valid_eval_file(text) is False  # only 2 dimension rows
 
 
+_VALID_AUTONOMY = (
+    "# Autonomy Report -- 2026-04-06\n\n"
+    "**Date**: 2026-04-06\n"
+    "**Role**: ACHIEVE\n\n"
+    "## Autonomy Score\n\n"
+    "```\nAUTONOMY SCORE\n==============\n"
+    "Self-Healing:    20/25\n"
+    "Self-Directing:  19/25\n"
+    "Self-Validating: 18/25\n"
+    "Self-Improving:  15/25\n"
+    "TOTAL:           72/100\n```\n"
+)
+
+
 class TestReadAutonomyScore:
     def test_reads_score(self, tmp_path: Path) -> None:
         d = tmp_path / "autonomy"
         d.mkdir()
-        (d / "2026-04-06.md").write_text("TOTAL:           72/100")
+        (d / "2026-04-06.md").write_text(_VALID_AUTONOMY)
         assert read_latest_autonomy_score(d) == 72
 
     def test_dual_total_returns_last_score(self, tmp_path: Path) -> None:
@@ -357,19 +372,60 @@ class TestReadAutonomyScore:
         # re.findall[-1] must return the updated (last) score, not the baseline.
         d = tmp_path / "autonomy"
         d.mkdir()
-        (d / "2026-04-06c.md").write_text("## Baseline\nTOTAL: 76/100\n\n## Updated\nTOTAL: 81/100\n")
+        content = (
+            "# Autonomy Report -- 2026-04-06c\n\n"
+            "**Date**: 2026-04-06\n\n"
+            "## Baseline\nTOTAL: 76/100\n\n## Updated\nTOTAL: 81/100\n"
+        )
+        (d / "2026-04-06c.md").write_text(content)
         assert read_latest_autonomy_score(d) == 81
 
     def test_single_total_still_works(self, tmp_path: Path) -> None:
         d = tmp_path / "autonomy"
         d.mkdir()
-        (d / "2026-04-06.md").write_text("TOTAL: 55/100\n")
+        content = "# Autonomy Report\n\n**Date**: 2026-04-06\n\nTOTAL: 55/100\n"
+        (d / "2026-04-06.md").write_text(content)
         assert read_latest_autonomy_score(d) == 55
 
     def test_no_files_returns_none(self, tmp_path: Path) -> None:
         d = tmp_path / "autonomy"
         d.mkdir()
         assert read_latest_autonomy_score(d) is None
+
+    def test_fabricated_single_line_returns_none(self, tmp_path: Path) -> None:
+        # Guard: a file with only a TOTAL line (no **Date**:) must be rejected.
+        d = tmp_path / "autonomy"
+        d.mkdir()
+        (d / "2026-04-06.md").write_text("TOTAL: 99/100\n")
+        assert read_latest_autonomy_score(d) is None
+
+    def test_missing_date_header_returns_none(self, tmp_path: Path) -> None:
+        # Guard: a file with section headings but no **Date**: is rejected.
+        d = tmp_path / "autonomy"
+        d.mkdir()
+        content = "## Baseline\nTOTAL: 76/100\n\n## Updated\nTOTAL: 91/100\n"
+        (d / "2026-04-06.md").write_text(content)
+        assert read_latest_autonomy_score(d) is None
+
+
+class TestIsValidAutonomyFile:
+    def test_valid_content_returns_true(self) -> None:
+        assert _is_valid_autonomy_file(_VALID_AUTONOMY) is True
+
+    def test_missing_date_returns_false(self) -> None:
+        text = "# Autonomy Report\n\nTOTAL: 72/100\n"
+        assert _is_valid_autonomy_file(text) is False
+
+    def test_missing_total_returns_false(self) -> None:
+        text = "# Autonomy Report\n\n**Date**: 2026-04-06\n\nNo score here.\n"
+        assert _is_valid_autonomy_file(text) is False
+
+    def test_fabricated_single_line_returns_false(self) -> None:
+        assert _is_valid_autonomy_file("TOTAL: 99/100") is False
+
+    def test_both_fields_required(self) -> None:
+        # Has date but no TOTAL
+        assert _is_valid_autonomy_file("**Date**: 2026-04-06\n") is False
 
 
 class TestParseSessionIndex:

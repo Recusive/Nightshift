@@ -57,6 +57,21 @@ def read_latest_eval_score(evaluations_dir: Path) -> int | None:
     return None
 
 
+def _is_valid_autonomy_file(text: str) -> bool:
+    """Return True if text looks like a real autonomy report.
+
+    Requires both:
+    - A **Date**: metadata line (standard report header)
+    - At least one TOTAL: N/100 line (scored report)
+
+    This prevents a fabricated single-line file like "TOTAL: 99/100"
+    from manipulating role selection via the autonomy score gate.
+    """
+    if not re.search(r"\*\*Date\*\*:", text):
+        return False
+    return bool(re.search(r"TOTAL:\s*\d+\s*/\s*100", text))
+
+
 def read_latest_autonomy_score(autonomy_dir: Path) -> int | None:
     """Extract autonomy score from the latest autonomy report.
 
@@ -68,6 +83,8 @@ def read_latest_autonomy_score(autonomy_dir: Path) -> int | None:
         return None
     try:
         text = files[-1].read_text(encoding="utf-8")
+        if not _is_valid_autonomy_file(text):
+            return None
         matches = re.findall(r"TOTAL:\s*(\d+)\s*/\s*100", text)
         if matches:
             return int(matches[-1])

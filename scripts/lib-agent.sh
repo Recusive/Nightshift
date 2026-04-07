@@ -628,9 +628,11 @@ for issue in issues:
     task_num = f'{next_id:04d}'
     task_file = os.path.join(tasks_dir, f'{task_num}.md')
 
-    # Guard: skip if task file already exists (stale .next-id)
-    if os.path.exists(task_file):
-        continue
+    # Guard: advance past stale .next-id entries so we do not silently drop issues
+    while os.path.exists(task_file):
+        next_id += 1
+        task_num = f'{next_id:04d}'
+        task_file = os.path.join(tasks_dir, f'{task_num}.md')
 
     # Map labels to frontmatter fields
     label_names = [lb.get('name', '') for lb in issue.get('labels', [])]
