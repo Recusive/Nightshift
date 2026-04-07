@@ -23,7 +23,7 @@ from nightshift.constants import (
     EVALUATION_TEMPLATE_MARKERS,
 )
 from nightshift.types import DimensionScore, EvaluationResult, ShiftArtifacts
-from nightshift.worktree import resolve_runtime_dir
+from nightshift.worktree import git_status_short, resolve_runtime_dir
 
 # ---------------------------------------------------------------------------
 # Clone / run helpers
@@ -110,12 +110,17 @@ def parse_shift_artifacts(repo_dir: Path) -> ShiftArtifacts:
         except OSError:
             pass
 
+    # Git cleanliness: untracked or modified files left behind by the shift
+    git_status_output, repo_is_clean = git_status_short(repo_dir)
+
     return ShiftArtifacts(
         state=state,
         shift_log=shift_log,
         runner_exit_code=-1,
         state_file_valid=state_valid,
         shift_log_exists=shift_log_exists,
+        git_status_output=git_status_output,
+        repo_is_clean=repo_is_clean,
     )
 
 
@@ -561,12 +566,17 @@ def score_guard_rails(artifacts: ShiftArtifacts) -> DimensionScore:
 
 
 def score_clean_state(artifacts: ShiftArtifacts) -> DimensionScore:
-    """Score: did the session end cleanly?"""
+    """Score: did the session end cleanly?
+
+    Points: exit code (0-4) + halt reason (0-4) + repo cleanliness (0-2) = 10 max.
+    A dirty clone (untracked/modified files left behind) loses the 2 cleanliness points
+    even when the runner exits 0.
+    """
     score = 0
     notes_parts: list[str] = []
 
     if artifacts["runner_exit_code"] == 0:
-        score += 5
+        score += 4
     elif artifacts["runner_exit_code"] == -1:
         score += 2
         notes_parts.append("exit code unknown")
@@ -576,13 +586,20 @@ def score_clean_state(artifacts: ShiftArtifacts) -> DimensionScore:
     state = _get_state_dict(artifacts)
     halt = state.get("halt_reason")
     if halt is None or halt == "max_cycles":
-        score += 5
+        score += 4
     elif isinstance(halt, str) and "empty" in halt:
         score += 3
         notes_parts.append(f"halt: {halt}")
     else:
         notes_parts.append(f"halt: {halt}")
         score += 1
+
+    if artifacts["repo_is_clean"]:
+        score += 2
+    else:
+        dirty_summary = artifacts["git_status_output"].strip().splitlines()
+        sample = dirty_summary[0] if dirty_summary else "unknown"
+        notes_parts.append(f"dirty clone: {sample}")
 
     return DimensionScore(
         name="Clean state",
