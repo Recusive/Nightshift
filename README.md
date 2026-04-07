@@ -2,11 +2,12 @@
   <img src="nightshift/assets/icon.png" alt="Nightshift" width="240" />
 </p>
 
-<h1 align="center">Nightshift</h1>
+<h1 align="center">Nightshift + Recursive</h1>
 
 <p align="center">
-  <strong>An autonomous engineering system with two shipped loops and a self-maintaining control plane.</strong><br/>
-  Nightshift can harden existing repositories, build features from natural-language specs, evaluate itself on a real target repo, and keep its own task queue, handoffs, changelog, tracker, and prompt system up to date.
+  <strong>Two products. One repo.</strong><br/>
+  <b>Nightshift</b> is an autonomous engineering product with two shipped loops -- Owl (hardening) and Raven (feature building).<br/>
+  <b>Recursive</b> is a portable autonomous orchestration framework that can run on any codebase.
 </p>
 
 <p align="center">
@@ -19,9 +20,23 @@
 
 ---
 
-## This repo maintains itself
+## Two products, one repo
 
-Most of the code in this repository was written, tested, reviewed, and merged by AI agents. One unified daemon (`Recursive/engine/daemon.sh`) auto-selects from six operators each cycle via `Recursive/engine/pick-role.py`:
+This repo ships two independent products that work together:
+
+### Nightshift -- the product
+
+Nightshift (`nightshift/`) is a Python package with two autonomous engineering loops:
+
+- **Owl** (Loop 1 -- Hardening, 99%): point it at a repository, let it profile the stack, create an isolated worktree, find one production-readiness issue per cycle, and either reject or commit the fix behind guard rails. Supports Codex and Claude, diff scoring, multi-repo mode, prompt injection boundaries, and self-evaluation against [Phractal](https://github.com/fazxes/Phractal).
+
+- **Raven** (Loop 2 -- Feature Building, 100%): give it a feature request in plain English and it will profile the repo, plan the work, decompose it into waves, spawn sub-agents, integrate the results, run E2E and readiness checks, and persist build state for resume/status flows.
+
+### Recursive -- the framework
+
+Recursive (`Recursive/`) is a portable autonomous orchestration framework. It provides the daemon loop, signal-driven role selection, operator prompts, agent lifecycle management, sub-agent review pipeline, and session memory. Recursive is designed to work on **any** codebase -- Nightshift is just the first project it operates on.
+
+Recursive drives six operators each cycle via `Recursive/engine/pick-role.py`:
 
 - **Builder**: reads the task queue, builds or fixes one scoped task, tests it, opens a PR, reviews it via sub-agents, and merges it
 - **Reviewer**: picks one file, deep-reviews it against a checklist, fixes every issue found, and logs the review
@@ -29,6 +44,38 @@ Most of the code in this repository was written, tested, reviewed, and merged by
 - **Strategist**: gathers evidence across sessions, evaluations, and costs, then produces a top-down health report with auto-created follow-up tasks
 - **Achiever**: measures autonomy score (0-100) across a 20-check scorecard, identifies the highest-impact human dependency, and eliminates it
 - **Security checker**: red-team preflight that runs before each build -- scans for fragile paths, subprocess injection, credential leaks, and outputs a severity-classified pentest report
+
+### How they fit together
+
+```
+Recursive (framework)          Nightshift (product)
+┌─────────────────────┐       ┌──────────────────────┐
+│  daemon.sh          │       │  owl/   (Loop 1)     │
+│  pick-role.py       │       │    cycle.py          │
+│  lib-agent.sh       │       │    scoring.py        │
+│  operators/         │──────>│    readiness.py      │
+│    build/           │       │                      │
+│    review/          │       │  raven/ (Loop 2)     │
+│    oversee/         │       │    planner.py        │
+│    strategize/      │       │    decomposer.py     │
+│    achieve/         │       │    subagent.py       │
+│    security-check/  │       │    integrator.py     │
+│  agents/            │       │    feature.py        │
+│  lib/               │       │                      │
+│  prompts/           │       │  core/  settings/    │
+└─────────────────────┘       │  infra/ schemas/     │
+         │                    └──────────────────────┘
+         v
+   .recursive/  (runtime state -- session memory for both)
+```
+
+Recursive orchestrates. Nightshift does the engineering work. `.recursive/` is the shared memory layer.
+
+---
+
+## This repo maintains itself
+
+Most of the code in this repository was written, tested, reviewed, and merged by AI agents. The Recursive daemon (`Recursive/engine/daemon.sh`) auto-selects an operator each cycle, and Nightshift's Owl and Raven loops do the actual engineering.
 
 The human role is operational: start the daemon and monitor it. The agents own the engineering loop -- including deciding what to work on.
 
@@ -51,47 +98,18 @@ numbers change.
 | Signal | Current reading | Source |
 |--------|-----------------|--------|
 | Overall vision progress | 92% | `.recursive/vision-tracker/TRACKER.md` |
-| Loop 1 hardening | 99% | `.recursive/vision-tracker/TRACKER.md` |
-| Loop 2 feature builder | 100% | `.recursive/vision-tracker/TRACKER.md` |
+| Owl (Loop 1 hardening) | 99% | `.recursive/vision-tracker/TRACKER.md` |
+| Raven (Loop 2 feature builder) | 100% | `.recursive/vision-tracker/TRACKER.md` |
 | Self-maintaining repo | 68% | `.recursive/vision-tracker/TRACKER.md` |
 | Meta-prompt system | 79% | `.recursive/vision-tracker/TRACKER.md` |
 | Tests | 847 passing | `python3 -m pytest nightshift/tests/ Recursive/tests/ -q` |
-| Python modules (product) | 23 | `.recursive/architecture/MODULE_MAP.md` |
-| Python modules (framework) | 7 | `Recursive/lib/` + `Recursive/engine/` |
+| Nightshift modules | 23 | `.recursive/architecture/MODULE_MAP.md` |
+| Recursive modules | 7 | `Recursive/lib/` + `Recursive/engine/` |
 | Merged PRs | 155+ | `gh pr list --state merged --json number` |
 | Daemon sessions | 100+ | `.recursive/sessions/index.md` |
 | Documented learnings | 90+ | `.recursive/learnings/INDEX.md` |
 
 ---
-
-## What ships today
-
-Nightshift has two loops:
-
-**Loop 1 -- Hardening (Owl)** (99% in the tracker): point it at a repository, let it
-profile the stack, create an isolated worktree, find one production-readiness
-issue per cycle, and either reject or commit the fix behind guard rails. This
-loop already supports Codex and Claude, diff scoring, multi-repo mode, prompt
-injection boundaries for repo instructions, and evaluation against Phractal.
-The main remaining gap is evaluation fidelity on rejected runs.
-
-**Loop 2 -- Feature Building (Raven)** (100% in the tracker): give it a feature request
-in plain English and it will profile the repo, plan the work, decompose it into
-waves, spawn sub-agents, integrate the results, run E2E and readiness checks,
-and persist build state for resume/status flows.
-
-The self-maintaining layer around those loops already ships:
-
-- signal-driven role selection (build/review/oversee/strategize/achieve)
-- security-check preflight before every build cycle
-- task queue sync from GitHub Issues and internal prioritization
-- structured handoffs, 90+ documented learnings, and cross-session memory
-- per-version changelogs and auto-generated vision tracker
-- architecture module map generation
-- cross-session cost analysis and budget enforcement
-- 5-agent sub-agent review pipeline (code, architecture, docs, safety, meta)
-- branch/PR/review/merge automation with prompt-integrity guard
-- self-evaluation against [Phractal](https://github.com/fazxes/Phractal) with 10-dimension scoring
 
 ## Install
 
@@ -135,12 +153,12 @@ cp .nightshift.json.example .nightshift.json
 Use the Python module entry point that the codebase actually ships:
 
 ```bash
-python3 -m nightshift run --agent claude              # full overnight shift
-python3 -m nightshift test --agent claude --cycles 2   # short validation shift
+python3 -m nightshift run --agent claude              # full overnight shift (Owl)
+python3 -m nightshift test --agent claude --cycles 2   # short validation shift (Owl)
 python3 -m nightshift summarize                        # print shift state JSON
 python3 -m nightshift verify-cycle --worktree-dir PATH --pre-head HASH  # verify cycle offline
-python3 -m nightshift plan "Add OAuth login"           # plan a feature build
-python3 -m nightshift build "Add OAuth login" --yes    # build a feature end-to-end
+python3 -m nightshift plan "Add OAuth login"           # plan a feature build (Raven)
+python3 -m nightshift build "Add OAuth login" --yes    # build a feature end-to-end (Raven)
 python3 -m nightshift build --status                   # check build progress
 python3 -m nightshift build --resume                   # resume interrupted build
 python3 -m nightshift multi /repo1 /repo2 --agent claude --test --cycles 1  # multi-repo
@@ -161,7 +179,10 @@ Use the bundled wrapper scripts:
 ~/.codex/skills/nightshift/nightshift/scripts/test.sh --agent claude --cycles 2 --cycle-minutes 5
 ```
 
-### Self-maintaining mode
+### Running the Recursive daemon
+
+The Recursive daemon wraps Nightshift's loops with autonomous role selection,
+session memory, and self-maintenance:
 
 ```bash
 make daemon       # start the daemon (auto-picks operator each cycle)
@@ -228,10 +249,10 @@ Environment variables:
 - `RECURSIVE_FORCE_ROLE` -- bypass role scoring (build/review/oversee/strategize/achieve)
 - `RECURSIVE_PIPELINE_CHECKPOINTS` -- enable verification checkpoints (0/1)
 
-## How it picks what to do
+## How Recursive picks what to do
 
-The daemon reads live system signals each cycle and scores all five roles.
-The highest score wins, with tie-break favoring build. Key signals:
+The daemon reads live system signals each cycle and scores all five selectable
+roles. The highest score wins, with tie-break favoring build. Key signals:
 
 | Signal | Effect |
 |--------|--------|
@@ -241,12 +262,15 @@ The highest score wins, with tie-break favoring build. Key signals:
 | Autonomy score < 70 | Triggers **achieve** |
 | Urgent tasks in queue | Boosts **build** |
 
+Security-check runs as a preflight before every build -- it is not scored.
+
 Override with `RECURSIVE_FORCE_ROLE=review` to bypass scoring.
 Full scoring math: `Recursive/ops/ROLE-SCORING.md`.
 
 ## How it keeps context between sessions
 
-Nightshift is designed for stateless agents, so the repo carries the memory:
+Both products are designed for stateless agents, so the repo carries the memory
+in `.recursive/`:
 
 - **Handoffs**: every session writes a structured summary to `.recursive/handoffs/`, and the next session starts from `LATEST.md`
 - **Learnings**: agents read `.recursive/learnings/INDEX.md` first (90+ hard-won patterns), then open only the relevant learning files
@@ -278,17 +302,22 @@ Nightshift does not trust the model to "be careful." It verifies:
 - repo verification commands (auto-inferred or configured)
 - file deletion attempts
 - repeated category or path tunnel vision (category balancing)
-- prompt/control-file modifications during self-maintenance
 - circuit breaker: stops after 3 consecutive failures
 
-### Diff scorer
+Recursive adds its own layer:
+
+- prompt/control-file modifications during self-maintenance (prompt guard)
+- origin integrity checks (detects pushes that bypass the working tree)
+- session cost tracking and budget enforcement
+
+### Diff scorer (Nightshift)
 
 Accepted fixes are scored `1-10` for production impact using category weight
 (Security: 8, Error Handling: 6, Tests: 6, A11y: 5, etc.), diff content
 analysis, test file bonuses, and multi-category bonuses. Below threshold
 (default 3): revert the cycle. Above threshold: keep the commit.
 
-### Prompt injection protection
+### Prompt injection protection (Nightshift)
 
 Instruction files from target repos (`CLAUDE.md`, `AGENTS.md`, etc.) are wrapped
 in an untrusted boundary before the agent sees them. Symlinks are rejected,
@@ -296,15 +325,15 @@ files > 100KB are truncated, and total instruction context is capped at 200KB.
 They are treated as coding convention references only, never as behavioral
 directives.
 
-### Self-modification guard
+### Self-modification guard (Recursive)
 
-Before builder work starts, Nightshift snapshots all framework control files
+Before builder work starts, Recursive snapshots all framework control files
 (operator SKILL.mds, `daemon.sh`, `autonomous.md`, etc.), runs a red-team
 security-check preflight, and hard-resets back to `origin/main` before the
 main session. After the session, it compares pre/post snapshots and surfaces
 any control-file diff as an alert in the next cycle's prompt.
 
-### Cost tracking
+### Cost tracking (Recursive)
 
 Session costs are parsed from agent stream-json logs. Per-session and cumulative
 costs are tracked in `.recursive/sessions/`. Budget enforcement via
@@ -314,15 +343,15 @@ costs are tracked in `.recursive/sessions/`. Budget enforcement via
 
 ## Architecture
 
-### Product -- `nightshift/`
+### Nightshift -- `nightshift/`
 
-The Python package is organized into subdirectories by concern: 23 production
-modules across 5 subdirectories. The generated
-[module map](.recursive/architecture/MODULE_MAP.md) is the authoritative inventory.
+The product Python package: 23 production modules across 5 subdirectories.
+The generated [module map](.recursive/architecture/MODULE_MAP.md) is the
+authoritative inventory.
 
 ```text
 nightshift/
-├── cli.py                    # CLI entry point
+├── cli.py                    # CLI entry point (run, test, plan, build, etc.)
 ├── __init__.py / __main__.py
 │
 ├── core/                     # Shared foundations
@@ -336,12 +365,12 @@ nightshift/
 │   ├── config.py             # Config loading and defaults
 │   └── eval_targets.py       # Repo-specific eval defaults (Phractal)
 │
-├── owl/                      # Loop 1 -- Hardening
+├── owl/                      # Loop 1 -- Owl (Hardening)
 │   ├── cycle.py              # Single-cycle orchestrator
 │   ├── scoring.py            # Diff scorer (1-10)
 │   └── readiness.py          # Production-readiness checks
 │
-├── raven/                    # Loop 2 -- Feature Builder
+├── raven/                    # Loop 2 -- Raven (Feature Builder)
 │   ├── profiler.py           # Repo profiling
 │   ├── planner.py            # Feature plan generation
 │   ├── decomposer.py         # Plan -> waves -> sub-tasks
@@ -377,11 +406,11 @@ nightshift/
     └── test_module_map.py
 ```
 
-### Framework -- `Recursive/`
+### Recursive -- `Recursive/`
 
-A portable autonomous orchestration framework that drives the daemon, role
-selection, operator prompts, agent lifecycle, and session memory. Designed to
-work on any codebase -- Nightshift is just the first project it operates on.
+A portable autonomous orchestration framework. Drives the daemon, role
+selection, operator prompts, agent lifecycle, sub-agent reviews, and session
+memory. Zero dependencies on `nightshift/` -- designed to work on any codebase.
 
 ```text
 Recursive/
@@ -446,23 +475,23 @@ Recursive/
 
 ### Runtime state -- `.recursive/`
 
-14 directories of persistent state that the daemon reads and writes each cycle.
-Not checked into source control for target repos; versioned here because
-Nightshift is its own target.
+14 directories of persistent state shared by both products. The daemon reads
+and writes these each cycle. Not checked into source control for target repos;
+versioned here because this repo is its own target.
 
 ```text
 .recursive/
-├── architecture/     # Generated module map
-├── autonomy/         # Autonomy score reports
+├── architecture/     # Generated module map (Nightshift)
+├── autonomy/         # Autonomy score reports (Recursive)
 ├── changelog/        # Per-version changelogs
-├── evaluations/      # Phractal eval results
-├── handoffs/         # Session handoff summaries
-├── healer/           # Healer observation logs
+├── evaluations/      # Phractal eval results (Nightshift)
+├── handoffs/         # Session handoff summaries (Recursive)
+├── healer/           # Healer observation logs (Recursive)
 ├── learnings/        # Hard-won knowledge index
-├── plans/            # Feature build plans
-├── reviews/          # Code review artifacts
-├── sessions/         # Session index and logs
-├── strategy/         # Strategy reports
+├── plans/            # Feature build plans (Nightshift/Raven)
+├── reviews/          # Code review artifacts (Recursive)
+├── sessions/         # Session index and logs (Recursive)
+├── strategy/         # Strategy reports (Recursive)
 ├── tasks/            # Task queue (frontmatter YAML)
 ├── vision/           # Vision documents
 └── vision-tracker/   # Auto-generated progress tracker
@@ -480,15 +509,18 @@ Type checking is `mypy --strict`. Linting is Ruff. The local gate is
 
 ## Current frontier
 
-Shipped:
+Nightshift shipped:
 
-- hardening loop (Owl) with worktrees, diff scoring, and guard rails (99%)
-- feature builder loop (Raven) with plan/build/resume/status/sub-agents (100%)
+- Owl (hardening loop) with worktrees, diff scoring, and guard rails (99%)
+- Raven (feature builder) with plan/build/resume/status/sub-agents (100%)
+- multi-repo mode, module map generation, prompt injection boundaries
+- self-evaluation against Phractal with 10-dimension scoring
+
+Recursive shipped:
+
 - unified daemon with signal-driven role selection across 6 operators
 - red-team security-check preflight with severity-classified pentest reports
 - 5-agent sub-agent review pipeline (code, architecture, docs, safety, meta)
-- self-evaluation against Phractal with 10-dimension scoring
-- multi-repo mode, module map generation, prompt injection boundaries
 - cross-session learnings (90+), structured handoffs, and cost tracking
 - autonomy measurement and human-dependency elimination (score: 85/100)
 - GitHub Issues auto-sync to internal task queue
