@@ -76,13 +76,14 @@ Last session predicted [X]. Actual result was [Y]. Commitment: [MET/MISSED]. If 
 
 Rules for delegation:
 1. Give the sub-agent a SPECIFIC task. Include the task number, file path, and acceptance criteria.
-2. Never delegate vague instructions like "improve the codebase".
-3. One sub-agent per task. Do not ask one agent to do two unrelated things.
-4. For build/review/oversee/achieve/strategize/security/evolve/audit-agent: always use `isolation: "worktree"`.
-5. For reviewer agents (code-reviewer, safety-reviewer, etc.): no worktree needed (read-only PR review).
-6. You may launch up to 3 sub-agents in parallel, but ONLY if their tasks do not overlap files. Before parallel launch, check the file paths each agent will touch. If any overlap is possible, serialize them instead.
-7. Agent() syntax verified via spike test: `Agent(subagent_type: "name", prompt: "...", isolation: "worktree")`. The `subagent_type` matches the agent's `name` field in frontmatter.
-8. **If Agent() is unavailable** (e.g., pipe mode limitation): fall back to delegating via `claude -p` subprocess calls. Write delegation instructions to a temp file, run `claude -p "$(cat delegation.txt)" --model sonnet --output-format stream-json`, capture results. This is slower but functionally equivalent.
+2. **Match agent to zone.** Before delegating, read the task and identify which files it touches. If the task modifies `.recursive/` framework files (engine, prompts, agents, lib, operators, ops, scripts, templates, tests, skills) or root docs (CLAUDE.md, AGENTS.md), delegate to `evolve` (framework zone) — NOT `build`. The `build` agent is for `nightshift/` project code ONLY. Tasks with `target: recursive` in frontmatter are always framework-zone.
+3. Never delegate vague instructions like "improve the codebase".
+4. One sub-agent per task. Do not ask one agent to do two unrelated things.
+5. For build/review/oversee/achieve/strategize/security/evolve/audit-agent: always use `isolation: "worktree"`.
+6. For reviewer agents (code-reviewer, safety-reviewer, etc.): no worktree needed (read-only PR review).
+7. You may launch up to 3 sub-agents in parallel, but ONLY if their tasks do not overlap files. Before parallel launch, check the file paths each agent will touch. If any overlap is possible, serialize them instead.
+8. Agent() syntax verified via spike test: `Agent(subagent_type: "name", prompt: "...", isolation: "worktree")`. The `subagent_type` matches the agent's `name` field in frontmatter.
+9. **If Agent() is unavailable** (e.g., pipe mode limitation): fall back to delegating via `claude -p` subprocess calls. Write delegation instructions to a temp file, run `claude -p "$(cat delegation.txt)" --model sonnet --output-format stream-json`, capture results. This is slower but functionally equivalent.
 
 <example>
 <scenario>Dashboard shows 70 pending tasks, eval at 53/100, 3 consecutive builds. Advisory recommends security-check.</scenario>
