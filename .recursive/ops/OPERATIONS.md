@@ -302,19 +302,40 @@ The operator prompts that define each daemon role. Each operator lives in its ow
 ### Files
 | File | Purpose |
 |------|---------|
-| `.recursive/operators/build/SKILL.md` | The authoritative builder prompt. Defines the full session lifecycle, including evaluation, observation, releases, and reporting. |
-| `.recursive/operators/review/SKILL.md` | Code review operator. Reviews code file by file, fixes quality issues. |
-| `.recursive/operators/oversee/SKILL.md` | Overseer operator. Audits task queue, fixes priorities, cleans duplicates. |
-| `.recursive/operators/strategize/SKILL.md` | Strategist operator. Big-picture planning and report writing. |
-| `.recursive/operators/achieve/SKILL.md` | Autonomy operator. Measures autonomy score, eliminates human dependencies. |
-| `.recursive/operators/security-check/SKILL.md` | Read-only red-team preflight prompt injected by the daemon before each main session. |
-| `.recursive/prompts/autonomous.md` | Global autonomous-mode constraints prepended to every daemon session. |
+| `.recursive/operators/build/SKILL.md` | Builder prompt (v1 daemon). In v2, the brain delegates to `.recursive/agents/build.md`. |
+| `.recursive/operators/review/SKILL.md` | Code review operator. |
+| `.recursive/operators/oversee/SKILL.md` | Overseer operator. Audits task queue. |
+| `.recursive/operators/strategize/SKILL.md` | Strategist operator. Big-picture planning. |
+| `.recursive/operators/achieve/SKILL.md` | Autonomy operator. |
+| `.recursive/operators/security-check/SKILL.md` | Red-team operator. |
+| `.recursive/operators/evolve/SKILL.md` | Framework improvement operator. Fixes .recursive/ friction patterns. |
+| `.recursive/operators/audit/SKILL.md` | Framework audit operator. Reviews .recursive/ for contradictions and staleness. |
+| `.recursive/prompts/autonomous.md` | Global autonomous-mode constraints (used by v1 daemon). |
 | `.recursive/prompts/checkpoints.md` | Checkpoint prompt for session progress tracking. |
 
+**v2 agents** (used by the brain in the current architecture):
+
+| File | Purpose |
+|------|---------|
+| `.recursive/agents/brain.md` | Brain orchestrator (Opus). Reads dashboard, delegates, reviews PRs. |
+| `.recursive/agents/build.md` | Build sub-agent (Sonnet). Implements tasks, creates PRs. |
+| `.recursive/agents/review.md` | Review sub-agent. Deep code review, fixes issues. |
+| `.recursive/agents/oversee.md` | Oversee sub-agent. Audits task queue. |
+| `.recursive/agents/strategize.md` | Strategize sub-agent. Big-picture analysis. |
+| `.recursive/agents/achieve.md` | Achieve sub-agent. Autonomy engineering. |
+| `.recursive/agents/security.md` | Security sub-agent. Red team / pentest. |
+| `.recursive/agents/evolve.md` | Evolve sub-agent. Framework friction fixes. |
+| `.recursive/agents/audit-agent.md` | Audit sub-agent. Framework quality review + pattern analysis. |
+| `.recursive/agents/code-reviewer.md` | Code review specialist (read-only, no worktree). |
+| `.recursive/agents/safety-reviewer.md` | Security review specialist (read-only). |
+| `.recursive/agents/architecture-reviewer.md` | Architecture review specialist (read-only). |
+| `.recursive/agents/docs-reviewer.md` | Docs review specialist (read-only). |
+| `.recursive/agents/meta-reviewer.md` | Framework PR review specialist (read-only). |
+
 ### How to use
-- The daemon loads the winning role's `SKILL.md` after role selection.
-- `.recursive/engine/daemon.sh` runs the security-check preflight first, then injects its result into the main session prompt.
-- If you learn something that would help future sessions, add it to the relevant operator's `SKILL.md`.
+- In v2: the brain reads agent definitions from `.recursive/agents/` and delegates via the Agent() tool.
+- In v1 (legacy): the daemon loaded the winning role's `SKILL.md` directly.
+- If you learn something that would help future sessions, update the relevant agent definition in `.recursive/agents/`.
 
 ### How to update
 - If a step is consistently causing problems, fix the instructions in the relevant operator
