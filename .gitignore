@@ -12,5 +12,5 @@ Runtime/Nightshift/worktree-*/
 Runtime/Nightshift/*.runner.log
 Runtime/Nightshift/*.state.json
 
-# Lock file
+# Daemon runtime artifacts
 .recursive-daemon.lock

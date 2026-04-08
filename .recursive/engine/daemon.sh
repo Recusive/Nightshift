@@ -199,13 +199,11 @@ CTXEOF
 
     # --- Prompt guard check ---
     echo "  Checking prompt integrity..."
-    PROMPT_ALERT="$REPO_DIR/.recursive-prompt-alert"
-    rm -f "$PROMPT_ALERT"
-    if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+    if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR"; then
         echo "  WARNING: Prompt files modified during session!"
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
     fi
-    if ! check_origin_integrity "$REPO_DIR" "$SNAP_DIR" "$PROMPT_ALERT"; then
+    if ! check_origin_integrity "$REPO_DIR" "$SNAP_DIR"; then
         echo "  WARNING: origin/main prompt tampering detected!"
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
     fi
