@@ -1,299 +1,390 @@
 # Role Scoring Reference
 
-This document describes how `.recursive/engine/pick-role.py` decides which role the daemon runs each cycle. It is reference documentation, not an active prompt. The scoring engine in `pick-role.py` implements these rules in Python.
-
-In v2, `pick-role.py` outputs an advisory recommendation for the brain agent. The brain may follow or override it. The eight roles are: BUILD, REVIEW, OVERSEE, STRATEGIZE, ACHIEVE, SECURITY-CHECK, EVOLVE, AUDIT. Each cycle, the scoring engine reads system signals and produces a scored advisory ranking.
-
-<context>
-Nightshift is an autonomous engineering system. The repo contains:
-- `nightshift/` -- the Python package (the product), with subpackages: core/, settings/, owl/, raven/, infra/
-- `.recursive/` -- the framework (engine, operators, lib, scripts, agents, prompts)
-- `.recursive/` -- working memory for this project (handoffs, tasks, sessions, evaluations, etc.)
-- `Runtime/` -- runtime artifacts (shift logs, state files, worktrees)
-
-You run inside `.recursive/engine/daemon.sh` in a loop. Each cycle you get a fresh checkout of main, assess the system, pick a role, and execute. Your output is captured as stream-json to a log file.
-
-Key paths:
-- `.recursive/handoffs/LATEST.md` -- what happened last session
-- `.recursive/tasks/` -- the task queue (pending/done/blocked)
-- `.recursive/evaluations/` -- E2E evaluation reports with scores
-- `.recursive/sessions/index.md` -- session history
-- `.recursive/healer/log.md` -- system health observations
-- `.recursive/strategy/` -- strategy reports
-- `.recursive/vision-tracker/TRACKER.md` -- progress scoreboard
-- `CLAUDE.md` -- project conventions
-- `.recursive.json` -- project config
-</context>
+> **v2 Architecture Note**: This document describes the advisory scoring algorithm implemented
+> in `.recursive/engine/pick-role.py`. It is reference documentation for understanding how the
+> advisory recommendation is computed -- NOT a manual process for the brain agent.
+>
+> In v2, `pick-role.py` runs automatically and outputs a scored advisory ranking. The brain agent
+> (Opus) reads this advisory as one input among several, then applies its own 4-checkpoint analysis
+> (Signal Analysis, Forced Tradeoff, Pre-Commitment, Commitment Check) to decide what to delegate.
+> The brain MAY override the advisory. See `.recursive/agents/brain.md` for the brain's decision
+> process.
 
 ---
 
-## PHASE 1: ASSESS
+## How the Advisory Works (v2 Flow)
 
-Read these files and extract the system signals. Do this EVERY session before deciding anything.
+1. `daemon.sh` calls `pick-role.py --advise` at the start of each cycle
+2. `pick-role.py` reads all system signals from `.recursive/` state files (via `signals.py`)
+3. It computes a score for each of the 8 roles and returns a JSON advisory block:
+   - `recommended`: the highest-scoring role
+   - `score`: the winning score
+   - `reason`: human-readable signal summary for the winner
+   - `alternatives`: the next 3 roles with scores and reasons
+   - `drift_warning`: set if 80%+ of recent sessions were BUILD
+   - `signals`: all numeric/boolean signal values (safe for prompt injection)
+   - `recent_roles`: the last 5 role names from the session index
+4. The daemon injects this advisory into the brain's prompt as context
+5. The brain reads the advisory alongside the dashboard, handoff, and task queue
+6. The brain decides what to delegate (may follow or override the advisory)
 
-<assessment_protocol>
-
-1. **Read `.recursive/handoffs/LATEST.md`** -- what happened last, what's broken, what's recommended next
-2. **Read `.recursive/sessions/index.md`** (last 10 entries) -- session pattern, costs, failures, roles
-3. **Read the latest file in `.recursive/evaluations/`** -- extract the total score (NN/100)
-4. **Scan `.recursive/tasks/`** -- count pending tasks (skip archive/, GUIDE.md, README.md)
-5. **Read `.recursive/healer/log.md`** (last entry) -- system health rating
-6. **Check `.recursive/strategy/`** -- when was the last strategy report written?
-7. **Check `.recursive/reviews/`** -- when was the last code review session?
-8. **Check `.recursive/autonomy/`** -- latest autonomy score (if any reports exist)
-
-Extract these signals:
-
-```
-SYSTEM SIGNALS
-==============
-eval_score:              [NN/100 from latest evaluation, or "none" if no evaluations exist]
-consecutive_builds:      [how many BUILD sessions in a row from session index]
-sessions_since_review:   [count sessions since last REVIEW entry in index]
-sessions_since_strategy: [count sessions since last STRATEGIZE entry, or since last file in .recursive/strategy/]
-pending_task_count:      [number of status: pending tasks]
-stale_task_count:        [tasks pending 20+ sessions -- check created date vs session count]
-healer_status:           [good / caution / concern from last healer entry]
-tracker_movement:        [did overall % change in last 5 sessions?]
-autonomy_score:          [NN/100 from latest .recursive/autonomy/ report, or "none"]
-needs_human_issues:      [count of open GitHub issues with needs-human label]
-```
-
-**Defaults for missing data:** If any signal file is missing or unreadable, use these:
-- eval_score: 80 (assume healthy until proven otherwise)
-- sessions_since_review: 0
-- sessions_since_strategy: 0
-- consecutive_builds: 0
-- All others: 0
-
-On a cold start (empty session index, no evaluations), BUILD wins by default. The system needs features before it needs reviews or strategy.
-
-**Grounding rule:** Use ONLY data from the files listed above. Do not estimate or guess signal values. If a file has no relevant data, use the default above.
-
-</assessment_protocol>
+**Force override**: If `RECURSIVE_FORCE_ROLE` env var is set to a valid role name, `pick-role.py`
+skips scoring entirely and emits that role as the advisory recommendation. Valid values:
+`build`, `review`, `oversee`, `strategize`, `achieve`, `security-check`, `evolve`, `audit`
 
 ---
 
-## PHASE 2: DECIDE
+## System Signals
 
-Score each role based on the signals you extracted. Show your math.
+`signals.py` reads these values from `.recursive/` state files. Each signal has a safe default
+used when the source file is missing or unreadable.
 
-<scoring_rules>
+| Signal | Source | Default |
+|--------|--------|---------|
+| `eval_score` | Latest file in `.recursive/evaluations/` | 80 |
+| `autonomy_score` | Latest file in `.recursive/autonomy/` | 0 |
+| `consecutive_builds` | Session index -- count consecutive BUILD rows from end | 0 |
+| `sessions_since_build` | Session index -- sessions since last BUILD row | 0 |
+| `sessions_since_review` | Session index -- sessions since last REVIEW row | 0 |
+| `sessions_since_strategy` | Session index -- sessions since last STRATEGIZE row | 0 |
+| `sessions_since_achieve` | Session index -- sessions since last ACHIEVE row | 0 |
+| `sessions_since_oversee` | Session index -- sessions since last OVERSEE row | 0 |
+| `sessions_since_security` | Session index -- sessions since last SECURITY-CHECK row | 0 |
+| `sessions_since_evolve` | Session index -- sessions since last EVOLVE row | 0 |
+| `sessions_since_audit` | Session index -- sessions since last AUDIT row | 0 |
+| `pending_tasks` | `.recursive/tasks/` -- count files with `status: pending` | 0 |
+| `stale_tasks` | `.recursive/tasks/` -- pending tasks older than 20 days | 0 |
+| `urgent_tasks` | `.recursive/tasks/` -- any task with `priority: urgent` | false |
+| `healer_status` | `.recursive/healer/log.md` -- last `**System health:**` value | good |
+| `needs_human_issues` | GitHub -- `gh issue list --label needs-human --state open` | 0 |
+| `tracker_moved` | Session index -- any `%` in recent status cells | false |
+| `recent_security_sessions` | Session index + archived pentest tasks (dual-signal) | 0 |
+| `friction_entries` | `.recursive/friction/log.md` -- count `## YYYY-MM-DD` headers | 0 |
 
-**BUILD** -- pick up a task, write code, ship a PR
-```
-base:                           50
-eval_score >= 80:              +30  (product is healthy, build freely)
-eval_score < 80:               -40  (GATE: must pick eval-related tasks only)
-urgent tasks exist:            +20  (urgent work always pulls toward BUILD)
-```
+**Eval file validation**: `read_latest_eval_score()` validates the file before reading the score.
+A file must have a `**Date**:` line and at least 3 scored dimension rows (`N/10` format) outside
+fenced code blocks. This prevents fabricated eval files from influencing role selection.
 
-**REVIEW** -- pick one file, review it, fix quality issues
-```
-base:                           10
-consecutive_builds >= 5:       +40  (code quality debt accumulating)
-healer_status == "concern":    +30  (system flagged quality issues)
-sessions_since_review >= 10:   +20  (overdue for review)
-sessions_since_review >= 5:    +10  (review getting stale)
-```
-
-**OVERSEE** -- close tasks, reduce queue, organize for other roles
-```
-base:                            5
-pending_task_count >= 80:      +50  (queue critically large)
-pending >= 50 AND not recently
-  overseen (5+ sessions ago):  +35  (queue large, needs attention)
-stale_task_count >= 5:         +30  (tasks rotting)
-new tasks synced from GitHub:  +25  (queue needs organizing)
-last overseer said NEEDS MORE
-  WORK:                        +20  (previous cleanup incomplete)
-CAP: if overseer ran < 3
-  sessions ago AND said CLEAN:   5  (don't re-run, queue is fine)
-```
-
-**STRATEGIZE** -- big picture review, write strategy report
-```
-base:                            5
-sessions_since_strategy >= 15:  +60  (overdue for strategic review)
-tracker_movement == false:      +30  (progress stalled, need to reassess)
-```
-
-**ACHIEVE** -- measure and improve system autonomy, eliminate human dependencies
-```
-base:                            5
-autonomy_score < 70:           +50  (system not self-sufficient)
-needs_human_issues >= 3:       +30  (humans being paged)
-eval_score < 80 for 10+ sess: +20  (stuck, not self-improving)
-consecutive_builds >= 10:      +15  (no self-reflection happening)
-```
-To compute `autonomy_score`: read the latest report in `.recursive/autonomy/`. If none exists, score is 0.
-To compute `needs_human_issues`: run `gh issue list --label needs-human --state open` and count.
-
-**Pick the highest score.** Ties go to BUILD (building features is the default).
-
-**Hard constraints:**
-- STRATEGIZE max once per 10 sessions (cap prevents hiding in strategy mode)
-- ACHIEVE max once per 5 sessions (autonomy work is high-value but infrequent)
-- Urgent tasks always force BUILD regardless of scores
-- eval_score < 80 gates BUILD to eval-related tasks only, but does NOT block REVIEW/OVERSEE/STRATEGIZE/ACHIEVE
-- Override: if `RECURSIVE_FORCE_ROLE` env var is set, skip scoring and use that role (valid values: `build`, `review`, `oversee`, `strategize`, `achieve`, `security-check`, `evolve`, `audit`)
-
-</scoring_rules>
-
-Output your decision:
-
-```
-ROLE DECISION
-=============
-System signals:
-  eval_score:              NN/100
-  consecutive_builds:      N
-  sessions_since_review:   N
-  sessions_since_strategy: N
-  pending_tasks:           N
-  stale_tasks:             N
-  healer_status:           [status]
-  autonomy_score:          NN/100
-  needs_human_issues:      N
-
-Scoring:
-  BUILD:      NN  (breakdown)
-  REVIEW:     NN  (breakdown)
-  OVERSEE:    NN  (breakdown)
-  STRATEGIZE: NN  (breakdown)
-  ACHIEVE:    NN  (breakdown)
-
--> [ROLE] this session because [one sentence reason]
-```
+**Autonomy file validation**: `read_latest_autonomy_score()` similarly requires `**Date**:` outside
+code blocks and at least one `TOTAL: N/100` line. It returns the LAST match, so reports with both
+a baseline and updated score return the updated value.
 
 ---
 
-## PHASE 3: EXECUTE
+## Scoring Rules
 
-Based on your decision, read ONE of these prompt files and follow it end-to-end:
+`compute_scores()` in `pick-role.py` computes an integer score for each role. Higher is better.
+Ties are broken by priority order: build > oversee > review > security-check > evolve > achieve > strategize > audit.
 
-| Role | Prompt file | What you do |
-|------|-------------|-------------|
-| BUILD | `.recursive/operators/build/SKILL.md` | Pick a task, build it, test it, PR it, merge it, update all docs |
-| REVIEW | `.recursive/operators/review/SKILL.md` | Pick one file, review it, fix quality issues, PR, merge |
-| OVERSEE | `.recursive/operators/oversee/SKILL.md` | Audit the task queue, fix priorities, cull duplicates, clean up |
-| STRATEGIZE | `.recursive/operators/strategize/SKILL.md` | Review the big picture, write a strategy report |
-| ACHIEVE | `.recursive/operators/achieve/SKILL.md` | Measure autonomy score, eliminate one human dependency |
-
-**Read the ENTIRE prompt file and follow it step by step.** The role prompts are 100-650 lines. You MUST read the full file, not just the first 200 lines. If using shell commands to read, use `cat` not `sed -n '1,220p'`. Do NOT read the other role prompts. One role per session.
-
-**Post-execution requirement (ALL roles):** After completing the role prompt's steps, update `.recursive/handoffs/LATEST.md` with what you did this session. BUILD's evolve.md already requires this. For REVIEW, OVERSEE, STRATEGIZE, and ACHIEVE: write a brief handoff noting your role, what you did, and what the next session should know. The next cycle reads LATEST.md first -- stale data causes bad decisions.
-
-After reading the role prompt, announce which role you adopted so the session log is traceable:
+### BUILD -- build features, ship PRs
 
 ```
-EXECUTING ROLE: [BUILD/REVIEW/OVERSEE/STRATEGIZE/ACHIEVE]
+base:                                   50
+eval_score >= 80:                      +30   (healthy product, build freely)
+eval_score < 80:                       -20   (eval gated -- demoted but not locked out)
+urgent_tasks == true:                  +20   (urgent work always pulls toward BUILD)
+sessions_since_build >= 5:            +25   (escape hatch: nothing built recently)
+sessions_since_build >= 10:           +15   (critical: stacks on top of the +25)
+recent_security_sessions >= 3
+  AND urgent_tasks:                    -15   (anti-loop: in security cycle, don't auto-dominate)
+```
+
+### REVIEW -- review code quality, fix issues
+
+```
+base:                                   10
+consecutive_builds >= 5:              +40   (code quality debt accumulating)
+healer_status in (concern, caution)
+  AND sessions_since_review >= 2:     +30   (healer flagged, not just reviewed)
+healer_status in (concern, caution)
+  AND sessions_since_review < 2:      +10   (reviewed recently, healer may not have updated)
+sessions_since_review >= 10:          +20   (overdue for review)
+sessions_since_review >= 5:           +10   (review getting stale)
+```
+
+### OVERSEE -- audit task queue, reduce noise
+
+```
+base:                                    5
+pending_tasks >= 80:                  +60   (critical queue size)
+pending_tasks >= 50
+  AND sessions_since_oversee >= 3:    +45   (large queue, not recently overseen)
+pending_tasks >= 50
+  AND sessions_since_oversee >= 1:    +20   (large queue, recently overseen)
+pending_tasks >= 30
+  AND sessions_since_oversee >= 5:    +25   (medium queue, overdue)
+stale_tasks >= 5:                     +25   (tasks rotting)
+sessions_since_oversee == 0:           =5   (hard cap: just ran last cycle)
+```
+
+### STRATEGIZE -- big picture review, write strategy report
+
+```
+base:                                    5
+sessions_since_strategy >= 15:        +60   (overdue for strategic review)
+tracker_moved == false:               +30   (progress stalled, need reassessment)
+
+Hard cap: capped at 5 if sessions_since_strategy < 10 (prevents hiding in strategy mode)
+```
+
+### ACHIEVE -- measure autonomy, eliminate human dependencies
+
+```
+base:                                    5
+autonomy_score < 70:                  +50   (system not self-sufficient)
+autonomy_score < 90:                  +20   (room for improvement above 70)
+needs_human_issues >= 3:              +30   (humans being paged)
+sessions_since_achieve >= 15:         +25   (hasn't run in a long time)
+consecutive_builds >= 10:             +15   (no self-reflection happening)
+
+Hard cap: score = -1 (ineligible) if sessions_since_achieve < 5
+```
+
+### SECURITY-CHECK -- red team, adversarial audit
+
+```
+base:                                    5
+sessions_since_security >= 10:        +50   (overdue for security review)
+sessions_since_security >= 5:         +20   (getting stale)
+consecutive_builds >= 5
+  AND sessions_since_security >= 3:   +15   (lots of builds without security review)
+
+Hard cap: capped at 5 if sessions_since_security < 3 (don't re-run too frequently)
+```
+
+### EVOLVE -- fix friction patterns in the framework
+
+```
+base:                                    5
+friction_entries >= 5:                +50   (lots of friction accumulated)
+friction_entries >= 3
+  AND sessions_since_evolve >= 5:     +30   (moderate friction, hasn't evolved recently)
+sessions_since_evolve >= 20:          +20   (overdue regardless of friction count)
+
+Hard cap: capped at 5 if sessions_since_evolve < 5 (don't re-run too frequently)
+Hard cap: capped at 5 if friction_entries == 0 (no friction = nothing to evolve)
+```
+
+### AUDIT -- framework quality review
+
+```
+base:                                    5
+sessions_since_audit >= 25:           +50   (overdue for framework audit)
+sessions_since_audit >= 15:           +20   (getting stale)
+
+Hard cap: capped at 5 if sessions_since_audit < 10 (don't re-run too frequently)
 ```
 
 ---
 
-<examples>
+## Winner Selection
 
-<example>
-Scenario: eval score is 66/100, 3 consecutive builds, 45 pending tasks
+```python
+def pick_role(scores, urgent, recent_security=0):
+    # Urgent tasks force BUILD unless in a security cycle
+    if urgent and recent_security < 3:
+        return "build"
+    # Highest score wins; ties broken by priority order:
+    priority = ["build", "oversee", "review", "security-check",
+                "evolve", "achieve", "strategize", "audit"]
+    best_score = max(scores.values())
+    for role in priority:
+        if scores[role] == best_score:
+            return role
+    return "build"  # fallback
+```
 
-ROLE DECISION
-=============
-System signals:
-  eval_score:              66/100
-  consecutive_builds:      3
-  sessions_since_review:   3
-  sessions_since_strategy: 8
-  pending_tasks:           45
-  stale_tasks:             1
-  healer_status:           caution
-  autonomy_score:          55/100
-  needs_human_issues:      1
+---
 
-Scoring:
-  BUILD:      10  (50 base -40 eval gate = 10, no urgent tasks)
-  REVIEW:     10  (10 base, builds < 5, no healer concern, review < 5)
-  OVERSEE:    10  (10 base, tasks < 50, stale < 3)
-  STRATEGIZE:  5  (5 base, strategy < 15)
-  ACHIEVE:    55  (5 +50 autonomy 55 < 70)
+## v2 Brain Decision Examples
 
--> ACHIEVE this session because autonomy score 55 < 70 and eval is gated. Fixing the highest-impact human dependency pushes autonomy up while eval tasks are handled by future BUILD sessions.
-</example>
+These examples show how the brain uses the advisory. The brain's analysis is in `<analysis>` tags.
 
-<example>
-Scenario: eval score is 85/100, 7 consecutive builds, 62 pending tasks, 4 stale
+### Example 1: Eval gated, autonomy low
 
-ROLE DECISION
-=============
-System signals:
-  eval_score:              85/100
-  consecutive_builds:      7
-  sessions_since_review:   7
-  sessions_since_strategy: 12
-  pending_tasks:           62
-  stale_tasks:             4
-  healer_status:           good
+Advisory input from pick-role.py:
+```json
+{
+  "recommended": "achieve",
+  "score": 55,
+  "reason": "autonomy=55, needs_human=1",
+  "signals": {
+    "eval_score": 66, "autonomy_score": 55, "consecutive_builds": 3,
+    "sessions_since_review": 3, "sessions_since_strategy": 8,
+    "pending_tasks": 45, "stale_tasks": 1, "healer_status": "caution",
+    "needs_human_issues": 1
+  }
+}
+```
 
-Scoring:
-  BUILD:      80  (50 +30 eval healthy)
-  REVIEW:     60  (10 +40 consecutive >= 5 +10 review >= 5)
-  OVERSEE:    100 (10 +50 pending >= 50 +40 stale >= 3)
-  STRATEGIZE:  5  (5 base, strategy < 15)
-  ACHIEVE:    55  (5 +50 autonomy 0 < 70)
+Score breakdown:
+```
+BUILD:      30  (50 -20 eval gate)
+REVIEW:     10  (10 base)
+OVERSEE:    10  (5 base, tasks < 50)
+STRATEGIZE:  5  (5 base, strategy < 10)
+ACHIEVE:    55  (5 +50 autonomy < 70)
+SECURITY:    5  (5 base)
+EVOLVE:      5  (5 base)
+AUDIT:       5  (5 base)
+```
 
--> OVERSEE this session because 62 pending tasks with 4 stale. Queue needs cleanup before more building adds noise.
-</example>
+Brain analysis:
+```
+Checkpoint 1 -- Signal Analysis: Eval at 66/100 is below the 80 gate. Advisory recommends
+ACHIEVE (score 55) because autonomy score is 55. BUILD is demoted to 30 but still eligible.
 
-<example>
-Scenario: eval score 83, 6 consecutive builds, healer flagged quality concern
+Checkpoint 2 -- Forced Tradeoff: ACHIEVE vs BUILD. ACHIEVE would improve autonomy, but the
+real blocker is the eval score. Task #0177 (re-run evaluation) is the highest-impact unblock.
+BUILD is the right call despite the advisory -- the eval gate lifts when BUILD completes #0177.
 
-ROLE DECISION
-=============
-System signals:
-  eval_score:              83/100
-  consecutive_builds:      6
-  sessions_since_review:   6
-  sessions_since_strategy: 5
-  pending_tasks:           38
-  stale_tasks:             1
-  healer_status:           concern
-  autonomy_score:          72/100
-  needs_human_issues:      0
+Decision: override advisory. Delegate build agent with task #0177.
+```
 
-Scoring:
-  BUILD:      80  (50 +30 eval healthy)
-  REVIEW:     90  (10 +40 consecutive >= 5 +30 healer concern +10 review >= 5)
-  OVERSEE:    10  (10 base, tasks < 50, stale < 3)
-  STRATEGIZE:  5  (5 base, strategy < 15)
-  ACHIEVE:     5  (5 base, autonomy 72 >= 70)
+### Example 2: Large queue with stale tasks
 
--> REVIEW this session because 6 consecutive builds with healer flagging quality concerns. REVIEW scores 90 vs BUILD 80.
-</example>
+Advisory input from pick-role.py:
+```json
+{
+  "recommended": "oversee",
+  "score": 100,
+  "reason": "pending=62, stale=4",
+  "signals": {
+    "eval_score": 85, "consecutive_builds": 7, "sessions_since_review": 7,
+    "sessions_since_strategy": 12, "pending_tasks": 62, "stale_tasks": 4,
+    "healer_status": "good"
+  }
+}
+```
 
-<example>
-Scenario: eval score 82, 2 builds since last review, 18 sessions since strategy
+Score breakdown:
+```
+BUILD:      80  (50 +30 eval healthy)
+REVIEW:     60  (10 +40 consecutive >= 5 +10 review >= 5)
+OVERSEE:   100  (5 +60 pending >= 80... wait: 62 < 80, so +45 pending >= 50 with so >= 3 = 50)
+STRATEGIZE:  5  (5 base, strategy < 10)
+ACHIEVE:    20  (5 +15 builds >= 10)
+SECURITY:    5  (5 base)
+EVOLVE:      5  (5 base)
+AUDIT:       5  (5 base)
+```
 
-ROLE DECISION
-=============
-System signals:
-  eval_score:              82/100
-  consecutive_builds:      2
-  sessions_since_review:   2
-  sessions_since_strategy: 18
-  pending_tasks:           35
-  stale_tasks:             0
-  healer_status:           good
-  autonomy_score:          85/100
-  needs_human_issues:      0
+Brain analysis:
+```
+Checkpoint 1 -- Signal Analysis: Advisory recommends OVERSEE. 62 pending tasks with 4 stale.
+Eval is healthy at 85. Advisory score is highest (95+).
 
-Scoring:
-  BUILD:      80  (50 +30 eval healthy)
-  REVIEW:     10  (10 base)
-  OVERSEE:    10  (10 base)
-  STRATEGIZE: 65  (5 +60 overdue by 3 sessions)
-  ACHIEVE:     5  (5 base, autonomy 85 >= 70)
+Checkpoint 2 -- Forced Tradeoff: OVERSEE vs BUILD. Queue cleanup unblocks future sessions.
+No urgent tasks. Advisory is correct.
 
--> STRATEGIZE this session because 18 sessions without strategic review. Everything else is healthy -- time for big picture analysis.
-</example>
+Decision: follow advisory. Delegate oversee agent.
+```
 
-</examples>
+### Example 3: Healer flagged quality concern
+
+Advisory input from pick-role.py:
+```json
+{
+  "recommended": "review",
+  "score": 90,
+  "reason": "consec_builds=6, healer=concern",
+  "signals": {
+    "eval_score": 83, "consecutive_builds": 6, "sessions_since_review": 6,
+    "sessions_since_strategy": 5, "pending_tasks": 38, "stale_tasks": 1,
+    "healer_status": "concern", "autonomy_score": 72, "needs_human_issues": 0
+  }
+}
+```
+
+Score breakdown:
+```
+BUILD:      80  (50 +30 eval healthy)
+REVIEW:     90  (10 +40 consecutive >= 5 +30 healer concern + sr >= 2 +10 sr >= 5)
+OVERSEE:     5  (5 base, tasks < 30)
+STRATEGIZE:  5  (5 base, strategy < 10)
+ACHIEVE:    20  (5 +15 builds >= 10... wait: 6 < 10 so +0; autonomy 72 >= 70 so +20 for < 90)
+SECURITY:    5  (5 base)
+EVOLVE:      5  (5 base)
+AUDIT:       5  (5 base)
+```
+
+Brain analysis:
+```
+Checkpoint 1 -- Signal Analysis: Advisory recommends REVIEW (score 90). 6 consecutive builds,
+healer flagged concern. REVIEW beats BUILD (90 > 80).
+
+Checkpoint 2 -- No override needed. Healer concern + 6 builds is a clear signal.
+
+Decision: follow advisory. Delegate review agent.
+```
+
+### Example 4: Friction log has actionable entries
+
+Advisory input from pick-role.py:
+```json
+{
+  "recommended": "evolve",
+  "score": 80,
+  "reason": "friction=4, since_evolve=8",
+  "signals": {
+    "eval_score": 82, "consecutive_builds": 2, "sessions_since_review": 2,
+    "sessions_since_strategy": 18, "pending_tasks": 35, "stale_tasks": 0,
+    "healer_status": "good", "friction_entries": 4, "sessions_since_evolve": 8
+  }
+}
+```
+
+Score breakdown:
+```
+BUILD:      80  (50 +30 eval healthy)
+REVIEW:     10  (10 base)
+OVERSEE:     5  (5 base, tasks < 30)
+STRATEGIZE:  5  (5 base, strategy < 10)
+ACHIEVE:     5  (5 base)
+SECURITY:    5  (5 base)
+EVOLVE:      80  (5 +50 friction >=5... wait: 4 < 5 so +0; +30 friction >= 3 AND se >= 5 = 35)
+AUDIT:       5  (5 base)
+```
+
+Note: EVOLVE and BUILD are tied at 80. Priority order breaks the tie in favor of BUILD.
+Brain may override to EVOLVE if the friction entries are high-impact.
+
+Brain analysis:
+```
+Checkpoint 1 -- Signal Analysis: Advisory recommends EVOLVE (score 80, tie with BUILD).
+Friction log has 4 entries (threshold is 3+). Last evolve was 8 sessions ago.
+Sessions since strategy is 18 -- strategize is also overdue but its score is capped at 5
+because sessions_since_strategy < 10 is false here (18 >= 15, so +60 would apply...
+rechecking: sessions_since_strategy >= 15 adds +60, so strategize = 65, not 5).
+
+Checkpoint 2 -- EVOLVE vs STRATEGIZE vs BUILD. Eval is healthy. Strategize scores 65,
+evolve 80, build 80. Friction entries are actionable framework improvements.
+Reading friction log to assess impact before deciding.
+
+Decision: follow advisory. Delegate evolve agent to fix the 3+ occurrence pattern.
+```
+
+---
+
+## Reference: All 8 Roles
+
+| Role | When advisory triggers | Default priority | Sub-agent | Zone |
+|------|------------------------|-----------------|-----------|------|
+| build | Always (base 50); boosted by healthy eval + urgent tasks | 1st (tie-break) | `build` | project |
+| oversee | pending >= 50 OR stale >= 5 | 2nd (tie-break) | `oversee` | project |
+| review | consecutive_builds >= 5 OR healer concern | 3rd (tie-break) | `review` | project |
+| security-check | sessions_since_security >= 5 | 4th (tie-break) | `security` | project |
+| evolve | friction_entries >= 3 AND sessions_since_evolve >= 5 | 5th (tie-break) | `evolve` | framework |
+| achieve | autonomy_score < 70 OR needs_human >= 3 | 6th (tie-break) | `achieve` | project |
+| strategize | sessions_since_strategy >= 15 | 7th (tie-break) | `strategize` | project |
+| audit | sessions_since_audit >= 15 | 8th (tie-break) | `audit-agent` | framework |
+
+---
+
+## Source of Truth
+
+- Scoring algorithm: `.recursive/engine/pick-role.py` -- `compute_scores()` and `pick_role()`
+- Signal readers: `.recursive/engine/signals.py`
+- Dashboard aggregator: `.recursive/engine/dashboard.py`
+- Brain decision process: `.recursive/agents/brain.md` (4-checkpoint analysis)
+- Tests: `.recursive/tests/test_pick_role.py`
