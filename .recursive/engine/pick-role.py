@@ -24,6 +24,7 @@ from signals import (
     count_consecutive_role,
     count_friction_entries,
     count_needs_human_issues,
+    count_pending_pentest_framework_tasks,
     count_pending_tasks,
     count_recent_security_sessions,
     count_sessions_since_role,
@@ -138,6 +139,7 @@ def compute_scores(signals: dict[str, Any]) -> dict[str, int]:
     # EVOLVE -- framework improvement (reads friction log)
     se = signals.get("sessions_since_evolve", 0)
     fe = signals.get("friction_entries", 0)
+    pf = signals.get("pentest_framework_tasks", 0)
     evolve = 5
     if fe >= 5:
         evolve += 50  # lots of friction accumulated
@@ -145,6 +147,8 @@ def compute_scores(signals: dict[str, Any]) -> dict[str, int]:
         evolve += 30  # moderate friction, hasn't evolved recently
     if se >= 20:
         evolve += 20  # overdue regardless of friction count
+    if pf >= 1:
+        evolve += 40  # pending pentest findings targeting .recursive/ -- security urgency
 
     # AUDIT -- framework quality review
     saud = signals.get("sessions_since_audit", 0)
@@ -161,12 +165,12 @@ def compute_scores(signals: dict[str, Any]) -> dict[str, int]:
         strategize = min(strategize, 5)
     if sc < 3:
         security = min(security, 5)  # don't re-run too frequently
-    if se < 5:
-        evolve = min(evolve, 5)  # don't re-run too frequently
+    if se < 5 and pf == 0:
+        evolve = min(evolve, 5)  # don't re-run too frequently (unless pentest tasks pending)
     if saud < 10:
         audit = min(audit, 5)  # don't re-run too frequently
-    if fe == 0:
-        evolve = min(evolve, 5)  # no friction = nothing to evolve
+    if fe == 0 and pf == 0:
+        evolve = min(evolve, 5)  # no friction and no pentest tasks = nothing to evolve
 
     return {
         "build": build,
@@ -207,7 +211,7 @@ def _score_note(role: str, signals: dict[str, Any]) -> str:
         "strategize": f"since_strategy={signals.get('sessions_since_strategy', 0)}, tracker_moved={signals['tracker_moved']}",
         "achieve": f"autonomy={signals['autonomy_score']}, needs_human={signals['needs_human_issues']}",
         "security-check": f"since_security={signals.get('sessions_since_security', 0)}, consec_builds={signals['consecutive_builds']}",
-        "evolve": f"friction={signals.get('friction_entries', 0)}, since_evolve={signals.get('sessions_since_evolve', 0)}",
+        "evolve": f"friction={signals.get('friction_entries', 0)}, pentest_framework={signals.get('pentest_framework_tasks', 0)}, since_evolve={signals.get('sessions_since_evolve', 0)}",
         "audit": f"since_audit={signals.get('sessions_since_audit', 0)}",
     }
     return notes.get(role, "")
@@ -246,6 +250,7 @@ def main() -> None:
     tracker_moved = did_tracker_move(index_rows)
 
     recent_security = count_recent_security_sessions(index_rows, tasks_dir)
+    pentest_framework = count_pending_pentest_framework_tasks(tasks_dir)
 
     signals = {
         "eval_score": eval_score if eval_score is not None else DEFAULTS["eval_score"],
@@ -260,6 +265,7 @@ def main() -> None:
         "sessions_since_evolve": count_sessions_since_role(index_rows, "evolve"),
         "sessions_since_audit": count_sessions_since_role(index_rows, "audit"),
         "friction_entries": count_friction_entries(repo / ".recursive" / "friction" / "log.md"),
+        "pentest_framework_tasks": pentest_framework,
         "pending_tasks": pending,
         "stale_tasks": stale,
         "healer_status": healer_status,
@@ -337,6 +343,7 @@ def main() -> None:
             "sessions_since_evolve": signals["sessions_since_evolve"],
             "sessions_since_audit": signals["sessions_since_audit"],
             "friction_entries": signals["friction_entries"],
+            "pentest_framework_tasks": signals["pentest_framework_tasks"],
             "pending_tasks": signals["pending_tasks"],
             "stale_tasks": signals["stale_tasks"],
             "urgent_tasks": signals["urgent_tasks"],

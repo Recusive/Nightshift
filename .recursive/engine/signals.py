@@ -214,6 +214,28 @@ def count_stale_tasks(tasks_dir: Path, threshold: int = 20) -> int:
     return count
 
 
+def count_pending_pentest_framework_tasks(tasks_dir: Path) -> int:
+    """Count pending tasks with source: pentest and target: recursive.
+
+    These tasks represent confirmed security findings that target framework
+    code (.recursive/).  They are a security urgency signal, not a friction
+    signal, and should activate the evolve agent regardless of friction count.
+    """
+    count = 0
+    for f in tasks_dir.glob("[0-9]*.md"):
+        fm = _read_frontmatter(f)
+        if not fm:
+            continue
+        if not re.search(r"^status:\s*pending", fm, re.MULTILINE):
+            continue
+        if "source: pentest" not in fm:
+            continue
+        if "target: recursive" not in fm:
+            continue
+        count += 1
+    return count
+
+
 def count_recent_pentest_tasks(tasks_dir: Path, days: int = 3) -> int:
     """Count archived tasks with source: pentest completed in the last N days.
 
