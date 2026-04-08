@@ -129,7 +129,7 @@ After a sub-agent creates a PR:
    - Docs-only changes: `docs-reviewer` only
 4. Collect PASS/FAIL from each reviewer
 5. If ALL reviewers PASS: merge the PR with `gh pr merge <number> --merge --delete-branch --admin`
-6. If ANY reviewer FAILs: do NOT merge. Dispatch a build agent to fix the issues and re-review. After 2 fix-review cycles on the same PR, stop: mark the task `status: blocked`, note the failure in the handoff, and move on.
+6. If ANY reviewer FAILs: do NOT merge. Dispatch the appropriate agent (build for project, evolve for framework) to fix the issues, then re-launch the SAME reviewers on the updated PR. Do NOT self-review -- always re-dispatch sub-agents. After 2 fix-review cycles on the same PR, stop: mark the task `status: blocked`, note the failure in the handoff, and move on.
 7. If reviewers report ADVISORY NOTES: merge the PR, then create follow-up tasks for each advisory note.
 
 ## Sub-Agent Output Handling
