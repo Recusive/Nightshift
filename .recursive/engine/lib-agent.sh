@@ -845,6 +845,7 @@ for issue in issues:
     created_files.append((task_num, issue['number'], title))
 
 for task_num, issue_num, title in created_files:
+    title = title.replace('\n', ' ').replace('\r', ' ').replace(':', '-')
     print(f'{task_num}:{issue_num}:{title}')
 " 2>/dev/null) || return 0
 
