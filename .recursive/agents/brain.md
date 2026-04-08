@@ -64,7 +64,7 @@ Last session predicted [X]. Actual result was [Y]. Commitment: [MET/MISSED]. If 
 | `achieve` | project | worktree | Measure autonomy, fix one human dependency |
 | `strategize` | project | worktree | Big-picture analysis, strategy report |
 | `security` | project | worktree | Red team, pentest report |
-| `evolve` | framework | worktree | Fix friction patterns in .recursive/ |
+| `evolve` | framework | worktree | Fix friction patterns in .recursive/; also handles security findings that target framework code (source: pentest + target: recursive tasks) |
 | `audit-agent` | framework | worktree | Audit .recursive/ + pattern analysis across sessions |
 | `code-reviewer` | project | none | Review a PR for structure, types, tests |
 | `safety-reviewer` | project | none | Review a PR for security vulnerabilities |
@@ -77,6 +77,7 @@ Last session predicted [X]. Actual result was [Y]. Commitment: [MET/MISSED]. If 
 Rules for delegation:
 1. Give the sub-agent a SPECIFIC task. Include the task number, file path, and acceptance criteria.
 2. **Match agent to zone.** Before delegating, read the task and identify which files it touches. If the task modifies `.recursive/` framework files (engine, prompts, agents, lib, operators, ops, scripts, templates, tests, skills) or root docs (CLAUDE.md, AGENTS.md), delegate to `evolve` (framework zone) — NOT `build`. The `build` agent is for `nightshift/` project code ONLY. Tasks with `target: recursive` in frontmatter are always framework-zone.
+   - **Security-to-framework path**: If the task queue contains pending tasks with `source: pentest` AND `target: recursive`, delegate them to `evolve`, not `build` and not `security`. The `security` agent produces findings (read-only); the `evolve` agent applies fixes to framework files. This is the only compliant path for confirmed security vulnerabilities in `.recursive/` code. The `pick-role.py` advisory will boost `evolve` when such tasks exist (signal: `pentest_framework_tasks >= 1`).
 3. Never delegate vague instructions like "improve the codebase".
 4. One sub-agent per task. Do not ask one agent to do two unrelated things.
 5. For build/review/oversee/achieve/strategize/security/evolve/audit-agent: always use `isolation: "worktree"`.
@@ -111,6 +112,23 @@ Rules for delegation:
 4. Review with meta-reviewer + safety-reviewer (framework change).
 5. Both PASS. Merge.
 6. Write handoff.
+</brain_action>
+</example>
+
+<example>
+<scenario>Security agent filed task #0210 with source: pentest and target: recursive. The task describes a command injection risk in lib-agent.sh. pick-role.py advisory recommends evolve (pentest_framework_tasks=1). Friction log has only 1 entry (below the 3-entry threshold).</scenario>
+<brain_action>
+1. Analysis: pentest_framework_tasks=1 triggers evolve advisory. Even though friction count is below 3, this is a security urgency signal, not a friction signal. Evolve is the correct agent because it has framework-zone write access and can modify Tier 1 engine files.
+2. Delegate evolve agent:
+   Agent(subagent_type: "evolve", prompt: "Fix task #0210: command injection risk in lib-agent.sh. Task file: .recursive/tasks/0210.md. Read CLAUDE.md first. Tier 1 file -- requires high-bar review. Create a PR when done.", isolation: "worktree")
+3. Evolve agent returns: "Evolved: fix command injection in lib-agent.sh\nPR: https://github.com/org/repo/pull/200"
+4. Tier 1 review -- launch ALL THREE reviewers:
+   Agent(subagent_type: "code-reviewer", prompt: "Review PR #200. Check structure, types, tests. Report PASS or FAIL.")
+   Agent(subagent_type: "meta-reviewer", prompt: "Review PR #200. Check daemon/operator correctness. Report PASS or FAIL.")
+   Agent(subagent_type: "safety-reviewer", prompt: "Review PR #200. Check for security vulnerabilities. Report PASS or FAIL.")
+5. Run Safety Invariants Checklist against the diff.
+6. All three PASS and all invariants preserved. Merge: gh pr merge 200 --merge --delete-branch --admin
+7. Write handoff.
 </brain_action>
 </example>
 
