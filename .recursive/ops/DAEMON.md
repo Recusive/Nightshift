@@ -1,40 +1,43 @@
 # Daemon Operations Guide
 
 This is the operator reference for the current Nightshift control plane.
-Nightshift now runs through one unified daemon, `.recursive/engine/daemon.sh`, and that
-daemon chooses a role each cycle with `.recursive/engine/pick-role.py`.
+Nightshift runs as a v2 brain-delegates-to-sub-agents architecture.
+`.recursive/engine/daemon.sh` runs a brain agent (Opus) each cycle that reads
+the dashboard, thinks, and delegates to sub-agents (Sonnet) in git worktrees.
 
 ---
 
-## Unified Architecture
+## v2 Architecture
 
 One loop owns the repo and the lockfile. Each cycle it:
 
 1. Resets to `origin/main`
 2. Runs housekeeping
-3. Runs the pentest preflight
-4. Resets again
-5. Picks the session role
-6. Loads the matching prompt
-7. Runs the agent
+3. Gets advisory recommendation from `pick-role.py --advise`
+4. Generates a system dashboard from `dashboard.py`
+5. Runs the brain agent (Opus) with dashboard + advisory as context
+6. Brain reads context, thinks (4 checkpoints), delegates to sub-agents
+7. Sub-agents create PRs; brain reviews and merges them
 8. Records logs, cost, and session index data
-9. Optionally runs evaluation
-10. Sleeps or trips the retry/circuit-breaker path
+9. Trips circuit breaker or sleeps for next cycle
 
-Role selection lives in [.recursive/engine/pick-role.py](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/engine/pick-role.py). The scoring rules are documented in [.recursive/ops/ROLE-SCORING.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/ops/ROLE-SCORING.md).
+Role selection is advisory for the brain. The brain may override the recommendation.
+Advisory scoring lives in `.recursive/engine/pick-role.py --advise`.
 
 ## Roles
 
-| Role | Prompt | Purpose |
-|------|--------|---------|
-| `build` | `.recursive/operators/build/SKILL.md` | Pick a task, implement, test, review, merge |
-| `review` | `.recursive/operators/review/SKILL.md` | Review code quality and patch defects |
-| `oversee` | `.recursive/operators/oversee/SKILL.md` | Audit queue/process drift and fix systemic issues |
-| `strategize` | `.recursive/operators/strategize/SKILL.md` | Big-picture planning and report writing |
-| `achieve` | `.recursive/operators/achieve/SKILL.md` | Raise autonomy and remove human dependencies |
+| Role | Prompt | Purpose | Zone |
+|------|--------|---------|------|
+| `build` | `.recursive/agents/build.md` | Pick a task, implement, test, PR | project |
+| `review` | `.recursive/agents/review.md` | Deep code review, fix quality issues, PR | project |
+| `oversee` | `.recursive/agents/oversee.md` | Audit queue/process drift and fix systemic issues | project |
+| `strategize` | `.recursive/agents/strategize.md` | Big-picture planning and report writing | project |
+| `achieve` | `.recursive/agents/achieve.md` | Raise autonomy and remove human dependencies | project |
+| `security` | `.recursive/agents/security.md` | Red team / pentest, produce findings report | project |
+| `evolve` | `.recursive/agents/evolve.md` | Fix friction patterns in .recursive/ | framework |
+| `audit-agent` | `.recursive/agents/audit-agent.md` | Review .recursive/ for contradictions and staleness | framework |
 
-`.recursive/prompts/autonomous.md` is prepended to every unified-daemon session
-before the role prompt.
+The brain reads `.recursive/agents/brain.md` for its full instructions.
 
 ---
 
@@ -58,8 +61,8 @@ Arguments are:
 ### tmux
 
 ```bash
-tmux new-session -d -s nightshift "bash .recursive/engine/daemon.sh claude 60"
-tmux capture-pane -t nightshift -p -S -20
+tmux new-session -d -s recursive "caffeinate -s bash .recursive/engine/daemon.sh claude 60"
+tmux capture-pane -t recursive -p -S -20
 ```
 
 This is the recommended production path.
@@ -75,20 +78,20 @@ RECURSIVE_FORCE_ROLE=review bash .recursive/engine/daemon.sh codex 60
 RECURSIVE_FORCE_ROLE=oversee bash .recursive/engine/daemon.sh claude 120 1
 RECURSIVE_FORCE_ROLE=strategize bash .recursive/engine/daemon.sh claude 0 1
 RECURSIVE_FORCE_ROLE=achieve bash .recursive/engine/daemon.sh claude 0 1
+RECURSIVE_FORCE_ROLE=security-check bash .recursive/engine/daemon.sh claude 0 1
+RECURSIVE_FORCE_ROLE=evolve bash .recursive/engine/daemon.sh claude 0 1
+RECURSIVE_FORCE_ROLE=audit bash .recursive/engine/daemon.sh claude 0 1
 ```
 
-Valid values are `build`, `review`, `oversee`, `strategize`, and `achieve`.
+Valid values are `build`, `review`, `oversee`, `strategize`, `achieve`, `security-check`, `evolve`, and `audit`.
 
 ### Optional Environment Variables
 
 | Variable | Meaning |
 |----------|---------|
 | `RECURSIVE_FORCE_ROLE` | Skip scoring and force one role |
-| `RECURSIVE_BUDGET` | Stop after cumulative spend reaches this USD amount |
-| `RECURSIVE_PENTEST_AGENT` | Use a different agent for the pentest preflight |
-| `RECURSIVE_PENTEST_MAX_TURNS` | Override the pentest turn budget (default `120`) |
-| `RECURSIVE_KEEP_LOGS` | Number of session logs to retain live |
-| `RECURSIVE_KEEP_HEALER_ENTRIES` | Healer-log retention limit |
+| `RECURSIVE_BUDGET_USD` | Stop after cumulative spend reaches this USD amount (default: 50) |
+| `RECURSIVE_CLAUDE_MODEL` | Brain model override (default: claude-opus-4-6) |
 
 ---
 
@@ -148,48 +151,41 @@ Housekeeping then runs:
 - archive done task files
 - sync GitHub issues labeled `task` into `.recursive/tasks/`
 
-### 2. Open PR recovery
+### 2. Open PR detection
 
-If a previous session left an open PR, the daemon injects a recovery instruction
-into both the pentest prompt and the main role prompt. The session is expected
-to finish or repair that PR instead of silently rebuilding the work.
+The daemon queries for open PRs from previous sessions and injects the list
+into the brain context as `<open_prs>`. The brain processes these before
+starting new work.
 
-### 3. Pentest preflight
+### 3. Advisory and dashboard
 
-The daemon always runs `.recursive/operators/security-check/SKILL.md` first. Its result is inserted as
-a `<pentest_data>` block into the main session prompt. The daemon treats that
-block as data, not instructions, and resets the repo again after the preflight.
+The daemon calls `pick-role.py --advise` to get a JSON advisory recommendation.
+It calls `dashboard.py` to generate a system-state dashboard. Both are injected
+into the brain prompt as `<advisory_recommendation>` and `<dashboard>`.
 
-### 4. Prompt construction
+### 4. Prompt guard snapshot
 
-The unified prompt stack for the main session is:
+Before running the brain, the daemon snapshots all prompt/control files with
+`save_prompt_snapshots`. After the session, `check_prompt_integrity` and
+`check_origin_integrity` verify that no files were tampered with.
 
-1. optional prompt-integrity alert from the previous cycle
-2. optional open-PR recovery instruction
-3. the current `<pentest_data>` block
-4. `.recursive/prompts/autonomous.md`
-5. one role prompt chosen by `pick-role.py`
+### 5. Brain run
 
-### 5. Agent run
-
-The agent runs with stream-json logging into `.recursive/sessions/YYYYMMDD-HHMMSS.log`.
+The brain agent (Opus) runs with stream-json logging into `.recursive/sessions/raw/YYYYMMDD-HHMMSS.log`.
+The brain reads the context, thinks through 4 checkpoints, and delegates to sub-agents.
 When the run ends, the daemon records:
 
 - exit code
 - duration
 - session cost
-- detected role
-- best-effort feature summary
-- best-effort PR URL
 
-Those fields are appended to `.recursive/sessions/index.md`.
+Those fields are appended to `.recursive/sessions/index.md` via a selective
+`git add` of runtime state directories.
 
-### 6. Evaluation and wait path
+### 6. Circuit breaker
 
-If the cycle succeeded and the evaluation cadence says "run now", the daemon
-launches evaluation after the session. Otherwise it sleeps for the configured
-pause. Failed sessions increment the consecutive-failure counter and eventually
-trip the circuit breaker.
+Failed sessions increment the consecutive-failure counter. After 3 consecutive
+failures the daemon stops. Auth failures are not counted toward the circuit breaker.
 
 ---
 
@@ -222,14 +218,14 @@ daemon writes `.recursive/sessions/index.md`.
 ### Check whether the daemon is alive
 
 ```bash
-tmux has-session -t nightshift 2>&1 && echo alive || echo dead
-tmux capture-pane -t nightshift -p -S -20
+tmux has-session -t recursive 2>&1 && echo alive || echo dead
+tmux capture-pane -t recursive -p -S -20
 ```
 
 ### Inspect the latest unified session log
 
 ```bash
-LATEST_LOG=$(find .recursive/sessions -maxdepth 1 -name '*.log' ! -name '*-pentest.log' | sort | tail -1)
+LATEST_LOG=$(find .recursive/sessions/raw -maxdepth 1 -name '*.log' | sort | tail -1)
 ```
 
 Then inspect it directly or with a small parser. Stream-json logs contain
@@ -353,7 +349,7 @@ legitimate intervening commits.
 **Step 1 — Kill the daemon session immediately.**
 
 ```bash
-tmux kill-session -t nightshift
+tmux kill-session -t recursive
 ```
 
 Do NOT wait, do NOT let the daemon restart.  Each auto-restart calls
@@ -389,7 +385,7 @@ git log --no-merges --first-parent --oneline origin/main -10
 **Step 4 — Restart the daemon.**
 
 ```bash
-tmux new-session -d -s nightshift "caffeinate -s bash .recursive/engine/daemon.sh codex 60"
+tmux new-session -d -s recursive "caffeinate -s bash .recursive/engine/daemon.sh claude 60"
 ```
 
 ### TOCTOU window
@@ -408,16 +404,14 @@ iteration.  This is why Step 1 (kill the session) must happen before Step 2
 
 | File | What it owns |
 |------|---------------|
-| [.recursive/engine/daemon.sh](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/engine/daemon.sh) | Unified loop, housekeeping, pentest, session logging |
-| [.recursive/engine/pick-role.py](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/engine/pick-role.py) | Role scoring and selection |
-| [.recursive/engine/lib-agent.sh](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/engine/lib-agent.sh) | Shared shell helpers used by daemon entrypoints |
-| [.recursive/ops/ROLE-SCORING.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/ops/ROLE-SCORING.md) | Human-readable scoring reference |
-| [.recursive/prompts/autonomous.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/prompts/autonomous.md) | Global autonomous-mode constraints |
-| [.recursive/operators/build/SKILL.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/operators/build/SKILL.md) | BUILD role prompt |
-| [.recursive/operators/review/SKILL.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/operators/review/SKILL.md) | REVIEW role prompt |
-| [.recursive/operators/oversee/SKILL.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/operators/oversee/SKILL.md) | OVERSEE role prompt |
-| [.recursive/operators/strategize/SKILL.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/operators/strategize/SKILL.md) | STRATEGIZE role prompt |
-| [.recursive/operators/achieve/SKILL.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/operators/achieve/SKILL.md) | ACHIEVE role prompt |
+| `.recursive/engine/daemon.sh` | v2 brain loop, housekeeping, advisory, session logging |
+| `.recursive/engine/pick-role.py` | Role scoring and advisory recommendation |
+| `.recursive/engine/dashboard.py` | System dashboard aggregator for brain context |
+| `.recursive/engine/signals.py` | Signal readers (eval, tasks, sessions, healer) |
+| `.recursive/engine/lib-agent.sh` | Shared shell helpers (prompt guard, housekeeping, worktrees) |
+| `.recursive/agents/brain.md` | Brain agent definition (Opus orchestrator) |
+| `.recursive/ops/ROLE-SCORING.md` | Human-readable scoring reference (advisory only in v2) |
+| `.recursive/prompts/autonomous.md` | Global autonomous-mode constraints (v1 operators) |
 
 ---
 

@@ -12,7 +12,7 @@ Your world has three zones:
    project, not just the current target. When you do, tag the task
    `target: recursive` and explain why the change is general.
 
-2. `.recursive/` — YOUR WORKING MEMORY for the current project. Handoffs,
+2. `.recursive/` runtime state — YOUR WORKING MEMORY for the current project. Handoffs,
    tasks, sessions, learnings, evaluations, vision, changelog, etc. This is
    where you track everything. A different project gets a fresh `.recursive/`.
 

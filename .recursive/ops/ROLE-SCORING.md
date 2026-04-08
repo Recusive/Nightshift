@@ -2,7 +2,7 @@
 
 This document describes how `.recursive/engine/pick-role.py` decides which role the daemon runs each cycle. It is reference documentation, not an active prompt. The scoring engine in `pick-role.py` implements these rules in Python.
 
-The daemon has five roles: BUILD, REVIEW, OVERSEE, STRATEGIZE, ACHIEVE. Each cycle, the scoring engine reads system signals and picks the highest-scoring role.
+In v2, `pick-role.py` outputs an advisory recommendation for the brain agent. The brain may follow or override it. The eight roles are: BUILD, REVIEW, OVERSEE, STRATEGIZE, ACHIEVE, SECURITY-CHECK, EVOLVE, AUDIT. Each cycle, the scoring engine reads system signals and produces a scored advisory ranking.
 
 <context>
 Nightshift is an autonomous engineering system. The repo contains:
@@ -136,7 +136,7 @@ To compute `needs_human_issues`: run `gh issue list --label needs-human --state 
 - ACHIEVE max once per 5 sessions (autonomy work is high-value but infrequent)
 - Urgent tasks always force BUILD regardless of scores
 - eval_score < 80 gates BUILD to eval-related tasks only, but does NOT block REVIEW/OVERSEE/STRATEGIZE/ACHIEVE
-- Override: if `RECURSIVE_FORCE_ROLE` env var is set, skip scoring and use that role (valid values: `build`, `review`, `oversee`, `strategize`, `achieve`)
+- Override: if `RECURSIVE_FORCE_ROLE` env var is set, skip scoring and use that role (valid values: `build`, `review`, `oversee`, `strategize`, `achieve`, `security-check`, `evolve`, `audit`)
 
 </scoring_rules>
 
