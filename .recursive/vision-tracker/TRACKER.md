@@ -86,7 +86,7 @@ Healer observation history is now bounded by daemon housekeeping, so reading rec
 | CLAUDE.md (agent context) | Done | ████████████████████ 100% |
 | CI pipeline (.github/workflows) | Done | ████████████████████ 100% |
 | Local CI (nightshift/scripts/check.sh) | Done | ████████████████████ 100% |
-| Feedback loop (Recursive/operators/feedback/) | In progress | ██████████████████░░ 90% |
+| Feedback loop (.recursive/operators/feedback/) | In progress | ██████████████████░░ 90% |
 | Auto-release (version bump + gh release) | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-changelog update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |
 | Auto-tracker update | Not started | ░░░░░░░░░░░░░░░░░░░░ 0% |

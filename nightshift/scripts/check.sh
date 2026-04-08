@@ -4,16 +4,17 @@
 set -euo pipefail
 
 echo "=== ruff check ==="
-python3 -m ruff check nightshift/ Recursive/tests/
+python3 -m ruff check nightshift/ .recursive/tests/ .recursive/engine/ .recursive/lib/
 
 echo "=== ruff format check ==="
-python3 -m ruff format --check nightshift/ Recursive/tests/
+python3 -m ruff format --check nightshift/ .recursive/tests/ .recursive/engine/ .recursive/lib/
 
 echo "=== mypy ==="
 python3 -m mypy nightshift/
+python3 -m mypy .recursive/engine/ .recursive/lib/
 
 echo "=== pytest ==="
-python3 -m pytest nightshift/tests/ Recursive/tests/ -v --tb=short
+python3 -m pytest nightshift/tests/ .recursive/tests/ -v --tb=short
 
 echo "=== dry-run (codex) ==="
 python3 -m nightshift run --dry-run --agent codex > /dev/null
@@ -26,7 +27,7 @@ python3 -c "import json, pathlib; json.loads(pathlib.Path('nightshift/schemas/ni
 python3 -c "import json, pathlib; json.loads(pathlib.Path('.nightshift.json.example').read_text())"
 
 echo "=== shell syntax ==="
-for script in nightshift/scripts/*.sh Recursive/engine/*.sh; do
+for script in nightshift/scripts/*.sh .recursive/engine/*.sh .recursive/scripts/*.sh; do
     [ -f "$script" ] && bash -n "$script"
 done
 
@@ -35,7 +36,8 @@ python3 -c "
 import re, sys
 from pathlib import Path
 non_ascii = re.compile(r'[^\x00-\x7E]')
-files = list(Path('nightshift').rglob('*.py')) + list(Path('Recursive/tests').rglob('*.py'))
+files = list(Path('nightshift').rglob('*.py')) + list(Path('.recursive/tests').rglob('*.py'))
+files += list(Path('.recursive/engine').glob('*.py')) + list(Path('.recursive/lib').glob('*.py'))
 files += sorted(Path('nightshift/scripts').glob('*.sh'))
 files += [Path('pyproject.toml')]
 found = []
@@ -56,7 +58,7 @@ python3 -c "
 import re, sys
 from pathlib import Path
 content = Path('nightshift/scripts/install.sh').read_text()
-files = re.findall(r'^  \"((?:nightshift/|Recursive/)?[A-Za-z_.][^\"]*\.(?:py|sh|md|json|example))\"', content, re.MULTILINE)
+files = re.findall(r'^  \"((?:nightshift/|.recursive/)?[A-Za-z_.][^\"]*\.(?:py|sh|md|json|example))\"', content, re.MULTILINE)
 missing = [f for f in files if not Path(f).exists()]
 if missing:
     print('Missing files referenced in install.sh:', missing)

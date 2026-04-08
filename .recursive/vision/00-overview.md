@@ -142,7 +142,7 @@ A single prompt that you (an AI agent) receive at the start of a session in this
 
 1. Read the vision docs (you're reading one now)
 2. Read the current state of the codebase (what's built, what's not)
-3. Read any feedback from previous runs (in `Recursive/operators/feedback/`)
+3. Read any feedback from previous runs (in `.recursive/operators/feedback/`)
 4. Figure out the highest-impact next feature to build toward the vision
 5. Propose it to the human, get confirmation
 6. Build it, test it, push it
@@ -172,7 +172,7 @@ Each session builds on the last. The prompt doesn't change — the codebase does
 
 - **Vision docs are the north star**: The agent always knows where it's going
 - **Code is the source of truth**: The agent reads what exists, not what was planned
-- **Feedback loop is explicit**: After testing, the human writes what worked and what didn't into `Recursive/operators/feedback/`. The agent reads this next session.
+- **Feedback loop is explicit**: After testing, the human writes what worked and what didn't into `.recursive/operators/feedback/`. The agent reads this next session.
 - **Priority is emergent**: The agent picks what to build based on impact toward the vision, not a hardcoded roadmap. If the human says "the diff scorer was useless, rip it out" — the agent adjusts.
 
 ---

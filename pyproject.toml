@@ -7,7 +7,30 @@ dependencies = []
 strict = true
 warn_unreachable = true
 python_version = "3.9"
-exclude = ["nightshift/tests/", "Recursive/"]
+exclude = ["nightshift/tests/", ".recursive/tests/", ".recursive/operators/", ".recursive/ops/", ".recursive/prompts/", ".recursive/skills/", ".recursive/scripts/", ".recursive/templates/"]
+
+[[tool.mypy.overrides]]
+module = ["format-stream", "format-stream.*"]
+disallow_untyped_defs = false
+disallow_any_generics = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = [
+    "signals",
+    "signals.*",
+    "config",
+    "config.*",
+    "costs",
+    "costs.*",
+    "cleanup",
+    "cleanup.*",
+    "compact",
+    "compact.*",
+    "evaluation",
+    "evaluation.*",
+]
+ignore_missing_imports = true
 
 [tool.ruff]
 target-version = "py39"
@@ -21,12 +44,20 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "nightshift/tests/*" = ["S101", "S108", "C408", "S603", "S607"]
-"Recursive/tests/*" = ["S101", "S108", "C408", "S603", "S607"]
+".recursive/tests/*" = ["S101", "S108", "C408", "S603", "S607"]
 "nightshift/core/constants.py" = ["T201", "S108"]
 "nightshift/cli.py" = ["T201"]
 "nightshift/core/shell.py" = ["S603", "S607"]
 "nightshift/owl/cycle.py" = ["S603", "S607"]
 "nightshift/infra/worktree.py" = ["S603", "S607"]
+# Framework files: pre-existing patterns, not nightshift product code
+".recursive/engine/format-stream.py" = ["S108", "SIM105", "SIM110", "BLE001", "T201"]
+".recursive/engine/pick-role.py" = ["S603", "S607", "T201"]
+".recursive/engine/signals.py" = ["S603", "S607"]
+".recursive/engine/dashboard.py" = ["T201"]
+".recursive/lib/cleanup.py" = ["S603", "S607", "T201", "BLE001"]
+".recursive/lib/costs.py" = []
+".recursive/lib/evaluation.py" = ["S108", "S603", "S607", "BLE001"]
 
 [tool.pytest.ini_options]
-testpaths = ["nightshift/tests", "Recursive/tests"]
+testpaths = ["nightshift/tests", ".recursive/tests"]

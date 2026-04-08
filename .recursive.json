@@ -7,7 +7,7 @@
   "commands": {
     "check": "make check",
     "test": "make test",
-    "verify": "python3 -m pytest nightshift/tests/ Recursive/tests/ -v"
+    "verify": "python3 -m pytest nightshift/tests/ .recursive/tests/ -v"
   },
   "agents": {
     "default": "claude",

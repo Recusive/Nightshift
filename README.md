@@ -37,9 +37,9 @@ Nightshift (`nightshift/`) is a Python package with two autonomous engineering l
 
 ### Recursive -- the framework
 
-Recursive (`Recursive/`) is a portable autonomous orchestration framework. It provides the daemon loop, signal-driven role selection, operator prompts, agent lifecycle management, sub-agent review pipeline, and session memory. Recursive is designed to work on **any** codebase -- Nightshift is just the first project it operates on.
+Recursive (`.recursive/`) is a portable autonomous orchestration framework. It provides the daemon loop, signal-driven role selection, operator prompts, agent lifecycle management, sub-agent review pipeline, and session memory. Recursive is designed to work on **any** codebase -- Nightshift is just the first project it operates on.
 
-Recursive drives six operators each cycle via `Recursive/engine/pick-role.py`:
+Recursive drives six operators each cycle via `.recursive/engine/pick-role.py`:
 
 - **Builder**: reads the task queue, builds or fixes one scoped task, tests it, opens a PR, reviews it via sub-agents, and merges it
 - **Reviewer**: picks one file, deep-reviews it against a checklist, fixes every issue found, and logs the review
@@ -78,7 +78,7 @@ Recursive orchestrates. Nightshift does the engineering work. `.recursive/` is t
 
 ## This repo maintains itself
 
-Most of the code in this repository was written, tested, reviewed, and merged by AI agents. The Recursive daemon (`Recursive/engine/daemon.sh`) auto-selects an operator each cycle, and Nightshift's Owl and Raven loops do the actual engineering.
+Most of the code in this repository was written, tested, reviewed, and merged by AI agents. The Recursive daemon (`.recursive/engine/daemon.sh`) auto-selects an operator each cycle, and Nightshift's Owl and Raven loops do the actual engineering.
 
 The human role is operational: start the daemon and monitor it. The agents own the engineering loop -- including deciding what to work on.
 
@@ -105,9 +105,9 @@ numbers change.
 | Raven (Loop 2 feature builder) | 100% | `.recursive/vision-tracker/TRACKER.md` |
 | Self-maintaining repo | 68% | `.recursive/vision-tracker/TRACKER.md` |
 | Meta-prompt system | 79% | `.recursive/vision-tracker/TRACKER.md` |
-| Tests | 847 passing | `python3 -m pytest nightshift/tests/ Recursive/tests/ -q` |
+| Tests | 847 passing | `python3 -m pytest nightshift/tests/ .recursive/tests/ -q` |
 | Nightshift modules | 23 | `.recursive/architecture/MODULE_MAP.md` |
-| Recursive modules | 7 | `Recursive/lib/` + `Recursive/engine/` |
+| Recursive modules | 7 | `.recursive/lib/` + `.recursive/engine/` |
 | Merged PRs | 155+ | `gh pr list --state merged --json number` |
 | Daemon sessions | 100+ | `.recursive/sessions/index.md` |
 | Documented learnings | 90+ | `.recursive/learnings/INDEX.md` |
@@ -200,8 +200,8 @@ make clean        # remove runtime artifacts
 Daemon examples:
 
 ```bash
-tmux new-session -d -s nightshift "bash Recursive/engine/daemon.sh claude 60"
-RECURSIVE_PENTEST_AGENT=codex tmux new-session -d -s nightshift "bash Recursive/engine/daemon.sh claude 60"
+tmux new-session -d -s nightshift "bash .recursive/engine/daemon.sh claude 60"
+RECURSIVE_PENTEST_AGENT=codex tmux new-session -d -s nightshift "bash .recursive/engine/daemon.sh claude 60"
 tmux capture-pane -t nightshift -p -S -15
 ```
 
@@ -268,7 +268,7 @@ roles. The highest score wins, with tie-break favoring build. Key signals:
 Security-check runs as a preflight before every build -- it is not scored.
 
 Override with `RECURSIVE_FORCE_ROLE=review` to bypass scoring.
-Full scoring math: `Recursive/ops/ROLE-SCORING.md`.
+Full scoring math: `.recursive/ops/ROLE-SCORING.md`.
 
 ## How it keeps context between sessions
 
@@ -409,14 +409,14 @@ nightshift/
     └── test_module_map.py
 ```
 
-### Recursive -- `Recursive/`
+### Recursive -- `.recursive/`
 
 A portable autonomous orchestration framework. Drives the daemon, role
 selection, operator prompts, agent lifecycle, sub-agent reviews, and session
 memory. Zero dependencies on `nightshift/` -- designed to work on any codebase.
 
 ```text
-Recursive/
+.recursive/
 ├── engine/                   # Daemon runtime
 │   ├── daemon.sh             # Main daemon loop (hot-reloads each cycle)
 │   ├── lib-agent.sh          # Agent lifecycle, prompt guard, session utils

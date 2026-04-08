@@ -8,7 +8,7 @@ This guide is written for autonomous agents contributing to this repo. The resid
 
 1. Read `CLAUDE.md` -- it has the full project conventions, code quality rules, and dependency flow. Do not duplicate work already specified there.
 2. This repo uses Python 3.9+, strict mypy, ruff linting, and ASCII-only source files. These are non-negotiable.
-3. The CI pipeline (`make check`) must pass. It runs ruff, mypy, and pytest against `nightshift/` (including `nightshift/tests/`) and `Recursive/tests/`.
+3. The CI pipeline (`make check`) must pass. It runs ruff, mypy, and pytest against `nightshift/` (including `nightshift/tests/`) and `.recursive/tests/`.
 
 ## Repo Structure
 
@@ -27,7 +27,7 @@ nightshift/          # Product: the autonomous engineering tool
   cli.py             # CLI entry point
   SKILL.md           # Skill registration (YAML frontmatter)
 
-Recursive/           # Framework: the autonomous dev engine
+.recursive/           # Framework: the autonomous dev engine
   agents/            # Review agent definitions (code-reviewer, safety-reviewer, etc.)
   engine/            # Daemon runtime (daemon.sh, lib-agent.sh, pick-role.py, watchdog.sh)
   operators/         # Role prompts (build/, review/, oversee/, strategize/, achieve/)
@@ -54,7 +54,7 @@ Recursive/           # Framework: the autonomous dev engine
   architecture/      # MODULE_MAP.md and architecture docs
   vision/            # Project vision docs
 
-.claude/agents/      # Symlinks to Recursive/agents/ -- do not edit here
+.claude/agents/      # Symlinks to .recursive/agents/ -- do not edit here
 ```
 
 ## Branch and Commit Conventions
@@ -107,10 +107,10 @@ All of these must pass before the PR can merge. The review daemon checks each on
 
 | Gate | Command | What it checks |
 |------|---------|---------------|
-| Lint | `ruff check nightshift/ Recursive/` | Rules: E, W, F, I, UP, B, SIM, RUF, BLE, S, T20, PT, C4 |
-| Format | `ruff format --check nightshift/ Recursive/` | Consistent formatting |
+| Lint | `ruff check nightshift/ .recursive/` | Rules: E, W, F, I, UP, B, SIM, RUF, BLE, S, T20, PT, C4 |
+| Format | `ruff format --check nightshift/ .recursive/` | Consistent formatting |
 | Types | `mypy nightshift/` | Strict mode -- full annotations, no `cast()`, no `# type: ignore` |
-| Tests | `pytest nightshift/tests/ Recursive/tests/ -v` | All 847+ tests pass, Python 3.9 and 3.12 |
+| Tests | `pytest nightshift/tests/ .recursive/tests/ -v` | All 847+ tests pass, Python 3.9 and 3.12 |
 | ASCII | CI check | No emojis or non-ASCII in `.py`, `.sh`, `.toml` files |
 
 **Run `make check` locally before pushing.** It runs all of the above in one command.
@@ -145,7 +145,7 @@ These files are managed by the resident daemon's lifecycle. External PRs that mo
 - `.recursive/handoffs/` -- the daemon's session memory
 - `.recursive/tasks/` -- the daemon's work queue
 - `.recursive/vision-tracker/` -- the daemon updates TRACKER.md after each session
-- `Recursive/operators/` -- role prompts managed by the daemon
+- `.recursive/operators/` -- role prompts managed by the daemon
 - `.recursive/sessions/` -- session logs
 - `.recursive/healer/` -- system health observations
 
@@ -164,7 +164,7 @@ If your change requires updates to the vision tracker or task queue, note it in 
 
 1. You open a PR against `main`.
 2. The resident daemon's review sub-agent reads the diff via `gh pr diff`.
-3. It checks structure, registration, types, tests, safety, and docs. Review agent definitions live in `Recursive/agents/` (the files in `.claude/agents/` are symlinks).
+3. It checks structure, registration, types, tests, safety, and docs. Review agent definitions live in `.recursive/agents/` (the files in `.claude/agents/` are symlinks).
 4. It reports **PASS** or **FAIL** with specific `file:line` references.
 5. If PASS with advisory notes: the daemon creates follow-up tasks internally. You do not need to address advisory notes before merge.
 6. If FAIL: fix the flagged issues and push again.
@@ -177,7 +177,7 @@ When processing an external PR (a branch/PR not created by the daemon itself):
 
 1. **Do not expect a task ID.** External contributions are not in `.recursive/tasks/`. Process the PR on its own merits.
 2. **Do not expect a handoff.** The contributing agent has no access to the handoff system.
-3. **Review using `Recursive/agents/code-reviewer.md` rules.** The same quality gates apply.
+3. **Review using `.recursive/agents/code-reviewer.md` rules.** The same quality gates apply.
 4. **If the PR passes review**: merge it, then create a retroactive task (`status: done`) to keep the project history complete. Update the changelog, tracker, and handoff as part of the next session.
 5. **If the PR conflicts with in-progress work**: flag it for human review rather than auto-resolving. The human decides priority.
 6. **Unexpected branches are not hostile.** An unfamiliar branch following the naming convention (`feat/`, `fix/`, `docs/`) is likely an external contribution. Do not delete it.

@@ -3,8 +3,8 @@
 ## MANDATORY: Session Start
 
 1. **Read `.recursive/handoffs/LATEST.md`** -- What happened last session, what's broken, what to build next. This is your memory.
-2. **Read `Recursive/ops/OPERATIONS.md`** on your first session, or when the handoff tells you to. This is the complete map of every system, folder, and file.
-3. **If the human pastes the evolve prompt** -- Follow `Recursive/operators/build/SKILL.md` step by step.
+2. **Read `.recursive/ops/OPERATIONS.md`** on your first session, or when the handoff tells you to. This is the complete map of every system, folder, and file.
+3. **If the human pastes the evolve prompt** -- Follow `.recursive/operators/build/SKILL.md` step by step.
 4. **Read `.recursive/architecture/MODULE_MAP.md`** when the task touches `nightshift/*.py`. It is the fast orientation map for modules, dependencies, and recent shipped sessions.
 
 Do NOT start building until you have read the handoff.
@@ -23,40 +23,45 @@ make test        # run tests
 make check       # full CI locally
 make dry-run     # preview cycle prompt
 make tasks       # show pending/blocked/in-progress tasks
-bash Recursive/scripts/validate-tasks.sh   # validate numbered task frontmatter
+bash .recursive/scripts/validate-tasks.sh   # validate numbered task frontmatter
 make clean       # remove runtime artifacts
-make daemon      # unified daemon (auto-picks role: build/review/oversee/strategize)
+make daemon      # start the brain daemon (Opus orchestrates sub-agents each cycle)
 python3 -m nightshift module-map --write   # refresh .recursive/architecture/MODULE_MAP.md
 ```
 
 ## Recursive (Meta-Layer)
 
-The autonomous framework lives in `Recursive/`. It's a separate project from Nightshift -- a portable agentic layer that can run on any codebase.
+The autonomous framework lives in `.recursive/`. It's a separate project from Nightshift -- a portable agentic layer that can run on any codebase.
 
 ```
-Recursive/
-├── engine/       daemon.sh, pick-role.py, lib-agent.sh, watchdog.sh (orchestration)
-├── operators/    6 operators as Claude Code skills (build/review/oversee/strategize/achieve/security-check)
+.recursive/
+├── engine/       daemon.sh, pick-role.py, lib-agent.sh, signals.py, dashboard.py, watchdog.sh
+├── operators/    8 operators (build/review/oversee/strategize/achieve/security-check/evolve/audit)
 ├── lib/          costs, cleanup, compact, config, evaluation (standalone Python, zero nightshift deps)
-├── agents/       sub-agent definitions (code-reviewer, safety, docs, architecture, meta)
-├── prompts/      autonomous.md (universal rules), checkpoints.md (verification pipeline)
+├── agents/       14 sub-agent definitions (brain, build, review, oversee, achieve, strategize, security, evolve, audit-agent, + 5 reviewers)
+├── prompts/      autonomous.md (v1 rules), checkpoints.md (verification pipeline)
 ├── ops/          DAEMON.md, OPERATIONS.md, PRE-PUSH-CHECKLIST.md, ROLE-SCORING.md
 ├── scripts/      generic utilities (init, validate-tasks, list-tasks, rollback)
+├── skills/       per-repo setup wizard
 ├── templates/    project scaffolds (handoff, task, eval, session-index, config)
 └── tests/        test_pick_role.py
 ```
 
-Each cycle the engine picks an **operator** based on system signals:
+**v2 Architecture (brain-delegates-to-sub-agents):** A brain agent (Opus) reads a dashboard of system signals, thinks through 4 checkpoints, and delegates to sub-agents (Sonnet) in git worktrees. Sub-agents create PRs; the brain reviews and merges them. The advisory recommendation from `pick-role.py` is one input to the brain's decision, not the sole decider.
+
+Available roles (via sub-agents):
 - **build**: picks tasks, builds features, ships PRs. Default.
 - **review**: reviews code file by file. After 5+ consecutive builds.
 - **oversee**: audits task queue, culls noise. When 50+ pending tasks.
 - **strategize**: big picture analysis. Every 15+ sessions.
 - **achieve**: measures autonomy (0-100), eliminates human deps. When autonomy low.
 - **security-check**: red team preflight before each build.
+- **evolve**: fixes friction patterns in framework. When 3+ friction entries.
+- **audit**: reviews framework for contradictions and staleness. Every 25+ sessions.
 
 ```bash
 # Start the daemon (from project root)
-tmux new-session -d -s recursive "caffeinate -s bash Recursive/engine/daemon.sh claude 60"
+tmux new-session -d -s recursive "caffeinate -s bash .recursive/engine/daemon.sh claude 60"
 
 # Monitor
 tmux capture-pane -t recursive -p -S -15
@@ -91,11 +96,11 @@ git checkout -b "docs/$CHANGE_NAME"
 # ... make changes ...
 ```
 
-Full daemon operations guide with troubleshooting: `Recursive/ops/DAEMON.md`
+Full daemon operations guide with troubleshooting: `.recursive/ops/DAEMON.md`
 
 ## Runtime State (.recursive/)
 
-All runtime state lives in `.recursive/`. This directory is NOT the framework -- it's the output and memory of the system.
+`.recursive/` contains both the framework code (engine, operators, lib, agents, prompts) and runtime state (handoffs, tasks, sessions, learnings). Framework files are prompt-guarded; runtime state is auto-committed by the daemon.
 
 ```
 .recursive/
@@ -112,7 +117,11 @@ All runtime state lives in `.recursive/`. This directory is NOT the framework --
 ├── strategy/        Strategy reports
 ├── healer/          Health observations
 ├── reviews/         Code review logs
-└── plans/           Meta-layer planning
+├── plans/           Meta-layer planning
+├── friction/        Framework pain points (brain reads for evolve decisions)
+├── decisions/       Brain decision log (what was delegated and why)
+├── commitments/     Pre-commitment predictions and outcomes
+└── incidents/       Incident log (prompt injection attempts, anomalies)
 ```
 
 ## Git Workflow
@@ -124,7 +133,7 @@ All runtime state lives in `.recursive/`. This directory is NOT the framework --
 - **After merge:** once CI on `main` is green, run `python3 -m nightshift run --dry-run --agent codex > /dev/null` and `python3 -m nightshift run --dry-run --agent claude > /dev/null` on `main` before reporting success.
 - **Human task creation:** Humans create tasks as GitHub Issues with the `task` label. The daemon's housekeeping step syncs them to `.recursive/tasks/` automatically. See `.recursive/tasks/GUIDE.md` for details.
 - **Exception: housekeeping commits push to main directly.** `sync_github_tasks` commits and pushes task files to main before the agent session starts. This bypasses the branch-PR workflow because the daemon's `git reset --hard origin/main` at cycle start would wipe uncommitted files. These are structural doc changes (task files), not code.
-- Full workflow: `Recursive/ops/OPERATIONS.md` under "Git Workflow"
+- Full workflow: `.recursive/ops/OPERATIONS.md` under "Git Workflow"
 
 ## Environment
 
@@ -134,7 +143,7 @@ All runtime state lives in `.recursive/`. This directory is NOT the framework --
 
 ## Code Quality Rules
 
-**Always use `make check` for verification.** Never run ruff, mypy, or pytest individually as your final check -- `make check` runs all of them against both `nightshift/` and `Recursive/`. Partial checks miss things.
+**Always use `make check` for verification.** Never run ruff, mypy, or pytest individually as your final check -- `make check` runs ruff against `nightshift/` and `.recursive/` (engine, lib, tests), mypy against `nightshift/` only, and pytest across both. Partial checks miss things.
 
 These are enforced by CI. Non-negotiable.
 
@@ -187,12 +196,12 @@ nightshift/
 
 - `nightshift/SKILL.md` uses YAML frontmatter for skill registration
 - `nightshift/settings/eval_targets.py` stores repo-specific evaluation defaults such as the Phractal verification command
-- Product shell scripts are thin wrappers in `nightshift/scripts/`; framework scripts in `Recursive/engine/` and `Recursive/scripts/`
-- `Recursive/scripts/validate-tasks.sh` is the standalone task-frontmatter validator; do not wire it into `make check` until the known malformed backlog is repaired
+- Product shell scripts are thin wrappers in `nightshift/scripts/`; framework scripts in `.recursive/engine/` and `.recursive/scripts/`
+- `.recursive/scripts/validate-tasks.sh` is the standalone task-frontmatter validator; do not wire it into `make check` until the known malformed backlog is repaired
 - Per-repo config: `.recursive.json`
 - `.recursive/architecture/MODULE_MAP.md` is generated by `python3 -m nightshift module-map --write`; refresh it whenever `nightshift/*.py` changes
-- Before pushing: read `Recursive/ops/PRE-PUSH-CHECKLIST.md`
+- Before pushing: read `.recursive/ops/PRE-PUSH-CHECKLIST.md`
 
 ## Keeping This File Current
 
-When you change project structure or conventions, update this file. But keep it short -- details belong in `Recursive/ops/OPERATIONS.md`.
+When you change project structure or conventions, update this file. But keep it short -- details belong in `.recursive/ops/OPERATIONS.md`.
