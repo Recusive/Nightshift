@@ -132,7 +132,7 @@ Hard cap: capped at 5 if sessions_since_strategy < 10 (prevents hiding in strate
 ```
 base:                                    5
 autonomy_score < 70:                  +50   (system not self-sufficient)
-autonomy_score < 90:                  +20   (room for improvement above 70)
+autonomy_score < 90:                  +20   (elif, mutually exclusive: room for improvement above 70)
 needs_human_issues >= 3:              +30   (humans being paged)
 sessions_since_achieve >= 15:         +25   (hasn't run in a long time)
 consecutive_builds >= 10:             +15   (no self-reflection happening)
@@ -212,7 +212,7 @@ Advisory input from pick-role.py:
     "eval_score": 66, "autonomy_score": 55, "consecutive_builds": 3,
     "sessions_since_review": 3, "sessions_since_strategy": 8,
     "pending_tasks": 45, "stale_tasks": 1, "healer_status": "caution",
-    "needs_human_issues": 1
+    "needs_human_issues": 1, "sessions_since_achieve": 12
   }
 }
 ```
@@ -221,7 +221,7 @@ Score breakdown:
 ```
 BUILD:      30  (50 -20 eval gate)
 REVIEW:     10  (10 base)
-OVERSEE:    10  (5 base, tasks < 50)
+OVERSEE:     5  (5 base, tasks < 50; so defaults to 0 so hard cap applies)
 STRATEGIZE:  5  (5 base, strategy < 10)
 ACHIEVE:    55  (5 +50 autonomy < 70)
 SECURITY:    5  (5 base)
@@ -247,12 +247,12 @@ Advisory input from pick-role.py:
 ```json
 {
   "recommended": "oversee",
-  "score": 100,
-  "reason": "pending=62, stale=4",
+  "score": 90,
+  "reason": "pending=85, stale=6",
   "signals": {
     "eval_score": 85, "consecutive_builds": 7, "sessions_since_review": 7,
-    "sessions_since_strategy": 12, "pending_tasks": 62, "stale_tasks": 4,
-    "healer_status": "good"
+    "sessions_since_strategy": 12, "pending_tasks": 85, "stale_tasks": 6,
+    "healer_status": "good", "sessions_since_oversee": 4, "tracker_moved": true
   }
 }
 ```
@@ -261,9 +261,9 @@ Score breakdown:
 ```
 BUILD:      80  (50 +30 eval healthy)
 REVIEW:     60  (10 +40 consecutive >= 5 +10 review >= 5)
-OVERSEE:   100  (5 +60 pending >= 80... wait: 62 < 80, so +45 pending >= 50 with so >= 3 = 50)
+OVERSEE:    90  (5 +60 pending >= 80 +25 stale >= 5)
 STRATEGIZE:  5  (5 base, strategy < 10)
-ACHIEVE:    20  (5 +15 builds >= 10)
+ACHIEVE:    -1  (ineligible: sessions_since_achieve defaults to 0, hard cap applies)
 SECURITY:    5  (5 base)
 EVOLVE:      5  (5 base)
 AUDIT:       5  (5 base)
@@ -271,8 +271,8 @@ AUDIT:       5  (5 base)
 
 Brain analysis:
 ```
-Checkpoint 1 -- Signal Analysis: Advisory recommends OVERSEE. 62 pending tasks with 4 stale.
-Eval is healthy at 85. Advisory score is highest (95+).
+Checkpoint 1 -- Signal Analysis: Advisory recommends OVERSEE (score 90). 85 pending tasks with
+6 stale. Eval is healthy at 85. OVERSEE beats BUILD (90 > 80).
 
 Checkpoint 2 -- Forced Tradeoff: OVERSEE vs BUILD. Queue cleanup unblocks future sessions.
 No urgent tasks. Advisory is correct.
@@ -291,7 +291,8 @@ Advisory input from pick-role.py:
   "signals": {
     "eval_score": 83, "consecutive_builds": 6, "sessions_since_review": 6,
     "sessions_since_strategy": 5, "pending_tasks": 38, "stale_tasks": 1,
-    "healer_status": "concern", "autonomy_score": 72, "needs_human_issues": 0
+    "healer_status": "concern", "autonomy_score": 72, "needs_human_issues": 0,
+    "sessions_since_achieve": 10
   }
 }
 ```
@@ -302,7 +303,7 @@ BUILD:      80  (50 +30 eval healthy)
 REVIEW:     90  (10 +40 consecutive >= 5 +30 healer concern + sr >= 2 +10 sr >= 5)
 OVERSEE:     5  (5 base, tasks < 30)
 STRATEGIZE:  5  (5 base, strategy < 10)
-ACHIEVE:    20  (5 +15 builds >= 10... wait: 6 < 10 so +0; autonomy 72 >= 70 so +20 for < 90)
+ACHIEVE:    25  (5 +20 elif auto < 90 since 72 >= 70; builds=6 < 10 so no +15)
 SECURITY:    5  (5 base)
 EVOLVE:      5  (5 base)
 AUDIT:       5  (5 base)
@@ -324,12 +325,13 @@ Advisory input from pick-role.py:
 ```json
 {
   "recommended": "evolve",
-  "score": 80,
-  "reason": "friction=4, since_evolve=8",
+  "score": 85,
+  "reason": "friction=5, since_evolve=8",
   "signals": {
     "eval_score": 82, "consecutive_builds": 2, "sessions_since_review": 2,
     "sessions_since_strategy": 18, "pending_tasks": 35, "stale_tasks": 0,
-    "healer_status": "good", "friction_entries": 4, "sessions_since_evolve": 8
+    "healer_status": "good", "friction_entries": 5, "sessions_since_evolve": 8,
+    "tracker_moved": true
   }
 }
 ```
@@ -339,27 +341,21 @@ Score breakdown:
 BUILD:      80  (50 +30 eval healthy)
 REVIEW:     10  (10 base)
 OVERSEE:     5  (5 base, tasks < 30)
-STRATEGIZE:  5  (5 base, strategy < 10)
-ACHIEVE:     5  (5 base)
+STRATEGIZE: 65  (5 +60 strategy >= 15; tracker_moved=true so no +30)
+ACHIEVE:    -1  (ineligible: sessions_since_achieve defaults to 0, hard cap applies)
 SECURITY:    5  (5 base)
-EVOLVE:      80  (5 +50 friction >=5... wait: 4 < 5 so +0; +30 friction >= 3 AND se >= 5 = 35)
+EVOLVE:      85  (5 +50 friction >= 5 +30 friction >= 3 AND se >= 5)
 AUDIT:       5  (5 base)
 ```
 
-Note: EVOLVE and BUILD are tied at 80. Priority order breaks the tie in favor of BUILD.
-Brain may override to EVOLVE if the friction entries are high-impact.
-
 Brain analysis:
 ```
-Checkpoint 1 -- Signal Analysis: Advisory recommends EVOLVE (score 80, tie with BUILD).
-Friction log has 4 entries (threshold is 3+). Last evolve was 8 sessions ago.
-Sessions since strategy is 18 -- strategize is also overdue but its score is capped at 5
-because sessions_since_strategy < 10 is false here (18 >= 15, so +60 would apply...
-rechecking: sessions_since_strategy >= 15 adds +60, so strategize = 65, not 5).
+Checkpoint 1 -- Signal Analysis: Advisory recommends EVOLVE (score 85). Friction log has
+5 entries. Last evolve was 8 sessions ago. EVOLVE beats BUILD (85 > 80).
+Sessions since strategy is 18 -- strategize also scores 65 (+60 since >= 15).
 
-Checkpoint 2 -- EVOLVE vs STRATEGIZE vs BUILD. Eval is healthy. Strategize scores 65,
-evolve 80, build 80. Friction entries are actionable framework improvements.
-Reading friction log to assess impact before deciding.
+Checkpoint 2 -- EVOLVE vs STRATEGIZE vs BUILD. Eval is healthy. Evolve scores 85, build 80,
+strategize 65. Friction entries are actionable framework improvements.
 
 Decision: follow advisory. Delegate evolve agent to fix the 3+ occurrence pattern.
 ```
