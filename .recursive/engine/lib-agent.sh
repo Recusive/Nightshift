@@ -566,9 +566,10 @@ cleanup_old_logs() {
             ;;
     esac
 
-    result=$(PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR" python3 - "$log_dir" "$keep_days" <<'PY' 2>/dev/null
+    result=$(_NS_LIB="$RECURSIVE_DIR/lib" python3 - "$log_dir" "$keep_days" <<'PY' 2>/dev/null
+import os, sys
+sys.path.insert(0, os.environ['_NS_LIB'])
 from cleanup import rotate_logs
-import sys
 r = rotate_logs(sys.argv[1], int(sys.argv[2]))
 if r['deleted']:
     print(f"  Rotated {len(r['deleted'])} old log(s) (>{sys.argv[2]}d)")
@@ -595,9 +596,10 @@ cleanup_healer_log() {
             ;;
     esac
 
-    result=$(PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR" python3 - "$log_path" "$keep_entries" <<'PY' 2>/dev/null
+    result=$(_NS_LIB="$RECURSIVE_DIR/lib" python3 - "$log_path" "$keep_entries" <<'PY' 2>/dev/null
+import os, sys
+sys.path.insert(0, os.environ['_NS_LIB'])
 from pathlib import Path
-import sys
 
 from cleanup import rotate_healer_log
 
@@ -648,9 +650,10 @@ cleanup_worktrees() {
 # Prunes remote branches from daemon sessions that have no open PR.
 cleanup_orphan_branches() {
     local result
-    result=$(PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR" python3 - "$REPO_DIR" <<'PY' 2>/dev/null
+    result=$(_NS_LIB="$RECURSIVE_DIR/lib" python3 - "$REPO_DIR" <<'PY' 2>/dev/null
+import os, sys
+sys.path.insert(0, os.environ['_NS_LIB'])
 from cleanup import prune_orphan_branches
-import sys
 r = prune_orphan_branches(sys.argv[1])
 if r['pruned']:
     print(f"  Pruned {len(r['pruned'])} orphan branch(es): {', '.join(r['pruned'])}")
@@ -707,8 +710,9 @@ archive_done_tasks() {
 compact_handoffs() {
     local handoffs_dir="$1"
     local result
-    result=$(_RECURSIVE_HDIR="$handoffs_dir" PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR" python3 -c "
-import os
+    result=$(_RECURSIVE_HDIR="$handoffs_dir" _NS_LIB="$RECURSIVE_DIR/lib" python3 -c "
+import os, sys
+sys.path.insert(0, os.environ['_NS_LIB'])
 from compact import compact_handoffs
 r = compact_handoffs(os.environ['_RECURSIVE_HDIR'])
 if r['compacted']:
@@ -881,8 +885,9 @@ for task_num, issue_num, title in created_files:
 should_evaluate() {
     local session_count="${1:-0}"
     local freq
-    freq=$(PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR" _REPO_DIR="${REPO_DIR:-.}" python3 <<'PY' 2>/dev/null
-import os
+    freq=$(_NS_LIB="$RECURSIVE_DIR/lib" _REPO_DIR="${REPO_DIR:-.}" python3 <<'PY' 2>/dev/null
+import os, sys
+sys.path.insert(0, os.environ['_NS_LIB'])
 from config import merge_config
 from pathlib import Path
 c = merge_config(Path(os.environ.get("_REPO_DIR", ".")))
@@ -907,12 +912,13 @@ run_evaluation() {
     local after_task="${2:-}"
     echo "  Running self-evaluation..."
     local result
-    result=$(PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR" \
+    result=$(_NS_LIB="$RECURSIVE_DIR/lib" \
         _AFTER_TASK="$after_task" \
         _AGENT="$agent" \
         _REPO_DIR="${REPO_DIR:-.}" \
         python3 <<'PY' 2>/dev/null
-import os
+import os, sys
+sys.path.insert(0, os.environ['_NS_LIB'])
 from pathlib import Path
 from evaluation import evaluate
 from config import merge_config
