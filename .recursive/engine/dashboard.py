@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Ensure signals.py is importable regardless of working directory
@@ -52,6 +53,11 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
 
     Returns a dict matching the DEFAULTS schema with live values.
     Gracefully handles missing files/directories by returning defaults.
+
+    All reads are done at call time (snapshot semantics). If .recursive/
+    state is modified by a concurrent process during collection, the
+    dashboard may mix old and new data. The brain should treat dashboard
+    values as approximate, not exact.
     """
     evaluations_dir = recursive_dir / "evaluations"
     autonomy_dir = recursive_dir / "autonomy"
@@ -95,6 +101,17 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
     signals["_eval_is_default"] = eval_score is None
     signals["_autonomy_is_default"] = autonomy_score is None
 
+    # Count active experiments from decisions log
+    decisions_path = recursive_dir / "decisions" / "log.md"
+    active_experiments = 0
+    if decisions_path.is_file():
+        try:
+            content = decisions_path.read_text(encoding="utf-8")
+            active_experiments = content.count("**Status**: ACTIVE")
+        except OSError:
+            pass
+    signals["active_experiments"] = active_experiments
+
     return signals
 
 
@@ -106,6 +123,7 @@ def format_dashboard(signals: dict[str, object]) -> str:
     """
     lines: list[str] = []
     lines.append("=== System Dashboard ===")
+    lines.append(f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
     lines.append("")
 
     # Health
@@ -140,6 +158,31 @@ def format_dashboard(signals: dict[str, object]) -> str:
         key = f"sessions_since_{role.replace('-', '_')}"
         val = signals.get(key, "?")
         lines.append(f"  {role:16s} {val}")
+
+    # Experiments
+    lines.append("")
+    exp_count = signals.get("active_experiments", 0)
+    lines.append(f"Experiments:    {exp_count} active")
+
+    # Alerts
+    lines.append("")
+    lines.append("Alerts:")
+    alerts: list[str] = []
+    audit_since = signals.get("sessions_since_audit", 0)
+    if isinstance(audit_since, int) and audit_since >= 25:
+        alerts.append(f"  Framework audit overdue ({audit_since} sessions since last)")
+    evolve_since = signals.get("sessions_since_evolve", 0)
+    friction = signals.get("friction_entries", 0)
+    if isinstance(friction, int) and friction >= 3:
+        alerts.append(f"  Friction threshold met ({friction} entries -- evolve recommended)")
+    if isinstance(evolve_since, int) and evolve_since >= 25:
+        alerts.append(f"  Evolve overdue ({evolve_since} sessions since last)")
+    strat_since = signals.get("sessions_since_strategize", 0)
+    if isinstance(strat_since, int) and strat_since >= 15:
+        alerts.append(f"  Strategize overdue ({strat_since} sessions since last)")
+    if not alerts:
+        alerts.append("  None")
+    lines.extend(alerts)
 
     return "\n".join(lines)
 

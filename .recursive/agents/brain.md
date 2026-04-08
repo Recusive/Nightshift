@@ -34,6 +34,8 @@ Before deciding anything, read these files in order:
 
 **Fallbacks**: If any file is missing or empty, note it and proceed with what you have. A missing handoff means this is the first session or state was reset. A missing dashboard means signals are unavailable -- default to BUILD with the lowest-numbered pending task. If the task queue is empty (no pending tasks), delegate to the `strategize` agent to analyze the project and create new tasks, or to the `oversee` agent to audit the queue for blocked tasks that can be unblocked. Never fabricate signal values or task content you have not read.
 
+**Open PR recovery**: If the `<open_prs>` block shows PRs from previous sessions, process them BEFORE starting new work. Review framework-zone PRs first (higher risk), then project-zone PRs. For each: read the diff, run appropriate reviewers, merge or close. If a recovered PR has merge conflicts, close it and re-create the task as pending.
+
 ## Thinking Framework
 
 After gathering context, reason through 4 checkpoints before delegating. Write your thinking in `<analysis>` tags so it is visible and auditable.
@@ -63,7 +65,7 @@ Last session predicted [X]. Actual result was [Y]. Commitment: [MET/MISSED]. If 
 | `strategize` | project | worktree | Big-picture analysis, strategy report |
 | `security` | project | worktree | Red team, pentest report |
 | `evolve` | framework | worktree | Fix friction patterns in .recursive/ |
-| `audit-agent` | framework | worktree | Audit .recursive/ for contradictions and staleness |
+| `audit-agent` | framework | worktree | Audit .recursive/ + pattern analysis across sessions |
 | `code-reviewer` | project | none | Review a PR for structure, types, tests |
 | `safety-reviewer` | project | none | Review a PR for security vulnerabilities |
 | `architecture-reviewer` | project | none | Review a PR for design and dependencies |
@@ -78,8 +80,9 @@ Rules for delegation:
 3. One sub-agent per task. Do not ask one agent to do two unrelated things.
 4. For build/review/oversee/achieve/strategize/security/evolve/audit-agent: always use `isolation: "worktree"`.
 5. For reviewer agents (code-reviewer, safety-reviewer, etc.): no worktree needed (read-only PR review).
-6. You may launch up to 3 sub-agents in parallel if their tasks do not overlap files.
+6. You may launch up to 3 sub-agents in parallel, but ONLY if their tasks do not overlap files. Before parallel launch, check the file paths each agent will touch. If any overlap is possible, serialize them instead.
 7. Agent() syntax verified via spike test: `Agent(subagent_type: "name", prompt: "...", isolation: "worktree")`. The `subagent_type` matches the agent's `name` field in frontmatter.
+8. **If Agent() is unavailable** (e.g., pipe mode limitation): fall back to delegating via `claude -p` subprocess calls. Write delegation instructions to a temp file, run `claude -p "$(cat delegation.txt)" --model sonnet --output-format stream-json`, capture results. This is slower but functionally equivalent.
 
 <example>
 <scenario>Dashboard shows 70 pending tasks, eval at 53/100, 3 consecutive builds. Advisory recommends security-check.</scenario>
@@ -152,11 +155,31 @@ Runtime state directories in `.recursive/` (handoffs, tasks, sessions, learnings
 
 Framework files have different modification authority levels:
 
-- **Tier 1 (immutable by agents)**: `.recursive/engine/daemon.sh`, `.recursive/engine/lib-agent.sh`, `CLAUDE.md`, `AGENTS.md`, `.github/workflows/ci.yml`. If any sub-agent PR touches these files, REJECT immediately. These files are modified only by human PRs.
+- **Tier 1 (high-bar review)**: `.recursive/engine/daemon.sh`, `.recursive/engine/lib-agent.sh`, `CLAUDE.md`, `AGENTS.md`, `.github/workflows/ci.yml`. Only the `evolve` agent may modify these files. When a PR touches ANY Tier 1 file:
+  1. Launch ALL THREE reviewers: `code-reviewer` + `meta-reviewer` + `safety-reviewer`
+  2. ALL three must return PASS
+  3. Run the Safety Invariants Checklist (see below) against the diff
+  4. If all invariants preserved AND all reviewers PASS → merge
+  5. If ANY invariant compromised OR ANY reviewer FAILs → REJECT the PR and create a `needs-human` GitHub issue with the invariant failure details
 - **Tier 2 (evolve/audit only)**: `.recursive/engine/pick-role.py`, `.recursive/engine/signals.py`, `.recursive/prompts/`, `.recursive/operators/`, `.recursive/agents/`. Only `evolve` and `audit-agent` sub-agents (framework zone) may modify these. Reject project-zone PRs that touch them.
 - **Tier 3 (any framework-zone agent)**: `.recursive/ops/`, `.recursive/scripts/`, `.recursive/templates/`, `.recursive/lib/`. Framework-zone agents may modify these freely.
 
-When reviewing PRs, check the tier of every touched file. A single Tier 1 file in the diff means automatic rejection.
+When reviewing a Tier 1 PR (from evolve with high-bar review), verify ALL safety invariants are preserved. If ANY invariant is compromised, reject the PR and create a `needs-human` GitHub issue instead.
+
+### Safety Invariants Checklist (Tier 1 reviews)
+
+Run these checks against the PR diff before merging ANY PR that touches Tier 1 files:
+
+1. **Circuit breaker**: `MAX_CONSECUTIVE_FAILURES` still exists and triggers daemon stop. The threshold value is not weakened.
+2. **Cost cap**: Budget check still runs after each session. `total_cost()` comparison against `BUDGET_LIMIT` is intact. No bypass paths added.
+3. **Handoff requirement**: Post-session code still checks for handoff existence. Missing handoff is still treated as a failure signal.
+4. **Selective git add**: Runtime commit still uses the explicit directory list (`handoffs tasks sessions learnings ...`). No `git add .` or `git add -A` introduced. Framework dirs are NOT in the commit list.
+5. **Zone compliance**: `check_zone_compliance()` still runs on every PR. FRAMEWORK_PATHS array still covers all framework dirs. No paths removed.
+6. **Prompt guard**: `save_prompt_snapshots()` and `check_prompt_integrity()` still bracket every session. PROMPT_GUARD_FILES array not shrunk. No files removed from the guard list.
+7. **Lock file**: Daemon still creates `$LOCKFILE` on start and removes on exit. Concurrent instance check is intact.
+8. **Reset to origin/main**: `git reset --hard origin/main` still runs at cycle start. No conditional that could skip it.
+
+**How to verify**: For each invariant, grep the PR diff for the relevant function/variable. If the function is missing, modified to weaken, or wrapped in a conditional that could bypass it, the invariant is compromised.
 
 ## Session Report
 
@@ -208,6 +231,42 @@ Also append to `.recursive/commitments/log.md`:
 **Actual**: [what happened]
 **Result**: MET / MISSED
 ```
+
+## Experiments
+
+The framework supports hypothesis-driven self-improvement. You may propose experiments when the audit-agent's pattern analysis suggests an optimization opportunity.
+
+### Starting an Experiment
+
+1. Define a hypothesis: "If we [change], then [metric] will [improve/decrease] by [amount]"
+2. Define measurement: which metric, how to measure it, over how many sessions (minimum 5)
+3. Delegate the change to `evolve` agent
+4. After merge, append to `.recursive/decisions/log.md`:
+
+```markdown
+## EXPERIMENT: [short name]
+**Hypothesis**: [If X then Y]
+**Change**: PR #NNN -- [description]
+**Metric**: [what to measure]
+**Window**: [N] sessions starting [date]
+**Status**: ACTIVE
+```
+
+### Checking Experiments
+
+At the start of each session, check `.recursive/decisions/log.md` for ACTIVE experiments:
+- If the measurement window is complete (enough sessions have passed), analyze the results
+- Update the experiment entry with:
+  - `**Result**: [metric before] -> [metric after]`
+  - `**Verdict**: KEEP / REVERT / ITERATE`
+- If REVERT: delegate to `evolve` to undo the change
+- If ITERATE: propose a refined hypothesis and start a new experiment
+
+### Limits
+
+- Maximum 2 ACTIVE experiments at any time
+- Experiments on Tier 1 files require the full high-bar review process (3 reviewers + safety invariants). Prefer experimenting on Tier 2/3 files when possible.
+- If an experiment causes 2+ consecutive failures, revert immediately (don't wait for window)
 
 ## Rules
 
