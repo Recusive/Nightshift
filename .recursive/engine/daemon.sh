@@ -197,6 +197,29 @@ CTXEOF
         fi
     fi
 
+    # --- Generate session metadata + structured report ---
+    SESSION_META="$SESSION_DIR/raw/${SESSION_ID}.meta.json"
+    STRUCTURED_DIR="$SESSION_DIR/structured"
+    mkdir -p "$STRUCTURED_DIR"
+    _NS_SID="$SESSION_ID" _NS_ROLE="$SESSION_ROLE" _NS_CYCLE="$CYCLE" \
+    _NS_EXIT="$EXIT_CODE" _NS_DUR="$DURATION_MIN" _NS_ADV="$ADVISORY_ROLE" \
+    _NS_MODEL="$BRAIN_MODEL" _NS_META="$SESSION_META" python3 -c "
+import os, json
+meta = {
+    'session_id': os.environ['_NS_SID'],
+    'role': os.environ['_NS_ROLE'],
+    'cycle': int(os.environ['_NS_CYCLE']),
+    'exit_code': int(os.environ['_NS_EXIT']),
+    'duration_min': int(os.environ['_NS_DUR']),
+    'advisory': os.environ['_NS_ADV'],
+    'model': os.environ['_NS_MODEL'],
+}
+json.dump(meta, open(os.environ['_NS_META'], 'w'), indent=2)
+" 2>/dev/null || true
+    STRUCTURED_FILE="$STRUCTURED_DIR/${SESSION_ID}.md"
+    echo "  Generating structured report..."
+    python3 "$ENGINE_DIR/format-stream.py" --report "$LOG_FILE" --meta "$SESSION_META" > "$STRUCTURED_FILE" 2>/dev/null || true
+
     # --- Prompt guard check ---
     echo "  Checking prompt integrity..."
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR"; then
