@@ -61,6 +61,7 @@ from nightshift.core.constants import (
     TEST_RUNTIME_ARTIFACT_DIRNAME,
     UNTRUSTED_INSTRUCTIONS_PREAMBLE,
     UNTRUSTED_INSTRUCTIONS_SUFFIX,
+    VERIFY_COMMAND_ALLOWLIST_PREFIXES,
     now_local,
     print_status,
 )
@@ -72,6 +73,7 @@ from nightshift.core.shell import (
     run_command,
     run_shell_string,
     run_test_command,
+    validate_verify_command,
 )
 from nightshift.core.state import (
     append_cycle_state,
@@ -298,6 +300,7 @@ __all__ = [
     "TEST_RUNTIME_ARTIFACT_DIRNAME",
     "UNTRUSTED_INSTRUCTIONS_PREAMBLE",
     "UNTRUSTED_INSTRUCTIONS_SUFFIX",
+    "VERIFY_COMMAND_ALLOWLIST_PREFIXES",
     "ArchitectureDoc",
     "Baseline",
     "ConflictReport",
@@ -451,6 +454,7 @@ __all__ = [
     "validate_plan",
     "validate_repo_checkout",
     "validate_repos",
+    "validate_verify_command",
     "validate_worktree",
     "verify_cycle",
     "verify_cycle_cli",

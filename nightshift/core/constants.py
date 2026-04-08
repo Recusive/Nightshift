@@ -143,6 +143,33 @@ CATEGORY_SCORES: dict[str, int] = {
     "Polish": 2,
 }
 
+# --- verify_command security allowlist ----------------------------------------
+
+# Safe command prefixes for verify_command / test_command values sourced from
+# external config files (.nightshift.json). Anything that does not start with
+# one of these prefixes is rejected at config-load time.
+VERIFY_COMMAND_ALLOWLIST_PREFIXES: list[str] = [
+    "npm ",
+    "npm\t",
+    "pnpm ",
+    "pnpm\t",
+    "yarn ",
+    "yarn\t",
+    "bun ",
+    "bun\t",
+    "python3 ",
+    "python3\t",
+    "cargo ",
+    "cargo\t",
+    "go ",
+    "go\t",
+    "make ",
+    "make\t",
+    "make",  # bare "make" with no arguments
+    "bash nightshift/scripts/",
+    "sh nightshift/scripts/",
+]
+
 FORBIDDEN_CYCLE_COMMANDS = [
     "npm test",
     "npm run test",

