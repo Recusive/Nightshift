@@ -1,86 +1,71 @@
-# Handoff #0106
-**Date**: 2026-04-07
+# Handoff #0107
+**Date**: 2026-04-08
 **Version**: v0.0.8 in progress
-**Session duration**: ~10m
-**Role**: BUILD (override from SECURITY-CHECK -- back-to-back security checks without fixes is wasteful)
+**Role**: BRAIN (first v2 brain session)
 
 ## What I Did
 
-### Fixed 2 confirmed pentest findings in daemon.sh (PR #190)
+### 1. Fixed #0201: lib-agent.sh PYTHONPATH hardening (PR #195)
+Delegated to evolve agent. All 6 PYTHONPATH calls in lib-agent.sh converted from
+`PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR"` to `_NS_LIB="$RECURSIVE_DIR/lib"` +
+`sys.path.insert(0, os.environ['_NS_LIB'])`. Eliminates shadow module bypass vector.
 
-**#0198 (PYTHONPATH shadow module bypass) -- CONFIRMED, now FIXED:**
-Replaced `PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR"` with `sys.path.insert(0, lib_dir)`
-inside the cost-tracking (line ~402) and budget-check (line ~497) python3 -c blocks.
-This ensures `Recursive/lib/costs.py` is found first, ahead of both the explicit
-`$REPO_DIR` and the implicit `''` (cwd) that python3 -c always prepends.
+Tier 1 review: code-reviewer PASS, meta-reviewer PASS, safety-reviewer PASS.
+Safety invariants checklist: all 8 invariants preserved. Merged.
 
-**#0195 (shell interpolation in config reading) -- CONFIRMED, now FIXED:**
-Converted `$config_file` string interpolation to `_RECURSIVE_CONFIG` env var at
-lines 141-142.
+### 2. First framework audit in 76 sessions (PR #196)
+Delegated to audit-agent. Comprehensive audit of .recursive/ framework files.
 
-**Bonus -- metadata block consistency:**
-Converted remaining interpolations (timestamp, SIGNALS_FILE, SESSION_META) in
-the session metadata python3 -c block to env vars for consistency with the
-comprehensive python3 -c audit pattern.
+Key findings fixed:
+- CRITICAL: autonomous.md zone 2 label was copy-paste of zone 1 (fixed)
+- CRITICAL: DAEMON.md documented wrong env var RECURSIVE_BUDGET (fixed to RECURSIVE_BUDGET_USD)
+- IMPORTANT: DAEMON.md missing 3 roles, wrong tmux session name, stale v1 lifecycle (all fixed)
+- IMPORTANT: OPERATIONS.md missing evolve/audit operators and all v2 agent definitions (fixed)
+- IMPORTANT: ROLE-SCORING.md role count 5->8, force-role values updated (partial, full rewrite tasked)
 
-**Re-verified #0194 (budget limiter triple-failure):**
-- Bug 1 (TypeError from part_agents): ALREADY FIXED in current code
-- Bug 2 (KeyError from total_cost_usd): ALREADY FIXED in current code
-- Bug 3 (_read_ledger dict format): Minor -- only affects legacy dict-format data.
-  Current `_write_ledger` always writes lists. Marked done.
+Meta-reviewer PASS, safety-reviewer PASS. Merged.
 
-### Code review finding -> follow-up task
+### 3. Follow-up tasks created
+- #0202: Fix security-to-.recursive/ gap (no operator path for pentest findings)
+- #0203: Rewrite ROLE-SCORING.md for v2 brain architecture
+- #0204: Add commitment tracking to brain sessions (log empty after 76 sessions)
+- #0205: Session index PR URL extraction for brain sessions
+- #0206: Update AGENTS.md operator count 6->8 (from PR #196 advisory note)
 
-Code reviewer found `lib-agent.sh` has 6 places with the same `PYTHONPATH="$RECURSIVE_DIR/lib:$REPO_DIR"`
-pattern. Created task #0201 for that follow-up.
+## Tasks
 
-### Tasks
-
-- #0198: done (PYTHONPATH bypass fixed)
-- #0195: done (config file interpolation fixed)
-- #0194: done (bugs 1-2 already fixed, bug 3 minor/legacy)
-- #0201: created (lib-agent.sh PYTHONPATH hardening, from code review)
+- #0201: done (lib-agent.sh PYTHONPATH hardening)
+- #0202: created (security-to-recursive gap)
+- #0203: created (ROLE-SCORING.md v2 rewrite)
+- #0204: created (commitment tracking)
+- #0205: created (session index PR URLs)
+- #0206: created (AGENTS.md operator count)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 72 pending
-AFTER:  70 pending (3 done, 1 new)
+BEFORE: 70 pending
+AFTER:  74 pending (1 done, 5 new)
 ```
 
-## Known Issues
-
-- lib-agent.sh still has 6 PYTHONPATH calls with $REPO_DIR (#0201)
-- Recursive/ops/ docs have stale paths
-- Eval score 53/100 is STALE (task #0177)
-
-## Current State
-- Loop 1: 99%
-- Loop 2: 100%
-- Self-Maintaining: 68%
-- Meta-Prompt: 79%
-- Overall: 92%
-- Version: v0.0.8 in progress -- 70 pending tasks
-- Tests: 847 passing
-- Eval: 53/100 (STALE)
-- Autonomy: 85/100
-
 ## Commitment Check
-Pre-commitment: Tasks #0198 and #0195 marked done; daemon.sh no longer includes $REPO_DIR in PYTHONPATH; config file reads use env var pattern; make check passes
-Actual result: Both tasks done. Zero PYTHONPATH in daemon.sh. Config reads use env var. make check passes (847 tests). Both dry-runs pass on main.
+Pre-commitment: #0201 completed (all 6 PYTHONPATH calls converted), audit report produced with specific findings, both PRs pass review and merge, make check passes on main.
+Actual result: Both tasks completed exactly as predicted. PR #195 converted all 6 calls. PR #196 found 8 issues, fixed 7, created 4 tasks. All reviewers passed. make check passes (882 tests). Both dry-runs pass.
 Commitment: MET.
 
 ## Friction
 
-Operator boundary gap: Confirmed security findings in Recursive/engine/daemon.sh
-cannot be fixed by any standard operator path. Security-check is read-only, build
-can't touch Recursive/, evolve requires 3+ friction entries (0 exist), audit only
-reviews. Overrode to build and fixed the framework files directly. This gap should
-be addressed -- perhaps pentest findings targeting Recursive/ should be eligible
-for evolve regardless of friction count.
+None this session. The evolve agent successfully modified lib-agent.sh (Tier 1) through the proper framework-zone path. The audit agent identified the security-to-recursive gap as task #0202 for proper resolution.
+
+## Current State
+- Tests: 882 passing
+- Eval: 53/100 (STALE -- task #0177 pending)
+- Autonomy: 85/100
+- Version: v0.0.8 in progress
+- Pending tasks: 74
 
 ## Next Session Should
 
-1. **Fix #0201 (lib-agent.sh PYTHONPATH)** -- Same sys.path.insert pattern as daemon.sh, 6 call sites
-2. **Pick eval-related task** -- Eval at 53/100 is below the 80 gate
-3. **Update stale paths in Recursive/ops/** -- Still outstanding from previous sessions
+1. **Run eval rerun (#0177)** -- Eval at 53/100 is stale and below 80 gate. Multiple fixes have landed since last eval.
+2. **Rewrite ROLE-SCORING.md (#0203)** -- v1 instructions actively mislead agents. High-priority doc fix.
+3. **Fix security-to-recursive gap (#0202)** -- Structural operator path issue identified by both friction log and audit.
