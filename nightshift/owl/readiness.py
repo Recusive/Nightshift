@@ -29,6 +29,19 @@ def _is_source_file(path: str) -> bool:
     return path[dot_idx:].lower() in _SOURCE_EXTENSIONS
 
 
+def _is_within_repo(abs_path: Path, repo_dir: Path) -> bool:
+    """Return True if *abs_path* resolves to a path inside *repo_dir*.
+
+    Guards against path traversal attacks where a malicious or buggy state
+    file supplies rel_path values like '../../etc/passwd' that escape the repo.
+    """
+    try:
+        abs_path.resolve().relative_to(repo_dir.resolve())
+    except ValueError:
+        return False
+    return True
+
+
 def collect_changed_files(state: FeatureState) -> tuple[list[str], list[str]]:
     """Extract deduplicated (files_created, files_modified) from feature state."""
     created: set[str] = set()
@@ -70,6 +83,8 @@ def check_secrets(
     all_hits: list[str] = []
     for rel_path in files:
         abs_path = repo_dir / rel_path
+        if not _is_within_repo(abs_path, repo_dir):
+            continue
         if abs_path.is_symlink():
             continue
         if not abs_path.is_file():
@@ -96,6 +111,8 @@ def check_debug_prints(
     all_hits: list[str] = []
     for rel_path in files:
         abs_path = repo_dir / rel_path
+        if not _is_within_repo(abs_path, repo_dir):
+            continue
         if abs_path.is_symlink():
             continue
         if not abs_path.is_file():
@@ -151,6 +168,9 @@ def check_test_coverage(
     """Check that changed production source files have corresponding test files."""
     production_files: list[str] = []
     for rel_path in files_created + files_modified:
+        abs_path = repo_dir / rel_path
+        if not _is_within_repo(abs_path, repo_dir):
+            continue
         if _is_source_file(rel_path) and not _is_test_file(rel_path):
             production_files.append(rel_path)
 
@@ -160,7 +180,10 @@ def check_test_coverage(
     uncovered: list[str] = []
     for rel_path in production_files:
         candidates = _test_file_candidates(rel_path)
-        found = any((repo_dir / c).is_file() and not (repo_dir / c).is_symlink() for c in candidates)
+        found = any(
+            _is_within_repo(repo_dir / c, repo_dir) and (repo_dir / c).is_file() and not (repo_dir / c).is_symlink()
+            for c in candidates
+        )
         if not found:
             uncovered.append(rel_path)
 
