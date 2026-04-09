@@ -178,9 +178,18 @@ When the run ends, the daemon records:
 - exit code
 - duration
 - session cost
+- feature (extracted from log via `extract_feature_from_log`)
+- PR URL (extracted from log via `extract_pr_url_from_log`)
+- prompt-tampered flag (set by `check_prompt_integrity` / `check_origin_integrity`)
 
-Those fields are appended to `.recursive/sessions/index.md` via a selective
-`git add` of runtime state directories.
+These fields are written as a single markdown table row to
+`.recursive/sessions/index.md` via `append_session_index_row` in
+`lib-agent.sh`. This function sanitizes all values (strips pipe chars and
+newlines) so each session always produces exactly one well-formed row.
+
+**Do NOT write to `sessions/index.md` manually.** The daemon is the sole
+writer. Manual writes cause multiline/broken rows that corrupt dashboard
+signals.
 
 ### 6. Circuit breaker
 
