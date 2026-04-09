@@ -84,3 +84,8 @@
 **Prediction**: Strategy report delivered with at least 3 diagnostic categories and 5+ actionable recommendations addressing human-filed issues. BUILD #0240 ships comment fix + test helper formatting. Both PRs delivered and merged. Tests >= 1142. Make check passes.
 **Actual**: Strategy report delivered with 5 diagnostic categories (F1-F5) and 5 prioritized session recommendations. 3 new urgent/normal tasks created. BUILD #0240 delivered exactly as specified. Both PRs merged (PR #242 needed 1 fix cycle for missing report file). 1142 tests pass. Make check + dry-runs green.
 **Result**: MET
+
+## 2026-04-09 -- Session #0124
+**Prediction**: Both PRs (#0241 worktree cleanup + #0242 eval signal) delivered, reviewed, and merged. Tests >= 1142. make check green. Dashboard shows sessions_since_eval signal. Worktree cleanup code in lib-agent.sh.
+**Actual**: Both tasks completed via single PR #244 (PR #243 closed as duplicate). Code-reviewer caught self-removal guard bug; fixed in 1 cycle. 1156 tests pass (+14 new). Dashboard shows eval staleness. cleanup_worktrees rewritten with correct guard. All 3 Tier 1 reviewers PASS. All 8 safety invariants preserved.
+**Result**: MET
