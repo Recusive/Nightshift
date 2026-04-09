@@ -228,6 +228,12 @@ CTXEOF
     mkdir -p "$SESSION_DIR/raw"
 
     set +e
+    # Unset CLAUDECODE so nested agent invocations (e.g. nightshift test
+    # --agent claude) don't fail with "cannot be launched inside another
+    # Claude Code session".  Claude --agent handles this internally;
+    # Codex does not, so we clear it for both backends.
+    unset CLAUDECODE 2>/dev/null || true
+
     if [ "$AGENT" = "codex" ]; then
         BRAIN_MODEL="${RECURSIVE_CODEX_MODEL:-gpt-5.4}"
         echo "  Running brain agent ($BRAIN_MODEL via Codex)..."
