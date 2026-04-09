@@ -207,6 +207,22 @@ CTXEOF
         printf '\n<worktree_paths>\n%b</worktree_paths>\n' "$WORKTREE_PATHS" >> "$CONTEXT_FILE"
     fi
 
+    # For Codex: prepend brain instructions to the context file.
+    # Claude loads brain.md via --agent brain; Codex has no equivalent flag,
+    # so we inject the brain identity into the prompt itself.
+    # developer_instructions (additive) preserves built-in tool knowledge
+    # (spawn_agent, send_input, wait_agent) while adding brain identity.
+    if [ "$AGENT" = "codex" ]; then
+        BRAIN_PROMPT_FILE="$REPO_DIR/.recursive/prompts/brain-codex.md"
+        if [ -f "$BRAIN_PROMPT_FILE" ]; then
+            BRAIN_TMP=$(mktemp)
+            cat "$BRAIN_PROMPT_FILE" > "$BRAIN_TMP"
+            printf '\n\n' >> "$BRAIN_TMP"
+            cat "$CONTEXT_FILE" >> "$BRAIN_TMP"
+            mv "$BRAIN_TMP" "$CONTEXT_FILE"
+        fi
+    fi
+
     # --- Run brain agent ---
     LOG_FILE="$SESSION_DIR/raw/${SESSION_ID}.log"
     mkdir -p "$SESSION_DIR/raw"
@@ -215,8 +231,8 @@ CTXEOF
     if [ "$AGENT" = "codex" ]; then
         BRAIN_MODEL="${RECURSIVE_CODEX_MODEL:-gpt-5.4}"
         echo "  Running brain agent ($BRAIN_MODEL via Codex)..."
-        # Codex discovers agents from .codex/agents/*.toml automatically.
-        # brain.toml sets model + model_reasoning_effort. We pass the context as prompt.
+        # Sub-agents discovered from .codex/agents/*.toml when brain spawns them.
+        # Brain instructions prepended above; dashboard/context follows.
         codex exec \
             --dangerously-bypass-approvals-and-sandbox \
             --json \

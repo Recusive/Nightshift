@@ -4,7 +4,9 @@
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
 sandbox_mode = "workspace-write"
-model_instructions_file = "../.recursive/prompts/brain-codex.md"
+# Brain instructions are prepended to the prompt by daemon.sh, not loaded here.
+# Using developer_instructions (additive) not model_instructions_file (replaces
+# built-in instructions including spawn_agent tool knowledge).
 
 [agents]
 max_threads = 6
