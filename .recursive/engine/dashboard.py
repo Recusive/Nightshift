@@ -127,6 +127,41 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
             pass
     signals["active_experiments"] = active_experiments
 
+    # Budget awareness
+    costs_path = recursive_dir / "sessions" / "costs.json"
+    budget_spent = 0.0
+    if costs_path.is_file():
+        try:
+            entries = json.loads(costs_path.read_text(encoding="utf-8"))
+            if isinstance(entries, list):
+                budget_spent = sum(e.get("cost_usd", 0) for e in entries)
+        except (json.JSONDecodeError, OSError):
+            pass
+    signals["budget_spent"] = round(budget_spent, 2)
+
+    # Task composition (what KIND of work is pending, not just how much)
+    task_composition: dict[str, int] = {}
+    human_tasks = 0
+    if tasks_dir.is_dir():
+        for tf in tasks_dir.glob("[0-9]*.md"):
+            try:
+                text = tf.read_text(encoding="utf-8")
+                if "status: pending" not in text:
+                    continue
+                if "source: github-issue" in text:
+                    human_tasks += 1
+                # Categorize by source
+                for cat in ("pentest", "code-review", "audit", "github-issue"):
+                    if f"source: {cat}" in text:
+                        task_composition[cat] = task_composition.get(cat, 0) + 1
+                        break
+                else:
+                    task_composition["feature/other"] = task_composition.get("feature/other", 0) + 1
+            except OSError:
+                continue
+    signals["task_composition"] = task_composition
+    signals["human_tasks"] = human_tasks
+
     # Decision-consequence signals (self-awareness)
     signals["queue_trend"] = compute_queue_trend(decisions_path)
     signals["agent_diversity"] = compute_agent_diversity(delegations)
@@ -160,8 +195,20 @@ def format_dashboard(signals: dict[str, object]) -> str:
     lines.append(f"Needs-human:    {signals['needs_human_issues']} open issues{nh_note}")
     lines.append("")
 
+    # Budget
+    spent = signals.get("budget_spent", 0)
+    lines.append(f"Budget spent:   ${spent}")
+    lines.append("")
+
     # Queue
     lines.append(f"Pending tasks:  {signals['pending_tasks']}")
+    comp = signals.get("task_composition", {})
+    if isinstance(comp, dict) and comp:
+        comp_str = ", ".join(f"{k}: {v}" for k, v in sorted(comp.items(), key=lambda x: -x[1]))
+        lines.append(f"  Breakdown:    {comp_str}")
+    human = signals.get("human_tasks", 0)
+    if isinstance(human, int) and human > 0:
+        lines.append(f"  From human:   {human} (prioritize these)")
     lines.append(f"Stale tasks:    {signals['stale_tasks']}")
     lines.append(f"Urgent tasks:   {signals['urgent_tasks']}")
     lines.append(f"Friction:       {signals['friction_entries']} entries")

@@ -28,9 +28,11 @@ Before deciding anything, read these files in order:
 
 1. `.recursive/handoffs/LATEST.md` -- what happened last session
 2. The `<dashboard>` block injected below -- current system signals
-3. `.recursive/tasks/` -- scan pending tasks (use `ls` then read top candidates)
-4. `.recursive/friction/log.md` -- framework pain points
-5. `.recursive/learnings/INDEX.md` -- scan for relevant learnings
+3. `.recursive/vision/00-overview.md` -- the mission. What are we building and why? Every decision should move toward this.
+4. `.recursive/vision-tracker/TRACKER.md` -- where we are vs where we need to be. What's left.
+5. `.recursive/tasks/` -- scan pending tasks (use `ls` then read top candidates). The dashboard shows task composition and flags human-filed tasks.
+6. `.recursive/friction/log.md` -- framework pain points
+7. `.recursive/learnings/INDEX.md` -- scan for relevant learnings
 
 **Fallbacks**: If any file is missing or empty, note it and proceed with what you have. A missing handoff means this is the first session or state was reset. A missing dashboard means signals are unavailable -- default to BUILD with the lowest-numbered pending task. If the task queue is empty (no pending tasks), delegate to the `strategize` agent to analyze the project and create new tasks, or to the `oversee` agent to audit the queue for blocked tasks that can be unblocked. Never fabricate signal values or task content you have not read.
 
