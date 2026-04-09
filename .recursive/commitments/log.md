@@ -64,3 +64,8 @@
 **Prediction**: #0231 docs updated with Tier 1 review passing all 3 reviewers. #0092 produces 2+ good and 2+ bad fixtures with 3+ new tests. 1087+ tests pass. Both PRs delivered and merged.
 **Actual**: Both delivered exactly as predicted. 25 new tests (exceeded 3+ minimum). All 5 reviewers PASS first try. 1112 tests pass. All checks green. Both dry-runs pass. No fix cycles needed.
 **Result**: MET
+
+## 2026-04-09 -- Session #0120
+**Prediction**: #0227 dashboard sessions_since_evolve and sessions_since_audit show real values (<15) instead of 78. Alerts disappear for recently-delegated roles. #0234 module-map --write emits legend line. Both PRs pass review and merge. Test count stays >= 1112.
+**Actual**: Both delivered exactly as predicted. Dashboard now uses delegation-aware counting (5 new tests). Module map emits legend (1 new test). All 4 reviewers PASS first try. 1118 tests pass. No fix cycles needed. Both dry-runs pass.
+**Result**: MET

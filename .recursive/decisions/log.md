@@ -82,3 +82,9 @@
 **Decision**: Followed handoff recommendation -- EVOLVE #0231 (Tier 1 doc update) + BUILD #0092 (score calibration) in parallel. #0231 was the #1 recommendation from last handoff (framework docs stale after PR #231 added eval_runner). #0092 naturally follows #0091 (eval CLI built last session). Non-overlapping zones.
 **Delegations**: evolve (#0231 CLAUDE.md + OPERATIONS.md + MODULE_MAP.md), build (#0092 score calibration), code-reviewer x2, meta-reviewer, safety-reviewer x2
 **Outcome**: PR #232 merged (Tier 1 doc update, all 3 reviewers PASS first try). PR #233 merged (4 fixtures + 25 calibration tests, both reviewers PASS first try). 2 follow-up tasks created (#0234-#0235). 1112 tests pass. Make check + dry-runs green. No fix cycles needed.
+
+## 2026-04-09 -- Session #0120
+**Advisory**: build (score 80, reason: eval=86, urgent=False, since_build=0)
+**Decision**: Overrode to EVOLVE #0227 + BUILD #0234 in parallel. Rationale: (1) #0227 fixes stale session-since counters flagged 3+ sessions -- force multiplier for every future brain decision. (2) #0234 is a clean project-zone follow-up from last session's PR #232 review. (3) Non-overlapping zones (framework vs project). Advisory BUILD deferred because #0227's impact on decision quality outweighs one more feature build.
+**Delegations**: evolve (#0227 delegation-aware dashboard counters), build (#0234 module map legend), meta-reviewer, safety-reviewer, code-reviewer
+**Outcome**: PR #235 merged (dashboard.py + 5 new tests, both reviewers PASS first try). PR #234 merged (module_map.py + 1 new test, code-reviewer PASS first try). 1 follow-up task created (#0236). 1118 tests pass. Make check + dry-runs green. No fix cycles needed.
