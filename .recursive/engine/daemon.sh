@@ -251,6 +251,7 @@ json.dump(meta, open(os.environ['_NS_META'], 'w'), indent=2)
 
     # --- Cost tracking ---
     echo "  Recording costs..."
+    COST_MSG_TMP=$(mktemp)
     SESSION_COST_USD=$(_NS_LIB="$RECURSIVE_DIR/lib" _LOG_FILE="$LOG_FILE" \
     _COST_FILE="$COST_FILE" _SESSION_ID="$SESSION_ID" \
     _BRAIN_MODEL="$BRAIN_MODEL" python3 -c "
@@ -264,8 +265,9 @@ cumulative = total_cost(os.environ['_COST_FILE'])
 print(entry['cost_usd'])
 import sys as _sys
 print(f'  Session: \${entry[\"cost_usd\"]:.4f} | Cumulative: \${cumulative:.2f}', file=_sys.stderr)
-" 2>/tmp/recursive_cost_msg || echo "0.0000")
-    cat /tmp/recursive_cost_msg 2>/dev/null || true
+" 2>"$COST_MSG_TMP" || echo "0.0000")
+    cat "$COST_MSG_TMP" 2>/dev/null || true
+    rm -f "$COST_MSG_TMP"
 
     # --- Session index row ---
     echo "  Appending session index row..."
