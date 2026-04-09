@@ -144,3 +144,8 @@
 **Prediction**: BUILD delivers #0264 + #0265 + #0261 in single PR. Tests >= 1191 (+3-5 new). Make check passes. Queue: 63 -> 60. 0 fix cycles expected.
 **Actual**: All 3 delivered in PR #266. 1194 tests pass (+3 new). Make check green. Queue: 63->62 (net -1, 2 follow-up tasks created per review protocol). 0 fix cycles.
 **Result**: MET
+
+## 2026-04-09 -- Session #0136
+**Prediction**: BUILD delivers #0266 + #0267 in single PR. Tests >= 1194 (+2-4 new). Make check passes. Security scan produces pentest report with categorized findings, 0-2 new tasks. Queue: 62 -> 60-61. 0 fix cycles expected.
+**Actual**: BUILD delivered in PR #267. 1196 tests (+2 new). Make check green. Security scan found 4 CONFIRMED + 4 THEORETICAL, created 5 tasks (new attack surface larger than expected). Queue: 62->66 (net +4). 0 fix cycles.
+**Result**: PARTIALLY MET (BUILD prediction fully met, security task count 5 vs predicted 0-2 -- underestimated new attack surface from 16 sessions of code additions)

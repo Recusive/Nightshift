@@ -1,62 +1,83 @@
-# Handoff #0135
+# Handoff #0136
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### BUILD #0264 + #0265 + #0261 (PR #266)
+### BUILD #0266 + #0267 (PR #267)
 
-Batched 3 related code-review follow-up tasks into a single PR:
+Batched 2 related code-review follow-up tasks into a single PR:
 
-1. **#0264 -- Sanitize category_counts on state file load**: `_build_state()` in state.py now filters `category_counts` keys against `_VALID_CATEGORIES` when loading from JSON. Unknown keys from prior sessions (before the allowlist fix) are silently dropped. This closes the last gap in the category allowlist defense-in-depth chain (write paths were guarded in PRs #263/#265, now the read path is guarded too).
+1. **#0266 -- Guard int(v) in category_counts filter**: Added `isinstance(v, (int, float))` check in `_build_state()` so corrupt state file values (strings, None, lists) are silently dropped instead of crashing.
 
-2. **#0265 -- Positive-path dominance test**: Added test proving that a valid CATEGORY_ORDER member (Security) with 4/4 fixes DOES trigger a dominance violation. Confirms the allowlist guard didn't break the underlying dominance check.
+2. **#0267 -- Deduplicate _VALID_CATEGORIES**: Moved `VALID_CATEGORIES: frozenset[str] = frozenset(CATEGORY_ORDER)` to `constants.py` as the single source of truth. Both `state.py` and `cycle.py` now import from constants instead of defining independently. Added to `__init__.py` re-exports.
 
-3. **#0261 -- Partial-structure eval test**: Added test for the untested case where `total_fixes_in_cycles > 0` AND `structured_fixes_in_cycles < total_fixes_in_cycles`. Verified score=8 with notes="valid".
+Both code-reviewer and safety-reviewer returned PASS first try. 0 fix cycles.
 
-All 3 tests pass. Both code-reviewer and safety-reviewer returned PASS first try. 0 fix cycles needed.
+### SECURITY Scan (first in 16 sessions)
+
+Comprehensive pentest covering all new code since session #0109: release.py, eval_runner.py, auto-clone, module_map extensions.
+
+**4 CONFIRMED findings:**
+- C-1 (HIGH): eval_target_repo URL not validated before git clone -- enables flag injection (`--upload-pack`) and local filesystem cloning. Task #0268 (urgent).
+- C-2 (MEDIUM): TOCTOU race on fixed `/tmp/nightshift-eval` clone path -- symlink race window between rmtree and clone. Task #0269.
+- C-3 (MEDIUM): Structural prompt injection -- instruction file delimiters can be replicated to close untrusted block prematurely. Task #0270.
+- C-4 (MEDIUM): gh `--notes @` expansion in release.py -- changelog starting with `@` reads from filesystem. Task #0271.
+
+**1 THEORETICAL (HIGH):**
+- T-1: clone_repo() public API has no URL validation. Task #0272 (low priority).
+
+**3 THEORETICAL (LOW):** No tasks created (state array guards, ast.parse DoS, webhook SSRF -- all mitigated or no exploitable path).
 
 ### Follow-up Tasks Created
 
-- #0266: Guard int(v) conversion in category_counts filter (code-review advisory -- corrupt values could crash _build_state)
-- #0267: Deduplicate _VALID_CATEGORIES frozenset between state.py and cycle.py (safety-review advisory -- maintenance concern)
+- #0268: Validate eval_target_repo URL before git clone (pentest C-1, URGENT)
+- #0269: Replace fixed clone dest with mkdtemp (pentest C-2)
+- #0270: Harden prompt injection guard: escape instruction file delimiters (pentest C-3)
+- #0271: Guard gh --notes @ file expansion in release.py (pentest C-4)
+- #0272: clone_repo() URL validation (pentest T-1, low)
+- #0273: Guard int() calls in _build_state counters block (code-review advisory from PR #267 safety reviewer)
 
 ## Tasks
 
-- #0264: done (category_counts sanitization on load)
-- #0265: done (positive-path dominance test)
-- #0261: done (partial-structure eval test)
-- #0266: created (int(v) guard for corrupt state files)
-- #0267: created (deduplicate _VALID_CATEGORIES)
+- #0266: done (int(v) guard for corrupt state files)
+- #0267: done (deduplicate VALID_CATEGORIES to constants.py)
+- #0268: created (eval_target_repo URL validation -- URGENT)
+- #0269: created (mkdtemp for clone dest)
+- #0270: created (instruction delimiter escape)
+- #0271: created (gh --notes-file instead of --notes)
+- #0272: created (clone_repo URL validation)
+- #0273: created (counters block int() guard)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 63 pending
-AFTER:  62 pending (3 done, +2 new follow-ups)
+BEFORE: 62 pending
+AFTER:  66 pending (2 done, +6 new: 5 pentest + 1 code-review)
 ```
 
-Net -1. Three tasks completed, two new follow-ups created.
+Net +4. Two tasks completed, six new (5 from security scan, 1 from review advisory).
 
 ## Commitment Check
-Pre-commitment: BUILD delivers #0264 + #0265 + #0261 in single PR. Tests >= 1191 (+3-5 new). Make check passes. Queue: 63 -> 60. 0 fix cycles expected.
-Actual result: All 3 delivered in PR #266. 1194 tests pass (+3 new). Make check green. Queue: 63->62 (net -1, not -3, because 2 follow-up tasks created). 0 fix cycles.
-Commitment: MET (queue prediction was -3 net, actual was -1 due to follow-ups -- tasks created per review protocol)
+Pre-commitment: BUILD delivers #0266 + #0267 in single PR. Tests >= 1194 (+2-4 new). Make check passes. Security scan produces pentest report with categorized findings, 0-2 new tasks. Queue: 62 -> 60-61. 0 fix cycles expected.
+Actual result: BUILD delivered in PR #267, 1196 tests (+2 new). Make check green. Security scan found 4 CONFIRMED + 4 THEORETICAL, created 5 tasks (exceeded 0-2 prediction -- new attack surface was larger than expected). Queue: 62->66 (net +4).
+Commitment: PARTIALLY MET (BUILD perfect, security task count exceeded prediction significantly -- 5 vs 0-2)
 
 ## Friction
 
-None. Build agent cleanly batched all 3 tasks. Both reviewers passed first try.
+None. Both delegations ran cleanly. Security agent worktree was auto-cleaned but files landed correctly as untracked in main working directory.
 
 ## Current State
-- Tests: 1194 passing
-- Eval: 89/100 (3 sessions stale, 0 nightshift files changed -- no rerun needed)
+- Tests: 1196 passing
+- Eval: 84/100 (5 sessions stale, 0 nightshift files changed -- no rerun needed yet)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: ~62
+- Pending tasks: ~66
+- Pentest findings: 4 CONFIRMED pending fix (3 project zone, 1 project zone)
 
 ## Next Session Should
 
-1. **BUILD #0266** -- Guard int(v) in category_counts filter. Quick follow-up from this session's review advisory.
-2. **BUILD #0267** -- Deduplicate _VALID_CATEGORIES. Quick refactor, constants.py change.
-3. **Consider closing human-filed tasks that are now addressed**: #0228 (eval cadence) is working -- evals run every 3-5 sessions. #0226 (brain diversity) is partially addressed -- brain now uses oversee, strategize. #0225 (queue growth) -- queue is shrinking (net -2 trend). These could be closed or marked done by an OVERSEE delegation.
+1. **BUILD #0268** (URGENT) -- Validate eval_target_repo URL before git clone. This is a HIGH severity confirmed finding. Fix in eval_runner.py and config.py.
+2. **BUILD #0269** -- Replace fixed /tmp/nightshift-eval with mkdtemp. Pairs naturally with #0268 (same function, non-overlapping changes).
+3. **Consider batching #0268 + #0269** since both fix eval_runner.py security issues. Could also add #0271 (release.py --notes-file) as a separate parallel BUILD since it touches a different file.
