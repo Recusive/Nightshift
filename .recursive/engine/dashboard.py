@@ -162,6 +162,18 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
     signals["task_composition"] = task_composition
     signals["human_tasks"] = human_tasks
 
+    # Blocked tasks (brain should periodically reassess these)
+    blocked_count = 0
+    if tasks_dir.is_dir():
+        for tf in tasks_dir.glob("[0-9]*.md"):
+            try:
+                text = tf.read_text(encoding="utf-8")
+                if "status: blocked" in text:
+                    blocked_count += 1
+            except OSError:
+                continue
+    signals["blocked_tasks"] = blocked_count
+
     # Decision-consequence signals (self-awareness)
     signals["queue_trend"] = compute_queue_trend(decisions_path)
     signals["agent_diversity"] = compute_agent_diversity(delegations)
@@ -209,6 +221,9 @@ def format_dashboard(signals: dict[str, object]) -> str:
     human = signals.get("human_tasks", 0)
     if isinstance(human, int) and human > 0:
         lines.append(f"  From human:   {human} (prioritize these)")
+    blocked = signals.get("blocked_tasks", 0)
+    if isinstance(blocked, int) and blocked > 0:
+        lines.append(f"Blocked tasks:  {blocked} (reassess -- blockers may be resolved)")
     lines.append(f"Stale tasks:    {signals['stale_tasks']}")
     lines.append(f"Urgent tasks:   {signals['urgent_tasks']}")
     lines.append(f"Friction:       {signals['friction_entries']} entries")
