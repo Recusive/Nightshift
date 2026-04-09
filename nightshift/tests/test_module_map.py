@@ -19,6 +19,22 @@ def _write_module(repo: Path, name: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _make_session_index(repo: Path, row_count: int) -> None:
+    """Write a minimal session index with *row_count* real session rows."""
+    index_dir = repo / ".recursive" / "sessions"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    header = (
+        "# Session Index\n\n"
+        "| Timestamp        | Session         | Role    | Exit | Duration | Cost    | Status  | Feature | PR |\n"
+        "| ---------------- | --------------- | ------- | ---- | -------- | ------- | ------- | ------- | -- |\n"
+    )
+    rows = "".join(
+        f"| 2026-04-0{i + 1} 00:00 | 2026040{i + 1}-000000 | build   | 0    | 10m      | $1.00   | success | -       | - |\n"
+        for i in range(row_count)
+    )
+    (index_dir / "index.md").write_text(header + rows, encoding="utf-8")
+
+
 def _init_module_repo(tmp_path: Path) -> Path:
     repo = tmp_path
     _run_git(repo, "init")
@@ -26,9 +42,14 @@ def _init_module_repo(tmp_path: Path) -> Path:
     _run_git(repo, "config", "user.name", "Test User")
 
     (repo / "nightshift").mkdir()
-    (repo / "docs" / "handoffs").mkdir(parents=True)
+    # Create the session index (monotonic source) with 3 completed sessions so
+    # the expected label is #0004 (same value the old handoff-counting logic
+    # would have produced with 3 numbered handoff files).
+    _make_session_index(repo, row_count=3)
+    # Also create numbered handoff files so the fallback path is exercisable.
+    (repo / ".recursive" / "handoffs").mkdir(parents=True, exist_ok=True)
     for number in ("0001", "0002", "0003"):
-        (repo / "docs" / "handoffs" / f"{number}.md").write_text(f"# Handoff #{number}\n", encoding="utf-8")
+        (repo / ".recursive" / "handoffs" / f"{number}.md").write_text(f"# Handoff #{number}\n", encoding="utf-8")
 
     _write_module(
         repo,
@@ -286,3 +307,71 @@ class TestModuleMap:
         output_path = repo / ".recursive" / "architecture" / "MODULE_MAP.md"
         content = output_path.read_text(encoding="utf-8")
         assert "WARNING: dependency cycle detected" in content
+
+    def test_session_label_uses_session_index_not_handoffs(self, tmp_path: Path) -> None:
+        """Session label must come from the session index, not handoff file count."""
+        repo = _init_module_repo(tmp_path)
+        # The fixture has 3 session rows -> next label is #0004.
+        snapshot = nightshift.generate_module_map(repo)
+        assert snapshot["session_label"] == "#0004"
+
+    def test_session_label_stable_after_handoff_compaction(self, tmp_path: Path) -> None:
+        """Deleting all numbered handoff files must NOT change the session label.
+
+        This is the core regression test: compaction removes older numbered
+        handoffs from .recursive/handoffs/ but the session index is untouched.
+        The label must stay at the session-index-derived value.
+        """
+        repo = _init_module_repo(tmp_path)
+        # Confirm baseline label from session index (3 rows -> #0004).
+        snapshot_before = nightshift.generate_module_map(repo)
+        assert snapshot_before["session_label"] == "#0004"
+
+        # Simulate compaction: remove all numbered handoff files.
+        for f in (repo / ".recursive" / "handoffs").glob("[0-9][0-9][0-9][0-9].md"):
+            f.unlink()
+
+        # Label must remain #0004 because the session index still has 3 rows.
+        snapshot_after = nightshift.generate_module_map(repo)
+        assert snapshot_after["session_label"] == "#0004"
+
+    def test_session_label_fallback_to_handoffs_when_no_index(self, tmp_path: Path) -> None:
+        """When no session index exists, fall back to numbered handoff files."""
+        repo = _init_module_repo(tmp_path)
+        # Remove the session index entirely.
+        (repo / ".recursive" / "sessions" / "index.md").unlink()
+
+        # With 3 numbered handoff files (0001-0003) the fallback gives #0004.
+        snapshot = nightshift.generate_module_map(repo)
+        assert snapshot["session_label"] == "#0004"
+
+    def test_session_label_fallback_safe_with_no_handoffs_and_no_index(self, tmp_path: Path) -> None:
+        """With neither a session index nor any handoff files, label is #0001."""
+        repo = _init_module_repo(tmp_path)
+        # Remove the session index.
+        (repo / ".recursive" / "sessions" / "index.md").unlink()
+        # Remove all numbered handoff files.
+        for f in (repo / ".recursive" / "handoffs").glob("[0-9][0-9][0-9][0-9].md"):
+            f.unlink()
+
+        snapshot = nightshift.generate_module_map(repo)
+        assert snapshot["session_label"] == "#0001"
+
+    def test_session_label_ignores_circuit_break_rows(self, tmp_path: Path) -> None:
+        """CIRCUIT-BREAK pseudo-rows in the session index must not be counted."""
+        repo = _init_module_repo(tmp_path)
+        # Overwrite the session index with 2 real rows plus 1 CIRCUIT-BREAK row.
+        index_path = repo / ".recursive" / "sessions" / "index.md"
+        index_path.write_text(
+            "# Session Index\n\n"
+            "| Timestamp        | Session         | Role  | Exit | Duration | Cost  | Status  | Feature | PR |\n"
+            "| ---------------- | --------------- | ----- | ---- | -------- | ----- | ------- | ------- | -- |\n"
+            "| 2026-04-01 00:00 | 20260401-000000 | build | 0    | 10m      | $1.00 | success | -       | - |\n"
+            "| 2026-04-02 00:00 | 20260402-000000 | build | 0    | 10m      | $1.00 | success | -       | - |\n"
+            "| 2026-04-02 00:30 | CIRCUIT-BREAK   | -     | -    | -        | -     | Stopped after 3 consecutive failures | - | - |\n",
+            encoding="utf-8",
+        )
+
+        snapshot = nightshift.generate_module_map(repo)
+        # 2 real rows -> next label is #0003, not #0004.
+        assert snapshot["session_label"] == "#0003"

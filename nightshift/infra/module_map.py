@@ -7,7 +7,13 @@ import datetime as dt
 import re
 from pathlib import Path
 
-from nightshift.core.constants import MODULE_MAP_CYCLE_WARNING, MODULE_MAP_PATH, MODULE_MAP_STALE_AFTER_SESSIONS
+from nightshift.core.constants import (
+    HANDOFF_DIR_PATH,
+    MODULE_MAP_CYCLE_WARNING,
+    MODULE_MAP_PATH,
+    MODULE_MAP_STALE_AFTER_SESSIONS,
+    SESSION_INDEX_PATH,
+)
 from nightshift.core.shell import git
 from nightshift.core.types import ModuleMapEntry, ModuleMapSnapshot, ParseError, RecentSessionChange
 
@@ -314,11 +320,54 @@ def _recent_session_changes(repo_dir: Path) -> list[RecentSessionChange]:
 
 
 def _next_session_label(repo_dir: Path) -> str:
-    """Infer the current session's handoff number from existing numbered handoffs."""
-    handoff_dir = repo_dir / "docs" / "handoffs"
+    """Return the current session label from the monotonic session index.
+
+    The session index (.recursive/sessions/index.md) is append-only and never
+    compacted, so its row count is a stable monotonic counter.  Counting real
+    session rows (excluding the header, separator, and CIRCUIT-BREAK entries)
+    gives the number of sessions that have already completed; adding one yields
+    the label for the session that is currently running the module-map refresh.
+
+    Falls back to the numbered handoff files in .recursive/handoffs/ when the
+    session index is absent (e.g. fresh repo with no sessions yet).
+    """
+    count = _session_count_from_index(repo_dir)
+    if count is not None:
+        return f"#{count + 1:04d}"
+    # Fallback: count numbered handoff files in the correct directory.
+    handoff_dir = repo_dir / HANDOFF_DIR_PATH
     numbers = [int(path.stem) for path in handoff_dir.glob("[0-9][0-9][0-9][0-9].md")]
     next_number = max(numbers, default=0) + 1
     return f"#{next_number:04d}"
+
+
+def _session_count_from_index(repo_dir: Path) -> int | None:
+    """Count completed sessions from the append-only session index.
+
+    Returns the number of real session rows (i.e. rows that look like session
+    entries, excluding the markdown header line, the separator line, and any
+    CIRCUIT-BREAK rows).  Returns None when the index file is absent or
+    contains no data rows, so callers can fall back gracefully.
+    """
+    index_path = repo_dir / SESSION_INDEX_PATH
+    if not index_path.is_file():
+        return None
+    count = 0
+    for line in index_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        # Skip blank lines, the header row (starts with "| Timestamp"), and
+        # the separator row (all dashes/pipes).
+        if not stripped.startswith("|"):
+            continue
+        if stripped.startswith("| Timestamp") or stripped.startswith("|---") or stripped.startswith("| ---"):
+            continue
+        # Skip circuit-breaker pseudo-rows (second column is CIRCUIT-BREAK).
+        cols = [c.strip() for c in stripped.split("|")]
+        # cols[0] is empty (before first |), cols[1] is timestamp, cols[2] is session id
+        if len(cols) > 2 and "CIRCUIT-BREAK" in cols[2]:
+            continue
+        count += 1
+    return count if count > 0 else None
 
 
 def _git_output(repo_dir: Path, *args: str) -> str:
