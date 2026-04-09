@@ -166,6 +166,18 @@ def append_cycle_state(
         if category is not None:
             state["category_counts"][category] = state["category_counts"].get(category, 0) + 1
 
+    # When the agent used count-only payload (no structured fix objects), extract
+    # categories from the agent's "categories" list field so category_counts is
+    # populated even when fixes[] is empty.
+    if not fixes and cycle_result is not None:
+        count_only = cycle_result.get("fixes_count_only", 0)
+        if count_only:
+            agent_categories = cycle_result.get("categories") or []
+            if isinstance(agent_categories, list):
+                for cat in agent_categories:
+                    if isinstance(cat, str) and cat:
+                        state["category_counts"][cat] = state["category_counts"].get(cat, 0) + 1
+
     test_files_count = sum(1 for f in verification["files_touched"] if _is_test_file(f))
     state["counters"]["tests_written"] += test_files_count
 
@@ -182,10 +194,21 @@ def append_cycle_state(
     state["recent_cycle_paths"].append(verification["dominant_path"])
     state["recent_cycle_paths"] = state["recent_cycle_paths"][-4:]
 
+    # Determine cycle status: prefer the agent's reported status; fall back to
+    # inferred status when the agent returned a count-only payload (no "status"
+    # field or "unknown").  A cycle with committed fixes is "completed".
+    reported_status = cycle_result.get("status", "unknown") if cycle_result else "unknown"
+    if reported_status == "unknown" and cycle_result is not None:
+        count_only = cycle_result.get("fixes_count_only", 0)
+        if count_only and verification["commits"]:
+            reported_status = "completed"
+        elif logged_issues and not verification["commits"]:
+            reported_status = "log_only"
+
     state["cycles"].append(
         {
             "cycle": cycle_number,
-            "status": cycle_result.get("status", "unknown") if cycle_result else "unknown",
+            "status": reported_status,
             "fixes": fixes,
             "logged_issues": logged_issues,
             "verification": verification,

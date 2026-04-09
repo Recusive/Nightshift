@@ -848,6 +848,180 @@ class TestAppendCycleState:
         # count_only=0 is falsy; fall back to commit count
         assert state["counters"]["fixes"] == 1
 
+    def test_count_only_payload_populates_category_counts_from_categories(self):
+        """Regression for eval #0091: category_counts must be populated from the
+        'categories' field when fixes[] is empty and fixes_count_only > 0.
+
+        The Claude agent returns count-only payloads with a 'categories' list.
+        Without this fix, category_counts stays empty even though the fix ran.
+        """
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 1,
+            "categories": ["Security"],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["apps/web/auth/callback.ts"],
+            "dominant_path": "apps",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["counters"]["fixes"] == 1
+        assert state["category_counts"] == {"Security": 1}
+        assert state["cycles"][0]["fixes"] == []
+
+    def test_count_only_payload_accumulates_multiple_categories(self):
+        """Multiple categories in the 'categories' list each get one count."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 2,
+            "categories": ["Security", "A11y"],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234", "def5678"],
+            "files_touched": ["auth.ts", "nav.tsx"],
+            "dominant_path": "apps",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["category_counts"] == {"Security": 1, "A11y": 1}
+
+    def test_count_only_zero_does_not_populate_categories(self):
+        """When fixes_count_only=0, category data from 'categories' is not used."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 0,
+            "categories": ["Security"],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["auth.ts"],
+            "dominant_path": "apps",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        # count_only=0 is falsy; no category counts from count-only path
+        assert state["category_counts"] == {}
+
+    def test_count_only_status_inferred_as_completed_when_commits_exist(self):
+        """Regression for eval #0091: status must be 'completed' not 'unknown'
+        when fixes_count_only > 0 and commits exist, even if agent omits status.
+        """
+        state = self._base_state()
+        # Agent omits "status" field entirely (returns count-only format)
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 1,
+            "categories": ["Security"],
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["auth.ts"],
+            "dominant_path": "apps",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["cycles"][0]["status"] == "completed"
+
+    def test_status_inferred_log_only_when_issues_logged_no_commits(self):
+        """When count-only cycle has logged issues but no commits, infer log_only."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [{"title": "issue", "category": "Security"}],
+            "fixes_count_only": 0,
+        }
+        verification = {
+            "commits": [],
+            "files_touched": [],
+            "dominant_path": "(none)",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["cycles"][0]["status"] == "log_only"
+
+    def test_reported_status_is_preserved_when_present(self):
+        """When cycle_result carries an explicit status, it is not overridden."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 1,
+            "categories": ["Security"],
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["auth.ts"],
+            "dominant_path": "apps",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["cycles"][0]["status"] == "completed"
+
+    def test_structured_fixes_take_precedence_over_categories_for_category_counts(self):
+        """Structured fix objects are used for category_counts; 'categories' is
+        only consulted as fallback when fixes[] is empty (count-only payload).
+        """
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [
+                {"title": "a", "category": "Security", "impact": "high", "files": ["auth.ts"]},
+            ],
+            "logged_issues": [],
+            "fixes_count_only": 0,
+            "categories": ["A11y"],  # should be ignored since fixes[] is non-empty
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["auth.ts"],
+            "dominant_path": "apps",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        # Only Security from structured fixes; A11y from categories[] ignored
+        assert state["category_counts"] == {"Security": 1}
+
 
 # --- Blocked File Detection --------------------------------------------------
 
@@ -1697,6 +1871,29 @@ class TestBuildPrompt:
         prompt = nightshift.build_prompt(**self._base_args())
         assert "Prefer high-signal, low-blast-radius helpers" in prompt
         assert "`src/lib/auth`" in prompt
+
+    def test_prompt_embeds_fixes_array_schema(self):
+        """Regression for eval #0091: the prompt must show the required fixes[] structure.
+
+        Claude uses --verbose without --output-schema, so it cannot see the schema
+        file. The prompt must embed the required JSON structure so Claude knows to
+        return a structured fixes[] array rather than count-only fields like
+        fixes_committed/fixes_applied.
+        """
+        prompt = nightshift.build_prompt(**self._base_args())
+        # Prompt must include the structured fixes[] schema template
+        assert '"fixes"' in prompt
+        assert '"category"' in prompt
+        assert '"impact"' in prompt
+        assert '"commit"' in prompt
+        # Must explicitly warn against count-only fields
+        assert "fixes_committed" in prompt or "fixes_applied" in prompt
+
+    def test_prompt_includes_status_enum_values(self):
+        """The prompt must include the valid status enum values so Claude uses them."""
+        prompt = nightshift.build_prompt(**self._base_args())
+        assert "completed" in prompt
+        assert "log_only" in prompt
 
 
 # --- Read Repo Instructions --------------------------------------------------
