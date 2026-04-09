@@ -186,7 +186,7 @@ def count_pending_tasks(tasks_dir: Path) -> int:
         frontmatter = _read_frontmatter(f)
         if frontmatter is None:
             continue
-        if re.search(r"^status:\s*pending", frontmatter, re.MULTILINE):
+        if re.search(r"^status:\s*pending\s*$", frontmatter, re.MULTILINE):
             count += 1
     return count
 
@@ -198,7 +198,7 @@ def count_stale_tasks(tasks_dir: Path, threshold: int = 20) -> int:
         frontmatter = _read_frontmatter(f)
         if frontmatter is None:
             continue
-        if not re.search(r"^status:\s*pending", frontmatter, re.MULTILINE):
+        if not re.search(r"^status:\s*pending\s*$", frontmatter, re.MULTILINE):
             continue
         match = re.search(r"^created:\s*(\d{4}-\d{2}-\d{2})", frontmatter, re.MULTILINE)
         if match:
@@ -226,7 +226,7 @@ def count_pending_pentest_framework_tasks(tasks_dir: Path) -> int:
         fm = _read_frontmatter(f)
         if not fm:
             continue
-        if not re.search(r"^status:\s*pending", fm, re.MULTILINE):
+        if not re.search(r"^status:\s*pending\s*$", fm, re.MULTILINE):
             continue
         if not re.search(r"^source:\s*pentest\s*$", fm, re.MULTILINE):
             continue
@@ -285,8 +285,8 @@ def has_urgent_tasks(tasks_dir: Path) -> bool:
         frontmatter = _read_frontmatter(f)
         if frontmatter is None:
             continue
-        if re.search(r"^status:\s*pending", frontmatter, re.MULTILINE) and re.search(
-            r"^priority:\s*urgent", frontmatter, re.MULTILINE
+        if re.search(r"^status:\s*pending\s*$", frontmatter, re.MULTILINE) and re.search(
+            r"^priority:\s*urgent\s*$", frontmatter, re.MULTILINE
         ):
             return True
     return False
