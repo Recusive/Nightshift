@@ -490,6 +490,7 @@ class ModuleMapSnapshot(TypedDict):
     module_count: int
     modules: list[ModuleMapEntry]
     dependency_order: list[str]
+    dependency_cycles: list[str]
     recent_changes: list[RecentSessionChange]
     parse_errors: list[ParseError]
 

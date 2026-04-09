@@ -629,6 +629,11 @@ FEATURE_VERIFY_TIMEOUT = 600
 MODULE_MAP_PATH = ".recursive/architecture/MODULE_MAP.md"
 MODULE_MAP_STALE_AFTER_SESSIONS = 5
 
+# Header text used in the module map when a dependency cycle is detected.
+MODULE_MAP_CYCLE_WARNING = (
+    "WARNING: dependency cycle detected. The following modules form a cycle and were appended in alphabetical order:"
+)
+
 PROFILER_SKIP_DIRS: set[str] = {
     "node_modules",
     ".git",
