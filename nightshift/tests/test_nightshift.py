@@ -7867,6 +7867,22 @@ class TestCheckSecrets:
         assert result["passed"] is False
         assert "... and" in result["details"]
 
+    def test_path_traversal_blocked(self, tmp_path: Path) -> None:
+        # Create a file outside repo_dir that looks like a target
+        outside = tmp_path.parent / "outside_secret.py"
+        outside.write_text('api_key = "sk-1234567890abcdefghij"\n')
+        # Craft a traversal path relative to tmp_path
+        traversal = "../outside_secret.py"
+        result = nightshift.check_secrets([traversal], tmp_path)
+        # Guard must skip the file; no hits reported
+        assert result["passed"] is True
+        outside.unlink()
+
+    def test_deeply_nested_traversal_blocked(self, tmp_path: Path) -> None:
+        # Triple-dot traversal attempting to escape several directory levels
+        result = nightshift.check_secrets(["../../../etc/passwd"], tmp_path)
+        assert result["passed"] is True
+
 
 class TestCheckDebugPrints:
     def test_clean_file(self, tmp_path: Path) -> None:
@@ -7926,6 +7942,19 @@ class TestCheckDebugPrints:
         result = nightshift.check_debug_prints(["docs/guide.md"], tmp_path)
         assert result["passed"] is True
 
+    def test_path_traversal_blocked(self, tmp_path: Path) -> None:
+        # File outside repo_dir with a debug print statement
+        outside = tmp_path.parent / "outside_debug.py"
+        outside.write_text("print('leak')\n")
+        traversal = "../outside_debug.py"
+        result = nightshift.check_debug_prints([traversal], tmp_path)
+        assert result["passed"] is True
+        outside.unlink()
+
+    def test_deeply_nested_traversal_blocked(self, tmp_path: Path) -> None:
+        result = nightshift.check_debug_prints(["../../../etc/passwd"], tmp_path)
+        assert result["passed"] is True
+
 
 class TestCheckTestCoverage:
     def test_all_covered(self, tmp_path: Path) -> None:
@@ -7975,6 +8004,19 @@ class TestCheckTestCoverage:
         (tmp_path / "tests" / "api" / "test_routes.py").write_text("assert True\n")
         result = nightshift.check_test_coverage(["src/api/routes.py"], [], tmp_path)
         assert result["passed"] is True
+
+    def test_path_traversal_in_files_created_blocked(self, tmp_path: Path) -> None:
+        # Traversal in files_created list is silently skipped; result should be
+        # "no production source files to check" (guard drops the entry).
+        result = nightshift.check_test_coverage(["../../../etc/passwd.py"], [], tmp_path)
+        assert result["passed"] is True
+        assert "No production" in result["details"]
+
+    def test_path_traversal_in_files_modified_blocked(self, tmp_path: Path) -> None:
+        # Same guard applies to files_modified
+        result = nightshift.check_test_coverage([], ["../../outside.py"], tmp_path)
+        assert result["passed"] is True
+        assert "No production" in result["details"]
 
 
 class TestCheckProductionReadiness:
