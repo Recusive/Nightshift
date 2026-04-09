@@ -105,6 +105,25 @@ def validate_repo_checkout(repo_dir: Path) -> None:
         raise NightshiftError(f"Target repo is not a valid git checkout: {repo_dir}")
 
 
+def clone_repo(url: str, dest: Path) -> None:
+    """Clone a git repository from url into dest.
+
+    Raises NightshiftError with the exact git clone command if the clone fails,
+    so the user can run it manually.
+    """
+    result = subprocess.run(
+        ["git", "clone", url, str(dest)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        clone_cmd = f"git clone {url} {dest}"
+        raise NightshiftError(
+            f"Auto-clone failed for {url}.\nClone it manually with:\n  {clone_cmd}\ngit output: {result.stderr.strip()}"
+        )
+
+
 def ensure_worktree(repo_dir: Path, worktree_dir: Path, branch: str) -> None:
     validate_repo_checkout(repo_dir)
     git(repo_dir, "worktree", "prune", check=False)

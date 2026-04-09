@@ -6,6 +6,9 @@ import configparser
 from pathlib import Path
 from urllib.parse import urlsplit
 
+# Canonical URL for the primary evaluation target used in nightshift test runs.
+PHRACTAL_URL = "https://github.com/fazxes/Phractal"
+
 _KNOWN_TARGET_VERIFY_COMMANDS: dict[str, str] = {
     "github.com/fazxes/phractal": "python3 -m compileall apps/api/app",
 }
