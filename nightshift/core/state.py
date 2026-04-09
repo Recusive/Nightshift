@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from nightshift.core.constants import CATEGORY_ORDER, DATA_VERSION
+from nightshift.core.constants import DATA_VERSION, VALID_CATEGORIES
 from nightshift.core.errors import NightshiftError
 from nightshift.core.types import (
     Baseline,
@@ -17,8 +17,9 @@ from nightshift.core.types import (
     ShiftState,
 )
 
-# Frozenset for O(1) allowlist checks against agent-supplied category strings.
-_VALID_CATEGORIES: frozenset[str] = frozenset(CATEGORY_ORDER)
+# Re-export for use within this module. VALID_CATEGORIES is defined once in
+# constants.py; this avoids a duplicated frozenset(CATEGORY_ORDER) here.
+_VALID_CATEGORIES = VALID_CATEGORIES
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -68,7 +69,9 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
     if not isinstance(raw_category_counts, dict):
         raw_category_counts = {}
     category_counts: dict[str, int] = {
-        k: int(v) for k, v in raw_category_counts.items() if isinstance(k, str) and k in _VALID_CATEGORIES
+        k: int(v)
+        for k, v in raw_category_counts.items()
+        if isinstance(k, str) and k in _VALID_CATEGORIES and isinstance(v, (int, float))
     }
 
     return ShiftState(
