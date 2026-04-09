@@ -1,0 +1,62 @@
+{
+  "state": {
+    "version": 1,
+    "date": "2026-03-10",
+    "branch": "nightshift/2026-03-10",
+    "agent": "claude",
+    "verify_command": "make test",
+    "baseline": {"status": "passed", "command": "make test", "message": ""},
+    "counters": {
+      "fixes": 0,
+      "issues_logged": 0,
+      "files_touched": 0,
+      "low_impact_fixes": 0,
+      "failed_verifications": 2,
+      "empty_cycles": 2,
+      "agent_failures": 1,
+      "tests_written": 0
+    },
+    "category_counts": {"Code Quality": 0},
+    "recent_cycle_paths": [],
+    "cycles": [
+      {
+        "cycle": 1,
+        "status": "rejected",
+        "fixes": [],
+        "logged_issues": [],
+        "verification": {
+          "verify_command": "make test",
+          "verify_status": "failed",
+          "verify_exit_code": 1,
+          "dominant_path": "",
+          "commits": [],
+          "files_touched": [],
+          "violations": ["blocked path: .github/workflows/ci.yml"]
+        }
+      },
+      {
+        "cycle": 2,
+        "status": "rejected",
+        "fixes": [],
+        "logged_issues": [],
+        "verification": {
+          "verify_command": "make test",
+          "verify_status": "failed",
+          "verify_exit_code": 1,
+          "dominant_path": "",
+          "commits": [],
+          "files_touched": [],
+          "violations": []
+        }
+      }
+    ],
+    "halt_reason": "stop_after_failed_verifications",
+    "log_only_mode": false
+  },
+  "shift_log": "# Nightshift -- 2026-03-10\n\n**Branch**: `nightshift/2026-03-10`\n**Base**: `main`\n**Started**: 2026-03-10T00:00:00\n\n## Summary\nThe shift has started. Reconnaissance is underway and this summary will be rewritten as the overnight run accumulates real fixes and logged issues.\n\n## Stats\n- Fixes committed: 0\n- Issues logged: 0\n- Tests added: 0\n- Files touched: 0\n- Low-impact fixes: 0\n\n---\n\n## Fixes\n\n<!-- Number sequentially. Include cycle number, category, impact, files, commit hash, and verification command. -->\n\n---\n\n## Logged Issues\n\n<!-- Issues too large to fix autonomously. Include severity, category, files, and suggested approach. -->\n\n---\n\n## Recommendations\n\n<!-- Patterns noticed, areas needing deeper work. Updated as the shift progresses. -->\n",
+  "runner_exit_code": 0,
+  "state_file_valid": true,
+  "shift_log_exists": true,
+  "git_status_output": "",
+  "repo_is_clean": true
+}
