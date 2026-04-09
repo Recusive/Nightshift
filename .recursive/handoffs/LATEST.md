@@ -1,65 +1,71 @@
-# Handoff #0121
+# Handoff #0122
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. Evolved task #0095 (session index row formatting): PR #237
-Delegated to evolve agent. Updated:
-- `lib-agent.sh`: Added `append_session_index_row()` function (~90 lines) with full sanitization (strips pipes, newlines, caps field lengths). Creates header if missing.
-- `daemon.sh`: Captures `SESSION_COST_USD` from Python stdout, tracks `PROMPT_TAMPERED` flag, calls the new function after cost recording.
-- `brain.md`: Added prohibition against manual writes to sessions/index.md.
-- `DAEMON.md`: Documents the new row writer and no-manual-writes rule.
-- `sessions/index.md`: Repaired two broken multiline rows from 2026-04-07.
-- `test_session_index.py`: 11 new tests (validator, parser, live index checks).
+### 1. Oversee: Queue triage (PR #240)
+Delegated to oversee agent -- first oversee delegation in the v2 brain era. The human filed 6 GitHub issues (#0221, #0223-#0226, #0228) explicitly calling out that the brain always picks build+evolve and never uses maintenance agents. This session responded to that feedback.
 
-**Tier 1 change** — all three reviewers (code, meta, safety) PASS. All 8 safety invariants verified intact. Merged first try.
+Oversee closed 10 tasks:
+- **Done (8)**: #0089 (OPERATIONS.md already updated), #0128 (open PR review already in brain.md), #0147 (PROMPT_ALERT is v1 dead code), #0160 (FEATURE variable is v1 dead code), #0199 (.recursive/lib already in PROMPT_GUARD_DIRS), #0200 (evolve/audit SKILL.md already in PROMPT_GUARD_FILES), #0204 (commitment tracking already working), #0209 (title sanitization already implemented)
+- **Blocked (2)**: #0145 (ML model -- needs 100+ sessions, we're at 82), #0207 (eval cycle count -- premature)
 
-### 2. Built task #0235 (typing fix in test_score_calibration.py): PR #236
+Docs-reviewer: PASS. Merged.
+
+### 2. Build task #0110: monotonic session labels (PR #239)
 Delegated to build agent. Updated:
-- `test_score_calibration.py`: Changed `raw` annotation from `dict[str, object]` to `dict[str, Any]`, added import, updated docstring.
+- `module_map.py`: New `_session_count_from_index()` parses `.recursive/sessions/index.md` as monotonic source. Falls back to handoff file counting.
+- `constants.py`: Added `SESSION_INDEX_PATH` and `HANDOFF_DIR_PATH`
+- `__init__.py`: Exported new constants
+- `test_module_map.py`: 5 new regression tests (index-based labeling, compaction survival, fallback, no-source default, CIRCUIT-BREAK exclusion)
 
-Code-reviewer: PASS. Merged first try.
+Code-reviewer: PASS. Safety-reviewer: PASS. Merged.
 
 ### 3. Follow-up tasks created
-- #0237 (low): Replace `/tmp/recursive_cost_msg` with mktemp in daemon.sh
-- #0238 (low): Sanitize exit_code/duration_min in append_session_index_row
-- #0239 (low): Add append_session_index_row call to budget-stop path
+- #0240 (low): Fix module_map.py comment imprecision and test helper date formatting
 
 ## Tasks
 
-- #0095: done (session index row formatting and feature capture)
-- #0235: done (typing fix in test_score_calibration.py)
-- #0237: created (mktemp for cost msg)
-- #0238: created (sanitize numeric fields)
-- #0239: created (budget-stop index row)
+- #0110: done (monotonic session labels for module map)
+- #0089: done (OPERATIONS.md already up-to-date)
+- #0128: done (open PR review already in brain.md)
+- #0147: done (PROMPT_ALERT is v1 dead code)
+- #0160: done (FEATURE variable is v1 dead code)
+- #0199: done (.recursive/lib already guarded)
+- #0200: done (evolve/audit SKILL.md already guarded)
+- #0204: done (commitment tracking working)
+- #0209: done (title sanitization implemented)
+- #0145: blocked (needs 100+ sessions)
+- #0207: blocked (premature, needs eval loop first)
+- #0240: created (comment/test cleanup)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 76 pending
-AFTER:  77 pending (2 done, 3 new follow-ups)
+BEFORE: 77 pending
+AFTER:  69 pending (9 done, 2 blocked, 1 new follow-up)
 ```
 
 ## Commitment Check
-Pre-commitment: #0095 session index writer produces single-line Feature/PR columns, validator test catches multiline rows, PR passes review. #0235 raw annotated as dict[str, Any] with updated docstring. Both PRs delivered and merged. Tests >= 1118.
-Actual result: Both delivered exactly as predicted. All 4 reviewers PASS (3 for Tier 1 PR #237, 1 for PR #236). All 8 safety invariants preserved. 1128 tests pass (10 new). No fix cycles needed. Both dry-runs pass.
+Pre-commitment: Oversee will close at least 8 tasks, reducing pending from 77 to 69 or fewer. BUILD #0110 ships monotonic session labeling with at least 1 regression test. Both PRs delivered and merged. Tests >= 1128.
+Actual result: Oversee closed 10 tasks (8 done + 2 blocked). Queue dropped to 69. BUILD #0110 delivered with 5 regression tests. Both PRs merged first try. All 5 reviewers PASS. 1142 tests pass. Make check + dry-runs green.
 Commitment: MET
 
 ## Friction
 
-None this session. The local branch deletion error during merge (worktree still holds branch) is the known cosmetic issue -- PR merged successfully on GitHub.
+None this session. The local branch deletion error during merge (worktree still holds branch) is the known cosmetic issue -- PR #240 merged successfully on GitHub.
 
 ## Current State
-- Tests: 1128 passing
+- Tests: 1142 passing
 - Eval: 86/100 (gate CLEAR)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: ~77
+- Pending tasks: 69
 
 ## Next Session Should
 
-1. **SECURITY-CHECK** — 11 sessions since last security scan. The codebase has changed significantly (session index writer, dashboard counters, etc.) since the last pentest. High priority.
-2. **BUILD #0032** or another normal-priority v0.0.8 task — with eval gate clear and no urgent items, steady progress on the backlog.
-3. **Consider AUDIT** — 13 sessions since last audit. Framework docs may be drifting again.
+1. **BUILD a human-filed task** -- There are still 9 human-filed tasks. #0223 (worktree cleanup) is a concrete operational fix the human experienced. If it touches daemon code (framework zone), delegate to evolve instead.
+2. **BUILD #0146** (prompt-guard integration test) or another v0.0.8 normal-priority task -- continue reducing the backlog.
+3. **Consider AUDIT** -- 14+ sessions since last audit. Framework docs may be drifting.

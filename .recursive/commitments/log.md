@@ -74,3 +74,8 @@
 **Prediction**: #0095 session index writer produces single-line Feature/PR columns, validator test catches multiline rows, Tier 1 PR passes all 3 reviewers. #0235 raw annotated as dict[str, Any] with updated docstring. Both PRs delivered and merged. Tests >= 1118.
 **Actual**: Both delivered exactly as predicted. PR #237 (Tier 1): all 3 reviewers PASS, all 8 safety invariants preserved. PR #236: code-reviewer PASS. 1128 tests pass (10 new). No fix cycles needed. Both dry-runs pass.
 **Result**: MET
+
+## 2026-04-09 -- Session #0122
+**Prediction**: Oversee will close at least 8 tasks, reducing pending from 77 to 69 or fewer. BUILD #0110 ships monotonic session labeling with at least 1 regression test. Both PRs delivered and merged. Tests >= 1128.
+**Actual**: Oversee closed 10 tasks (8 done + 2 blocked), queue 77->69. BUILD #0110 delivered with 5 regression tests. All 5 reviewers PASS first try. 1142 tests pass. Make check + dry-runs green. No fix cycles needed.
+**Result**: MET
