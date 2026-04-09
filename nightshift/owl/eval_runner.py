@@ -14,11 +14,12 @@ The public surface is two functions:
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from nightshift.core.constants import (
     EVALUATION_CLONE_DEST,
@@ -31,7 +32,7 @@ from nightshift.core.constants import (
     EVALUATION_TEMPLATE_MARKERS,
 )
 from nightshift.core.errors import NightshiftError
-from nightshift.core.types import DimensionScore, EvaluationResult, ShiftArtifacts
+from nightshift.core.types import DimensionScore, EvaluationResult, ShiftArtifacts, ShiftRunResult
 from nightshift.settings.config import merge_config
 
 # ---------------------------------------------------------------------------
@@ -447,8 +448,6 @@ def run_eval_dry_run(
 
 def _collect_artifacts_from_dir(runtime_dir: Path, date: str) -> ShiftArtifacts:
     """Read shift state and log from a completed test run directory."""
-    import json
-
     state: dict[str, object] | None = None
     state_file_valid = False
     state_path = runtime_dir / f"{date}.state.json"
@@ -538,8 +537,6 @@ def run_eval_full(
     except subprocess.TimeoutExpired as exc:
         raise NightshiftError(f"Clone of {target} timed out") from exc
 
-    import tempfile
-
     runtime_dir = Path(tempfile.mkdtemp(prefix="nightshift-eval-"))
     try:
         result_data = _run_test_shift_subprocess(
@@ -550,7 +547,7 @@ def run_eval_full(
             date=date,
         )
         artifacts = _collect_artifacts_from_dir(runtime_dir, date)
-        artifacts["runner_exit_code"] = result_data.get("exit_code", 0)
+        artifacts["runner_exit_code"] = result_data["exit_code"]
     finally:
         if clone_dest.exists():
             shutil.rmtree(clone_dest, ignore_errors=True)
@@ -586,7 +583,7 @@ def _run_test_shift_subprocess(
     agent: str,
     runtime_dir: Path,
     date: str,
-) -> dict[str, Any]:
+) -> ShiftRunResult:
     """Invoke `python3 -m nightshift test` against the clone and return outcome."""
     cmd = [
         "python3",
@@ -612,9 +609,9 @@ def _run_test_shift_subprocess(
             timeout=EVALUATION_SHIFT_TIMEOUT,
             cwd=str(repo_dir),
         )
-        return {"exit_code": proc.returncode, "stdout": proc.stdout, "stderr": proc.stderr}
+        return ShiftRunResult(exit_code=proc.returncode, stdout=proc.stdout, stderr=proc.stderr)
     except subprocess.TimeoutExpired:
-        return {"exit_code": -1, "stdout": "", "stderr": "Timeout"}
+        return ShiftRunResult(exit_code=-1, stdout="", stderr="Timeout")
 
 
 # ---------------------------------------------------------------------------

@@ -39,20 +39,25 @@ from nightshift.owl.eval_runner import (
 # ---------------------------------------------------------------------------
 
 
-def _make_minimal_artifacts(**overrides: object) -> ShiftArtifacts:
-    """Return a minimal valid ShiftArtifacts dict, optionally overriding fields."""
-    base = ShiftArtifacts(
-        state=None,
-        shift_log="",
-        runner_exit_code=0,
-        state_file_valid=False,
-        shift_log_exists=False,
-        git_status_output="",
-        repo_is_clean=True,
+def _make_minimal_artifacts(
+    state: dict[str, object] | None = None,
+    shift_log: str = "",
+    runner_exit_code: int = 0,
+    state_file_valid: bool = False,
+    shift_log_exists: bool = False,
+    git_status_output: str = "",
+    repo_is_clean: bool = True,
+) -> ShiftArtifacts:
+    """Return a minimal valid ShiftArtifacts dict with explicit overridable fields."""
+    return ShiftArtifacts(
+        state=state,
+        shift_log=shift_log,
+        runner_exit_code=runner_exit_code,
+        state_file_valid=state_file_valid,
+        shift_log_exists=shift_log_exists,
+        git_status_output=git_status_output,
+        repo_is_clean=repo_is_clean,
     )
-    for key, value in overrides.items():
-        base[key] = value  # type: ignore[literal-required]
-    return base
 
 
 def _make_full_state(
