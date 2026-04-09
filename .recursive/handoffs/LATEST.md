@@ -1,71 +1,74 @@
-# Handoff #0122
+# Handoff #0123
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. Oversee: Queue triage (PR #240)
-Delegated to oversee agent -- first oversee delegation in the v2 brain era. The human filed 6 GitHub issues (#0221, #0223-#0226, #0228) explicitly calling out that the brain always picks build+evolve and never uses maintenance agents. This session responded to that feedback.
+### 1. Strategize: First strategy session in v2 era (PR #242)
+Delegated to strategize agent -- first strategize delegation ever in the v2 brain architecture (15 sessions overdue). Produced a comprehensive strategy report analyzing sessions #0107-#0122.
 
-Oversee closed 10 tasks:
-- **Done (8)**: #0089 (OPERATIONS.md already updated), #0128 (open PR review already in brain.md), #0147 (PROMPT_ALERT is v1 dead code), #0160 (FEATURE variable is v1 dead code), #0199 (.recursive/lib already in PROMPT_GUARD_DIRS), #0200 (evolve/audit SKILL.md already in PROMPT_GUARD_FILES), #0204 (commitment tracking already working), #0209 (title sanitization already implemented)
-- **Blocked (2)**: #0145 (ML model -- needs 100+ sessions, we're at 82), #0207 (eval cycle count -- premature)
+Key findings:
+- **F1**: Eval loop broken -- 14 sessions stale since last Phractal run
+- **F2**: Worktree leak confirmed live (17 stale worktrees found)
+- **F3**: Phractal E2E never runs -- tool built but never tested
+- **F4**: Self-Maintaining stuck at 68% for 16 sessions
+- **F5**: Security pentest self-feeding loop risk
 
-Docs-reviewer: PASS. Merged.
+3 new tasks created from strategy analysis:
+- #0241 (urgent): Fix worktree cleanup -- `.claude/worktrees/agent-*` leaking
+- #0242 (urgent): Add `sessions_since_eval` signal + brain eval cadence rule
+- #0243 (normal): Run nightshift against Phractal to produce eval #0017
 
-### 2. Build task #0110: monotonic session labels (PR #239)
-Delegated to build agent. Updated:
-- `module_map.py`: New `_session_count_from_index()` parses `.recursive/sessions/index.md` as monotonic source. Falls back to handoff file counting.
-- `constants.py`: Added `SESSION_INDEX_PATH` and `HANDOFF_DIR_PATH`
-- `__init__.py`: Exported new constants
-- `test_module_map.py`: 5 new regression tests (index-based labeling, compaction survival, fallback, no-source default, CIRCUIT-BREAK exclusion)
+Docs-reviewer: FAIL (missing report file), fixed, re-reviewed: PASS. Merged.
+Task #0223 closed as superseded by #0241.
 
-Code-reviewer: PASS. Safety-reviewer: PASS. Merged.
+### 2. Build task #0240: Comment fix + test date formatting (PR #241)
+Delegated to build agent. Fixed:
+- `module_map.py`: Comment now accurately describes split indexing (cols[0]=empty, cols[1]=timestamp, cols[2]=session-id)
+- `test_module_map.py`: Test helper date formatting uses `{i+1:02d}` for correct zero-padding
+
+Code-reviewer: PASS (with advisory note about session-id column). Merged.
 
 ### 3. Follow-up tasks created
-- #0240 (low): Fix module_map.py comment imprecision and test helper date formatting
+- #0244 (low): Fix session-id zero-padding in test helper (advisory from PR #241 review)
 
 ## Tasks
 
-- #0110: done (monotonic session labels for module map)
-- #0089: done (OPERATIONS.md already up-to-date)
-- #0128: done (open PR review already in brain.md)
-- #0147: done (PROMPT_ALERT is v1 dead code)
-- #0160: done (FEATURE variable is v1 dead code)
-- #0199: done (.recursive/lib already guarded)
-- #0200: done (evolve/audit SKILL.md already guarded)
-- #0204: done (commitment tracking working)
-- #0209: done (title sanitization implemented)
-- #0145: blocked (needs 100+ sessions)
-- #0207: blocked (premature, needs eval loop first)
-- #0240: created (comment/test cleanup)
+- #0240: done (comment fix + test date formatting)
+- #0223: done (superseded by #0241)
+- #0241: created (urgent -- worktree cleanup)
+- #0242: created (urgent -- sessions_since_eval signal)
+- #0243: created (normal -- Phractal E2E eval run)
+- #0244: created (low -- test helper session-id formatting)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 77 pending
-AFTER:  69 pending (9 done, 2 blocked, 1 new follow-up)
+BEFORE: 67 pending
+AFTER:  69 pending (2 done, 4 new tasks from strategy + review)
 ```
 
+Net +2. The 3 strategy tasks are high-priority items addressing human-filed issues. Queue will shrink once these actionable tasks replace the underlying complaints.
+
 ## Commitment Check
-Pre-commitment: Oversee will close at least 8 tasks, reducing pending from 77 to 69 or fewer. BUILD #0110 ships monotonic session labeling with at least 1 regression test. Both PRs delivered and merged. Tests >= 1128.
-Actual result: Oversee closed 10 tasks (8 done + 2 blocked). Queue dropped to 69. BUILD #0110 delivered with 5 regression tests. Both PRs merged first try. All 5 reviewers PASS. 1142 tests pass. Make check + dry-runs green.
+Pre-commitment: Strategy report with 3+ diagnostic categories and 5+ recommendations. BUILD #0240 ships comment + test fix. Both PRs delivered and merged. Tests >= 1142.
+Actual result: Strategy report delivered with 5 diagnostic categories (F1-F5) and 5 prioritized session recommendations. BUILD #0240 delivered exactly as specified. Both PRs merged (PR #242 needed 1 fix cycle for missing report file). 1142 tests pass. Make check + dry-runs green.
 Commitment: MET
 
 ## Friction
 
-None this session. The local branch deletion error during merge (worktree still holds branch) is the known cosmetic issue -- PR #240 merged successfully on GitHub.
+Worktree leak confirmed: 17 stale `.claude/worktrees/agent-*` directories found. This is the #1 operational issue and is now tracked as urgent task #0241.
 
 ## Current State
 - Tests: 1142 passing
-- Eval: 86/100 (gate CLEAR)
+- Eval: 86/100 (14 sessions stale -- urgent to re-run)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
 - Pending tasks: 69
 
 ## Next Session Should
 
-1. **BUILD a human-filed task** -- There are still 9 human-filed tasks. #0223 (worktree cleanup) is a concrete operational fix the human experienced. If it touches daemon code (framework zone), delegate to evolve instead.
-2. **BUILD #0146** (prompt-guard integration test) or another v0.0.8 normal-priority task -- continue reducing the backlog.
-3. **Consider AUDIT** -- 14+ sessions since last audit. Framework docs may be drifting.
+1. **EVOLVE #0241** (urgent) -- Fix worktree cleanup in daemon.sh/lib-agent.sh. This is a Tier 1 framework fix, needs 3-reviewer high-bar review. Addresses human issue #0223 and the 17 stale worktrees confirmed this session.
+2. **BUILD #0243** -- Run nightshift against Phractal to produce eval #0017. Validates 14 sessions of code changes. Addresses human issues #0224, #0094, #0228.
+3. If time permits, **BUILD #0242 Part 1** -- Add sessions_since_eval signal to dashboard.py so the brain always knows when eval is stale.
