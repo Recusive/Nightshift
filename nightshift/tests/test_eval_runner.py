@@ -15,9 +15,11 @@ import nightshift  # noqa: I001
 from nightshift.cli import build_parser, eval_cli
 from nightshift.core.constants import EVALUATION_DIMENSIONS, EVALUATION_MAX_PER_DIMENSION
 from nightshift.core.types import EvaluationResult, ShiftArtifacts
+from nightshift.core.errors import NightshiftError
 from nightshift.owl.eval_runner import (
     _build_synthetic_artifacts,
     _next_eval_id,
+    _safe_rmtree,
     _score_breadth,
     _score_clean_state,
     _score_discovery,
@@ -448,6 +450,44 @@ class TestRunEvalDryRun:
     def test_max_total_is_100(self, tmp_path: Path) -> None:
         result = run_eval_dry_run(tmp_path)
         assert result["max_total"] == 100
+
+
+# ---------------------------------------------------------------------------
+# _safe_rmtree
+# ---------------------------------------------------------------------------
+
+
+class TestSafeRmtree:
+    def test_removes_existing_directory(self, tmp_path: Path) -> None:
+        target = tmp_path / "to_remove"
+        target.mkdir()
+        (target / "file.txt").write_text("content", encoding="utf-8")
+        _safe_rmtree(target)
+        assert not target.exists()
+
+    def test_silently_skips_nonexistent_path(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does_not_exist"
+        # Should not raise
+        _safe_rmtree(missing)
+
+    def test_raises_on_symlink_target(self, tmp_path: Path) -> None:
+        real_dir = tmp_path / "real"
+        real_dir.mkdir()
+        link = tmp_path / "link"
+        link.symlink_to(real_dir)
+        with pytest.raises(NightshiftError, match="symlink"):
+            _safe_rmtree(link)
+        # The real directory must not be touched
+        assert real_dir.exists()
+
+    def test_raises_on_symlink_regardless_of_ignore_errors(self, tmp_path: Path) -> None:
+        real_dir = tmp_path / "real2"
+        real_dir.mkdir()
+        link = tmp_path / "link2"
+        link.symlink_to(real_dir)
+        with pytest.raises(NightshiftError, match="symlink"):
+            _safe_rmtree(link, ignore_errors=True)
+        assert real_dir.exists()
 
 
 # ---------------------------------------------------------------------------

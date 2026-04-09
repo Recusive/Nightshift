@@ -446,6 +446,23 @@ def run_eval_dry_run(
 # ---------------------------------------------------------------------------
 
 
+def _safe_rmtree(path: Path, *, ignore_errors: bool = False) -> None:
+    """Remove a directory tree after verifying it is not a symlink.
+
+    Raises NightshiftError if path is a symlink, to prevent following attacker-
+    controlled symlinks to arbitrary directories on shared CI infrastructure.
+    When ignore_errors=True, a non-existent path is silently skipped (matching
+    the shutil.rmtree ignore_errors semantic for the cleanup case).
+    """
+    if path.is_symlink():
+        raise NightshiftError(
+            f"Refusing to rmtree {path}: path is a symlink. Remove it manually before running the evaluation."
+        )
+    if not path.exists():
+        return
+    shutil.rmtree(path, ignore_errors=ignore_errors)
+
+
 def _collect_artifacts_from_dir(runtime_dir: Path, date: str) -> ShiftArtifacts:
     """Read shift state and log from a completed test run directory."""
     state: dict[str, object] | None = None
@@ -522,8 +539,7 @@ def run_eval_full(
     date = datetime.now().strftime("%Y-%m-%d")
 
     clone_dest = Path(EVALUATION_CLONE_DEST)
-    if clone_dest.exists():
-        shutil.rmtree(clone_dest)
+    _safe_rmtree(clone_dest)
 
     try:
         subprocess.run(
@@ -549,8 +565,7 @@ def run_eval_full(
         artifacts = _collect_artifacts_from_dir(runtime_dir, date)
         artifacts["runner_exit_code"] = result_data["exit_code"]
     finally:
-        if clone_dest.exists():
-            shutil.rmtree(clone_dest, ignore_errors=True)
+        _safe_rmtree(clone_dest, ignore_errors=True)
         shutil.rmtree(runtime_dir, ignore_errors=True)
 
     dimensions = score_artifacts(artifacts)
