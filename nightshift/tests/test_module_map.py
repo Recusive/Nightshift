@@ -151,6 +151,20 @@ class TestModuleMap:
 
         assert "## Parse Errors" not in rendered
 
+    def test_generate_module_map_survives_invalid_utf8(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+        bad_path = repo / "nightshift" / "corrupt.py"
+        bad_path.write_bytes(b"\xff\xfe\x00")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        module_names = {entry["module"] for entry in snapshot["modules"]}
+        assert "corrupt.py" not in module_names
+        assert snapshot["module_count"] == 5
+        assert len(snapshot["parse_errors"]) == 1
+        assert snapshot["parse_errors"][0]["module"] == "corrupt.py"
+        assert snapshot["parse_errors"][0]["error"] != ""
+
     def test_module_map_cli_write_succeeds_with_syntax_error(self, tmp_path: Path) -> None:
         repo = _init_module_repo(tmp_path)
         _write_module(repo, "broken.py", "class Bad(\n")

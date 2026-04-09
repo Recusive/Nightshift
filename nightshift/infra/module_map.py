@@ -26,7 +26,7 @@ def _parse_modules(
     for path in module_paths:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except SyntaxError as exc:
+        except (SyntaxError, UnicodeDecodeError) as exc:
             errors.append(ParseError(module=path.name, error=str(exc)))
             continue
         parsed[path.stem] = tree
