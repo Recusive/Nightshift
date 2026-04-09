@@ -163,9 +163,10 @@ class TestModuleMap:
         error_modules = {e["module"] for e in snapshot["parse_errors"]}
         # Subpackage error must use relative path, not bare filename
         assert "core/broken.py" in error_modules
-        # Top-level error uses bare filename (package_dir=None path in _parse_modules
-        # is never reached here since package_dir is always provided -- so top-level
-        # files also get relative paths from the nightshift package root)
+        # Top-level error appears as "broken.py" because path.relative_to(package_dir)
+        # for nightshift/broken.py relative to nightshift/ yields "broken.py" -- the
+        # same string as the bare filename, but produced by the same relative-path
+        # logic that yields "core/broken.py" for the subpackage file.
         assert "broken.py" in error_modules
         # Both must be distinct entries, proving no collision
         assert len(error_modules) == 2
