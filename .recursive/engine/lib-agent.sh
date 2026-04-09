@@ -635,7 +635,7 @@ PY
 cleanup_worktrees() {
     local count=0
     local current_wt
-    current_wt="$(git -C "$REPO_DIR" rev-parse --show-toplevel 2>/dev/null || echo "")"
+    current_wt="$(git rev-parse --show-toplevel 2>/dev/null || echo "")"
 
     # Pass 1: remove ALL .claude/worktrees/agent-* worktrees by path.
     # Uses porcelain format to get one path per stanza reliably.
