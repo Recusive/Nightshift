@@ -557,6 +557,54 @@ class TestResolveAgent:
             assert nightshift.resolve_agent(config, None) == "claude"
 
 
+class TestResolveRuntimeAgent:
+    def test_claude_code_session_falls_back_to_codex(self) -> None:
+        from nightshift.cli import _resolve_runtime_agent
+
+        env = {
+            "CLAUDE_CODE_ENTRYPOINT": "cli",
+            "CLAUDE_CODE_EXECPATH": "/tmp/claude",
+        }
+        with patch.dict(os.environ, env, clear=True), patch("nightshift.cli.command_exists", return_value=True):
+            agent, note = _resolve_runtime_agent("claude", allow_fallback=True)
+
+        assert agent == "codex"
+        assert note is not None
+        assert "falling back from claude to codex" in note
+
+    def test_claude_code_session_without_codex_raises_clear_error(self) -> None:
+        from nightshift.cli import _resolve_runtime_agent
+
+        env = {"CLAUDE_CODE_ENTRYPOINT": "cli"}
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("nightshift.cli.command_exists", return_value=False),
+            pytest.raises(nightshift.NightshiftError, match="codex"),
+        ):
+            _resolve_runtime_agent("claude", allow_fallback=True)
+
+    def test_non_claude_agent_is_left_unchanged(self) -> None:
+        from nightshift.cli import _resolve_runtime_agent
+
+        with patch.dict(os.environ, {"CLAUDE_CODE_ENTRYPOINT": "cli"}, clear=True):
+            agent, note = _resolve_runtime_agent("codex", allow_fallback=True)
+
+        assert agent == "codex"
+        assert note is None
+
+
+class TestResolveTestRuntimeDir:
+    def test_env_override_wins(self, tmp_path: Path) -> None:
+        with patch.dict(os.environ, {"NIGHTSHIFT_TEST_RUNTIME_DIR": str(tmp_path / "override")}, clear=True):
+            assert nightshift.resolve_test_runtime_dir(Path("/tmp/example")) == tmp_path / "override"
+
+    def test_default_path_depends_on_repo_name(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        runtime_dir = nightshift.resolve_test_runtime_dir(repo)
+        assert runtime_dir.name.startswith("repo-")
+
+
 class TestPromptForAgent:
     def test_choice_1_returns_codex(self):
         with patch("builtins.input", return_value="1"):

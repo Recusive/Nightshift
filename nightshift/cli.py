@@ -180,17 +180,60 @@ def _write_rejected_cycle_artifact(
     artifact_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
+def _claude_code_session_markers() -> list[str]:
+    """Return environment markers that indicate we are inside Claude Code."""
+    markers = [
+        key
+        for key in os.environ
+        if key == "CLAUDECODE" or key.startswith("CLAUDECODE_") or key.startswith("CLAUDE_CODE_")
+    ]
+    return sorted(markers)
+
+
+def _resolve_runtime_agent(agent: str, *, allow_fallback: bool) -> tuple[str, str | None]:
+    """Return the agent Nightshift should actually launch for this run.
+
+    Claude Code sessions can block nested Claude CLI invocations. When the
+    caller requested Claude and we detect that environment, fall back to Codex
+    if it is available; otherwise raise an actionable failure before cycles
+    start.
+    """
+    if agent != "claude" or not allow_fallback:
+        return agent, None
+
+    markers = _claude_code_session_markers()
+    if not markers:
+        return agent, None
+
+    if command_exists("codex"):
+        note = f"Claude Code session detected via {', '.join(markers)}; falling back from claude to codex for this run."
+        return "codex", note
+
+    marker_text = ", ".join(markers)
+    raise NightshiftError(
+        "Claude Code session detected via "
+        f"{marker_text}, but claude cannot launch nested inside it and codex is not available. "
+        "Install codex or rerun `nightshift test --agent codex --cycles 2 --cycle-minutes 5` "
+        "from a shell without Claude Code active."
+    )
+
+
 def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
     if test_mode and not repo_dir.exists():
         _ensure_repo_dir(repo_dir)
     config = merge_config(repo_dir)
     agent = resolve_agent(config, args.agent)
-    config["agent"] = agent
     if getattr(args, "hours", None) is not None:
         config["hours"] = args.hours
     if getattr(args, "cycle_minutes", None) is not None:
         config["cycle_minutes"] = args.cycle_minutes
+    runtime_note: str | None = None
+    if not args.dry_run:
+        agent, runtime_note = _resolve_runtime_agent(agent, allow_fallback=True)
+        if runtime_note:
+            print_status(f"[nightshift] {runtime_note}")
+    config["agent"] = agent
     today = args.date or now_local().strftime("%Y-%m-%d")
     runtime_dir = resolve_runtime_dir(repo_dir, test_mode=test_mode)
     shift_log_dir = resolve_shift_log_relative_dir(repo_dir)

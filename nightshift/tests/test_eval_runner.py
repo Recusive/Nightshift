@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -21,6 +22,7 @@ from nightshift.owl.eval_runner import (
     _build_synthetic_artifacts,
     _next_eval_id,
     _safe_rmtree,
+    _run_test_shift_subprocess,
     _score_breadth,
     _score_clean_state,
     _score_discovery,
@@ -922,3 +924,51 @@ class TestRunEvalFullMkdtemp:
             mock_cfg.return_value = config_bad_url
             with pytest.raises(NightshiftError, match="--"):
                 run_eval_full(tmp_path)
+
+    def test_run_eval_full_uses_actual_agent_from_state(self, tmp_path: Path) -> None:
+        """Fallback runs should be scored and reported with the actual agent."""
+        import copy
+        import subprocess
+        from unittest.mock import patch
+
+        from nightshift.core.constants import DEFAULT_CONFIG
+        from nightshift.owl.eval_runner import run_eval_full
+
+        config = copy.deepcopy(dict(DEFAULT_CONFIG))
+        config["eval_target_repo"] = "https://github.com/example/repo.git"
+
+        artifacts = _build_synthetic_artifacts()
+        state = artifacts["state"]
+        assert isinstance(state, dict)
+        state["agent"] = "codex"
+
+        with (
+            patch("nightshift.owl.eval_runner.merge_config") as mock_cfg,
+            patch("nightshift.owl.eval_runner.subprocess.run") as mock_run,
+            patch("nightshift.owl.eval_runner._run_test_shift_subprocess") as mock_shift,
+            patch("nightshift.owl.eval_runner._collect_artifacts_from_dir", return_value=artifacts),
+        ):
+            mock_cfg.return_value = config
+            mock_run.return_value = subprocess.CompletedProcess(args=["git"], returncode=0, stdout="", stderr="")
+            mock_shift.return_value = {"exit_code": 0, "stdout": "", "stderr": ""}
+            result = run_eval_full(tmp_path, agent="claude", write_report=True)
+
+        assert result["agent"] == "codex"
+        assert result["total_score"] > 0
+        report = tmp_path / ".recursive" / "evaluations" / f"{result['evaluation_id']:04d}.md"
+        assert report.exists()
+        assert "**Agent**: codex" in report.read_text(encoding="utf-8")
+
+    def test_run_test_shift_subprocess_sets_runtime_dir_env(self, tmp_path: Path) -> None:
+        with patch("nightshift.owl.eval_runner.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(args=["python3"], returncode=0, stdout="", stderr="")
+            _run_test_shift_subprocess(
+                repo_dir=tmp_path,
+                clone_dest=tmp_path / "clone",
+                agent="claude",
+                runtime_dir=tmp_path / "runtime",
+                date="2026-04-09",
+            )
+
+        env = mock_run.call_args.kwargs["env"]
+        assert env["NIGHTSHIFT_TEST_RUNTIME_DIR"] == str(tmp_path / "runtime")

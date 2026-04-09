@@ -805,6 +805,10 @@ EVALUATION_CLONE_DEST = "/tmp/nightshift-eval"
 # runtime artifacts so `nightshift test` does not dirty the target checkout.
 TEST_RUNTIME_ARTIFACT_DIRNAME = "nightshift-test-runs"
 
+# Optional override used by eval runners to force child test runs to reuse a
+# parent-selected runtime directory.
+TEST_RUNTIME_DIR_ENV = "NIGHTSHIFT_TEST_RUNTIME_DIR"
+
 # --- Release data -----------------------------------------------------------
 
 # Regex to extract the version tag from a changelog filename (e.g. "v0.0.8").

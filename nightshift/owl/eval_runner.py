@@ -15,6 +15,7 @@ The public surface is two functions:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -29,6 +30,7 @@ from nightshift.core.constants import (
     EVALUATION_SCORE_THRESHOLD,
     EVALUATION_SHIFT_TIMEOUT,
     EVALUATION_TEMPLATE_MARKERS,
+    TEST_RUNTIME_DIR_ENV,
 )
 from nightshift.core.errors import NightshiftError
 from nightshift.core.shell import validate_repo_url
@@ -611,12 +613,18 @@ def run_eval_full(
     dimensions = score_artifacts(artifacts)
     total = sum(d["score"] for d in dimensions)
     max_total = sum(d["max_score"] for d in dimensions)
+    actual_agent = agent
+    state = artifacts["state"]
+    if isinstance(state, dict):
+        state_agent = state.get("agent")
+        if isinstance(state_agent, str) and state_agent:
+            actual_agent = state_agent
 
     result = EvaluationResult(
         evaluation_id=eval_id,
         date=date,
         target_repo=target,
-        agent=agent,
+        agent=actual_agent,
         cycles=EVALUATION_DEFAULT_CYCLES,
         after_task="",
         dimensions=dimensions,
@@ -657,12 +665,15 @@ def _run_test_shift_subprocess(
         date,
     ]
     try:
+        env = os.environ.copy()
+        env[TEST_RUNTIME_DIR_ENV] = str(runtime_dir)
         proc = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=EVALUATION_SHIFT_TIMEOUT,
             cwd=str(repo_dir),
+            env=env,
         )
         return ShiftRunResult(exit_code=proc.returncode, stdout=proc.stdout, stderr=proc.stderr)
     except subprocess.TimeoutExpired:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
 import tempfile
@@ -13,6 +14,7 @@ from nightshift.core.constants import (
     SAFE_ARTIFACT_GLOBS,
     SHIFT_LOG_TEMPLATE,
     TEST_RUNTIME_ARTIFACT_DIRNAME,
+    TEST_RUNTIME_DIR_ENV,
     now_local,
     print_status,
 )
@@ -75,6 +77,9 @@ def resolve_shift_log_relative_dir(repo_dir: Path) -> str:
 
 def resolve_test_runtime_dir(repo_dir: Path) -> Path:
     """Return an isolated runtime directory for test-mode runs."""
+    override = os.environ.get(TEST_RUNTIME_DIR_ENV)
+    if override:
+        return Path(override)
     digest = hashlib.sha256(str(repo_dir).encode("utf-8")).hexdigest()[:12]
     return Path(tempfile.gettempdir()) / TEST_RUNTIME_ARTIFACT_DIRNAME / f"{repo_dir.name}-{digest}"
 
