@@ -27,10 +27,11 @@ from signals import (
     count_pending_pentest_framework_tasks,
     count_pending_tasks,
     count_recent_security_sessions,
-    count_sessions_since_role,
+    count_sessions_since_delegation,
     count_stale_tasks,
     did_tracker_move,
     has_urgent_tasks,
+    parse_delegations_from_decisions_log,
     parse_session_index,
     read_healer_status,
     read_latest_autonomy_score,
@@ -241,6 +242,7 @@ def main() -> None:
     eval_score = read_latest_eval_score(repo / ".recursive" / "evaluations")
     autonomy_score = read_latest_autonomy_score(repo / ".recursive" / "autonomy")
     index_rows = parse_session_index(repo / ".recursive" / "sessions" / "index.md")
+    delegations = parse_delegations_from_decisions_log(repo / ".recursive" / "decisions" / "log.md")
     healer_status = read_healer_status(repo / ".recursive" / "healer" / "log.md")
     tasks_dir = repo / ".recursive" / "tasks"
     pending = count_pending_tasks(tasks_dir)
@@ -256,14 +258,14 @@ def main() -> None:
         "eval_score": eval_score if eval_score is not None else DEFAULTS["eval_score"],
         "autonomy_score": autonomy_score if autonomy_score is not None else DEFAULTS["autonomy_score"],
         "consecutive_builds": count_consecutive_role(index_rows, "build"),
-        "sessions_since_build": count_sessions_since_role(index_rows, "build"),
-        "sessions_since_review": count_sessions_since_role(index_rows, "review"),
-        "sessions_since_strategy": count_sessions_since_role(index_rows, "strategize"),
-        "sessions_since_achieve": count_sessions_since_role(index_rows, "achieve"),
-        "sessions_since_security": count_sessions_since_role(index_rows, "security-check"),
-        "sessions_since_oversee": count_sessions_since_role(index_rows, "oversee"),
-        "sessions_since_evolve": count_sessions_since_role(index_rows, "evolve"),
-        "sessions_since_audit": count_sessions_since_role(index_rows, "audit"),
+        "sessions_since_build": count_sessions_since_delegation(index_rows, "build", delegations),
+        "sessions_since_review": count_sessions_since_delegation(index_rows, "review", delegations),
+        "sessions_since_strategy": count_sessions_since_delegation(index_rows, "strategize", delegations),
+        "sessions_since_achieve": count_sessions_since_delegation(index_rows, "achieve", delegations),
+        "sessions_since_security": count_sessions_since_delegation(index_rows, "security-check", delegations),
+        "sessions_since_oversee": count_sessions_since_delegation(index_rows, "oversee", delegations),
+        "sessions_since_evolve": count_sessions_since_delegation(index_rows, "evolve", delegations),
+        "sessions_since_audit": count_sessions_since_delegation(index_rows, "audit", delegations),
         "friction_entries": count_friction_entries(repo / ".recursive" / "friction" / "log.md"),
         "pentest_framework_tasks": pentest_framework,
         "pending_tasks": pending,
