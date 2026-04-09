@@ -8,6 +8,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "engine"))
 
 from dashboard import collect_signals, format_dashboard
+from signals import (
+    compute_agent_diversity,
+    compute_commitment_quality,
+    compute_queue_trend,
+)
 
 
 class TestCollectSignals:
@@ -187,6 +192,15 @@ class TestDelegationAwareSessions:
         # min(index_count=4, delegation_count=4) = 4
         assert signals["sessions_since_audit"] == 4
 
+    def test_decision_patterns_in_output(self, tmp_path: Path) -> None:
+        """Dashboard output includes the decision patterns mirror section."""
+        self._setup(tmp_path)
+        signals = collect_signals(tmp_path)
+        output = format_dashboard(signals)
+        assert "Decision patterns" in output
+        assert "Agent mix:" in output
+        assert "Never used:" in output
+
     def test_delegation_aware_alerts_suppress_false_overdue(self, tmp_path: Path) -> None:
         """Alerts should NOT fire for roles delegated recently via decisions log."""
         self._setup(tmp_path)
@@ -201,3 +215,61 @@ class TestDelegationAwareSessions:
         output = format_dashboard(signals)
         # evolve was delegated last session (0 since), so no overdue alert
         assert "Evolve overdue" not in output
+
+
+class TestQueueTrend:
+    def test_empty_log(self, tmp_path: Path) -> None:
+        assert compute_queue_trend(tmp_path / "missing.md") == []
+
+    def test_extracts_deltas(self, tmp_path: Path) -> None:
+        log = tmp_path / "log.md"
+        log.write_text(
+            "## 2026-04-01 -- Session #1\n"
+            "**Outcome**: PR #10 merged. 3 follow-up tasks created.\n\n"
+            "## 2026-04-02 -- Session #2\n"
+            "**Outcome**: PR #11 merged. PR #12 merged. 1 follow-up task created.\n"
+        )
+        deltas = compute_queue_trend(log)
+        # Session 1: 3 created - 1 merged = +2
+        # Session 2: 1 created - 2 merged = -1
+        assert deltas == [2, -1]
+
+
+class TestAgentDiversity:
+    def test_empty_delegations(self) -> None:
+        assert compute_agent_diversity([]) == {}
+
+    def test_counts_frequency(self) -> None:
+        delegations = [
+            {"build", "evolve"},
+            {"build", "evolve"},
+            {"build", "security"},
+        ]
+        result = compute_agent_diversity(delegations)
+        assert result["build"] == 3
+        assert result["evolve"] == 2
+        assert result["security"] == 1
+
+    def test_respects_window(self) -> None:
+        delegations = [{"audit"}] + [{"build"}] * 10
+        result = compute_agent_diversity(delegations, window=5)
+        assert "audit" not in result
+        assert result["build"] == 5
+
+
+class TestCommitmentQuality:
+    def test_empty_log(self, tmp_path: Path) -> None:
+        assert compute_commitment_quality(tmp_path / "missing.md") == "no data"
+
+    def test_classifies_safe_vs_specific(self, tmp_path: Path) -> None:
+        log = tmp_path / "log.md"
+        log.write_text(
+            "## 2026-04-01 -- Session #1\n"
+            "**Prediction**: PR will merge and make check passes\n"
+            "**Result**: MET\n\n"
+            "## 2026-04-02 -- Session #2\n"
+            "**Prediction**: Eval score will improve from 53 to >= 65\n"
+            "**Result**: MET\n"
+        )
+        result = compute_commitment_quality(log)
+        assert "2/2 MET" in result

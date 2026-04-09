@@ -459,6 +459,158 @@ def did_tracker_move(rows: list[dict[str, str]], window: int = 5) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Decision-consequence signals (self-awareness for the brain)
+# ---------------------------------------------------------------------------
+
+
+def compute_queue_trend(decisions_log: Path, window: int = 5) -> list[int]:
+    """Extract net task delta per session from decisions log outcomes.
+
+    Parses 'N follow-up tasks created' and 'tasks completed' from each
+    session outcome. Returns a list of net deltas (created - completed)
+    for the last `window` sessions. Positive = queue growing.
+    """
+    try:
+        text = decisions_log.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    blocks = re.split(r"(?=^## \d{4}-\d{2}-\d{2})", text, flags=re.MULTILINE)
+    deltas: list[int] = []
+    for block in blocks:
+        if not re.match(r"^## \d{4}-\d{2}-\d{2}", block):
+            continue
+        outcome = re.search(r"^\*\*Outcome\*\*:\s*(.+)", block, re.MULTILINE)
+        if not outcome:
+            continue
+        line = outcome.group(1)
+        created = 0
+        m = re.search(r"(\d+)\s+follow-up\s+task", line)
+        if m:
+            created = int(m.group(1))
+        # Count tasks marked done in outcome text
+        completed_count = line.lower().count("merged")
+        # Each merged PR roughly = 1 task completed
+        deltas.append(created - completed_count)
+    return deltas[-window:]
+
+
+def compute_agent_diversity(delegations: list[set[str]], window: int = 10) -> dict[str, int]:
+    """Count how many times each agent type was delegated over last N sessions.
+
+    Returns a dict of {role: count} for roles that were used, sorted by
+    frequency descending.
+    """
+    recent = delegations[-window:] if len(delegations) > window else delegations
+    counts: dict[str, int] = {}
+    for session_set in recent:
+        for role in session_set:
+            counts[role] = counts.get(role, 0) + 1
+    return dict(sorted(counts.items(), key=lambda x: -x[1]))
+
+
+def compute_eval_staleness(evaluations_dir: Path, sessions_index: list[dict[str, str]]) -> tuple[int, int]:
+    """How stale is the eval? Returns (sessions_since_eval, files_changed).
+
+    sessions_since_eval: number of sessions since the last evaluation report.
+    files_changed: number of nightshift/ files modified since the eval date
+    (approximated by counting commits touching nightshift/ since the eval).
+    """
+    # Find the latest eval report by file modification time
+    eval_date = ""
+    eval_mtime = ""
+    if evaluations_dir.is_dir():
+        evals = sorted(evaluations_dir.glob("[0-9]*.md"))
+        if evals:
+            latest = evals[-1]
+            try:
+                text = latest.read_text(encoding="utf-8")
+                dm = re.search(r"\*?\*?[Dd]ate\*?\*?:\s*(\d{4}-\d{2}-\d{2})", text)
+                if dm:
+                    eval_date = dm.group(1)
+                # Use file mtime for precise timestamp (YYYY-MM-DD HH:MM)
+                mt = latest.stat().st_mtime
+                from datetime import datetime as _dt
+
+                eval_mtime = _dt.fromtimestamp(mt).strftime("%Y-%m-%d %H:%M")
+            except OSError:
+                pass
+
+    # Count sessions that happened AFTER the eval
+    sessions_since = len(sessions_index)
+    compare_ts = eval_mtime if eval_mtime else eval_date
+    if compare_ts:
+        sessions_since = 0
+        for row in reversed(sessions_index):
+            ts = row.get("timestamp", "")
+            if ts > compare_ts:
+                sessions_since += 1
+            else:
+                break
+
+    # Count nightshift files changed since eval via git
+    files_changed = 0
+    if eval_date:
+        try:
+            result = subprocess.run(
+                ["git", "log", "--oneline", f"--since={eval_date}", "--name-only", "--", "nightshift/"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                paths = {
+                    line.strip()
+                    for line in result.stdout.splitlines()
+                    if line.strip().startswith("nightshift/") and line.strip().endswith(".py")
+                }
+                files_changed = len(paths)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    return sessions_since, files_changed
+
+
+def compute_commitment_quality(commitments_log: Path, window: int = 10) -> str:
+    """Assess whether the brain's predictions are genuinely risky or always safe.
+
+    Reads the last N commitment entries and classifies them as:
+    - 'safe' if predictions are vague ('PR will merge', 'make check passes')
+    - 'specific' if predictions include numbers or specific outcomes
+    Returns a summary string like '8/10 MET, mostly safe predictions'.
+    """
+    try:
+        text = commitments_log.read_text(encoding="utf-8")
+    except OSError:
+        return "no data"
+    blocks = re.split(r"(?=^## \d{4}-\d{2}-\d{2})", text, flags=re.MULTILINE)
+    entries: list[dict[str, str]] = []
+    for block in blocks:
+        if not re.match(r"^## \d{4}-\d{2}-\d{2}", block):
+            continue
+        result_m = re.search(r"^\*\*Result\*\*:\s*(\w+)", block, re.MULTILINE)
+        pred_m = re.search(r"^\*\*Prediction\*\*:\s*(.+)", block, re.MULTILINE)
+        if result_m:
+            entries.append(
+                {
+                    "result": result_m.group(1).upper(),
+                    "prediction": pred_m.group(1) if pred_m else "",
+                }
+            )
+    recent = entries[-window:]
+    if not recent:
+        return "no data"
+    met = sum(1 for e in recent if e["result"] == "MET")
+    total = len(recent)
+    # A prediction is 'specific' if it contains a number or comparison
+    specific = sum(
+        1 for e in recent if re.search(r"\d+|>=|<=|improve|decrease|rise|fall", e["prediction"], re.IGNORECASE)
+    )
+    safe = total - specific
+    quality = "mostly specific" if specific > safe else "mostly safe"
+    return f"{met}/{total} MET, {quality} predictions"
+
+
+# ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------
 

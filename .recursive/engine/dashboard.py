@@ -20,6 +20,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from signals import (
     DEFAULTS,
+    compute_agent_diversity,
+    compute_commitment_quality,
+    compute_eval_staleness,
+    compute_queue_trend,
     count_consecutive_role,
     count_friction_entries,
     count_needs_human_issues,
@@ -123,6 +127,15 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
             pass
     signals["active_experiments"] = active_experiments
 
+    # Decision-consequence signals (self-awareness)
+    signals["queue_trend"] = compute_queue_trend(decisions_path)
+    signals["agent_diversity"] = compute_agent_diversity(delegations)
+    eval_sessions, eval_files = compute_eval_staleness(evaluations_dir, index_rows)
+    signals["eval_sessions_since"] = eval_sessions
+    signals["eval_files_changed"] = eval_files
+    commitments_path = recursive_dir / "commitments" / "log.md"
+    signals["commitment_quality"] = compute_commitment_quality(commitments_path)
+
     return signals
 
 
@@ -174,6 +187,39 @@ def format_dashboard(signals: dict[str, object]) -> str:
     lines.append("")
     exp_count = signals.get("active_experiments", 0)
     lines.append(f"Experiments:    {exp_count} active")
+
+    # Decision patterns -- the mirror
+    lines.append("")
+    lines.append("Decision patterns (recent sessions):")
+    queue_trend = signals.get("queue_trend", [])
+    if isinstance(queue_trend, list) and queue_trend:
+        trend_str = ", ".join(f"{d:+d}" for d in queue_trend)
+        net = sum(queue_trend)
+        direction = "growing" if net > 0 else "shrinking" if net < 0 else "stable"
+        lines.append(f"  Queue trend:    {trend_str} (net: {net:+d} {direction})")
+    else:
+        lines.append("  Queue trend:    no data")
+
+    diversity = signals.get("agent_diversity", {})
+    if isinstance(diversity, dict) and diversity:
+        used = ", ".join(f"{k}={v}" for k, v in diversity.items())
+        all_agents = {"build", "evolve", "oversee", "strategize", "achieve", "security", "audit", "review"}
+        unused = all_agents - set(diversity.keys())
+        unused_str = ", ".join(sorted(unused)) if unused else "none"
+        lines.append(f"  Agent mix:      {used}")
+        lines.append(f"  Never used:     {unused_str}")
+    else:
+        lines.append("  Agent mix:      no data")
+
+    eval_since = signals.get("eval_sessions_since", 0)
+    eval_files = signals.get("eval_files_changed", 0)
+    if isinstance(eval_since, int) and eval_since > 0:
+        lines.append(f"  Eval staleness: {eval_since} sessions, {eval_files} nightshift files changed since last eval")
+    else:
+        lines.append("  Eval staleness: up to date")
+
+    commit_q = signals.get("commitment_quality", "no data")
+    lines.append(f"  Commitments:    {commit_q}")
 
     # Alerts
     lines.append("")
