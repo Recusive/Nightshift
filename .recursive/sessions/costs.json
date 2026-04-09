@@ -558,5 +558,22 @@
         "cost_usd": 0.0
       }
     ]
+  },
+  {
+    "session": "20260409-083425",
+    "agent": "codex",
+    "model": "gpt-5.4",
+    "input_tokens": 4084681,
+    "output_tokens": 19604,
+    "cost_usd": 10.5058,
+    "sub_costs": [
+      {
+        "log": "/Users/no9labs/Developer/Recursive/Nightshift/.recursive/sessions/raw/20260409-083425.log",
+        "model": "gpt-5.4",
+        "input_tokens": 4084681,
+        "output_tokens": 19604,
+        "cost_usd": 10.5058
+      }
+    ]
   }
 ]
