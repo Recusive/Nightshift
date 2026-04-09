@@ -147,6 +147,29 @@ class TestModuleMap:
         assert snapshot["parse_errors"][0]["module"] == "broken.py"
         assert snapshot["parse_errors"][0]["error"] != ""
 
+    def test_parse_error_includes_subpackage_context(self, tmp_path: Path) -> None:
+        """ParseError.module shows the relative path (e.g. core/broken.py) not just the filename."""
+        repo = _init_module_repo(tmp_path)
+        core_dir = repo / "nightshift" / "core"
+        core_dir.mkdir()
+        (core_dir / "__init__.py").write_text('"""Core."""\n', encoding="utf-8")
+        # Write a broken file in the subpackage
+        (core_dir / "broken.py").write_text("def bad_syntax(\n", encoding="utf-8")
+        # Write another broken file with the same basename at top level to confirm disambiguation
+        _write_module(repo, "broken.py", "def also_bad(\n")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        error_modules = {e["module"] for e in snapshot["parse_errors"]}
+        # Subpackage error must use relative path, not bare filename
+        assert "core/broken.py" in error_modules
+        # Top-level error uses bare filename (package_dir=None path in _parse_modules
+        # is never reached here since package_dir is always provided -- so top-level
+        # files also get relative paths from the nightshift package root)
+        assert "broken.py" in error_modules
+        # Both must be distinct entries, proving no collision
+        assert len(error_modules) == 2
+
     def test_generate_module_map_no_parse_errors_when_all_valid(self, tmp_path: Path) -> None:
         repo = _init_module_repo(tmp_path)
 
