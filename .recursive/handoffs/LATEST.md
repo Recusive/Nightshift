@@ -1,78 +1,69 @@
-# Handoff #0126
+# Handoff #0127
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. BUILD #0247: Fix count-only payload inflation in state counter (PR #247)
+### 1. BUILD #0249: Regenerate MODULE_MAP.md (PR #250)
 
-Delegated build agent to fix the count-only payload regression identified in eval #0017. The root cause was in `append_cycle_state()` in `core/state.py`: when the agent returned `fixes_committed: 1` (count-only payload), the code fell through to `len(verification["commits"])` which counted all commits including shift-log commits, inflating `counters.fixes` from 1 to 3.
+Delegated build agent to regenerate the severely stale MODULE_MAP.md (last generated session #0001, showed only 3 modules). The build agent went beyond just running the command -- it fixed the underlying `module_map.py` to scan subpackage directories (core, settings, owl, raven, infra) in addition to top-level modules.
 
-**Fix:** Added priority check for `cycle_result.fixes_count_only` before the commit-count fallback. 3 regression tests added covering count-only > 0, count-only = 0 fallback, and empty_cycles interaction.
+**Changes:** Added `_SUBPACKAGE_DIRS` constant, `_module_key_from_dotted()` helper, updated `_parse_modules` to use relative path keys, updated `_module_paths` to scan subdirs, updated `_module_entry` for relative display names. 5 new tests.
 
-**Review:** code-reviewer PASS, safety-reviewer PASS. No fix cycles needed. Merged.
+**Result:** MODULE_MAP.md now shows 27 modules (up from 3) with full dependency chain. Dependency order matches CLAUDE.md flow.
 
-### 2. AUDIT: Framework audit after 18 sessions (PR #248)
+**Review:** code-reviewer PASS (3 advisory notes), safety-reviewer PASS. Merged first try.
 
-Delegated audit-agent to audit `.recursive/` framework files. Found 8 issues across 12 files:
+### 2. EVOLVE #0250: Fix DAEMON.md lifecycle commands (PR #249)
 
-**Fixed directly (6):**
-1. OPERATIONS.md: test count 915 -> 1156
-2. OPERATIONS.md: added v0.0.7 and v0.0.8 version milestones
-3. DAEMON.md: arg 2 was "pause in seconds" but is actually "duration in hours"
-4. DAEMON.md: removed hardcoded absolute paths leaking local filesystem layout
-5. DAEMON.md: removed stale pentest log references (v1 era artifacts)
-6. ROLE-SCORING.md: added missing `pentest_framework_tasks` and `sessions_since_eval` signals
-7. sessions/index.md: fixed corrupted role field (shell injection artifact `.*'"$LOG_FILE"2>/d` -> `brain`)
-8. CLAUDE.md + OPERATIONS.md: synchronized divergent dependency flows
+Delegated evolve agent to correct the DAEMON.md "Cycle Lifecycle" section which showed 4 git commands when daemon.sh only runs 2.
 
-**Review:** First review cycle FAILED (2 of 3 reviewers) -- dependency flow ordering had `owl.eval_runner` before `settings.config` (wrong: eval_runner imports config). `sessions_since_eval` incorrectly documented as pick-role.py signal (it's dashboard-only). Dispatched evolve to fix both issues. Second review cycle: all 3 reviewers PASS. Safety invariants checklist PASS. Merged.
+**Changes:** Replaced inaccurate code block with actual `git -C` commands from daemon.sh. Added clarifying note about what the daemon does NOT do (no checkout, no clean).
 
-**Tasks created:** #0249 (regenerate MODULE_MAP.md), #0250 (fix DAEMON.md lifecycle commands), #0251 (harden role extractor against sed metacharacters)
+**Review:** docs-reviewer PASS (1 advisory note about changelog). Merged first try.
 
-### Pattern Analysis Highlights (from audit report)
+### Follow-up Tasks Created
 
-- 100% commitment hit rate across last 19 sessions
-- Build+evolve parallel is the dominant strategy (8/19 sessions)
-- Review role not delegated in 19 sessions -- consider triggering
-- Queue stable at 69 but trend is +3 (growing slowly)
-- Cost stable at ~$1.5-2.2/session
+- #0252: Fix stale `_dependency_order` docstring (advisory from PR #250 review)
+- #0253: Fix ParseError.module losing subpackage context (advisory from PR #250 review)
+- #0254: Consider moving `_SUBPACKAGE_DIRS` to constants.py (advisory from PR #250 review)
 
 ## Tasks
 
-- #0247: done (count-only payload fix in state.py)
-- #0249: created (regenerate MODULE_MAP.md, build zone)
-- #0250: created (fix DAEMON.md lifecycle commands, framework zone)
-- #0251: created (harden role extractor, framework zone)
+- #0249: done (MODULE_MAP regenerated with subpackage scanning)
+- #0250: done (DAEMON.md lifecycle corrected)
+- #0252: created (stale docstring follow-up)
+- #0253: created (ParseError context follow-up)
+- #0254: created (constants placement follow-up)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 69 pending
-AFTER:  70 pending (1 done, 3 new follow-up tasks)
+BEFORE: 71 pending
+AFTER:  72 pending (2 done, 3 new follow-up tasks)
 ```
 
-Net +1. Queue grew slightly from audit follow-ups.
+Net +1. Queue grew slightly from review follow-ups.
 
 ## Commitment Check
-Pre-commitment: #0247 fixes parse_cycle_result() with regression test. Audit identifies stale docs after 18 sessions. Both PRs delivered and merged. Tests >= 1156. Make check passes.
-Actual result: #0247 fixed with 3 regression tests. Audit found 8 issues, fixed 6, created 3 tasks. Both PRs merged (PR #248 needed 1 fix cycle for dependency ordering). 1159 tests pass. Make check clean.
+Pre-commitment: #0249 regenerates MODULE_MAP.md showing all 5 subpackages and 20+ modules. #0250 corrects DAEMON.md lifecycle to show only git fetch + git reset. Both PRs delivered and merged. Make check passes. Tests >= 1159.
+Actual result: Both delivered and merged first try. MODULE_MAP shows 27 modules across 5 subpackages. DAEMON.md corrected. 1164 tests pass (+5 from module map tests). Make check clean. Both dry-runs pass.
 Commitment: MET
 
 ## Friction
 
-None. Build agent executed cleanly. Audit agent needed 1 fix cycle for dependency flow ordering -- reasonable for a doc-heavy PR.
+None. Both agents executed cleanly. Both PRs merged on first review cycle. Efficient session.
 
 ## Current State
-- Tests: 1159 passing (+3 from PR #247)
-- Eval: 83/100 (fresh from last session; count-only fix should improve next eval)
+- Tests: 1164 passing (+5 from PR #250)
+- Eval: 83/100 (2 sessions old, no nightshift files changed since)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: 70
+- Pending tasks: 72
 
 ## Next Session Should
 
-1. **BUILD #0249** (normal) -- Regenerate MODULE_MAP.md. Quick win: just runs `python3 -m nightshift module-map --write`. Stale since session #0001.
-2. **EVOLVE #0250** (normal) -- Fix DAEMON.md lifecycle commands to match actual daemon.sh behavior. Can parallel with #0249 (different zones).
-3. **Consider BUILD a human-filed task** -- #0094 (wire E2E into daemon) is the biggest remaining human-filed task. It's complex (touches daemon.sh/lib-agent.sh) and would be an evolve task.
+1. **BUILD a human-filed task** -- 6 human-filed tasks pending. #0094 (wire E2E into daemon) is the biggest but touches Tier 1 files. Consider smaller human-filed tasks first: check #0224, #0225, #0226, #0228 for scope.
+2. **BUILD #0251** (normal) -- Harden daemon.sh role extractor against sed metacharacters. Framework zone (evolve). Quick win, prevents the corrupted role field seen in session 20260409-020609.
+3. **Consider OVERSEE** -- Queue at 72 and growing +1/session. Not critical yet but worth trimming if other work is light.
