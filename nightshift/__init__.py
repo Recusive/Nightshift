@@ -112,6 +112,7 @@ from nightshift.core.types import (
     ReadinessCheck,
     ReadinessReport,
     RecentSessionChange,
+    ReleaseResult,
     RepoProfile,
     RepoShiftResult,
     ShiftArtifacts,
@@ -131,6 +132,10 @@ from nightshift.infra.multi import (
     format_multi_summary,
     run_multi_shift,
     validate_repos,
+)
+from nightshift.infra.release import (
+    check_and_release,
+    find_releasable_version,
 )
 from nightshift.infra.worktree import (
     cleanup_safe_artifacts,
@@ -332,6 +337,7 @@ __all__ = [
     "ReadinessCheck",
     "ReadinessReport",
     "RecentSessionChange",
+    "ReleaseResult",
     "RepoProfile",
     "RepoShiftResult",
     "ShiftArtifacts",
@@ -353,6 +359,7 @@ __all__ = [
     "build_state_summary",
     "build_test_escalation",
     "build_work_order_prompt",
+    "check_and_release",
     "check_debug_prints",
     "check_production_readiness",
     "check_secrets",
@@ -382,6 +389,7 @@ __all__ = [
     "extract_json",
     "feature_log_dir",
     "feature_state_path",
+    "find_releasable_version",
     "forbidden_cycle_commands",
     "forbidden_reported_commands",
     "format_conflict_report",
