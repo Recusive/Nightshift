@@ -117,13 +117,17 @@ def inject_hints(
 
 
 def detect_file_conflicts(wave_result: WaveResult) -> ConflictReport:
-    """Check completed tasks for files created or modified by 2+ tasks.
+    """Check completed and failed tasks for files created or modified by 2+ tasks.
 
     This runs after a wave completes but before integration, giving the
-    orchestrator visibility into potential merge problems.
+    orchestrator visibility into potential merge problems.  Failed tasks are
+    included because a sub-agent may have partially written files before
+    reporting failure; those writes are still present in the worktree and can
+    conflict with files touched by other tasks.
     """
     file_to_tasks: dict[str, list[int]] = {}
-    for tc in wave_result["completed"]:
+    all_task_completions = list(wave_result["completed"]) + list(wave_result["failed"])
+    for tc in all_task_completions:
         for f in tc["files_created"]:
             file_to_tasks.setdefault(f, []).append(tc["task_id"])
         for f in tc["files_modified"]:
