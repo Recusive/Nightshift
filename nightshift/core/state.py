@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from nightshift.core.constants import DATA_VERSION
+from nightshift.core.constants import CATEGORY_ORDER, DATA_VERSION
 from nightshift.core.errors import NightshiftError
 from nightshift.core.types import (
     Baseline,
@@ -16,6 +16,9 @@ from nightshift.core.types import (
     FeatureState,
     ShiftState,
 )
+
+# Frozenset for O(1) allowlist checks against agent-supplied category strings.
+_VALID_CATEGORIES: frozenset[str] = frozenset(CATEGORY_ORDER)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -163,7 +166,7 @@ def append_cycle_state(
 
     for fix in fixes:
         category = fix.get("category")
-        if category is not None:
+        if category is not None and category in _VALID_CATEGORIES:
             state["category_counts"][category] = state["category_counts"].get(category, 0) + 1
 
     # When the agent used count-only payload (no structured fix objects), extract
@@ -175,7 +178,7 @@ def append_cycle_state(
             agent_categories = cycle_result.get("categories") or []
             if isinstance(agent_categories, list):
                 for cat in agent_categories:
-                    if isinstance(cat, str) and cat:
+                    if isinstance(cat, str) and cat in _VALID_CATEGORIES:
                         state["category_counts"][cat] = state["category_counts"].get(cat, 0) + 1
 
     test_files_count = sum(1 for f in verification["files_touched"] if _is_test_file(f))

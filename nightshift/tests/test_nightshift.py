@@ -1022,6 +1022,87 @@ class TestAppendCycleState:
         # Only Security from structured fixes; A11y from categories[] ignored
         assert state["category_counts"] == {"Security": 1}
 
+    def test_unknown_category_in_structured_fix_is_silently_skipped(self):
+        """An unknown category string in a structured fix object must not enter
+        category_counts -- only CATEGORY_ORDER members are accepted.
+        """
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [
+                {"title": "x", "category": "Injection Attack", "impact": "high", "files": ["x.py"]},
+            ],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {"commits": ["abc1234"], "files_touched": ["x.py"], "dominant_path": "src"}
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["category_counts"] == {}
+
+    def test_empty_string_category_in_structured_fix_is_silently_skipped(self):
+        """An empty string category in a fix object must not enter category_counts."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [
+                {"title": "x", "category": "", "impact": "high", "files": ["x.py"]},
+            ],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {"commits": ["abc1234"], "files_touched": ["x.py"], "dominant_path": "src"}
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["category_counts"] == {}
+
+    def test_mixed_valid_and_invalid_categories_in_structured_fixes(self):
+        """Valid categories are counted; unknown ones are silently dropped."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [
+                {"title": "a", "category": "Security", "impact": "high", "files": ["a.py"]},
+                {"title": "b", "category": "XSS Bypass", "impact": "high", "files": ["b.py"]},
+                {"title": "c", "category": "Tests", "impact": "high", "files": ["c.py"]},
+            ],
+            "logged_issues": [],
+            "status": "completed",
+        }
+        verification = {"commits": ["abc1234"], "files_touched": ["a.py", "b.py", "c.py"], "dominant_path": "src"}
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["category_counts"] == {"Security": 1, "Tests": 1}
+
+    def test_unknown_category_in_count_only_payload_is_silently_skipped(self):
+        """Unknown category strings in the count-only 'categories' list are skipped."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 2,
+            "categories": ["Security", "Arbitrary Injection"],
+            "status": "completed",
+        }
+        verification = {"commits": ["abc1234"], "files_touched": ["a.py"], "dominant_path": "src"}
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        # Only the valid CATEGORY_ORDER member is counted; the unknown string is dropped
+        assert state["category_counts"] == {"Security": 1}
+
 
 # --- Blocked File Detection --------------------------------------------------
 
