@@ -255,6 +255,15 @@ class TestModuleMap:
 
         assert "WARNING: dependency cycle detected" not in rendered
 
+    def test_render_module_map_includes_dependency_order_legend(self, tmp_path: Path) -> None:
+        """Dependency Order section must include a legend explaining arrow direction."""
+        repo = _init_module_repo(tmp_path)
+
+        snapshot = nightshift.generate_module_map(repo)
+        rendered = nightshift.render_module_map(snapshot)
+
+        assert "A -> B means A must be loaded before B (A is a dependency of B)." in rendered
+
     def test_module_map_cli_write_includes_cycle_warning_in_file(self, tmp_path: Path) -> None:
         """The written MODULE_MAP.md must include the cycle warning when a cycle exists."""
         repo = _init_module_repo(tmp_path)

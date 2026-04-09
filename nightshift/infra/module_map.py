@@ -93,6 +93,8 @@ def render_module_map(snapshot: ModuleMapSnapshot) -> str:
         "",
         "## Dependency Order",
         "",
+        "Legend: A -> B means A must be loaded before B (A is a dependency of B).",
+        "",
         "Topological order derived from internal `nightshift.*` imports.",
         "`__init__.py` is excluded because it re-exports the package surface.",
         "",
