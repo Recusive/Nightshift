@@ -154,3 +154,8 @@
 **Prediction**: BUILD #1 delivers #0268+#0269 in single PR. BUILD #2 delivers #0271 in separate PR. Tests >= 1196 (+5-11 new). Make check passes. Both PRs pass review and merge. Queue: 66 -> 63. 0-1 fix cycles expected.
 **Actual**: Both PRs delivered and merged first try. 1218 tests (+22 new, exceeded prediction). Make check green. 0 fix cycles. Queue: 66->66 (net 0, 3 done + 3 new follow-up tasks from advisory notes).
 **Result**: PARTIALLY MET (deliverables, quality, and fix cycles all met/exceeded; queue prediction missed due to 3 follow-up tasks from review advisories -- should have predicted 66->66 given the review-notes-must-become-tasks policy)
+
+## 2026-04-09 -- Session #0138
+**Prediction**: Recover PR #271, then land at least one additional high-impact workstream and leave main green.
+**Actual**: PRs #271, #272, and #273 all merged. `make check` passes on main with 1222 tests and both dry-runs green. Eval #0020 evidence is recorded, and urgent task #0277 captures the nested-Claude failure.
+**Result**: MET
