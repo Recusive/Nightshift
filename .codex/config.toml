@@ -4,6 +4,7 @@
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
 sandbox_mode = "workspace-write"
+developer_instructions = "You are the Brain orchestrator. Read .codex/agents/brain.toml for your full identity, delegation protocol, agent catalog, and rules. Follow them exactly."
 
 [agents]
 max_threads = 6
