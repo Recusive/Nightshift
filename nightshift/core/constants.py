@@ -789,6 +789,12 @@ TEST_RUNTIME_ARTIFACT_DIRNAME = "nightshift-test-runs"
 # Regex to extract the version tag from a changelog filename (e.g. "v0.0.8").
 RELEASE_VERSION_RE: re.Pattern[str] = re.compile(r"^(v\d+\.\d+\.\d+)\.md$")
 
+# Strict pattern for a safe git tag extracted from a changelog.
+# Accepts semver tags like "v0.0.8" and pre-release variants like
+# "v1.2.3-beta.1" or "v1.2.3+build.42".  Rejects anything that could
+# be interpreted as a shell flag or path traversal.
+RELEASE_SAFE_TAG_RE: re.Pattern[str] = re.compile(r"^v\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9._-]+)?$")
+
 # Regex to parse status from the changelog header block (e.g. "**Status**: Released").
 RELEASE_STATUS_RE: re.Pattern[str] = re.compile(
     r"^\*\*Status\*\*:\s*(.+)$",

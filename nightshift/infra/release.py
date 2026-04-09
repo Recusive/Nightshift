@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from nightshift.core.constants import (
+    RELEASE_SAFE_TAG_RE,
     RELEASE_STATUS_RE,
     RELEASE_STATUS_RELEASED,
     RELEASE_TAG_RE,
@@ -36,7 +37,7 @@ def _list_versions(changelog_dir: Path) -> list[str]:
         m = RELEASE_VERSION_RE.match(path.name)
         if m:
             versions.append(m.group(1))
-    versions.sort()
+    versions.sort(key=_parse_version_tuple)
     return versions
 
 
@@ -124,6 +125,8 @@ def _version_ready(
         return False, version, f"{version} is already released"
 
     tag = _extract_tag(content, version)
+    if not RELEASE_SAFE_TAG_RE.match(tag):
+        raise NightshiftError(f"Invalid tag: {tag}")
     task_files = _tasks_for_version(tasks_dir, version)
 
     if not task_files:
@@ -196,6 +199,9 @@ def check_and_release(
     ReleaseResult
         A structured dict with keys: released, version, tag, release_url, reason.
     """
+    if version is not None and not RELEASE_SAFE_TAG_RE.match(version):
+        raise NightshiftError(f"Invalid version format: {version}")
+
     changelog_dir = _changelog_dir(repo_dir)
     tasks_dir_path = _tasks_dir(repo_dir)
 

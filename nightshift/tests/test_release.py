@@ -93,6 +93,15 @@ class TestListVersions:
         changelog_dir.mkdir()
         assert _list_versions(changelog_dir) == []
 
+    def test_numeric_sort_v0_0_9_before_v0_0_10(self, tmp_path: Path) -> None:
+        """v0.0.10 must sort after v0.0.9 (numeric, not lexicographic)."""
+        changelog_dir = tmp_path / "changelog"
+        changelog_dir.mkdir()
+        for v in ("v0.0.10", "v0.0.9"):
+            (changelog_dir / f"{v}.md").write_text("# release\n", encoding="utf-8")
+        result = _list_versions(changelog_dir)
+        assert result.index("v0.0.9") < result.index("v0.0.10")
+
 
 # --- _read_changelog ---------------------------------------------------------
 
@@ -255,6 +264,32 @@ class TestVersionReady:
         assert ready is False
         assert "not found" in reason.lower()
 
+    def test_raises_when_tag_is_shell_flag(self, tmp_path: Path) -> None:
+        """A tag of '--delete' must be rejected with NightshiftError."""
+        changelog_dir = tmp_path / ".recursive" / "changelog"
+        changelog_dir.mkdir(parents=True)
+        # Write a changelog whose Tag header contains a shell-flag-like value.
+        content = (
+            "# v0.0.8 -- Test\n\n"
+            "**Released**: TBD\n"
+            "**Tag**: `--delete`\n"
+            "**Status**: In progress\n\n"
+            "## Added\n\n- something\n"
+        )
+        (changelog_dir / "v0.0.8.md").write_text(content, encoding="utf-8")
+        tasks_dir = _make_task(tmp_path, "0001", "v0.0.8", "done")
+        with pytest.raises(nightshift.NightshiftError, match="Invalid tag"):
+            _version_ready(changelog_dir, tasks_dir, "v0.0.8")
+
+    def test_valid_tag_does_not_raise(self, tmp_path: Path) -> None:
+        """A well-formed tag like 'v0.0.8' passes validation."""
+        changelog_dir = _make_changelog(tmp_path, "v0.0.8", status="In progress", tag="v0.0.8")
+        tasks_dir = _make_task(tmp_path, "0001", "v0.0.8", "done")
+        # Should not raise -- valid tag passes through.
+        ready, tag, _reason = _version_ready(changelog_dir, tasks_dir, "v0.0.8")
+        assert ready is True
+        assert tag == "v0.0.8"
+
 
 # --- check_and_release -------------------------------------------------------
 
@@ -321,6 +356,16 @@ class TestCheckAndRelease:
 
         assert result["released"] is False
         assert "No unreleased" in result["reason"]
+
+    def test_raises_on_path_traversal_version(self, tmp_path: Path) -> None:
+        """version='../../etc/passwd' must raise NightshiftError immediately."""
+        with pytest.raises(nightshift.NightshiftError, match="Invalid version format"):
+            check_and_release(tmp_path, version="../../etc/passwd")
+
+    def test_raises_on_shell_flag_version(self, tmp_path: Path) -> None:
+        """version='--delete' must raise NightshiftError immediately."""
+        with pytest.raises(nightshift.NightshiftError, match="Invalid version format"):
+            check_and_release(tmp_path, version="--delete")
 
     def test_performs_release_when_ready(self, tmp_path: Path) -> None:
         _make_changelog(tmp_path, "v0.0.8", status="In progress")
