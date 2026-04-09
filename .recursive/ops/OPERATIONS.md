@@ -454,7 +454,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 
 ### Dependency flow (nightshift package)
 ```
-core/errors → core/types → core/constants → core/shell → raven/summary → raven/coordination → infra/module_map → owl/readiness → owl/scoring → owl/eval_runner → core/state → settings/config → settings/eval_targets → infra/multi → raven/e2e → raven/profiler → infra/worktree → owl/cycle → raven/planner → raven/subagent → raven/decomposer → raven/integrator → raven/feature → infra/release → cli
+core/errors → core/types → core/constants → core/shell → raven/summary → raven/coordination → infra/module_map → owl/readiness → owl/scoring → core/state → settings/config → settings/eval_targets → owl/eval_runner → infra/multi → raven/e2e → raven/profiler → infra/worktree → owl/cycle → raven/planner → raven/subagent → raven/decomposer → raven/integrator → raven/feature → infra/release → cli
 ```
 No circular imports. Each module only imports from modules to its left. `multi.py` receives the `run_nightshift` callable from `cli.py` via dependency injection to avoid circular deps.
 

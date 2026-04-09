@@ -61,7 +61,7 @@ used when the source file is missing or unreadable.
 | `recent_security_sessions` | Session index + archived pentest tasks (dual-signal) | 0 |
 | `friction_entries` | `.recursive/friction/log.md` -- count `## YYYY-MM-DD` headers | 0 |
 | `pentest_framework_tasks` | `.recursive/tasks/` -- pending tasks with `source: pentest` AND `target: recursive` | 0 |
-| `sessions_since_eval` | `.recursive/evaluations/` vs session index -- sessions since latest eval file was written | 0 |
+| `sessions_since_eval` | `.recursive/evaluations/` vs session index -- sessions since latest eval file was written (dashboard-only, not used in scoring) | 0 |
 
 **Eval file validation**: `read_latest_eval_score()` validates the file before reading the score.
 A file must have a `**Date**:` line and at least 3 scored dimension rows (`N/10` format) outside
