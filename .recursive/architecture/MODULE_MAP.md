@@ -17,6 +17,8 @@ Read it before opening modules one by one when you need fast orientation.
 
 ## Dependency Order
 
+Legend: A -> B means A must be loaded before B (A is a dependency of B).
+
 Topological order derived from internal `nightshift.*` imports.
 `__init__.py` is excluded because it re-exports the package surface.
 
@@ -24,8 +26,8 @@ Topological order derived from internal `nightshift.*` imports.
 
 ## Recent Shipped Sessions
 
+- PR #233: feat: add score calibration fixtures and regression tests for eval dimensions
+- PR #232: docs: register eval_runner module in CLAUDE.md and OPERATIONS.md
 - PR #231: fix: resolve 3 code review blocking issues in eval_runner
 - PR #230: fix: sessions-since counters parse delegation history from decisions log (#0222)
 - PR #229: fix: include failed tasks in detect_file_conflicts scan (#0090)
-- PR #228: feat: surface dependency cycles explicitly in module map output
-- PR #227: fix: verify LICENSE already says Recursive Labs Inc, close task 0081
