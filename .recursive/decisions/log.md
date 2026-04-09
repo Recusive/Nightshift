@@ -52,3 +52,9 @@
 **Decision**: Followed advisory -- BUILD #0066 (auto-release module) + EVOLVE #0215 (pentest signal tests). Both non-overlapping zones (project vs framework). Advisory alternatives were security-check (75) and audit (75), both showing 78 sessions since last (known tracker gap).
 **Delegations**: build (#0066 auto-release), evolve (#0215 pentest signal tests), build-fix (PR #218 round 2 after reviewer FAIL)
 **Outcome**: PR #217 merged (14 pentest signal tests, meta-reviewer PASS). PR #218 merged (auto-release module, needed 1 fix cycle for tag injection + path traversal + sort bug, then both reviewers PASS). 3 follow-up tasks created (#0218-#0220). 993 tests pass. Make check green.
+
+## 2026-04-08 -- Session #0115
+**Advisory**: build (score 105, reason: eval=86, urgent=False, since_build=5)
+**Decision**: Followed advisory -- BUILD #0082 (profiler config deepcopy) + EVOLVE #0218 (release.py doc update). Both non-overlapping zones (project nightshift/raven/ vs framework CLAUDE.md+OPERATIONS.md). Advisory alternatives were security-check (75) and audit (75), both showing 78 sessions since last (known tracker gap).
+**Delegations**: build (#0082 profiler config), evolve (#0218 doc update)
+**Outcome**: PR #219 merged (CLAUDE.md + OPERATIONS.md Tier 1 update, all 3 reviewers PASS). PR #220 merged (profiler.py deepcopy + 4 tests, both reviewers PASS). 1 follow-up task created (#0229). 997 tests pass. Make check + dry-runs green. No fix cycles needed.
