@@ -40,7 +40,8 @@ def _parse_modules(
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         except (SyntaxError, UnicodeDecodeError) as exc:
-            errors.append(ParseError(module=path.name, error=str(exc)))
+            module_label = str(path.relative_to(package_dir)) if package_dir is not None else path.name
+            errors.append(ParseError(module=module_label, error=str(exc)))
             continue
         key = str(path.relative_to(package_dir).with_suffix("")) if package_dir is not None else path.stem
         parsed[key] = tree
@@ -172,6 +173,10 @@ def _module_entry(repo_dir: Path, path: Path, tree: ast.Module) -> ModuleMapEntr
     )
 
 
+# Module-private structural config listing the canonical subpackage directories.
+# Kept here (not in core/constants.py) because it has a single consumer
+# (_module_paths) and is not a tunable threshold or weight -- it encodes the
+# package layout, which is inseparable from the scanning logic in this module.
 _SUBPACKAGE_DIRS = ("core", "settings", "owl", "raven", "infra")
 
 
@@ -288,10 +293,12 @@ def _dependency_order(parsed_modules: dict[str, ast.Module]) -> tuple[list[str],
     is detected the unresolved nodes are appended in deterministic alphabetical
     order and reported in cycle_members so callers can surface the unhealthy state.
 
-    Only dependencies that correspond to other top-level modules in
-    parsed_modules are tracked; imports from subpackages (e.g. nightshift.core.*)
-    that do not appear as standalone entries are ignored so they do not
-    spuriously trigger cycle detection.
+    Dependencies are tracked using the same key format as ``_parse_modules``:
+    subpackage modules use slash keys (e.g. ``core/constants``) while top-level
+    modules use bare names (e.g. ``cli``).  Only keys that appear in
+    ``parsed_modules`` are tracked; any import that resolves to a key not in the
+    dict (e.g. a third-party package or an unscanned path) is silently dropped
+    so it does not spuriously trigger cycle detection.
     """
     known_modules: set[str] = {n for n in parsed_modules if n != "__init__"}
     pending: dict[str, set[str]] = {}
