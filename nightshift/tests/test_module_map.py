@@ -375,3 +375,100 @@ class TestModuleMap:
         snapshot = nightshift.generate_module_map(repo)
         # 2 real rows -> next label is #0003, not #0004.
         assert snapshot["session_label"] == "#0003"
+
+    def test_subpackage_modules_are_included(self, tmp_path: Path) -> None:
+        """Modules in known subpackage dirs (core, owl, etc.) appear in the snapshot."""
+        repo = _init_module_repo(tmp_path)
+        # Create a core/ subpackage with one module
+        core_dir = repo / "nightshift" / "core"
+        core_dir.mkdir()
+        (core_dir / "__init__.py").write_text('"""Core subpackage."""\n', encoding="utf-8")
+        (core_dir / "errors.py").write_text(
+            '"""Core error types."""\n\n\nclass NightshiftError(Exception):\n    pass\n',
+            encoding="utf-8",
+        )
+        _commit_all(repo, "add core subpackage")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        module_names = {entry["module"] for entry in snapshot["modules"]}
+        assert "core/errors.py" in module_names
+        # __init__.py inside subpackages should be excluded
+        assert "core/__init__.py" not in module_names
+
+    def test_subpackage_module_count_includes_subpkg_files(self, tmp_path: Path) -> None:
+        """module_count reflects both top-level and subpackage files."""
+        repo = _init_module_repo(tmp_path)
+        core_dir = repo / "nightshift" / "core"
+        core_dir.mkdir()
+        (core_dir / "__init__.py").write_text('"""Core."""\n', encoding="utf-8")
+        (core_dir / "errors.py").write_text('"""Errors."""\n', encoding="utf-8")
+        (core_dir / "types.py").write_text('"""Types."""\n', encoding="utf-8")
+        _commit_all(repo, "add core subpackage")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        # 4 top-level (types, constants, cycle, __init__) + 2 subpackage (errors, types)
+        assert snapshot["module_count"] == 6
+
+    def test_subpackage_dependency_order_uses_slash_keys(self, tmp_path: Path) -> None:
+        """Dependency order shows subpackage keys like 'core/types' not bare 'types'."""
+        repo = _init_module_repo(tmp_path)
+        core_dir = repo / "nightshift" / "core"
+        core_dir.mkdir()
+        (core_dir / "__init__.py").write_text('"""Core."""\n', encoding="utf-8")
+        (core_dir / "errors.py").write_text(
+            '"""Errors."""\n\n\nclass NightshiftError(Exception):\n    pass\n',
+            encoding="utf-8",
+        )
+        # Add a module that imports from the subpackage
+        (repo / "nightshift" / "runner.py").write_text(
+            '"""Runner."""\n\nfrom nightshift.core.errors import NightshiftError\n\n\ndef run() -> None:\n    raise NightshiftError\n',
+            encoding="utf-8",
+        )
+        _commit_all(repo, "add subpackage dep")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        order = snapshot["dependency_order"]
+        assert "core/errors" in order
+        assert "runner" in order
+        # core/errors must come before runner in the dependency order
+        assert order.index("core/errors") < order.index("runner")
+
+    def test_subpackage_module_display_uses_relative_path(self, tmp_path: Path) -> None:
+        """Module column shows 'core/errors.py' not bare 'errors.py'."""
+        repo = _init_module_repo(tmp_path)
+        core_dir = repo / "nightshift" / "core"
+        core_dir.mkdir()
+        (core_dir / "__init__.py").write_text('"""Core."""\n', encoding="utf-8")
+        (core_dir / "errors.py").write_text(
+            '"""Core error types."""\n\n\nclass Err(Exception):\n    pass\n',
+            encoding="utf-8",
+        )
+        _commit_all(repo, "add core/errors")
+
+        snapshot = nightshift.generate_module_map(repo)
+        rendered = nightshift.render_module_map(snapshot)
+
+        assert "| `core/errors.py` |" in rendered
+        # Should not appear as bare errors.py
+        assert "| `errors.py` |" not in rendered
+
+    def test_tests_subpackage_is_not_scanned(self, tmp_path: Path) -> None:
+        """Files in nightshift/tests/ are not included in the module map."""
+        repo = _init_module_repo(tmp_path)
+        tests_dir = repo / "nightshift" / "tests"
+        tests_dir.mkdir()
+        (tests_dir / "__init__.py").write_text('"""Tests."""\n', encoding="utf-8")
+        (tests_dir / "test_foo.py").write_text(
+            '"""Tests for foo."""\n\n\ndef test_something() -> None:\n    pass\n',
+            encoding="utf-8",
+        )
+        _commit_all(repo, "add tests dir")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        module_names = {entry["module"] for entry in snapshot["modules"]}
+        assert "tests/test_foo.py" not in module_names
+        assert "tests/__init__.py" not in module_names
