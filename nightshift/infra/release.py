@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from pathlib import Path
 
 from nightshift.core.constants import (
@@ -158,8 +160,16 @@ def _push_tag(repo_dir: Path, tag: str) -> None:
 def _create_github_release(repo_dir: Path, tag: str, changelog_content: str) -> str:
     """Create a GitHub release and return the release URL.
 
+    Changelog content is written to a temporary file and passed via
+    --notes-file instead of --notes to prevent gh from interpreting a
+    leading '@' character as a filename reference (file exfiltration via
+    prompt-injected changelog content).
+
     Raises NightshiftError if the gh CLI is not available or the command fails.
     """
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        f.write(changelog_content)
+        notes_file = f.name
     try:
         url = run_capture(
             [
@@ -169,14 +179,16 @@ def _create_github_release(repo_dir: Path, tag: str, changelog_content: str) -> 
                 tag,
                 "--title",
                 tag,
-                "--notes",
-                changelog_content,
+                "--notes-file",
+                notes_file,
             ],
             cwd=repo_dir,
             timeout=60,
         )
     except NightshiftError as exc:
         raise NightshiftError(f"gh release create failed for {tag}: {exc}") from exc
+    finally:
+        os.unlink(notes_file)
     return url.strip()
 
 
