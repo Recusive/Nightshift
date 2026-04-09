@@ -395,6 +395,68 @@ class TestScoreStateFile:
         result = _score_state_file(art)
         assert result["score"] == 9
 
+    def test_partially_structured_fixes_scores_eight(self) -> None:
+        """Partial structuredness: 2 fixes, 1 with category+impact, 1 without.
+
+        Task #0261: when total_fixes_in_cycles > 0 but structured_fixes_in_cycles
+        is less than total (partial), neither the count-only regression branch nor
+        the all-structured branch is triggered. The scorer falls through to the
+        base score of 8 with notes='valid'.
+        """
+        state: dict[str, object] = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "counters": {
+                "fixes": 2,
+                "issues_logged": 0,
+                "files_touched": 2,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {"Security": 1},
+            "cycles": [
+                {
+                    "cycle": 1,
+                    "status": "completed",
+                    "fixes": [
+                        {
+                            "title": "Fix auth bypass",
+                            "category": "Security",
+                            "impact": "high",
+                            "files": ["apps/web/auth.ts"],
+                        },
+                        {
+                            "title": "Rename variable",
+                            # no category or impact fields
+                            "files": ["apps/web/utils.ts"],
+                        },
+                    ],
+                    "logged_issues": [],
+                    "verification": {
+                        "verify_command": None,
+                        "verify_status": "skipped",
+                        "verify_exit_code": None,
+                        "dominant_path": "apps",
+                        "commits": ["abc123"],
+                        "files_touched": ["apps/web/auth.ts", "apps/web/utils.ts"],
+                        "violations": [],
+                    },
+                }
+            ],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        art = _make_minimal_artifacts(state=state, state_file_valid=True)
+        result = _score_state_file(art)
+        # 1/2 structured: falls through to base score 8 with notes="valid"
+        assert result["score"] == 8
+        assert result["notes"] == "valid"
+
 
 class TestScoreVerification:
     def test_no_state_scores_zero(self) -> None:

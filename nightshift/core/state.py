@@ -64,6 +64,13 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
     if not isinstance(cycles_raw, list):
         cycles_raw = []
 
+    raw_category_counts = raw.get("category_counts", {})
+    if not isinstance(raw_category_counts, dict):
+        raw_category_counts = {}
+    category_counts: dict[str, int] = {
+        k: int(v) for k, v in raw_category_counts.items() if isinstance(k, str) and k in _VALID_CATEGORIES
+    }
+
     return ShiftState(
         version=int(raw["version"]),
         date=str(raw["date"]),
@@ -72,7 +79,7 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
         verify_command=raw.get("verify_command"),
         baseline=baseline,
         counters=counters,
-        category_counts=raw.get("category_counts", {}),
+        category_counts=category_counts,
         recent_cycle_paths=raw.get("recent_cycle_paths", []),
         cycles=cycles_raw,
         halt_reason=raw.get("halt_reason"),

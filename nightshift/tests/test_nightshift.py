@@ -636,6 +636,53 @@ class TestReadState:
         with pytest.raises(nightshift.NightshiftError, match="Unsupported state version"):
             nightshift.read_state(state_path, today="x", branch="x", agent="x", verify_command=None)
 
+    def test_unknown_category_keys_filtered_on_load(self, tmp_path):
+        """Unknown category_counts keys from a prior session must be silently dropped.
+
+        Task #0264: _build_state must filter category_counts against _VALID_CATEGORIES
+        so that stale or agent-fabricated category strings cannot influence the
+        dominance guard after a state file is reloaded.
+        """
+        state_path = tmp_path / "state.json"
+        existing = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "baseline": {"status": "passed", "command": None, "message": ""},
+            "counters": {
+                "fixes": 5,
+                "issues_logged": 0,
+                "files_touched": 5,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {
+                "Security": 3,
+                "Injection Attack": 4,
+                "Unknown Category": 1,
+            },
+            "recent_cycle_paths": [],
+            "cycles": [],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        state_path.write_text(json.dumps(existing))
+        state = nightshift.read_state(
+            state_path,
+            today="2026-04-09",
+            branch="nightshift/2026-04-09",
+            agent="claude",
+            verify_command=None,
+        )
+        # Only "Security" is a valid CATEGORY_ORDER member; unknown keys must be dropped.
+        assert state["category_counts"] == {"Security": 3}
+        assert "Injection Attack" not in state["category_counts"]
+        assert "Unknown Category" not in state["category_counts"]
+
 
 class TestTopPath:
     def test_basic(self):
@@ -3997,6 +4044,60 @@ class TestCycleCategoryAllowlist:
         dominance_violations = [v for v in verification["violations"] if "dominance" in v.lower()]
         assert dominance_violations == [], (
             f"Unknown category should be ignored by dominance guard, but got: {dominance_violations}"
+        )
+
+    def test_valid_category_does_trigger_dominance_violation(self, tmp_path: Path) -> None:
+        """A valid CATEGORY_ORDER member with enough fixes MUST trigger a dominance violation.
+
+        Task #0265: positive-path test to confirm the allowlist guard did not
+        accidentally disable the underlying dominance check.
+
+        State starts with 0 existing fixes.  The cycle adds 4 fixes all tagged
+        "Security" (a valid category).  After accumulation: Security = 4/4 = 100%,
+        which exceeds the 50% dominance threshold.  A dominance violation must fire.
+        """
+        repo, pre_head = self._setup_repo(tmp_path)
+        shift_log_rel = "docs/Nightshift/2026-04-03.md"
+        src = repo / "src"
+        src.mkdir()
+        for i in range(4):
+            (src / f"fix{i}.py").write_text(f"# fix {i}\n")
+        (repo / shift_log_rel).write_text("# Updated\n")
+        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix: apply security fixes"], cwd=repo, capture_output=True, check=True)
+
+        state: dict = {
+            "verify_command": None,
+            "log_only_mode": False,
+            "counters": {"low_impact_fixes": 0, "fixes": 0, "issues_logged": 0},
+            "recent_cycle_paths": [],
+            "category_counts": {},
+        }
+
+        _valid, verification = nightshift.verify_cycle(
+            worktree_dir=repo,
+            shift_log_relative=shift_log_rel,
+            pre_head=pre_head,
+            cycle_result={
+                "status": "completed",
+                "fixes": [
+                    {
+                        "title": f"security fix {i}",
+                        "category": "Security",
+                        "impact": "high",
+                        "files": [f"src/fix{i}.py"],
+                    }
+                    for i in range(4)
+                ],
+                "logged_issues": [],
+            },
+            config=self._base_config(),
+            state=state,
+            runner_log=tmp_path / "runner.log",
+        )
+        dominance_violations = [v for v in verification["violations"] if "dominance" in v.lower()]
+        assert len(dominance_violations) >= 1, (
+            "Expected a dominance violation for 4/4 Security fixes (100%), but none fired"
         )
 
 
