@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,13 @@ def write_json(path: Path, payload: dict[str, Any] | ShiftState | FeatureState) 
 _REQUIRED_STATE_KEYS = {"version", "date", "branch", "agent", "baseline", "counters", "cycles"}
 
 
+def _load_counter_value(value: object) -> int:
+    """Convert a counter value to int, falling back to zero for bad data."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+        return int(value)
+    return 0
+
+
 def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
     """Construct a ShiftState from a validated raw dict, field by field."""
     baseline_raw = raw.get("baseline", {})
@@ -52,14 +60,14 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
         message=str(baseline_raw.get("message", "")),
     )
     counters = Counters(
-        fixes=int(counters_raw.get("fixes", 0)),
-        issues_logged=int(counters_raw.get("issues_logged", 0)),
-        files_touched=int(counters_raw.get("files_touched", 0)),
-        low_impact_fixes=int(counters_raw.get("low_impact_fixes", 0)),
-        failed_verifications=int(counters_raw.get("failed_verifications", 0)),
-        empty_cycles=int(counters_raw.get("empty_cycles", 0)),
-        agent_failures=int(counters_raw.get("agent_failures", 0)),
-        tests_written=int(counters_raw.get("tests_written", 0)),
+        fixes=_load_counter_value(counters_raw.get("fixes", 0)),
+        issues_logged=_load_counter_value(counters_raw.get("issues_logged", 0)),
+        files_touched=_load_counter_value(counters_raw.get("files_touched", 0)),
+        low_impact_fixes=_load_counter_value(counters_raw.get("low_impact_fixes", 0)),
+        failed_verifications=_load_counter_value(counters_raw.get("failed_verifications", 0)),
+        empty_cycles=_load_counter_value(counters_raw.get("empty_cycles", 0)),
+        agent_failures=_load_counter_value(counters_raw.get("agent_failures", 0)),
+        tests_written=_load_counter_value(counters_raw.get("tests_written", 0)),
     )
     cycles_raw = raw.get("cycles", [])
     if not isinstance(cycles_raw, list):
@@ -71,7 +79,7 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
     category_counts: dict[str, int] = {
         k: int(v)
         for k, v in raw_category_counts.items()
-        if isinstance(k, str) and k in _VALID_CATEGORIES and isinstance(v, (int, float))
+        if isinstance(k, str) and k in _VALID_CATEGORIES and isinstance(v, (int, float)) and math.isfinite(v)
     }
 
     return ShiftState(

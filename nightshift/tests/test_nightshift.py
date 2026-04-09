@@ -688,8 +688,8 @@ class TestReadState:
 
         Task #0266: int(v) in the category_counts comprehension has no guard.
         A state file with {"Security": "not-a-number"} or {"Security": null}
-        would previously raise ValueError/TypeError. The isinstance check
-        ensures corrupt values are silently skipped, consistent with how
+        would previously raise ValueError/TypeError. Non-finite floats are also
+        skipped, so corrupt values are silently dropped, consistent with how
         unknown keys are already silently dropped.
         """
         state_path = tmp_path / "state.json"
@@ -715,6 +715,8 @@ class TestReadState:
                 "Error Handling": None,
                 "A11y": [],
                 "Performance": "not-a-number",
+                "Docs": float("nan"),
+                "Polish": float("inf"),
             },
             "recent_cycle_paths": [],
             "cycles": [],
@@ -736,6 +738,8 @@ class TestReadState:
         assert "Error Handling" not in state["category_counts"]
         assert "A11y" not in state["category_counts"]
         assert "Performance" not in state["category_counts"]
+        assert "Docs" not in state["category_counts"]
+        assert "Polish" not in state["category_counts"]
 
     def test_valid_category_counts_load_correctly(self, tmp_path):
         """Valid numeric category_counts survive the sanitization pass intact.
@@ -779,6 +783,92 @@ class TestReadState:
             verify_command=None,
         )
         assert state["category_counts"] == {"Security": 3, "Tests": 2, "Code Quality": 1}
+
+    def test_corrupt_counter_values_fall_back_to_zero(self, tmp_path):
+        """Corrupt counter values must not crash read_state and fall back to zero."""
+        state_path = tmp_path / "state.json"
+        existing = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "baseline": {"status": "passed", "command": None, "message": ""},
+            "counters": {
+                "fixes": "bad",
+                "issues_logged": None,
+                "files_touched": ["oops"],
+                "low_impact_fixes": {"count": 1},
+                "failed_verifications": "7",
+                "empty_cycles": float("inf"),
+                "agent_failures": [],
+                "tests_written": "many",
+            },
+            "recent_cycle_paths": [],
+            "cycles": [],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        state_path.write_text(json.dumps(existing))
+        state = nightshift.read_state(
+            state_path,
+            today="2026-04-09",
+            branch="nightshift/2026-04-09",
+            agent="claude",
+            verify_command=None,
+        )
+        assert state["counters"] == {
+            "fixes": 0,
+            "issues_logged": 0,
+            "files_touched": 0,
+            "low_impact_fixes": 0,
+            "failed_verifications": 0,
+            "empty_cycles": 0,
+            "agent_failures": 0,
+            "tests_written": 0,
+        }
+
+    def test_valid_counter_values_load_correctly(self, tmp_path):
+        """Valid numeric counter values must still load and normalize."""
+        state_path = tmp_path / "state.json"
+        existing = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "baseline": {"status": "passed", "command": None, "message": ""},
+            "counters": {
+                "fixes": 5.0,
+                "issues_logged": 2,
+                "files_touched": 7,
+                "low_impact_fixes": 1,
+                "failed_verifications": 3,
+                "empty_cycles": 4,
+                "agent_failures": 6,
+                "tests_written": 8,
+            },
+            "recent_cycle_paths": [],
+            "cycles": [],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        state_path.write_text(json.dumps(existing))
+        state = nightshift.read_state(
+            state_path,
+            today="2026-04-09",
+            branch="nightshift/2026-04-09",
+            agent="claude",
+            verify_command=None,
+        )
+        assert state["counters"] == {
+            "fixes": 5,
+            "issues_logged": 2,
+            "files_touched": 7,
+            "low_impact_fixes": 1,
+            "failed_verifications": 3,
+            "empty_cycles": 4,
+            "agent_failures": 6,
+            "tests_written": 8,
+        }
 
 
 class TestTopPath:
