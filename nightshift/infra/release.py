@@ -10,8 +10,8 @@ from nightshift.core.constants import (
     RELEASE_STATUS_RE,
     RELEASE_STATUS_RELEASED,
     RELEASE_TAG_RE,
+    RELEASE_TASK_FRONTMATTER_RE,
     RELEASE_TASK_FRONTMATTER_STATUS_RE,
-    RELEASE_TASK_STATUS_RE,
     RELEASE_TASK_TARGET_RE,
     RELEASE_VERSION_RE,
 )
@@ -75,7 +75,7 @@ def _tasks_for_version(tasks_dir: Path, version: str) -> list[Path]:
         return matched
     for path in tasks_dir.glob("[0-9]*.md"):
         text = path.read_text(encoding="utf-8")
-        fm_match = RELEASE_TASK_STATUS_RE.match(text)
+        fm_match = RELEASE_TASK_FRONTMATTER_RE.match(text)
         if not fm_match:
             continue
         frontmatter = fm_match.group(1)
@@ -93,7 +93,7 @@ def _all_tasks_done(task_files: list[Path]) -> tuple[bool, list[str]]:
     pending = []
     for path in task_files:
         text = path.read_text(encoding="utf-8")
-        fm_match = RELEASE_TASK_STATUS_RE.match(text)
+        fm_match = RELEASE_TASK_FRONTMATTER_RE.match(text)
         if not fm_match:
             pending.append(path.stem)
             continue
