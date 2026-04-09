@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,6 +11,7 @@ import pytest
 import nightshift
 from nightshift.infra.release import (
     _all_tasks_done,
+    _create_github_release,
     _extract_tag,
     _is_already_released,
     _list_versions,
@@ -431,6 +433,121 @@ class TestFindReleasableVersion:
 
         # The highest ready version is returned.
         assert result == "v0.0.8"
+
+
+# --- _create_github_release --------------------------------------------------
+
+
+class TestCreateGithubRelease:
+    def test_uses_notes_file_not_notes_flag(self, tmp_path: Path) -> None:
+        """--notes-file must be used; --notes must NOT appear in the command."""
+        captured_cmd: list[list[str]] = []
+
+        def fake_run_capture(cmd: list[str], **kwargs: object) -> str:
+            captured_cmd.append(cmd)
+            return "https://github.com/test/releases/tag/v0.0.8\n"
+
+        with patch("nightshift.infra.release.run_capture", side_effect=fake_run_capture):
+            _create_github_release(tmp_path, "v0.0.8", "## Notes\n- something\n")
+
+        assert len(captured_cmd) == 1
+        cmd = captured_cmd[0]
+        assert "--notes-file" in cmd
+        assert "--notes" not in cmd
+
+    def test_notes_file_path_passed_to_command(self, tmp_path: Path) -> None:
+        """The argument after --notes-file must be a real file path."""
+        captured_cmd: list[list[str]] = []
+
+        def fake_run_capture(cmd: list[str], **kwargs: object) -> str:
+            captured_cmd.append(list(cmd))
+            return "https://github.com/test/releases/tag/v0.0.8\n"
+
+        with patch("nightshift.infra.release.run_capture", side_effect=fake_run_capture):
+            _create_github_release(tmp_path, "v0.0.8", "## Notes\n")
+
+        cmd = captured_cmd[0]
+        idx = cmd.index("--notes-file")
+        notes_path = cmd[idx + 1]
+        # The path must look like a temp file (non-empty string ending in .md).
+        assert notes_path.endswith(".md")
+        assert len(notes_path) > 0
+
+    def test_tempfile_is_cleaned_up_on_success(self, tmp_path: Path) -> None:
+        """The tempfile must be deleted after a successful gh call."""
+        created_path: list[str] = []
+
+        original_unlink = os.unlink
+
+        def tracking_unlink(path: str) -> None:
+            created_path.append(path)
+            original_unlink(path)
+
+        def fake_run_capture(cmd: list[str], **kwargs: object) -> str:
+            return "https://github.com/test/releases/tag/v0.0.8\n"
+
+        with (
+            patch("nightshift.infra.release.run_capture", side_effect=fake_run_capture),
+            patch("nightshift.infra.release.os.unlink", side_effect=tracking_unlink),
+        ):
+            _create_github_release(tmp_path, "v0.0.8", "## Notes\n")
+
+        assert len(created_path) == 1
+        # The file must have been removed.
+        assert not os.path.exists(created_path[0])
+
+    def test_tempfile_is_cleaned_up_on_gh_failure(self, tmp_path: Path) -> None:
+        """The tempfile must be deleted even when gh release create fails."""
+        from nightshift.core.errors import NightshiftError
+
+        deleted_path: list[str] = []
+        original_unlink = os.unlink
+
+        def tracking_unlink(path: str) -> None:
+            deleted_path.append(path)
+            original_unlink(path)
+
+        def fake_run_capture(cmd: list[str], **kwargs: object) -> str:
+            raise NightshiftError("gh not found")
+
+        with (
+            patch("nightshift.infra.release.run_capture", side_effect=fake_run_capture),
+            patch("nightshift.infra.release.os.unlink", side_effect=tracking_unlink),
+            pytest.raises(NightshiftError, match="gh release create failed"),
+        ):
+            _create_github_release(tmp_path, "v0.0.8", "## Notes\n")
+
+        # Cleanup must still have run.
+        assert len(deleted_path) == 1
+
+    def test_changelog_beginning_with_at_does_not_leak_file(self, tmp_path: Path) -> None:
+        """A changelog that starts with '@/etc/passwd' must be sent literally.
+
+        With --notes, some gh versions read the file at that path.
+        With --notes-file, gh reads the temp file we wrote -- the '@' string
+        is simply the content of that file, never treated as a path reference.
+        """
+        captured_cmd: list[list[str]] = []
+        captured_tempfile_content: list[str] = []
+
+        def fake_run_capture(cmd: list[str], **kwargs: object) -> str:
+            captured_cmd.append(list(cmd))
+            # Read whatever the temp file contains so we can assert on it.
+            idx = cmd.index("--notes-file")
+            notes_path = cmd[idx + 1]
+            with open(notes_path, encoding="utf-8") as fh:
+                captured_tempfile_content.append(fh.read())
+            return "https://github.com/test/releases/tag/v0.0.8\n"
+
+        malicious_changelog = "@/etc/passwd\nsome content\n"
+        with patch("nightshift.infra.release.run_capture", side_effect=fake_run_capture):
+            _create_github_release(tmp_path, "v0.0.8", malicious_changelog)
+
+        # The command uses --notes-file, not --notes.
+        assert "--notes-file" in captured_cmd[0]
+        assert "--notes" not in captured_cmd[0]
+        # The tempfile holds the original content unmodified.
+        assert captured_tempfile_content[0] == malicious_changelog
 
 
 # --- Exports check -----------------------------------------------------------
