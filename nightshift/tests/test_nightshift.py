@@ -594,15 +594,33 @@ class TestResolveRuntimeAgent:
 
 
 class TestResolveTestRuntimeDir:
-    def test_env_override_wins(self, tmp_path: Path) -> None:
-        with patch.dict(os.environ, {"NIGHTSHIFT_TEST_RUNTIME_DIR": str(tmp_path / "override")}, clear=True):
-            assert nightshift.resolve_test_runtime_dir(Path("/tmp/example")) == tmp_path / "override"
+    def test_env_override_wins(self) -> None:
+        import shutil
+        import tempfile
+
+        override = Path(tempfile.mkdtemp(prefix="nightshift-eval-run-test-"))
+        try:
+            override_resolved = override.resolve(strict=False)
+            with patch.dict(os.environ, {"NIGHTSHIFT_TEST_RUNTIME_DIR": str(override)}, clear=True):
+                assert nightshift.resolve_test_runtime_dir(Path("/tmp/example")) == override_resolved
+        finally:
+            shutil.rmtree(override, ignore_errors=True)
 
     def test_default_path_depends_on_repo_name(self, tmp_path: Path) -> None:
         repo = tmp_path / "repo"
         repo.mkdir()
         runtime_dir = nightshift.resolve_test_runtime_dir(repo)
         assert runtime_dir.name.startswith("repo-")
+
+    def test_rejects_non_eval_override(self) -> None:
+        import tempfile
+
+        bad_override = Path(tempfile.gettempdir()) / "unsafe-runtime-dir"
+        with (
+            patch.dict(os.environ, {"NIGHTSHIFT_TEST_RUNTIME_DIR": str(bad_override)}, clear=True),
+            pytest.raises(nightshift.NightshiftError, match="nightshift-eval-run-"),
+        ):
+            nightshift.resolve_test_runtime_dir(Path("/tmp/example"))
 
 
 class TestPromptForAgent:
@@ -1750,6 +1768,68 @@ class TestRunNightshiftMissingRepoDir:
             nightshift.run_nightshift(args, test_mode=False)
 
         assert not missing.exists(), "run mode must not auto-clone a missing repo_dir"
+
+    def test_test_mode_falls_back_to_codex_and_reports_codex_from_cli(self, tmp_path: Path) -> None:
+        import shutil
+        import tempfile
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        codex = bin_dir / "codex"
+        codex.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        codex.chmod(0o755)
+
+        runtime_dir = Path(tempfile.mkdtemp(prefix="nightshift-eval-run-cli-"))
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+        env["CLAUDE_CODE_ENTRYPOINT"] = "cli"
+        env["CLAUDE_CODE_EXECPATH"] = "/tmp/claude"
+        env["CLAUDE_CODE_SSE_PORT"] = "12345"
+        env["PYTHONPATH"] = str(Path(__file__).resolve().parent.parent.parent)
+        env["NIGHTSHIFT_TEST_RUNTIME_DIR"] = str(runtime_dir)
+
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "nightshift",
+                    "test",
+                    "--agent",
+                    "claude",
+                    "--cycles",
+                    "0",
+                    "--cycle-minutes",
+                    "1",
+                    "--repo-dir",
+                    str(repo),
+                ],
+                cwd=str(repo),
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+
+            assert result.returncode == 0
+            assert "Agent:      codex" in result.stdout
+            assert "NIGHTSHIFT COMPLETE" in result.stdout
+            today = nightshift.now_local().strftime("%Y-%m-%d")
+            state_path = runtime_dir / f"{today}.state.json"
+            assert state_path.exists()
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            assert state["agent"] == "codex"
+        finally:
+            shutil.rmtree(runtime_dir, ignore_errors=True)
 
 
 class TestEnsureWorktree:

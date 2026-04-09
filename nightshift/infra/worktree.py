@@ -79,7 +79,17 @@ def resolve_test_runtime_dir(repo_dir: Path) -> Path:
     """Return an isolated runtime directory for test-mode runs."""
     override = os.environ.get(TEST_RUNTIME_DIR_ENV)
     if override:
-        return Path(override)
+        override_path = Path(override)
+        if not override_path.is_absolute():
+            raise NightshiftError(f"{TEST_RUNTIME_DIR_ENV} must be an absolute path inside the system temp directory.")
+        resolved_override = override_path.resolve(strict=False)
+        temp_root = Path(tempfile.gettempdir()).resolve()
+        if resolved_override.parent != temp_root or not resolved_override.name.startswith("nightshift-eval-run-"):
+            raise NightshiftError(
+                f"{TEST_RUNTIME_DIR_ENV} must point to a direct child of {temp_root} with the "
+                "'nightshift-eval-run-' prefix."
+            )
+        return resolved_override
     digest = hashlib.sha256(str(repo_dir).encode("utf-8")).hexdigest()[:12]
     return Path(tempfile.gettempdir()) / TEST_RUNTIME_ARTIFACT_DIRNAME / f"{repo_dir.name}-{digest}"
 

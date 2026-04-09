@@ -925,9 +925,10 @@ class TestRunEvalFullMkdtemp:
             with pytest.raises(NightshiftError, match="--"):
                 run_eval_full(tmp_path)
 
-    def test_run_eval_full_uses_actual_agent_from_state(self, tmp_path: Path) -> None:
-        """Fallback runs should be scored and reported with the actual agent."""
+    def test_run_eval_full_uses_runtime_agent_for_report(self, tmp_path: Path) -> None:
+        """Fallback runs should be scored and reported with the runtime agent."""
         import copy
+        import os
         import subprocess
         from unittest.mock import patch
 
@@ -940,13 +941,15 @@ class TestRunEvalFullMkdtemp:
         artifacts = _build_synthetic_artifacts()
         state = artifacts["state"]
         assert isinstance(state, dict)
-        state["agent"] = "codex"
+        state["agent"] = "claude"
 
         with (
             patch("nightshift.owl.eval_runner.merge_config") as mock_cfg,
             patch("nightshift.owl.eval_runner.subprocess.run") as mock_run,
+            patch("nightshift.owl.eval_runner.command_exists", return_value=True),
             patch("nightshift.owl.eval_runner._run_test_shift_subprocess") as mock_shift,
             patch("nightshift.owl.eval_runner._collect_artifacts_from_dir", return_value=artifacts),
+            patch.dict(os.environ, {"CLAUDE_CODE_ENTRYPOINT": "cli"}, clear=False),
         ):
             mock_cfg.return_value = config
             mock_run.return_value = subprocess.CompletedProcess(args=["git"], returncode=0, stdout="", stderr="")
@@ -955,6 +958,7 @@ class TestRunEvalFullMkdtemp:
 
         assert result["agent"] == "codex"
         assert result["total_score"] > 0
+        assert mock_shift.call_args.kwargs["agent"] == "codex"
         report = tmp_path / ".recursive" / "evaluations" / f"{result['evaluation_id']:04d}.md"
         assert report.exists()
         assert "**Agent**: codex" in report.read_text(encoding="utf-8")

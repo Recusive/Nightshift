@@ -33,7 +33,7 @@ from nightshift.core.constants import (
     TEST_RUNTIME_DIR_ENV,
 )
 from nightshift.core.errors import NightshiftError
-from nightshift.core.shell import validate_repo_url
+from nightshift.core.shell import command_exists, validate_repo_url
 from nightshift.core.types import DimensionScore, EvaluationResult, ShiftArtifacts, ShiftRunResult
 from nightshift.settings.config import merge_config
 
@@ -132,6 +132,42 @@ def _build_synthetic_artifacts() -> ShiftArtifacts:
         shift_log_exists=True,
         git_status_output="",
         repo_is_clean=True,
+    )
+
+
+def _claude_code_session_markers() -> list[str]:
+    """Return environment markers that indicate we are inside Claude Code."""
+    markers = [
+        key
+        for key in os.environ
+        if key == "CLAUDECODE" or key.startswith("CLAUDECODE_") or key.startswith("CLAUDE_CODE_")
+    ]
+    return sorted(markers)
+
+
+def _resolve_eval_runtime_agent(agent: str) -> str:
+    """Resolve the actual agent used for a full eval run.
+
+    Claude Code sessions can block nested Claude CLI invocations. For eval
+    reruns we narrow the fallback to the child launch path so the resulting
+    report records the runtime agent that was actually selected.
+    """
+    if agent != "claude":
+        return agent
+
+    markers = _claude_code_session_markers()
+    if not markers:
+        return agent
+
+    if command_exists("codex"):
+        return "codex"
+
+    marker_text = ", ".join(markers)
+    raise NightshiftError(
+        "Claude Code session detected via "
+        f"{marker_text}, but claude cannot launch nested inside it and codex is not available. "
+        "Install codex or rerun `nightshift test --agent codex --cycles 2 --cycle-minutes 5` "
+        "from a shell without Claude Code active."
     )
 
 
@@ -575,6 +611,7 @@ def run_eval_full(
     # in _build_config(), but we re-validate here immediately before the
     # subprocess call to defend against any future bypass of the config layer.
     validate_repo_url(target)
+    runtime_agent = _resolve_eval_runtime_agent(agent)
 
     eval_dir = repo_dir / ".recursive" / "evaluations"
     eval_id = _next_eval_id(eval_dir)
@@ -600,7 +637,7 @@ def run_eval_full(
         result_data = _run_test_shift_subprocess(
             repo_dir=repo_dir,
             clone_dest=clone_dest,
-            agent=agent,
+            agent=runtime_agent,
             runtime_dir=runtime_dir,
             date=date,
         )
@@ -613,18 +650,11 @@ def run_eval_full(
     dimensions = score_artifacts(artifacts)
     total = sum(d["score"] for d in dimensions)
     max_total = sum(d["max_score"] for d in dimensions)
-    actual_agent = agent
-    state = artifacts["state"]
-    if isinstance(state, dict):
-        state_agent = state.get("agent")
-        if isinstance(state_agent, str) and state_agent:
-            actual_agent = state_agent
-
     result = EvaluationResult(
         evaluation_id=eval_id,
         date=date,
         target_repo=target,
-        agent=actual_agent,
+        agent=runtime_agent,
         cycles=EVALUATION_DEFAULT_CYCLES,
         after_task="",
         dimensions=dimensions,
