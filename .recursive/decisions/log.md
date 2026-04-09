@@ -22,3 +22,9 @@
 **Decision**: Overrode to EVOLVE (#0202) + SECURITY in parallel. Rationale: (1) Security scan never done in 78 sessions -- most overdue activity. Previous handoff explicitly recommended it as #1 priority. (2) #0202 fixes the security-to-framework gap documented in friction log -- structural fix needed before next security findings arrive. (3) These tasks don't overlap: evolve touches .recursive/engine/ (framework), security scans nightshift/ (read-only). (4) Build deferred because both security debt items are higher priority than feature work.
 **Delegations**: evolve (fix #0202 security-evolve path), security (first comprehensive pentest)
 **Outcome**: PR #199 merged (pick-role.py + signals.py + brain.md updated for pentest→evolve path). PR #200 merged (pentest report: 2 CONFIRMED, 4 THEORETICAL findings; 2 tasks created). 4 follow-up tasks created (#0208-#0211). make check passes (882 tests).
+
+## 2026-04-08 -- Session #0110
+**Advisory**: build (score 110, reason: eval=86, urgent=True, since_build=5)
+**Decision**: Followed advisory -- BUILD #0208 (URGENT verify_command injection) + EVOLVE #0209 (IFS injection in lib-agent.sh) in parallel. Both are CONFIRMED pentest findings. No override needed. Different zones (project vs framework), no file overlap.
+**Delegations**: build (#0208 verify_command fix), evolve (#0209 IFS sanitization), build-fix (PR #202 newline bypass fix after reviewer FAIL)
+**Outcome**: PR #201 merged (IFS fix, first try). PR #202 merged (verify_command fix, needed 1 fix cycle for newline bypass). 2 follow-up tasks created (#0212-#0213). 919 tests pass. Both dry-runs pass. Both CONFIRMED pentest findings now closed.

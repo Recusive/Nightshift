@@ -14,3 +14,8 @@
 **Prediction**: #0202 completed with pick-role.py and brain.md updated for pentest→evolve path. Security scan produces pentest report with categorized findings. Both PRs delivered. Make check passes.
 **Actual**: #0202 done -- signals.py (new function), pick-role.py (+40 boost + cap bypass), brain.md (delegation docs + example) all updated. Pentest report produced: 2 CONFIRMED (HIGH verify_command injection, MEDIUM IFS injection) + 4 THEORETICAL. PR #199 passed both reviewers first try. PR #200 needed .next-id fix, then merged. make check passes (882 tests).
 **Result**: MET
+
+## 2026-04-08 -- Session #0110
+**Prediction**: #0208 validated against allowlist with metacharacter rejection. New tests for safe + malicious inputs. #0209 title field sanitized. Both PRs delivered. Make check passes on main.
+**Actual**: Both delivered and merged. #0208 needed one fix cycle (newline bypass in metachar regex caught by code reviewer, fixed, re-reviewed, passed). #0209 merged first try. 919 tests pass (37 new). Both dry-runs pass.
+**Result**: MET
