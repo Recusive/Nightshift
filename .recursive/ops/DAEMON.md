@@ -132,11 +132,13 @@ Important constraints:
 Each cycle begins from a clean checkout of `origin/main`:
 
 ```bash
-git fetch origin
-git checkout main
-git reset --hard origin/main
-git clean -fd
+git -C "$REPO_DIR" fetch origin main --quiet
+git -C "$REPO_DIR" reset --hard origin/main --quiet
 ```
+
+Note: the daemon does NOT run `git checkout main` or `git clean -fd`. It uses
+`-C "$REPO_DIR"` to target the repo directory explicitly and only runs fetch
+and reset. Untracked files are left in place.
 
 After reset, the daemon hot-reloads shared shell helpers from `.recursive/engine/lib-agent.sh`.
 If `.recursive/engine/daemon.sh` itself changed on `main`, it `exec`s into the new version.
