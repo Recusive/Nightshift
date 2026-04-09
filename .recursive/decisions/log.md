@@ -40,3 +40,9 @@
 **Decision**: Followed advisory -- BUILD #0085 (IndexError fix in feature.py) + EVOLVE #0211 (tighten pentest regex in signals.py). Both non-overlapping (project vs framework zone). Advisory alternatives were security-check (75) and audit (75), but both ran in recent sessions (known tracker gap).
 **Delegations**: build (#0085 IndexError fix), evolve (#0211 regex tightening)
 **Outcome**: PR #206 merged (feature.py defensive fix, 1 new test). PR #205 merged (3 substring→regex replacements in signals.py). 4 reviewers all PASS. 2 follow-up tasks created (#0215, #0216). 926 tests pass. Make check + dry-runs green.
+
+## 2026-04-08 -- Session #0113
+**Advisory**: build (score 105, reason: eval=86, urgent=False, since_build=5)
+**Decision**: Followed advisory -- BUILD #0079 (wire feature summary into CLI) + EVOLVE #0216 (trailing anchor for status regex). Both non-overlapping zones (project vs framework). Advisory alternatives were security-check (75) and audit (75), both showing 78 sessions since last (known tracker gap).
+**Delegations**: build (#0079 feature summary CLI), evolve (#0216 status regex anchor)
+**Outcome**: PR #207 merged (5 regex patterns anchored in signals.py). PR #208 merged (write_summary_md function, 7 new tests). Build agent also duplicated signals.py changes (zone violation, no harm -- #207 merged first). 1 follow-up task created (#0217). 933 tests pass. Make check + dry-runs green.
