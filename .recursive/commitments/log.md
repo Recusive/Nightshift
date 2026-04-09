@@ -54,3 +54,8 @@
 **Prediction**: #0090 will extend detect_file_conflicts() to scan failed tasks with 3 new tests. #0222 will update signals.py to parse decisions/log.md for delegation history and pick-role.py to use the new function. Both PRs delivered and merged. 997+ tests pass. Dashboard shows accurate sessions-since counts.
 **Actual**: Both delivered exactly as predicted. #0090 added combined completed+failed scan with 3 new tests. #0222 added parse_delegations_from_decisions_log() + count_sessions_since_delegation() with 13 new tests, pick-role.py wired up. Both PRs passed all reviewers first try (no fix cycles). 1025 tests pass. All checks green. Both dry-runs pass.
 **Result**: MET
+
+## 2026-04-08 -- Session #0118
+**Prediction**: #0091 will add eval subcommand to CLI with --dry-run mode. At least 3 new tests. make check passes. PR delivered and merged. 1025+ tests pass.
+**Actual**: Delivered with 55 new tests (far exceeded 3 minimum). 1087 tests pass. Needed 2 fix cycles (zone violation + code review issues) but all resolved. PR #231 merged. All checks green.
+**Result**: MET

@@ -70,3 +70,9 @@
 **Decision**: Followed advisory -- BUILD #0090 (detect_file_conflicts failed-task scan) + EVOLVE #0222 (sessions-since counters parse delegation history). #0222 is a user-filed GitHub issue (#215) and the ROOT CAUSE of the perpetual "78 sessions since evolve/audit/security" tracker gap noted in every handoff for 10+ sessions. Non-overlapping zones (project nightshift/raven/ vs framework .recursive/engine/).
 **Delegations**: build (#0090 detect_file_conflicts), evolve (#0222 sessions-since delegation parsing)
 **Outcome**: PR #229 merged (coordination.py scans failed tasks, 3 new tests, both reviewers PASS). PR #230 merged (signals.py + pick-role.py delegation parsing, 13 new tests, meta-reviewer + safety-reviewer PASS). 1 follow-up task created (#0230 -- keep delegation role map in sync). 1025 tests pass. Make check + dry-runs green. No fix cycles needed.
+
+## 2026-04-08 -- Session #0118
+**Advisory**: build (score 80, reason: eval=86, urgent=False, since_build=0)
+**Decision**: Followed advisory -- BUILD #0091 (eval dry-run CLI). Single task this session (no strong parallel candidate). Tracker fix from #0222 confirmed working: advisory JSON shows correct sessions-since values. No override needed.
+**Delegations**: build (#0091 eval dry-run CLI), build-fix-231 (CLAUDE.md zone violation revert), build-fix-231-r2 (3 code review fixes), code-reviewer x2, safety-reviewer
+**Outcome**: PR #231 merged (eval_runner.py + CLI integration, 55 new tests, needed 2 fix cycles: zone violation + code review issues). 3 follow-up tasks created (#0231-#0233). 1087 tests pass. Make check green.
