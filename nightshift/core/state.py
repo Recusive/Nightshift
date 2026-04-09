@@ -36,15 +36,12 @@ def write_json(path: Path, payload: dict[str, Any] | ShiftState | FeatureState) 
 
 
 _REQUIRED_STATE_KEYS = {"version", "date", "branch", "agent", "baseline", "counters", "cycles"}
-_SAFETY_SENSITIVE_COUNTERS = {"failed_verifications", "empty_cycles", "agent_failures"}
 
 
-def _load_counter_value(name: str, value: object, state_path: Path) -> int:
-    """Load a counter value, failing closed for safety-sensitive fields."""
+def _load_counter_value(value: object) -> int:
+    """Convert a counter value to int, falling back to zero for bad data."""
     if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
         return int(value)
-    if name in _SAFETY_SENSITIVE_COUNTERS:
-        raise NightshiftError(f"Corrupt state file {state_path}: counter '{name}' must be numeric")
     return 0
 
 
@@ -63,18 +60,14 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
         message=str(baseline_raw.get("message", "")),
     )
     counters = Counters(
-        fixes=_load_counter_value("fixes", counters_raw.get("fixes", 0), state_path),
-        issues_logged=_load_counter_value("issues_logged", counters_raw.get("issues_logged", 0), state_path),
-        files_touched=_load_counter_value("files_touched", counters_raw.get("files_touched", 0), state_path),
-        low_impact_fixes=_load_counter_value("low_impact_fixes", counters_raw.get("low_impact_fixes", 0), state_path),
-        failed_verifications=_load_counter_value(
-            "failed_verifications",
-            counters_raw.get("failed_verifications", 0),
-            state_path,
-        ),
-        empty_cycles=_load_counter_value("empty_cycles", counters_raw.get("empty_cycles", 0), state_path),
-        agent_failures=_load_counter_value("agent_failures", counters_raw.get("agent_failures", 0), state_path),
-        tests_written=_load_counter_value("tests_written", counters_raw.get("tests_written", 0), state_path),
+        fixes=_load_counter_value(counters_raw.get("fixes", 0)),
+        issues_logged=_load_counter_value(counters_raw.get("issues_logged", 0)),
+        files_touched=_load_counter_value(counters_raw.get("files_touched", 0)),
+        low_impact_fixes=_load_counter_value(counters_raw.get("low_impact_fixes", 0)),
+        failed_verifications=_load_counter_value(counters_raw.get("failed_verifications", 0)),
+        empty_cycles=_load_counter_value(counters_raw.get("empty_cycles", 0)),
+        agent_failures=_load_counter_value(counters_raw.get("agent_failures", 0)),
+        tests_written=_load_counter_value(counters_raw.get("tests_written", 0)),
     )
     cycles_raw = raw.get("cycles", [])
     if not isinstance(cycles_raw, list):

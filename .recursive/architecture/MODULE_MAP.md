@@ -17,7 +17,7 @@ Read it before opening modules one by one when you need fast orientation.
 | `core/constants.py` | 847 | Module-level constants and tiny utilities used across the package. | `now_local`, `print_status`, `DATA_VERSION`, `SUPPORTED_AGENTS` | PR #269 (2e91d5f) |
 | `raven/summary.py` | 141 | Feature summary generation for Loop 2 build output. | `generate_feature_summary`, `_API_DIR_SEGMENTS`, `_CLI_DIR_SEGMENTS`, `_CONFIG_DIR_SEGMENTS` | 1636b72 |
 | `core/shell.py` | 256 | Subprocess execution: streaming runner, git helper, shell utilities. | `run_command`, `run_capture`, `git`, `command_exists` | PR #269 (2e91d5f) |
-| `core/state.py` | 236 | Shift state: read, write, mutate counters, JSON I/O. | `load_json`, `write_json`, `read_state`, `top_path` | session #0092 |
+| `core/state.py` | 237 | Shift state: read, write, mutate counters, JSON I/O. | `load_json`, `write_json`, `read_state`, `top_path` | session #0092 |
 | `owl/readiness.py` | 234 | Production-readiness checks for Loop 2 feature builds. | `collect_changed_files`, `check_secrets`, `check_debug_prints`, `check_test_coverage` | PR #204 (df36eff) |
 | `raven/coordination.py` | 196 | Sub-agent coordination for Loop 2 -- detects file overlaps and generates hints. | `extract_file_references`, `detect_overlaps`, `generate_coordination_hints`, `inject_hints` | PR #229 (c2acba2) |
 | `infra/module_map.py` | 473 | Generate a persistent module map for fast cross-session orientation. | `module_map_path`, `generate_module_map`, `render_module_map`, `write_module_map` | PR #251 (c32e527) |
