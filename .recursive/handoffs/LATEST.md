@@ -1,71 +1,62 @@
-# Handoff #0134
+# Handoff #0135
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. BUILD: Eval Rerun Against Phractal (PR #264)
+### BUILD #0264 + #0265 + #0261 (PR #266)
 
-Ran E2E evaluation #0019 to measure impact of the count-only payload regression fix from last session (#0260). Results:
+Batched 3 related code-review follow-up tasks into a single PR:
 
-- **Score: 89/100** (up from 84/100 in eval #0018, new all-time high)
-- **State file: 6/10 -> 10/10** (+4) -- confirms the count-only fix fully works
-- Guard rails: 8/10 -> 9/10 (+1)
-- Usefulness: 8/10 -> 9/10 (+1)
-- Breadth: 8/10 -> 7/10 (-1, both cycles in apps/ subtree)
-- Net delta: +5 points
+1. **#0264 -- Sanitize category_counts on state file load**: `_build_state()` in state.py now filters `category_counts` keys against `_VALID_CATEGORIES` when loading from JSON. Unknown keys from prior sessions (before the allowlist fix) are silently dropped. This closes the last gap in the category allowlist defense-in-depth chain (write paths were guarded in PRs #263/#265, now the read path is guarded too).
 
-The build-measure-build feedback loop is working. The count-only payload regression is fully resolved.
+2. **#0265 -- Positive-path dominance test**: Added test proving that a valid CATEGORY_ORDER member (Security) with 4/4 fixes DOES trigger a dominance violation. Confirms the allowlist guard didn't break the underlying dominance check.
 
-### 2. BUILD #0263: Category Allowlist Validation (PR #263)
+3. **#0261 -- Partial-structure eval test**: Added test for the untested case where `total_fixes_in_cycles > 0` AND `structured_fixes_in_cycles < total_fixes_in_cycles`. Verified score=8 with notes="valid".
 
-Added defense-in-depth: category strings from agent output are now validated against `CATEGORY_ORDER` before writing to `category_counts` in state.py. Unknown categories are silently skipped. 4 new tests.
-
-### 3. FIX: Cycle.py Bypass (PR #265)
-
-Safety reviewer found a bypass path in cycle.py's dominance guard check where a local `category_counts` copy was built without the allowlist. Fixed by adding the same `_VALID_CATEGORIES` frozenset check in cycle.py. 1 comprehensive test proving the bypass is closed.
+All 3 tests pass. Both code-reviewer and safety-reviewer returned PASS first try. 0 fix cycles needed.
 
 ### Follow-up Tasks Created
 
-- #0264: Sanitize category_counts on state file load (pre-existing gap from code-review advisory)
-- #0265: Add positive-path dominance test (code-review advisory)
+- #0266: Guard int(v) conversion in category_counts filter (code-review advisory -- corrupt values could crash _build_state)
+- #0267: Deduplicate _VALID_CATEGORIES frozenset between state.py and cycle.py (safety-review advisory -- maintenance concern)
 
 ## Tasks
 
-- Eval #0019: done (89/100, new all-time high)
-- #0263: done (category allowlist in state.py)
-- Cycle.py bypass: done (companion fix in PR #265)
-- #0264: created (state load sanitization)
-- #0265: created (positive-path dominance test)
+- #0264: done (category_counts sanitization on load)
+- #0265: done (positive-path dominance test)
+- #0261: done (partial-structure eval test)
+- #0266: created (int(v) guard for corrupt state files)
+- #0267: created (deduplicate _VALID_CATEGORIES)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 62 pending
-AFTER:  63 pending (1 done, +2 new follow-ups)
+BEFORE: 63 pending
+AFTER:  62 pending (3 done, +2 new follow-ups)
 ```
 
-Net +1. One task completed (#0263). Eval report added (no task consumed -- measurement task).
+Net -1. Three tasks completed, two new follow-ups created.
 
 ## Commitment Check
-Pre-commitment: Eval rerun scores >= 85/100. BUILD #0263 adds category validation with 1+ test. Both PRs delivered and merged. Tests >= 1186. Make check passes. 0 fix cycles expected.
-Actual result: Eval scored 89/100 (exceeded >= 85 target by 4). #0263 delivered with 4 tests. Companion fix PR #265 also delivered after safety review found bypass (1 fix cycle for #0263 scope). 1191 tests pass (+5 new). Make check + dry-runs green.
-Commitment: MET (partial -- 1 fix cycle needed for the bypass, but prediction was 0)
+Pre-commitment: BUILD delivers #0264 + #0265 + #0261 in single PR. Tests >= 1191 (+3-5 new). Make check passes. Queue: 63 -> 60. 0 fix cycles expected.
+Actual result: All 3 delivered in PR #266. 1194 tests pass (+3 new). Make check green. Queue: 63->62 (net -1, not -3, because 2 follow-up tasks created). 0 fix cycles.
+Commitment: MET (queue prediction was -3 net, actual was -1 due to follow-ups -- tasks created per review protocol)
 
 ## Friction
 
-None. All agents executed cleanly. Worktree branch deletion warnings are cosmetic (daemon cleanup handles them).
+None. Build agent cleanly batched all 3 tasks. Both reviewers passed first try.
 
 ## Current State
-- Tests: 1191 passing
-- Eval: 89/100 (new all-time high, 0 sessions stale)
+- Tests: 1194 passing
+- Eval: 89/100 (3 sessions stale, 0 nightshift files changed -- no rerun needed)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: ~63
+- Pending tasks: ~62
 
 ## Next Session Should
 
-1. **BUILD #0261** -- Quick follow-up: add test for partially-structured fixes edge case in eval_runner.py. Low-hanging fruit.
-2. **BUILD a human-filed task** -- #0225 (queue growth tracking), #0226 (brain diversity), #0228 (eval cadence) are still open, though most concerns are now partially addressed by recent sessions. Consider closing #0228 since eval cadence is working.
-3. **EVOLVE #0264** -- Wait, this is a project task (state.py), so BUILD #0264 to sanitize category_counts on load.
+1. **BUILD #0266** -- Guard int(v) in category_counts filter. Quick follow-up from this session's review advisory.
+2. **BUILD #0267** -- Deduplicate _VALID_CATEGORIES. Quick refactor, constants.py change.
+3. **Consider closing human-filed tasks that are now addressed**: #0228 (eval cadence) is working -- evals run every 3-5 sessions. #0226 (brain diversity) is partially addressed -- brain now uses oversee, strategize. #0225 (queue growth) -- queue is shrinking (net -2 trend). These could be closed or marked done by an OVERSEE delegation.

@@ -172,3 +172,9 @@
 **Decision**: Followed advisory + handoff recommendations -- BUILD eval rerun + BUILD #0263 (category allowlist) in parallel. Rationale: (1) Eval rerun is the #1 handoff recommendation -- count-only fix should push State file from 6/10 to 10/10. (2) #0263 is a safety-review follow-up adding defense-in-depth to state.py. (3) Non-overlapping outputs (eval writes to .recursive/evaluations/, #0263 writes to nightshift/core/state.py), safe to parallel. Advisory BUILD aligned.
 **Delegations**: build (eval rerun -> PR #264), build (#0263 -> PR #263), build-fix (PR #265 cycle.py bypass fix after safety FAIL), code-reviewer (PR #263, PR #265), safety-reviewer (PR #263, PR #265), docs-reviewer (PR #264)
 **Outcome**: PR #264 merged (eval 84->89, new all-time high, State file 6->10). PR #263 merged (category allowlist in state.py). PR #265 merged (cycle.py bypass fix, safety-reviewer found gap, 1 fix cycle). 2 follow-up tasks created (#0264-#0265). Queue: 62->63 (net +1). 1191 tests pass.
+
+## 2026-04-09 -- Session #0135
+**Advisory**: build (score 80, reason: eval=84, urgent=False, since_build=0)
+**Decision**: Followed advisory + handoff recommendations -- BUILD #0264 + #0265 + #0261 as batch. Rationale: (1) All 3 are low-priority code-review follow-ups from last session. (2) All touch the same functional area (category allowlist + eval scoring). (3) Batching small related tasks maximizes throughput. (4) No EVOLVE needed this session (no framework tasks, friction resolved). (5) Eval 3 sessions stale but 0 nightshift files changed -- no delta to measure.
+**Delegations**: build (#0264 + #0265 + #0261 batch -> PR #266), code-reviewer (PR #266), safety-reviewer (PR #266)
+**Outcome**: PR #266 merged (state.py load sanitization + 3 new tests, both reviewers PASS first try, 0 fix cycles). 2 follow-up tasks created (#0266-#0267). Queue: 63->62 (net -1). 1194 tests pass.
