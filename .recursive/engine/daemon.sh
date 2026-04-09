@@ -79,6 +79,7 @@ _daemon_cleanup() {
     rm -f "${LOCKFILE:-}"
     rm -f "${CONTEXT_FILE:-}"
     rm -f "${COST_MSG_TMP:-}"
+    rm -rf "${SNAP_DIR:-}"
 }
 trap '_daemon_cleanup' EXIT
 
