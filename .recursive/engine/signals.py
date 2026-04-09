@@ -508,6 +508,51 @@ def compute_agent_diversity(delegations: list[set[str]], window: int = 10) -> di
     return dict(sorted(counts.items(), key=lambda x: -x[1]))
 
 
+def sessions_since_eval(evaluations_dir: Path, sessions_index: list[dict[str, str]]) -> int:
+    """Count sessions since the last evaluation report.
+
+    Reads the latest eval file from evaluations_dir (highest-numbered NNNN.md),
+    extracts its date, then counts how many rows in sessions_index have
+    a timestamp after that date.
+
+    Returns 0 if no eval files exist or the eval is up-to-date.
+    Returns len(sessions_index) if the eval date cannot be determined.
+
+    This is the primary eval-freshness signal used by the dashboard alert.
+    compute_eval_staleness() provides the full (sessions, files_changed) tuple
+    for the decision-patterns section; sessions_since_eval() is the scalar
+    signal consumed by the Alerts section.
+    """
+    if not evaluations_dir.is_dir():
+        return 0
+    evals = sorted(evaluations_dir.glob("[0-9]*.md"))
+    if not evals:
+        return 0
+    latest = evals[-1]
+    try:
+        text = latest.read_text(encoding="utf-8")
+        dm = re.search(r"\*?\*?[Dd]ate\*?\*?:\s*(\d{4}-\d{2}-\d{2})", text)
+        if not dm:
+            return len(sessions_index)
+        eval_date = dm.group(1)
+        # Use file mtime for more precise timestamp (YYYY-MM-DD HH:MM)
+        from datetime import datetime as _dt
+
+        eval_ts = _dt.fromtimestamp(latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+    except OSError:
+        return len(sessions_index)
+    # Count sessions after the eval
+    compare_ts = eval_ts if eval_ts else eval_date
+    count = 0
+    for row in reversed(sessions_index):
+        ts = row.get("timestamp", "")
+        if ts > compare_ts:
+            count += 1
+        else:
+            break
+    return count
+
+
 def compute_eval_staleness(evaluations_dir: Path, sessions_index: list[dict[str, str]]) -> tuple[int, int]:
     """How stale is the eval? Returns (sessions_since_eval, files_changed).
 

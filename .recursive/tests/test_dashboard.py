@@ -273,3 +273,50 @@ class TestCommitmentQuality:
         )
         result = compute_commitment_quality(log)
         assert "2/2 MET" in result
+
+
+class TestEvalStalenessAlert:
+    """Dashboard alert fires when sessions_since_eval >= 5 (task #0242)."""
+
+    def test_alert_fires_at_threshold(self, tmp_path: Path) -> None:
+        signals = collect_signals(tmp_path)
+        signals["sessions_since_eval"] = 5
+        output = format_dashboard(signals)
+        assert "eval_staleness" in output
+        assert "STALE" in output  # top-level staleness indicator
+        assert "5 sessions since last Phractal eval" in output  # alert text
+
+    def test_alert_fires_above_threshold(self, tmp_path: Path) -> None:
+        signals = collect_signals(tmp_path)
+        signals["sessions_since_eval"] = 14
+        output = format_dashboard(signals)
+        assert "eval_staleness" in output
+        assert "14 sessions since last Phractal eval" in output
+
+    def test_no_alert_below_threshold(self, tmp_path: Path) -> None:
+        signals = collect_signals(tmp_path)
+        signals["sessions_since_eval"] = 3
+        output = format_dashboard(signals)
+        # Alert text should not appear when below threshold
+        assert "sessions since last Phractal eval" not in output
+
+    def test_staleness_shown_in_health_section(self, tmp_path: Path) -> None:
+        """Eval staleness appears next to Eval score in the Health section."""
+        signals = collect_signals(tmp_path)
+        signals["sessions_since_eval"] = 7
+        output = format_dashboard(signals)
+        assert "Eval staleness:" in output
+        assert "7 sessions" in output
+        assert "STALE" in output
+
+    def test_up_to_date_message_when_zero(self, tmp_path: Path) -> None:
+        signals = collect_signals(tmp_path)
+        signals["sessions_since_eval"] = 0
+        output = format_dashboard(signals)
+        assert "up to date" in output
+
+    def test_sessions_since_eval_in_collect_signals(self, tmp_path: Path) -> None:
+        """collect_signals includes sessions_since_eval key."""
+        signals = collect_signals(tmp_path)
+        assert "sessions_since_eval" in signals
+        assert isinstance(signals["sessions_since_eval"], int)

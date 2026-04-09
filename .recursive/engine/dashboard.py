@@ -38,6 +38,7 @@ from signals import (
     read_healer_status,
     read_latest_autonomy_score,
     read_latest_eval_score,
+    sessions_since_eval,
 )
 
 # All roles tracked by sessions_since
@@ -162,6 +163,9 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
     signals["task_composition"] = task_composition
     signals["human_tasks"] = human_tasks
 
+    # Eval staleness -- dedicated scalar signal for alert threshold
+    signals["sessions_since_eval"] = sessions_since_eval(evaluations_dir, index_rows)
+
     # Decision-consequence signals (self-awareness)
     signals["queue_trend"] = compute_queue_trend(decisions_path)
     signals["agent_diversity"] = compute_agent_diversity(delegations)
@@ -189,6 +193,13 @@ def format_dashboard(signals: dict[str, object]) -> str:
     eval_note = " (default)" if signals.get("_eval_is_default") else ""
     auto_note = " (default)" if signals.get("_autonomy_is_default") else ""
     lines.append(f"Eval score:     {signals['eval_score']}/100{eval_note}")
+    eval_staleness = signals.get("sessions_since_eval", 0)
+    if isinstance(eval_staleness, int) and eval_staleness >= 5:
+        lines.append(f"Eval staleness: {eval_staleness} sessions  [STALE -- rerun recommended]")
+    elif isinstance(eval_staleness, int) and eval_staleness > 0:
+        lines.append(f"Eval staleness: {eval_staleness} sessions")
+    else:
+        lines.append("Eval staleness: 0 sessions (up to date)")
     lines.append(f"Autonomy score: {signals['autonomy_score']}/100{auto_note}")
     lines.append(f"Healer status:  {signals['healer_status']}")
     nh_note = " (may be inaccurate if gh unavailable)" if signals["needs_human_issues"] == 0 else ""
@@ -272,6 +283,13 @@ def format_dashboard(signals: dict[str, object]) -> str:
     lines.append("")
     lines.append("Alerts:")
     alerts: list[str] = []
+    # Eval staleness alert (threshold: 5 sessions)
+    eval_since = signals.get("sessions_since_eval", 0)
+    if isinstance(eval_since, int) and eval_since >= 5:
+        alerts.append(
+            f"  eval_staleness: {eval_since} sessions since last Phractal eval"
+            " -- delegate build agent to run eval (task #0243 or equivalent)"
+        )
     audit_since = signals.get("sessions_since_audit", 0)
     if isinstance(audit_since, int) and audit_since >= 25:
         alerts.append(f"  Framework audit overdue ({audit_since} sessions since last)")

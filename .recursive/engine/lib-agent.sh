@@ -626,23 +626,52 @@ PY
 
 # cleanup_worktrees
 # Prunes stale git worktrees left by sub-agent sessions.
-# Removes worktrees marked 'prunable' by git.
+# Removes ALL .claude/worktrees/agent-* worktrees (active sub-agent dirs),
+# plus any worktrees marked 'prunable' by git, then runs git worktree prune.
+# Safe to call from the daemon main loop: the daemon runs in REPO_DIR, not
+# inside an agent-* worktree, so no currently-executing agent is skipped.
+# If called from inside an agent worktree (e.g. evolve), the current dir is
+# detected and skipped to avoid self-removal.
 cleanup_worktrees() {
-    git -C "$REPO_DIR" worktree prune 2>/dev/null || true
     local count=0
+    local current_wt
+    current_wt="$(git rev-parse --show-toplevel 2>/dev/null || echo "")"
+
+    # Pass 1: remove ALL .claude/worktrees/agent-* worktrees by path.
+    # Uses porcelain format to get one path per stanza reliably.
+    while IFS= read -r wt_path; do
+        # Skip empty lines
+        [ -z "$wt_path" ] && continue
+        # Skip the main worktree
+        [ "$wt_path" = "$REPO_DIR" ] && continue
+        # Skip the worktree we are currently executing inside (safety guard)
+        [ "$wt_path" = "$current_wt" ] && continue
+        # Only target agent worktrees in .claude/worktrees/
+        case "$wt_path" in
+            */.claude/worktrees/agent-*)
+                git -C "$REPO_DIR" worktree remove "$wt_path" --force 2>/dev/null || true
+                count=$((count + 1))
+                ;;
+        esac
+    done < <(git -C "$REPO_DIR" worktree list --porcelain 2>/dev/null | grep "^worktree " | sed 's/^worktree //')
+
+    # Pass 2: remove any remaining worktrees marked prunable by git.
     while IFS= read -r wt_line; do
         local wt_path
         wt_path=$(echo "$wt_line" | awk '{print $1}')
-        # Skip the main worktree
         [ "$wt_path" = "$REPO_DIR" ] && continue
-        # Remove if marked prunable or is a daemon worktree
+        [ "$wt_path" = "$current_wt" ] && continue
         if echo "$wt_line" | grep -q "prunable" 2>/dev/null; then
             git -C "$REPO_DIR" worktree remove "$wt_path" --force 2>/dev/null || true
             count=$((count + 1))
         fi
     done < <(git -C "$REPO_DIR" worktree list 2>/dev/null)
+
+    # Prune git metadata for any worktrees whose directories no longer exist.
+    git -C "$REPO_DIR" worktree prune 2>/dev/null || true
+
     if [ "$count" -gt 0 ]; then
-        echo "  Cleaned up $count worktree(s)"
+        echo "  Cleaned up $count agent worktree(s)"
     fi
 }
 

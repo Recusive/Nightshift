@@ -293,3 +293,162 @@ class TestCountRecentPentestTasks:
             f"status: done\nsource: pentest\ncompleted: {before}\n",
         )
         assert signals.count_recent_pentest_tasks(tmp_path, days=3) == 1
+
+
+# ---------------------------------------------------------------------------
+# sessions_since_eval tests (task #0242)
+# ---------------------------------------------------------------------------
+
+_VALID_EVAL_CONTENT = (
+    "**Date**: 2026-04-08\n"
+    "| Startup | 9/10 | OK |\n"
+    "| Discovery | 8/10 | OK |\n"
+    "| Fix quality | 8/10 | OK |\n"
+    "| **Total** | **86/100** | |\n"
+)
+
+
+class TestSessionsSinceEval:
+    """Unit tests for the sessions_since_eval signal."""
+
+    def _make_eval(self, evals_dir: Path, name: str, date: str) -> Path:
+        """Write a minimal valid eval file with the given date."""
+        content = (
+            f"**Date**: {date}\n"
+            "| Startup | 9/10 | OK |\n"
+            "| Discovery | 8/10 | OK |\n"
+            "| Fix quality | 8/10 | OK |\n"
+            "| **Total** | **86/100** | |\n"
+        )
+        f = evals_dir / name
+        f.write_text(content)
+        return f
+
+    def _make_index_rows(self, timestamps: list[str]) -> list[dict[str, str]]:
+        """Build session index rows with the given timestamp strings."""
+        return [{"timestamp": ts, "role": "build"} for ts in timestamps]
+
+    def test_no_eval_dir_returns_zero(self, tmp_path: Path) -> None:
+        evals_dir = tmp_path / "evaluations"
+        rows = self._make_index_rows(["2026-04-09 01:00"])
+        assert signals.sessions_since_eval(evals_dir, rows) == 0
+
+    def test_empty_eval_dir_returns_zero(self, tmp_path: Path) -> None:
+        evals_dir = tmp_path / "evaluations"
+        evals_dir.mkdir()
+        rows = self._make_index_rows(["2026-04-09 01:00"])
+        assert signals.sessions_since_eval(evals_dir, rows) == 0
+
+    def test_all_sessions_after_eval(self, tmp_path: Path) -> None:
+        evals_dir = tmp_path / "evaluations"
+        evals_dir.mkdir()
+        eval_file = self._make_eval(evals_dir, "0001.md", "2026-04-01")
+        # Force the file mtime to an earlier date via a fixed timestamp
+        import os
+        import time
+
+        old_ts = time.mktime(time.strptime("2026-04-01 12:00", "%Y-%m-%d %H:%M"))
+        os.utime(str(eval_file), (old_ts, old_ts))
+        rows = self._make_index_rows(
+            [
+                "2026-04-02 01:00",
+                "2026-04-03 01:00",
+                "2026-04-04 01:00",
+            ]
+        )
+        result = signals.sessions_since_eval(evals_dir, rows)
+        assert result == 3
+
+    def test_some_sessions_after_eval(self, tmp_path: Path) -> None:
+        evals_dir = tmp_path / "evaluations"
+        evals_dir.mkdir()
+        eval_file = self._make_eval(evals_dir, "0001.md", "2026-04-05")
+        import os
+        import time
+
+        old_ts = time.mktime(time.strptime("2026-04-05 12:00", "%Y-%m-%d %H:%M"))
+        os.utime(str(eval_file), (old_ts, old_ts))
+        rows = self._make_index_rows(
+            [
+                "2026-04-04 01:00",  # before eval
+                "2026-04-05 10:00",  # before eval (mtime is 12:00)
+                "2026-04-06 01:00",  # after eval
+                "2026-04-07 01:00",  # after eval
+            ]
+        )
+        result = signals.sessions_since_eval(evals_dir, rows)
+        assert result == 2
+
+    def test_no_sessions_after_eval_returns_zero(self, tmp_path: Path) -> None:
+        evals_dir = tmp_path / "evaluations"
+        evals_dir.mkdir()
+        eval_file = self._make_eval(evals_dir, "0001.md", "2026-04-09")
+        import os
+        import time
+
+        future_ts = time.mktime(time.strptime("2026-04-09 23:00", "%Y-%m-%d %H:%M"))
+        os.utime(str(eval_file), (future_ts, future_ts))
+        rows = self._make_index_rows(
+            [
+                "2026-04-09 01:00",  # before eval mtime
+                "2026-04-09 10:00",  # before eval mtime
+            ]
+        )
+        result = signals.sessions_since_eval(evals_dir, rows)
+        assert result == 0
+
+    def test_uses_latest_eval_file(self, tmp_path: Path) -> None:
+        evals_dir = tmp_path / "evaluations"
+        evals_dir.mkdir()
+        import os
+        import time
+
+        # Older eval (0001.md) with old date
+        eval_old = self._make_eval(evals_dir, "0001.md", "2026-04-01")
+        old_ts = time.mktime(time.strptime("2026-04-01 12:00", "%Y-%m-%d %H:%M"))
+        os.utime(str(eval_old), (old_ts, old_ts))
+
+        # Newer eval (0002.md) with recent date -- function should use this one
+        eval_new = self._make_eval(evals_dir, "0002.md", "2026-04-08")
+        new_ts = time.mktime(time.strptime("2026-04-08 12:00", "%Y-%m-%d %H:%M"))
+        os.utime(str(eval_new), (new_ts, new_ts))
+
+        rows = self._make_index_rows(
+            [
+                "2026-04-02 01:00",  # after 0001, before 0002
+                "2026-04-09 01:00",  # after both evals
+            ]
+        )
+        # Should use 0002.md (newest), so only 1 session after
+        result = signals.sessions_since_eval(evals_dir, rows)
+        assert result == 1
+
+    def test_empty_sessions_list_returns_zero(self, tmp_path: Path) -> None:
+        evals_dir = tmp_path / "evaluations"
+        evals_dir.mkdir()
+        self._make_eval(evals_dir, "0001.md", "2026-04-01")
+        result = signals.sessions_since_eval(evals_dir, [])
+        assert result == 0
+
+    def test_five_or_more_sessions_triggers_alert_threshold(self, tmp_path: Path) -> None:
+        """Confirm the alert threshold value: >= 5 should trigger."""
+        evals_dir = tmp_path / "evaluations"
+        evals_dir.mkdir()
+        eval_file = self._make_eval(evals_dir, "0001.md", "2026-04-01")
+        import os
+        import time
+
+        old_ts = time.mktime(time.strptime("2026-04-01 12:00", "%Y-%m-%d %H:%M"))
+        os.utime(str(eval_file), (old_ts, old_ts))
+        rows = self._make_index_rows(
+            [
+                "2026-04-02 01:00",
+                "2026-04-03 01:00",
+                "2026-04-04 01:00",
+                "2026-04-05 01:00",
+                "2026-04-06 01:00",
+            ]
+        )
+        result = signals.sessions_since_eval(evals_dir, rows)
+        assert result == 5
+        assert result >= 5  # alert threshold met
