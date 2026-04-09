@@ -218,7 +218,7 @@ def _score_shift_log(artifacts: ShiftArtifacts) -> DimensionScore:
 
 
 def _score_state_file(artifacts: ShiftArtifacts) -> DimensionScore:
-    """Is the state file valid JSON with the expected schema?"""
+    """Is the state file valid JSON with the expected schema and rich metadata?"""
     if not artifacts["state_file_valid"]:
         return DimensionScore(name="State file", score=0, max_score=EVALUATION_MAX_PER_DIMENSION, notes="invalid")
     state = artifacts["state"]
@@ -233,7 +233,42 @@ def _score_state_file(artifacts: ShiftArtifacts) -> DimensionScore:
             max_score=EVALUATION_MAX_PER_DIMENSION,
             notes=f"missing {', '.join(sorted(missing))}",
         )
-    return DimensionScore(name="State file", score=8, max_score=EVALUATION_MAX_PER_DIMENSION, notes="valid")
+    # Check for richer metadata: structured fix objects and category_counts
+    cycles_raw = state.get("cycles", [])
+    cycles = cycles_raw if isinstance(cycles_raw, list) else []
+    total_fixes_in_cycles = 0
+    structured_fixes_in_cycles = 0
+    for cycle in cycles:
+        if not isinstance(cycle, dict):
+            continue
+        fixes_raw = cycle.get("fixes", [])
+        fixes = fixes_raw if isinstance(fixes_raw, list) else []
+        for fix in fixes:
+            if not isinstance(fix, dict):
+                continue
+            total_fixes_in_cycles += 1
+            if fix.get("category") and fix.get("impact"):
+                structured_fixes_in_cycles += 1
+    counters = state.get("counters", {})
+    total_fixes_counter = counters.get("fixes", 0) if isinstance(counters, dict) else 0
+    cat_counts = state.get("category_counts", {})
+    has_category_counts = isinstance(cat_counts, dict) and len(cat_counts) > 0
+    # Base score 8 for valid structure; bonus points for rich metadata
+    score = 8
+    notes_parts = ["valid"]
+    if total_fixes_counter and total_fixes_in_cycles == 0:
+        # Fixes counted but none stored as structured objects (count-only regression)
+        score = 6
+        notes_parts = [f"fixes={total_fixes_counter} but cycles[*].fixes=[]"]
+    elif total_fixes_in_cycles > 0 and structured_fixes_in_cycles == total_fixes_in_cycles:
+        score = 9
+        notes_parts = [f"{structured_fixes_in_cycles} structured fixes"]
+        if has_category_counts:
+            score = 10
+            notes_parts.append("category_counts populated")
+    return DimensionScore(
+        name="State file", score=score, max_score=EVALUATION_MAX_PER_DIMENSION, notes="; ".join(notes_parts)
+    )
 
 
 def _score_verification(artifacts: ShiftArtifacts) -> DimensionScore:

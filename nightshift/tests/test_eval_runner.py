@@ -249,6 +249,152 @@ class TestScoreStateFile:
         result = _score_state_file(art)
         assert 0 < result["score"] < 8
 
+    def test_count_only_regression_detected_scores_below_8(self) -> None:
+        """Regression for eval #0091: count-only payload gives fixes_counter > 0
+        but cycles[*].fixes=[] -- scorer must detect this and return score < 8.
+        """
+        state: dict[str, object] = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "counters": {
+                "fixes": 2,
+                "issues_logged": 0,
+                "files_touched": 2,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {},
+            "cycles": [
+                {
+                    "cycle": 1,
+                    "status": "unknown",
+                    "fixes": [],  # empty: count-only regression
+                    "logged_issues": [],
+                    "verification": {
+                        "verify_command": None,
+                        "verify_status": "skipped",
+                        "verify_exit_code": None,
+                        "dominant_path": "apps",
+                        "commits": ["abc123"],
+                        "files_touched": ["apps/web/auth.ts"],
+                        "violations": [],
+                    },
+                }
+            ],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        art = _make_minimal_artifacts(state=state, state_file_valid=True)
+        result = _score_state_file(art)
+        # Count-only payload: fixes=2 in counters but cycles[*].fixes=[] must be penalized
+        assert result["score"] < 8
+        assert "cycles[*].fixes=[]" in result["notes"]
+
+    def test_structured_fixes_with_category_counts_scores_ten(self) -> None:
+        """State with fully structured fixes and populated category_counts scores 10."""
+        state: dict[str, object] = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "counters": {
+                "fixes": 1,
+                "issues_logged": 0,
+                "files_touched": 1,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {"Security": 1},
+            "cycles": [
+                {
+                    "cycle": 1,
+                    "status": "completed",
+                    "fixes": [
+                        {
+                            "title": "Fix auth bypass",
+                            "category": "Security",
+                            "impact": "high",
+                            "files": ["apps/web/auth.ts"],
+                            "commit": "abc123",
+                        }
+                    ],
+                    "logged_issues": [],
+                    "verification": {
+                        "verify_command": None,
+                        "verify_status": "skipped",
+                        "verify_exit_code": None,
+                        "dominant_path": "apps",
+                        "commits": ["abc123"],
+                        "files_touched": ["apps/web/auth.ts"],
+                        "violations": [],
+                    },
+                }
+            ],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        art = _make_minimal_artifacts(state=state, state_file_valid=True)
+        result = _score_state_file(art)
+        assert result["score"] == 10
+
+    def test_structured_fixes_without_category_counts_scores_nine(self) -> None:
+        """State with structured fixes but no category_counts scores 9 (not 10)."""
+        state: dict[str, object] = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "counters": {
+                "fixes": 1,
+                "issues_logged": 0,
+                "files_touched": 1,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {},  # empty despite structured fixes
+            "cycles": [
+                {
+                    "cycle": 1,
+                    "status": "completed",
+                    "fixes": [
+                        {
+                            "title": "Fix auth bypass",
+                            "category": "Security",
+                            "impact": "high",
+                            "files": ["apps/web/auth.ts"],
+                            "commit": "abc123",
+                        }
+                    ],
+                    "logged_issues": [],
+                    "verification": {
+                        "verify_command": None,
+                        "verify_status": "skipped",
+                        "verify_exit_code": None,
+                        "dominant_path": "apps",
+                        "commits": ["abc123"],
+                        "files_touched": ["apps/web/auth.ts"],
+                        "violations": [],
+                    },
+                }
+            ],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        art = _make_minimal_artifacts(state=state, state_file_valid=True)
+        result = _score_state_file(art)
+        assert result["score"] == 9
+
 
 class TestScoreVerification:
     def test_no_state_scores_zero(self) -> None:

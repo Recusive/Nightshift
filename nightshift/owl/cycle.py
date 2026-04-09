@@ -520,7 +520,34 @@ def build_prompt(
 
         {"Final cycle instructions: wrap up the Summary and Recommendations sections, make sure commit hashes are correct, and leave full verification to the Nightshift runner." if is_final else "Do not rewrite the final Summary yet unless there is less than one cycle left."}
 
-        End your work with a single JSON object and nothing else. The JSON must satisfy the provided schema exactly.
+        End your work with a single JSON object and nothing else. Required JSON structure:
+        {{
+          "cycle": <integer>,
+          "status": "<completed|log_only|no_changes|failed>",
+          "fixes": [
+            {{
+              "title": "<short description>",
+              "category": "<Security|Error Handling|Tests|A11y|Code Quality|Performance|Polish>",
+              "impact": "<high|medium|low>",
+              "files": ["<file path>"],
+              "commit": "<git commit hash>"
+            }}
+          ],
+          "logged_issues": [
+            {{
+              "title": "<short description>",
+              "category": "<Security|Error Handling|Tests|A11y|Code Quality|Performance|Polish>",
+              "severity": "<critical|high|medium|low>",
+              "files": ["<file path>"],
+              "reason": "<why not fixed>"
+            }}
+          ],
+          "categories": ["<category1>", "<category2>"],
+          "files_touched": ["<file path>"],
+          "tests_run": [],
+          "notes": "<optional notes>"
+        }}
+        Each committed fix MUST appear as a structured object in "fixes" with all required fields (title, category, impact, files, commit). Do not use "fixes_committed" or "fixes_applied" count fields -- use the structured "fixes" array instead.
         """
     ).strip()
 
