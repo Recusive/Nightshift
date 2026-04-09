@@ -409,3 +409,204 @@ class TestBuildFeature:
         assert "Add audit trail" in captured.out
         assert "awaiting_confirmation" in captured.out
         assert "Scope warning" in captured.out
+
+    def test_status_includes_summary_section_when_present(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        state = nightshift.new_feature_state(
+            feature_description="Add audit trail",
+            agent="claude",
+            profile=_make_profile(),
+            plan=_make_plan(),
+            scope_warning="",
+        )
+        state["status"] = "completed"
+        state["summary"] = nightshift.FeatureSummary(
+            files_created=["audit/models.py"],
+            files_modified=["settings/config.py"],
+            tests_added=["test audit model"],
+            total_tasks=2,
+            completed_tasks=2,
+            failed_tasks=0,
+            patterns_detected=["New or modified API endpoints"],
+            description="Built 'Add audit trail' (2/2 tasks completed) touching 2 file(s).",
+        )
+        nightshift.write_feature_state(nightshift.feature_state_path(tmp_path), state)
+
+        result = nightshift.build_feature(
+            repo_dir=tmp_path,
+            feature_description=None,
+            agent=None,
+            yes=False,
+            resume=False,
+            status_only=True,
+        )
+
+        captured = capsys.readouterr()
+        assert result == 0
+        assert "## Summary" in captured.out
+        assert "audit/models.py" in captured.out
+        assert "settings/config.py" in captured.out
+        assert "New or modified API endpoints" in captured.out
+
+    def test_completed_build_writes_summary_md(self, tmp_path: Path) -> None:
+        plan = _make_plan()
+        profile = _make_profile()
+        wave_results = [_make_wave_result(1, 1), _make_wave_result(2, 2)]
+        integration_results = [_make_integration_result(1), _make_integration_result(2)]
+
+        def spawn_side_effect(*args: object, **kwargs: object) -> nightshift.WaveResult:
+            work_orders = args[0] if args else kwargs.get("work_orders", [])
+            assert isinstance(work_orders, list)
+            wave_number = work_orders[0]["wave"]
+            return wave_results[wave_number - 1]
+
+        def integrate_side_effect(*args: object, **kwargs: object) -> nightshift.IntegrationResult:
+            wave_result = args[0]
+            assert isinstance(wave_result, dict)
+            return integration_results[wave_result["wave"] - 1]
+
+        with (
+            patch("nightshift.raven.feature.command_exists", return_value=True),
+            patch("nightshift.raven.feature.profile_repo", return_value=profile),
+            patch("nightshift.raven.feature._plan_feature_with_agent", return_value=plan),
+            patch("nightshift.raven.feature.spawn_wave", side_effect=spawn_side_effect),
+            patch("nightshift.raven.feature.integrate_wave", side_effect=integrate_side_effect),
+            patch(
+                "nightshift.raven.feature.run_e2e_tests",
+                return_value=nightshift.E2EResult(
+                    status="passed",
+                    test_command=None,
+                    test_exit_code=0,
+                    test_output="",
+                    smoke_test_command=None,
+                    smoke_test_exit_code=0,
+                    smoke_test_output="",
+                ),
+            ),
+            patch(
+                "nightshift.raven.feature.run_final_verification",
+                return_value=nightshift.FinalVerificationResult(
+                    status="passed",
+                    tests_run=True,
+                    lint_run=False,
+                    test_command="python3 -m pytest",
+                    lint_command=None,
+                    test_exit_code=0,
+                    lint_exit_code=0,
+                    test_output="ok",
+                    lint_output="",
+                ),
+            ),
+        ):
+            result = nightshift.build_feature(
+                repo_dir=tmp_path,
+                feature_description="Add audit trail",
+                agent="claude",
+                yes=True,
+                resume=False,
+                status_only=False,
+            )
+
+        assert result == 0
+        summary_path = nightshift.feature_log_dir(tmp_path) / "summary.md"
+        assert summary_path.exists(), "summary.md should be written after a successful build"
+        content = summary_path.read_text(encoding="utf-8")
+        assert "## Feature Build Summary" in content
+        assert "Tasks" in content
+
+
+class TestWriteSummaryMd:
+    def test_writes_summary_md_to_log_dir(self, tmp_path: Path) -> None:
+        summary = nightshift.FeatureSummary(
+            files_created=["auth/models.py", "auth/views.py"],
+            files_modified=["settings/config.py"],
+            tests_added=["test login", "test logout"],
+            total_tasks=3,
+            completed_tasks=3,
+            failed_tasks=0,
+            patterns_detected=["New or modified API endpoints", "2 new Python module(s)"],
+            description="Built 'Add auth' (3/3 tasks completed) touching 3 file(s).",
+        )
+        log_dir = tmp_path / "feature-build"
+        path = nightshift.write_summary_md(summary, log_dir)
+
+        assert path == log_dir / "summary.md"
+        assert path.exists()
+
+    def test_summary_md_contains_expected_sections(self, tmp_path: Path) -> None:
+        summary = nightshift.FeatureSummary(
+            files_created=["auth/models.py"],
+            files_modified=["settings/config.py"],
+            tests_added=["test login"],
+            total_tasks=2,
+            completed_tasks=2,
+            failed_tasks=0,
+            patterns_detected=["New or modified API endpoints"],
+            description="Built 'Add auth' (2/2 tasks completed) touching 2 file(s).",
+        )
+        log_dir = tmp_path / "feature-build"
+        nightshift.write_summary_md(summary, log_dir)
+        content = (log_dir / "summary.md").read_text(encoding="utf-8")
+
+        assert "## Feature Build Summary" in content
+        assert "Built 'Add auth'" in content
+        assert "### Files Created" in content
+        assert "`auth/models.py`" in content
+        assert "### Files Modified" in content
+        assert "`settings/config.py`" in content
+        assert "### Tests Added" in content
+        assert "test login" in content
+        assert "### Patterns" in content
+        assert "New or modified API endpoints" in content
+
+    def test_summary_md_omits_empty_sections(self, tmp_path: Path) -> None:
+        summary = nightshift.FeatureSummary(
+            files_created=[],
+            files_modified=["settings/config.py"],
+            tests_added=[],
+            total_tasks=1,
+            completed_tasks=1,
+            failed_tasks=0,
+            patterns_detected=[],
+            description="Built 'Tweak config' (1/1 tasks completed) touching 1 file(s).",
+        )
+        log_dir = tmp_path / "feature-build"
+        nightshift.write_summary_md(summary, log_dir)
+        content = (log_dir / "summary.md").read_text(encoding="utf-8")
+
+        assert "### Files Created" not in content
+        assert "### Tests Added" not in content
+        assert "### Patterns" not in content
+        assert "### Files Modified" in content
+
+    def test_summary_md_creates_log_dir_if_missing(self, tmp_path: Path) -> None:
+        summary = nightshift.FeatureSummary(
+            files_created=[],
+            files_modified=[],
+            tests_added=[],
+            total_tasks=1,
+            completed_tasks=1,
+            failed_tasks=0,
+            patterns_detected=[],
+            description="Built 'X' (1/1 tasks completed).",
+        )
+        nested_dir = tmp_path / "nested" / "log" / "dir"
+        assert not nested_dir.exists()
+        nightshift.write_summary_md(summary, nested_dir)
+        assert (nested_dir / "summary.md").exists()
+
+    def test_summary_md_includes_failed_tasks_when_nonzero(self, tmp_path: Path) -> None:
+        summary = nightshift.FeatureSummary(
+            files_created=[],
+            files_modified=[],
+            tests_added=[],
+            total_tasks=3,
+            completed_tasks=2,
+            failed_tasks=1,
+            patterns_detected=[],
+            description="Built 'X' (build failed: 2/3 tasks).",
+        )
+        nightshift.write_summary_md(summary, tmp_path)
+        content = (tmp_path / "summary.md").read_text(encoding="utf-8")
+        assert "Failed tasks" in content

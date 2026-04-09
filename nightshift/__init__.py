@@ -212,6 +212,7 @@ from nightshift.raven.feature import (
     read_feature_state,
     run_final_verification,
     write_feature_state,
+    write_summary_md,
 )
 from nightshift.raven.integrator import (
     collect_wave_files,
@@ -462,4 +463,5 @@ __all__ = [
     "write_feature_state",
     "write_json",
     "write_module_map",
+    "write_summary_md",
 ]

@@ -414,6 +414,52 @@ def new_feature_state(
     )
 
 
+def write_summary_md(summary: FeatureSummary, log_dir: Path) -> Path:
+    """Write a standalone summary.md to the feature log directory.
+
+    The file is suitable for pasting into changelogs or handoffs.
+    Returns the path of the written file.
+    """
+    lines: list[str] = []
+    lines.append("## Feature Build Summary")
+    lines.append("")
+    lines.append(summary["description"])
+    lines.append("")
+    lines.append(f"**Tasks**: {summary['completed_tasks']}/{summary['total_tasks']} completed")
+    if summary["failed_tasks"]:
+        lines.append(f"**Failed tasks**: {summary['failed_tasks']}")
+    lines.append("")
+    if summary["files_created"]:
+        lines.append("### Files Created")
+        lines.append("")
+        for path in summary["files_created"]:
+            lines.append(f"- `{path}`")
+        lines.append("")
+    if summary["files_modified"]:
+        lines.append("### Files Modified")
+        lines.append("")
+        for path in summary["files_modified"]:
+            lines.append(f"- `{path}`")
+        lines.append("")
+    if summary["tests_added"]:
+        lines.append(f"### Tests Added ({len(summary['tests_added'])})")
+        lines.append("")
+        for test in summary["tests_added"]:
+            lines.append(f"- {test}")
+        lines.append("")
+    if summary["patterns_detected"]:
+        lines.append("### Patterns")
+        lines.append("")
+        for pattern in summary["patterns_detected"]:
+            lines.append(f"- {pattern}")
+        lines.append("")
+
+    log_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = log_dir / "summary.md"
+    summary_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return summary_path
+
+
 def format_feature_status(state: FeatureState) -> str:
     """Render feature-build state as human-readable markdown."""
     lines: list[str] = []
@@ -690,7 +736,9 @@ def build_feature(
     fv = state["final_verification"]
     state["status"] = "completed" if fv is not None and fv["status"] == "passed" else "failed"
     state["readiness"] = check_production_readiness(state, repo_dir, config)
-    state["summary"] = generate_feature_summary(state)
+    feature_summary = generate_feature_summary(state)
+    state["summary"] = feature_summary
     write_feature_state(state_path, state)
+    write_summary_md(feature_summary, log_dir)
     print_status(format_feature_status(state))
     return 0 if state["status"] == "completed" else 1
