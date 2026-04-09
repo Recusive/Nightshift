@@ -144,6 +144,7 @@ from nightshift.infra.release import (
 )
 from nightshift.infra.worktree import (
     cleanup_safe_artifacts,
+    clone_repo,
     discover_base_branch,
     ensure_shift_log,
     ensure_shift_log_committed,
@@ -264,7 +265,7 @@ from nightshift.settings.config import (
     prompt_for_agent,
     resolve_agent,
 )
-from nightshift.settings.eval_targets import infer_target_verify_command
+from nightshift.settings.eval_targets import PHRACTAL_URL, infer_target_verify_command
 
 __all__ = [
     "AGENT_DEFAULT_MODELS",
@@ -304,6 +305,7 @@ __all__ = [
     "INTEGRATOR_MAX_FIX_ATTEMPTS",
     "INTEGRATOR_TEST_TIMEOUT",
     "MODEL_PRICING",
+    "PHRACTAL_URL",
     "PLAN_AGENT_MAX_TURNS",
     "PLAN_AGENT_TIMEOUT",
     "PROTECTED_BRANCHES",
@@ -381,6 +383,7 @@ __all__ = [
     "check_test_coverage",
     "classify_repo_dirs",
     "cleanup_safe_artifacts",
+    "clone_repo",
     "collect_changed_files",
     "collect_wave_files",
     "command_exists",

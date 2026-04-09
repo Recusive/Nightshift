@@ -18,6 +18,7 @@ from nightshift.core.types import CycleResult, CycleVerification
 from nightshift.infra.module_map import generate_module_map, render_module_map, write_module_map
 from nightshift.infra.multi import run_multi_shift
 from nightshift.infra.worktree import (
+    clone_repo,
     discover_base_branch,
     ensure_shift_log,
     ensure_shift_log_committed,
@@ -48,8 +49,25 @@ from nightshift.raven.feature import build_feature
 from nightshift.raven.planner import build_plan_prompt, format_plan, parse_plan, run_plan_agent, scope_check
 from nightshift.raven.profiler import profile_repo
 from nightshift.settings.config import infer_verify_command, merge_config, resolve_agent
+from nightshift.settings.eval_targets import PHRACTAL_URL
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _ensure_repo_dir(repo_dir: Path) -> None:
+    """Auto-clone the eval target if repo_dir does not exist.
+
+    Attempts to clone from PHRACTAL_URL into repo_dir.  If the clone
+    fails, raises NightshiftError with the exact git clone command so the
+    user can run it manually.
+    """
+    if repo_dir.exists():
+        return
+    clone_cmd = f"git clone {PHRACTAL_URL} {repo_dir}"
+    print_status(f"Cloning eval target into {repo_dir} ...")
+    print_status(f"  {clone_cmd}")
+    clone_repo(PHRACTAL_URL, repo_dir)
+    print_status("Clone complete.")
 
 
 def _write_rejected_cycle_artifact(
@@ -164,6 +182,8 @@ def _write_rejected_cycle_artifact(
 
 def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
+    if test_mode and not repo_dir.exists():
+        _ensure_repo_dir(repo_dir)
     config = merge_config(repo_dir)
     agent = resolve_agent(config, args.agent)
     config["agent"] = agent

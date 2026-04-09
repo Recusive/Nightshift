@@ -1131,6 +1131,90 @@ class TestValidateRepoCheckout:
             nightshift.validate_repo_checkout(repo)
 
 
+class TestCloneRepo:
+    def test_clones_into_new_directory(self, tmp_path: Path) -> None:
+        origin = tmp_path / "origin"
+        origin.mkdir()
+        subprocess.run(["git", "init"], cwd=origin, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=origin, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=origin, capture_output=True, check=True)
+        (origin / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=origin, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=origin, capture_output=True, check=True)
+
+        dest = tmp_path / "clone"
+        nightshift.clone_repo(str(origin), dest)
+
+        assert dest.exists()
+        assert (dest / "README.md").exists()
+
+    def test_clone_failure_raises_error_with_git_command(self, tmp_path: Path) -> None:
+        dest = tmp_path / "clone"
+        with pytest.raises(nightshift.NightshiftError) as exc_info:
+            nightshift.clone_repo("https://invalid.example.invalid/repo.git", dest)
+        msg = str(exc_info.value)
+        assert "git clone" in msg
+        assert "https://invalid.example.invalid/repo.git" in msg
+
+
+class TestRunNightshiftMissingRepoDir:
+    def test_missing_repo_dir_triggers_auto_clone(self, tmp_path: Path) -> None:
+        """run_nightshift auto-clones when --repo-dir does not exist."""
+        origin = tmp_path / "origin"
+        origin.mkdir()
+        subprocess.run(["git", "init"], cwd=origin, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=origin, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=origin, capture_output=True, check=True)
+        (origin / "README.md").write_text("hello\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=origin, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=origin, capture_output=True, check=True)
+
+        missing = tmp_path / "missing"
+        assert not missing.exists()
+
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["test", "--agent", "codex", "--dry-run", "--repo-dir", str(missing)])
+
+        with patch("nightshift.cli.PHRACTAL_URL", str(origin)):
+            result = nightshift.run_nightshift(args, test_mode=True)
+
+        assert result == 0
+        assert missing.exists()
+
+    def test_missing_repo_dir_clone_failure_raises_actionable_error(self, tmp_path: Path) -> None:
+        """When auto-clone fails, NightshiftError contains the exact git clone command."""
+        missing = tmp_path / "missing"
+        assert not missing.exists()
+
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["test", "--agent", "codex", "--dry-run", "--repo-dir", str(missing)])
+
+        bad_url = "https://invalid.example.invalid/repo.git"
+        with (
+            patch("nightshift.cli.PHRACTAL_URL", bad_url),
+            pytest.raises(nightshift.NightshiftError) as exc_info,
+        ):
+            nightshift.run_nightshift(args, test_mode=True)
+
+        msg = str(exc_info.value)
+        assert "git clone" in msg
+        assert bad_url in msg
+        assert str(missing) in msg
+
+    def test_missing_repo_dir_does_not_clone_in_run_mode(self, tmp_path: Path) -> None:
+        """run_nightshift with test_mode=False must NOT auto-clone a missing repo_dir."""
+        missing = tmp_path / "missing"
+        assert not missing.exists()
+
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["run", "--agent", "codex", "--dry-run", "--repo-dir", str(missing)])
+
+        with pytest.raises((nightshift.NightshiftError, FileNotFoundError, SystemExit)):
+            nightshift.run_nightshift(args, test_mode=False)
+
+        assert not missing.exists(), "run mode must not auto-clone a missing repo_dir"
+
+
 class TestEnsureWorktree:
     def test_recreates_broken_existing_worktree(self, tmp_path: Path) -> None:
         repo = tmp_path / "repo"
