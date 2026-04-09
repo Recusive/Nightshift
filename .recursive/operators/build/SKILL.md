@@ -30,6 +30,8 @@ The task queue is authoritative. The handoff's "Next Session Should" is advisory
 
 **Value scoring:** When choosing between tasks of equal priority, prefer the one that moves the vision tracker forward. A session that advances the tracker from 63% to 66% is more valuable than one that completes three cleanup tasks.
 
+**Vision-alignment tiebreaker:** When two or more tasks have equal priority AND equal expected tracker impact, prefer the task whose `vision_section` field targets the lowest-percentage section in `.recursive/vision-tracker/TRACKER.md`. Check the tracker percentages at the start of Step 1 (Situational Awareness) and keep them in mind during task selection. This is an advisory rule -- use judgment. If the lower-percentage section has no tasks ready to ship, pick the best available task and note the alignment gap in the handoff.
+
 ## Process
 
 ### Step 0 — Verify Previous Commitment + Evaluate

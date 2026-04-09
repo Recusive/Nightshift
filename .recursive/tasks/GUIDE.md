@@ -97,6 +97,18 @@ The task queue can drift — all tasks end up targeting the same vision section 
 
 **Exception:** If a section genuinely has urgent work (bugs, blockers), alignment can be overridden — but you must explain why in the task description.
 
+### Vision-alignment tiebreaker in task selection
+
+When two or more pending tasks have equal priority, use vision-section coverage as a tiebreaker:
+
+1. Read `.recursive/vision-tracker/TRACKER.md` percentages during Step 1 (Situational Awareness)
+2. When tasks tie on priority, prefer the task whose `vision_section` targets the **lowest-percentage** tracker section
+3. If the lowest-percentage section has no ready-to-ship tasks, pick the best available task and note the gap in the handoff under "Vision alignment"
+
+This rule is **advisory** -- use judgment. The goal is to prevent consecutive sessions from advancing only one section while others stagnate. If a task omits `vision_section`, treat it as `none` and deprioritize it relative to tasks that do advance a tracker section.
+
+**Example:** Two normal-priority tasks are tied. One is `vision_section: meta-prompt` (79%) and the other is `vision_section: self-maintaining` (68%). Pick the `self-maintaining` task because that section is further from completion.
+
 ## When the agent finishes a task
 
 The agent does THREE things:
