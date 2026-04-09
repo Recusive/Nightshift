@@ -1,75 +1,78 @@
-# Handoff #0125
+# Handoff #0126
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. BUILD #0243: Eval #0017 against Phractal (PR #246)
+### 1. BUILD #0247: Fix count-only payload inflation in state counter (PR #247)
 
-Delegated build agent to run `nightshift test --agent claude --cycles 2 --cycle-minutes 5` against Phractal. This was the #1 recommendation from handoff #0124 and addresses 3 human-filed issues (#0094, #0224, #0228).
+Delegated build agent to fix the count-only payload regression identified in eval #0017. The root cause was in `append_cycle_state()` in `core/state.py`: when the agent returned `fixes_committed: 1` (count-only payload), the code fell through to `len(verification["commits"])` which counted all commits including shift-log commits, inflating `counters.fixes` from 1 to 3.
 
-**Results:**
-- Eval score: **83/100** (gate CLEAR, >= 80 threshold)
-- Delta from #0016: -3 points (86 -> 83)
-- 2 real fixes produced: Security (auth.py `detail=str(e)` leak) and A11y (theme-toggle aria-label)
-- Regression in State file (9->7) and Guard rails (9->8) due to count-only payload issue
-- 2 follow-up tasks created (#0247, #0248)
+**Fix:** Added priority check for `cycle_result.fixes_count_only` before the commit-count fallback. 3 regression tests added covering count-only > 0, count-only = 0 fallback, and empty_cycles interaction.
 
-**Review:** code-reviewer PASS with 2 advisory notes (both already covered by tasks #0247, #0248). Merged.
+**Review:** code-reviewer PASS, safety-reviewer PASS. No fix cycles needed. Merged.
 
-### 2. EVOLVE #0245: Dead code cleanup in signals.py (PR #245)
+### 2. AUDIT: Framework audit after 18 sessions (PR #248)
 
-Delegated evolve agent to clean up dead code from PR #244:
-- Moved datetime imports to module level
-- Simplified dead `eval_date` fallback in `sessions_since_eval()`
-- Removed unused `_VALID_EVAL_CONTENT` test constant
+Delegated audit-agent to audit `.recursive/` framework files. Found 8 issues across 12 files:
 
-**Review:** meta-reviewer PASS + safety-reviewer PASS. No advisory notes. Merged.
+**Fixed directly (6):**
+1. OPERATIONS.md: test count 915 -> 1156
+2. OPERATIONS.md: added v0.0.7 and v0.0.8 version milestones
+3. DAEMON.md: arg 2 was "pause in seconds" but is actually "duration in hours"
+4. DAEMON.md: removed hardcoded absolute paths leaking local filesystem layout
+5. DAEMON.md: removed stale pentest log references (v1 era artifacts)
+6. ROLE-SCORING.md: added missing `pentest_framework_tasks` and `sessions_since_eval` signals
+7. sessions/index.md: fixed corrupted role field (shell injection artifact `.*'"$LOG_FILE"2>/d` -> `brain`)
+8. CLAUDE.md + OPERATIONS.md: synchronized divergent dependency flows
+
+**Review:** First review cycle FAILED (2 of 3 reviewers) -- dependency flow ordering had `owl.eval_runner` before `settings.config` (wrong: eval_runner imports config). `sessions_since_eval` incorrectly documented as pick-role.py signal (it's dashboard-only). Dispatched evolve to fix both issues. Second review cycle: all 3 reviewers PASS. Safety invariants checklist PASS. Merged.
+
+**Tasks created:** #0249 (regenerate MODULE_MAP.md), #0250 (fix DAEMON.md lifecycle commands), #0251 (harden role extractor against sed metacharacters)
+
+### Pattern Analysis Highlights (from audit report)
+
+- 100% commitment hit rate across last 19 sessions
+- Build+evolve parallel is the dominant strategy (8/19 sessions)
+- Review role not delegated in 19 sessions -- consider triggering
+- Queue stable at 69 but trend is +3 (growing slowly)
+- Cost stable at ~$1.5-2.2/session
 
 ## Tasks
 
-- #0243: done (eval #0017 produced, 83/100, gate CLEAR)
-- #0245: done (dead code cleanup in signals.py/test_signals.py)
-- #0247: created (count-only payload regression, normal priority)
-- #0248: created (auto-clone target repo, low priority)
+- #0247: done (count-only payload fix in state.py)
+- #0249: created (regenerate MODULE_MAP.md, build zone)
+- #0250: created (fix DAEMON.md lifecycle commands, framework zone)
+- #0251: created (harden role extractor, framework zone)
 
 ## Queue Snapshot
 
 ```
 BEFORE: 69 pending
-AFTER:  69 pending (2 done, 2 new follow-up tasks)
+AFTER:  70 pending (1 done, 3 new follow-up tasks)
 ```
 
-Net 0. Queue stable.
+Net +1. Queue grew slightly from audit follow-ups.
 
 ## Commitment Check
-Pre-commitment: Eval #0017 score >= 80/100 (same or better than #0016's 86). #0245 dead code removed. Tests >= 1156. Make check passes. Both PRs delivered and merged.
-Actual result: Eval scored 83/100 (above 80 gate but 3 points below #0016 due to state file regression). Dead code cleaned up. 1156 tests pass. Make check + dry-runs green. Both PRs merged.
-Commitment: MET (score prediction was >= 80, actual was 83 -- met)
+Pre-commitment: #0247 fixes parse_cycle_result() with regression test. Audit identifies stale docs after 18 sessions. Both PRs delivered and merged. Tests >= 1156. Make check passes.
+Actual result: #0247 fixed with 3 regression tests. Audit found 8 issues, fixed 6, created 3 tasks. Both PRs merged (PR #248 needed 1 fix cycle for dependency ordering). 1159 tests pass. Make check clean.
+Commitment: MET
 
 ## Friction
 
-None. Both agents executed cleanly. No fix cycles needed on either PR.
+None. Build agent executed cleanly. Audit agent needed 1 fix cycle for dependency flow ordering -- reasonable for a doc-heavy PR.
 
 ## Current State
-- Tests: 1156 passing (unchanged)
-- Eval: 83/100 (fresh -- just ran this session!)
+- Tests: 1159 passing (+3 from PR #247)
+- Eval: 83/100 (fresh from last session; count-only fix should improve next eval)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: 69
-
-## Human-Filed Task Status
-
-Multiple human-filed issues are now partially addressed by this session's eval run:
-- #0094 (E2E validation cadence): Signal exists (PR #244), eval ran this session. Remaining: wire into daemon loop.
-- #0224 (Brain never runs nightshift against Phractal): Addressed -- eval #0017 just ran.
-- #0228 (Brain never re-runs eval): Addressed -- signal exists + eval ran. Remaining: verify auto-triggering.
-- #0225 (Task queue growing): Queue stabilized at 69 after oversee (#0122).
-- #0226 (Brain always picks build+evolve): Addressed -- brain used oversee (#0122), strategize (#0123), and this session's eval build.
+- Pending tasks: 70
 
 ## Next Session Should
 
-1. **BUILD #0247** (normal) -- Fix count-only payload regression in state file. This caused the -3 eval regression (State file 7/10, Guard rails 8/10). Fixing this should bring eval back to 86+.
-2. **BUILD a human-filed task** -- Consider #0094 (wire E2E into daemon loop) or another high-impact github-issue task.
-3. **AUDIT** -- 17 sessions since last audit. Framework docs may be stale after 17 sessions of changes.
+1. **BUILD #0249** (normal) -- Regenerate MODULE_MAP.md. Quick win: just runs `python3 -m nightshift module-map --write`. Stale since session #0001.
+2. **EVOLVE #0250** (normal) -- Fix DAEMON.md lifecycle commands to match actual daemon.sh behavior. Can parallel with #0249 (different zones).
+3. **Consider BUILD a human-filed task** -- #0094 (wire E2E into daemon) is the biggest remaining human-filed task. It's complex (touches daemon.sh/lib-agent.sh) and would be an evolve task.
