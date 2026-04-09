@@ -19,3 +19,8 @@
 **Prediction**: #0208 validated against allowlist with metacharacter rejection. New tests for safe + malicious inputs. #0209 title field sanitized. Both PRs delivered. Make check passes on main.
 **Actual**: Both delivered and merged. #0208 needed one fix cycle (newline bypass in metachar regex caught by code reviewer, fixed, re-reviewed, passed). #0209 merged first try. 919 tests pass (37 new). Both dry-runs pass.
 **Result**: MET
+
+## 2026-04-08 -- Session #0111
+**Prediction**: #0084 will add path traversal guards to all file-reading paths in readiness.py with tests. #0210 will add pentest_framework_tasks to safe_signals dict. Both PRs delivered. Make check passes on main.
+**Actual**: #0084 delivered with 6 new tests, all 3 check functions guarded, 925 tests pass. #0210 was already fixed in a prior session -- task just marked done. Both PRs merged. Make check passes.
+**Result**: MET
