@@ -483,7 +483,7 @@ def format_feature_status(state: FeatureState) -> str:
         )
         for check in readiness["checks"]:
             mark = "PASS" if check["passed"] else "FAIL"
-            lines.append(f"  [{mark}] {check['name']}: {check['details'].splitlines()[0]}")
+            lines.append(f"  [{mark}] {check['name']}: {(check['details'].splitlines() or [''])[0]}")
         lines.append("")
 
     summary = state["summary"]
