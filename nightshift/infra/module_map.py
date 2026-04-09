@@ -25,8 +25,15 @@ def module_map_path(repo_dir: Path) -> Path:
 
 def _parse_modules(
     module_paths: list[Path],
+    package_dir: Path | None = None,
 ) -> tuple[dict[str, ast.Module], list[ParseError]]:
-    """Attempt to parse each module file, recording per-file syntax errors."""
+    """Attempt to parse each module file, recording per-file syntax errors.
+
+    When *package_dir* is provided, keys in the returned dict are paths relative
+    to *package_dir* without the ``.py`` suffix (e.g. ``core/constants`` or
+    ``cycle``).  This allows subpackage modules and top-level modules to coexist
+    without key collisions.
+    """
     parsed: dict[str, ast.Module] = {}
     errors: list[ParseError] = []
     for path in module_paths:
@@ -35,7 +42,8 @@ def _parse_modules(
         except (SyntaxError, UnicodeDecodeError) as exc:
             errors.append(ParseError(module=path.name, error=str(exc)))
             continue
-        parsed[path.stem] = tree
+        key = str(path.relative_to(package_dir).with_suffix("")) if package_dir is not None else path.stem
+        parsed[key] = tree
     return parsed, errors
 
 
@@ -43,7 +51,7 @@ def generate_module_map(repo_dir: Path) -> ModuleMapSnapshot:
     """Collect module metadata, dependency order, and recent-session summaries."""
     package_dir = repo_dir / "nightshift"
     module_paths = _module_paths(package_dir)
-    parsed, parse_errors = _parse_modules(module_paths)
+    parsed, parse_errors = _parse_modules(module_paths, package_dir=package_dir)
     dependency_order, dependency_cycles = _dependency_order(parsed)
 
     ordered_names = [*dependency_order]
@@ -150,8 +158,13 @@ def write_module_map(repo_dir: Path, *, snapshot: ModuleMapSnapshot | None = Non
 
 def _module_entry(repo_dir: Path, path: Path, tree: ast.Module) -> ModuleMapEntry:
     """Build a single module-map row from an AST and git metadata."""
+    package_dir = repo_dir / "nightshift"
+    try:
+        display_name = str(path.relative_to(package_dir))
+    except ValueError:
+        display_name = path.name
     return ModuleMapEntry(
-        module=path.name,
+        module=display_name,
         lines=len(path.read_text(encoding="utf-8").splitlines()),
         purpose=_module_purpose(tree, path),
         key_symbols=_key_symbols(tree),
@@ -159,10 +172,21 @@ def _module_entry(repo_dir: Path, path: Path, tree: ast.Module) -> ModuleMapEntr
     )
 
 
+_SUBPACKAGE_DIRS = ("core", "settings", "owl", "raven", "infra")
+
+
 def _module_paths(package_dir: Path) -> list[Path]:
-    """Return safe top-level package modules, excluding symlinks and escaped paths."""
+    """Return safe package modules, including known subpackages.
+
+    Scans top-level ``nightshift/*.py`` files plus all ``*.py`` files in the
+    canonical subpackage directories (core, settings, owl, raven, infra).
+    ``__init__.py`` files inside subpackages and any ``tests/`` directory are
+    excluded.  Symlinks and path-escaping files are also excluded.
+    """
     resolved_dir = package_dir.resolve()
     paths: list[Path] = []
+
+    # Top-level nightshift/*.py (includes cli.py, __init__.py, __main__.py)
     for path in sorted(package_dir.glob("*.py")):
         if path.is_symlink() or not path.is_file():
             continue
@@ -173,6 +197,26 @@ def _module_paths(package_dir: Path) -> list[Path]:
         if resolved_path.parent != resolved_dir:
             continue
         paths.append(path)
+
+    # Subpackage modules: core/, settings/, owl/, raven/, infra/
+    for subpkg in _SUBPACKAGE_DIRS:
+        subpkg_dir = package_dir / subpkg
+        if not subpkg_dir.is_dir():
+            continue
+        resolved_subpkg = subpkg_dir.resolve()
+        for path in sorted(subpkg_dir.glob("*.py")):
+            if path.name == "__init__.py":
+                continue
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                resolved_path = path.resolve(strict=True)
+            except OSError:
+                continue
+            if resolved_path.parent != resolved_subpkg:
+                continue
+            paths.append(path)
+
     return paths
 
 
@@ -273,16 +317,38 @@ def _dependency_order(parsed_modules: dict[str, ast.Module]) -> tuple[list[str],
 
 
 def _internal_dependencies(tree: ast.Module) -> list[str]:
-    """Return direct internal imports from `nightshift.<module>` references."""
+    """Return direct internal imports from ``nightshift.*`` references.
+
+    For subpackage imports like ``nightshift.core.constants`` the returned key
+    is ``core/constants`` (matching the key format used by ``_parse_modules``
+    when ``package_dir`` is provided).  For top-level imports like
+    ``nightshift.cli`` the returned key is simply ``cli``.
+    """
     deps: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("nightshift."):
-            deps.append(node.module.split(".", 1)[1].split(".", 1)[0])
+            deps.append(_module_key_from_dotted(node.module))
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name.startswith("nightshift."):
-                    deps.append(alias.name.split(".", 1)[1].split(".", 1)[0])
+                    deps.append(_module_key_from_dotted(alias.name))
     return _dedupe(deps)
+
+
+def _module_key_from_dotted(dotted: str) -> str:
+    """Convert a dotted nightshift import path to a module map key.
+
+    ``nightshift.core.constants`` -> ``core/constants``
+    ``nightshift.cli``            -> ``cli``
+    ``nightshift.core``           -> ``core`` (subpackage __init__, ignored in deps)
+    """
+    parts = dotted.split(".")
+    # parts[0] is "nightshift"; parts[1] is subpackage or top-level module
+    if len(parts) >= 3:
+        return f"{parts[1]}/{parts[2]}"
+    if len(parts) == 2:
+        return parts[1]
+    return dotted
 
 
 def _last_changed_label(repo_dir: Path, path: Path) -> str:
