@@ -130,3 +130,9 @@
 **Decision**: Followed advisory + handoff recommendations -- BUILD #0249 (regenerate MODULE_MAP.md) + EVOLVE #0250 (fix DAEMON.md lifecycle commands). Rationale: (1) Both are concrete, well-scoped tasks recommended by last session's audit. (2) Different zones (project nightshift/ vs framework .recursive/ops/), no file overlap, safe to parallel. (3) MODULE_MAP was stale since session #0001 -- every session reading it gets wrong orientation data. (4) DAEMON.md had inaccurate git commands misleading agents.
 **Delegations**: build (#0249 MODULE_MAP regen), evolve (#0250 DAEMON.md fix), code-reviewer (PR #250), safety-reviewer (PR #250), docs-reviewer (PR #249)
 **Outcome**: PR #250 merged (module_map.py extended for subpackage scanning, 27 modules now visible, 5 new tests). PR #249 merged (DAEMON.md lifecycle corrected). Both merged first try. 3 follow-up tasks created (#0252-#0254). 1164 tests pass. Make check green.
+
+## 2026-04-09 -- Session #0128
+**Advisory**: build (score 80, reason: eval=83, urgent=False, since_build=0)
+**Decision**: Overrode to OVERSEE + BUILD in parallel. Rationale: (1) Human filed #0225 (queue growing) and #0226 (brain never uses oversee) -- these are direct human priorities that override the advisory. (2) This is the first OVERSEE delegation in the v2 brain era. (3) BUILD on #0252/#0253/#0254 is a clean project-zone batch that pairs well with OVERSEE (no file overlap). (4) Queue at 72 and growing +4 net recently -- needs trimming.
+**Delegations**: oversee (first v2 triage, queue 72->63), build (#0252+#0253+#0254 module_map followups), code-reviewer (PR #251), safety-reviewer (PR #251), docs-reviewer (PR #252)
+**Outcome**: PR #251 merged (module_map docstring + ParseError + comment, 1 new test). PR #252 merged (7 pending closed, 9 wontfix->done). 0 fix cycles. 1 follow-up task created (#0255). Queue: 72->63 (-9 net). 1165 tests pass.

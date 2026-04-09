@@ -104,3 +104,8 @@
 **Prediction**: #0249 regenerates MODULE_MAP.md showing all 5 subpackages (core, settings, owl, raven, infra) and 20+ modules. #0250 corrects DAEMON.md lifecycle section to show only git fetch + git reset (no checkout, no clean). Both PRs delivered and merged. Make check passes. Tests >= 1159.
 **Actual**: Both delivered and merged first try. MODULE_MAP shows 27 modules across all 5 subpackages with full dependency chain. DAEMON.md corrected with clarifying note. 1164 tests pass (+5 new). Make check + dry-runs green. 0 fix cycles needed.
 **Result**: MET
+
+## 2026-04-09 -- Session #0128
+**Prediction**: OVERSEE reduces pending from 72 to <= 65 (net -7 minimum). BUILD completes #0252/#0253/#0254 as single PR. Tests >= 1164. Make check passes. Both PRs delivered and merged.
+**Actual**: OVERSEE reduced to 63 pending (net -9, exceeded target). BUILD completed all 3 as PR #251 with 1 new test. 1165 tests pass. Make check + dry-runs green. Both PRs merged first try (0 fix cycles).
+**Result**: MET
