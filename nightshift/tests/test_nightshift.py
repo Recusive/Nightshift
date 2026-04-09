@@ -3827,6 +3827,98 @@ class TestShiftLogVerificationTolerance:
         assert any("total commits" in v for v in verification["violations"])
 
 
+# --- Category Allowlist in Dominance Guard -----------------------------------
+
+
+class TestCycleCategoryAllowlist:
+    """Unknown category strings from agent fixes must not affect the dominance guard."""
+
+    def _setup_repo(self, tmp_path: Path) -> tuple[Path, str]:
+        """Create a minimal git repo and return (worktree_dir, pre_head)."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+        shift_log = repo / "docs" / "Nightshift"
+        shift_log.mkdir(parents=True)
+        (shift_log / "2026-04-03.md").write_text("# Shift log\n")
+        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+        result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True)
+        return repo, result.stdout.strip()
+
+    def _base_config(self) -> dict:
+        return {
+            "agent": "claude",
+            "max_fixes_per_cycle": 5,
+            "max_files_per_fix": 5,
+            "max_files_per_cycle": 20,
+            "max_low_impact_fixes_per_shift": 10,
+            "blocked_paths": [".github/"],
+            "blocked_globs": ["*.lock"],
+        }
+
+    def test_unknown_category_does_not_trigger_dominance_violation(self, tmp_path: Path) -> None:
+        """An unknown category in a fix must not influence the dominance guard rail.
+
+        Without the allowlist guard, 4 fixes labelled with an arbitrary unknown
+        category would be counted in category_counts and, given a total >= 4
+        after accumulation, would own 4/7 = 57% of fixes -- crossing the 50%
+        dominance threshold.  With the guard, the unknown string is silently
+        ignored so category_counts gains no entry for it and no violation fires.
+
+        State has 3 known Security fixes.  The cycle adds 4 fixes tagged with the
+        unknown label "Injection Attack".  After accumulation:
+          - Without fix: "Injection Attack" = 4, total = 7, 57% -> dominance fires
+          - With fix: "Injection Attack" never counted, Security = 3/7 = 43% -> no violation
+        """
+        repo, pre_head = self._setup_repo(tmp_path)
+        shift_log_rel = "docs/Nightshift/2026-04-03.md"
+        src = repo / "src"
+        src.mkdir()
+        for i in range(4):
+            (src / f"fix{i}.py").write_text(f"# fix {i}\n")
+        (repo / shift_log_rel).write_text("# Updated\n")
+        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "fix: apply fixes"], cwd=repo, capture_output=True, check=True)
+
+        # State has 3 known Security fixes already in category_counts.
+        state: dict = {
+            "verify_command": None,
+            "log_only_mode": False,
+            "counters": {"low_impact_fixes": 0, "fixes": 3, "issues_logged": 0},
+            "recent_cycle_paths": [],
+            "category_counts": {"Security": 3},
+        }
+
+        _valid, verification = nightshift.verify_cycle(
+            worktree_dir=repo,
+            shift_log_relative=shift_log_rel,
+            pre_head=pre_head,
+            cycle_result={
+                "status": "completed",
+                "fixes": [
+                    {
+                        "title": f"injection fix {i}",
+                        "category": "Injection Attack",
+                        "impact": "high",
+                        "files": [f"src/fix{i}.py"],
+                    }
+                    for i in range(4)
+                ],
+                "logged_issues": [],
+            },
+            config=self._base_config(),
+            state=state,
+            runner_log=tmp_path / "runner.log",
+        )
+        dominance_violations = [v for v in verification["violations"] if "dominance" in v.lower()]
+        assert dominance_violations == [], (
+            f"Unknown category should be ignored by dominance guard, but got: {dominance_violations}"
+        )
+
+
 # --- Dry Run Integration ----------------------------------------------------
 
 

@@ -41,6 +41,10 @@ from nightshift.infra.worktree import (
     git_name_status_for_commit,
 )
 
+# Allowlist for category strings supplied by agent output.  Only strings that
+# appear in CATEGORY_ORDER are accepted; unknown strings are silently ignored.
+_VALID_CATEGORIES: frozenset[str] = frozenset(CATEGORY_ORDER)
+
 
 def extract_json(text: str) -> dict[str, Any] | None:
     payload = text.strip()
@@ -922,7 +926,7 @@ def verify_cycle(
         total_fixes = state["counters"]["fixes"]
         for fix in cycle_result.get("fixes", []):
             category = fix.get("category")
-            if category is not None:
+            if category is not None and category in _VALID_CATEGORIES:
                 category_counts[category] = category_counts.get(category, 0) + 1
             total_fixes += 1
         if total_fixes >= 4:
