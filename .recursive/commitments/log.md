@@ -34,3 +34,8 @@
 **Prediction**: #0079 will wire feature summary into CLI with summary.md written to log dir (1-3 new tests). #0216 will anchor all status patterns with `\s*$`. Both PRs delivered and merged. 927+ tests pass.
 **Actual**: #0079 added write_summary_md with 7 new tests (exceeded 1-3 prediction). #0216 anchored 5 patterns. Both PRs merged first try. 933 tests pass. All checks green. Both dry-runs pass.
 **Result**: MET
+
+## 2026-04-08 -- Session #0114
+**Prediction**: #0066 creates release.py with check_and_release(), dry-run mode, 4+ tests. #0215 adds 5+ pentest signal tests. Both PRs merged. 938+ tests pass.
+**Actual**: #0066 delivered with 40 tests (35 initial + 5 fix-round). #0215 delivered with 14 tests. #0066 needed 1 fix cycle (tag injection + path traversal + sort bug), then both reviewers PASS. 993 tests pass. All checks green.
+**Result**: MET
