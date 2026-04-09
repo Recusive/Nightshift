@@ -9019,6 +9019,104 @@ class TestDetectFileConflicts:
         paths = [c["file_path"] for c in report["conflicts"]]
         assert paths == sorted(paths)
 
+    def test_detects_conflict_in_failed_tasks(self) -> None:
+        """Failed tasks that partially wrote files are included in conflict scan."""
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=["shared.py"],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="blocked",
+                    files_created=["shared.py"],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=False,
+                    notes="partial write before failure",
+                ),
+            ],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert report["has_conflicts"]
+        assert len(report["conflicts"]) == 1
+        assert report["conflicts"][0]["file_path"] == "shared.py"
+        assert sorted(report["conflicts"][0]["task_ids"]) == [1, 2]
+
+    def test_detects_conflict_between_two_failed_tasks(self) -> None:
+        """Two failed tasks that both touched the same file produce a conflict."""
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[],
+            failed=[
+                nightshift.TaskCompletion(
+                    task_id=3,
+                    status="blocked",
+                    files_created=[],
+                    files_modified=["config.py"],
+                    tests_written=[],
+                    tests_passed=False,
+                    notes="",
+                ),
+                nightshift.TaskCompletion(
+                    task_id=4,
+                    status="blocked",
+                    files_created=[],
+                    files_modified=["config.py"],
+                    tests_written=[],
+                    tests_passed=False,
+                    notes="",
+                ),
+            ],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert report["has_conflicts"]
+        assert report["conflicts"][0]["file_path"] == "config.py"
+        assert sorted(report["conflicts"][0]["task_ids"]) == [3, 4]
+
+    def test_no_false_positive_when_failed_tasks_have_no_overlap(self) -> None:
+        """Failed tasks with disjoint file sets do not generate spurious conflicts."""
+        wave_result = nightshift.WaveResult(
+            wave=1,
+            completed=[
+                nightshift.TaskCompletion(
+                    task_id=1,
+                    status="done",
+                    files_created=["a.py"],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=True,
+                    notes="",
+                ),
+            ],
+            failed=[
+                nightshift.TaskCompletion(
+                    task_id=2,
+                    status="blocked",
+                    files_created=["b.py"],
+                    files_modified=[],
+                    tests_written=[],
+                    tests_passed=False,
+                    notes="",
+                ),
+            ],
+            total_tasks=2,
+        )
+        report = nightshift.detect_file_conflicts(wave_result)
+        assert not report["has_conflicts"]
+        assert report["conflicts"] == []
+
 
 class TestFormatConflictReport:
     def test_no_conflicts_message(self) -> None:
