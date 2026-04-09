@@ -119,3 +119,8 @@
 **Prediction**: EVOLVE #0237 replaces /tmp/recursive_cost_msg with mktemp in daemon.sh. BUILD #0233 adds is_symlink() guard before rmtree in eval_runner.py with 1+ test. Both PRs delivered and merged. Tests >= 1165. Make check passes. 0 fix cycles expected. Tier 1 PR passes all 3 reviewers + 8 safety invariants.
 **Actual**: Both PRs delivered and merged first try. 1169 tests pass (+4 new). Make check + both dry-runs green. 0 fix cycles. Tier 1 PR passed full review with all 8 safety invariants preserved. 1 follow-up task created (#0257).
 **Result**: MET
+
+## 2026-04-09 -- Session #0131
+**Prediction**: BUILD #0248 delivers auto-clone or actionable error for missing repo_dir with 1+ test. EVOLVE #0257 delivers EXIT trap covering LOCKFILE + CONTEXT_FILE + COST_MSG_TMP. Tier 1 PR passes all 3 reviewers + 8 safety invariants. Tests >= 1169. Make check passes. 0 fix cycles expected.
+**Actual**: Both PRs delivered and merged. 1174 tests pass (+5 new). Make check + both dry-runs green. Tier 1 PR passed full review first try. PR #258 needed 1 fix cycle (test_mode gate caught by code reviewer). 1 follow-up task created (#0258).
+**Result**: MET
