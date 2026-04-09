@@ -88,6 +88,17 @@ def _parse_events(log_path: str) -> list[dict]:
     return events
 
 
+def _detect_format(events: list[dict]) -> str:
+    """Detect whether events are Claude or Codex format."""
+    for ev in events:
+        etype = ev.get("type", "")
+        if etype in ("system", "assistant", "result"):
+            return "claude"
+        if etype in ("thread.started", "turn.started", "turn.completed", "item.started", "item.completed"):
+            return "codex"
+    return "claude"
+
+
 def _extract_session_meta(events: list[dict]) -> dict:
     """Extract session metadata from init event and usage totals."""
     meta: dict = {
@@ -104,6 +115,27 @@ def _extract_session_meta(events: list[dict]) -> dict:
             usage = ev.get("message", {}).get("usage", {})
             meta["total_input_tokens"] += usage.get("input_tokens", 0)
             meta["total_output_tokens"] += usage.get("output_tokens", 0)
+    return meta
+
+
+def _extract_session_meta_codex(events: list[dict]) -> dict:
+    """Extract session metadata from Codex JSONL events."""
+    meta: dict = {
+        "model": "",
+        "session_id": "",
+        "total_input_tokens": 0,
+        "total_output_tokens": 0,
+    }
+    for ev in events:
+        if ev.get("type") == "thread.started":
+            meta["session_id"] = ev.get("thread_id", "")
+            meta["model"] = ev.get("model", "")
+        if ev.get("type") == "turn.completed":
+            usage = ev.get("usage", {})
+            meta["total_input_tokens"] += usage.get("input_tokens", 0)
+            meta["total_input_tokens"] += usage.get("prompt_tokens", 0)
+            meta["total_output_tokens"] += usage.get("output_tokens", 0)
+            meta["total_output_tokens"] += usage.get("completion_tokens", 0)
     return meta
 
 
@@ -152,6 +184,62 @@ def _collect_agent_content(events: list[dict]) -> list[dict]:
                     result_text = result_text.get("text", str(result_text))
                 pending_tools[tool_id]["result"] = str(result_text)[:3000]
 
+    return items
+
+
+def _collect_agent_content_codex(events: list[dict]) -> list[dict]:
+    """Collect agent content from Codex JSONL events."""
+    items: list[dict] = []
+    for ev in events:
+        if ev.get("type") != "item.completed":
+            continue
+        item = ev.get("item", {})
+        itype = item.get("type", "")
+
+        if itype == "agent_message":
+            text = item.get("text", "").strip()
+            if text:
+                items.append({"kind": "text", "content": text})
+        elif itype == "reasoning":
+            text = item.get("text", "").strip()
+            if text:
+                items.append({"kind": "thinking", "content": text})
+        elif itype == "command_execution":
+            cmd = item.get("command", "")
+            exit_code = item.get("exit_code", 0)
+            output = item.get("output", "")
+            if cmd.startswith("/bin/zsh -lc "):
+                cmd = cmd[14:].strip("'\"")
+            items.append(
+                {
+                    "kind": "tool",
+                    "name": "Bash",
+                    "input": {"command": cmd, "description": ""},
+                    "result": f"[exit {exit_code}] {str(output)[:3000]}",
+                }
+            )
+        elif itype == "file_change":
+            for change in item.get("changes", []):
+                path = change.get("path", "")
+                kind = change.get("kind", "edit")
+                if kind == "create":
+                    items.append(
+                        {
+                            "kind": "tool",
+                            "name": "Write",
+                            "input": {"file_path": path, "content": "(created)"},
+                            "result": "",
+                        }
+                    )
+                else:
+                    items.append(
+                        {
+                            "kind": "tool",
+                            "name": "Edit",
+                            "input": {"file_path": path, "old_string": "", "new_string": "(modified)"},
+                            "result": "",
+                        }
+                    )
     return items
 
 
@@ -253,9 +341,14 @@ def generate_report(log_path: str, meta_path: str = "") -> str:
     if not events:
         return "# Empty Session\n\nNo events found in log.\n"
 
-    meta = _extract_session_meta(events)
+    fmt = _detect_format(events)
+    if fmt == "codex":
+        meta = _extract_session_meta_codex(events)
+        items = _collect_agent_content_codex(events)
+    else:
+        meta = _extract_session_meta(events)
+        items = _collect_agent_content(events)
     session_meta = _load_meta(meta_path)
-    items = _collect_agent_content(events)
 
     # Classify content into sections
     files_read: list[str] = []

@@ -141,10 +141,17 @@ while true; do
     ADVISORY_ROLE=$(echo "$ADVISORY_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('recommended','build'))" 2>/dev/null || echo "build")
     echo "  Advisory: $ADVISORY_ROLE"
 
-    # --- Guard: brain.md must exist ---
-    if [ ! -f "$REPO_DIR/.claude/agents/brain.md" ] && [ ! -f "$REPO_DIR/.recursive/agents/brain.md" ]; then
-        echo "ERROR: brain.md not found. Run: bash .recursive/scripts/init.sh" >&2
-        break
+    # --- Guard: brain definition must exist ---
+    if [ "$AGENT" = "codex" ]; then
+        if [ ! -f "$REPO_DIR/.codex/agents/brain.toml" ]; then
+            echo "ERROR: brain.toml not found. Run: bash .recursive/scripts/init.sh" >&2
+            break
+        fi
+    else
+        if [ ! -f "$REPO_DIR/.claude/agents/brain.md" ] && [ ! -f "$REPO_DIR/.recursive/agents/brain.md" ]; then
+            echo "ERROR: brain.md not found. Run: bash .recursive/scripts/init.sh" >&2
+            break
+        fi
     fi
 
     # --- Generate dashboard ---
@@ -154,6 +161,22 @@ while true; do
     # --- Prompt guard snapshot ---
     echo "  Taking prompt guard snapshot..."
     SNAP_DIR=$(save_prompt_snapshots "$REPO_DIR")
+
+    # --- Pre-create worktrees for Codex sub-agents ---
+    # Claude Code has built-in isolation: "worktree" via Agent(). Codex does not.
+    # We create worktrees here and pass paths to the brain via context.
+    WORKTREE_PATHS=""
+    if [ "$AGENT" = "codex" ]; then
+        echo "  Creating worktrees for Codex sub-agents..."
+        for i in 1 2 3; do
+            WT_PATH="/tmp/recursive-worktree-${SESSION_ID}-${i}"
+            WT_BRANCH="worktree-${SESSION_ID}-${i}"
+            git -C "$REPO_DIR" worktree add "$WT_PATH" -b "$WT_BRANCH" origin/main --quiet 2>/dev/null || true
+            if [ -d "$WT_PATH" ]; then
+                WORKTREE_PATHS="${WORKTREE_PATHS}${WT_PATH}\n"
+            fi
+        done
+    fi
 
     # --- Build brain context file ---
     # The brain reads this file for system state before thinking.
@@ -179,20 +202,40 @@ $OPEN_PRS
 </open_prs>
 CTXEOF
 
+    # Append worktree paths for Codex sessions
+    if [ -n "$WORKTREE_PATHS" ] && [ "$AGENT" = "codex" ]; then
+        printf '\n<worktree_paths>\n%b</worktree_paths>\n' "$WORKTREE_PATHS" >> "$CONTEXT_FILE"
+    fi
+
     # --- Run brain agent ---
-    echo "  Running brain agent ($BRAIN_MODEL)..."
     LOG_FILE="$SESSION_DIR/raw/${SESSION_ID}.log"
     mkdir -p "$SESSION_DIR/raw"
 
     set +e
-    claude --agent brain \
-        --model "$BRAIN_MODEL" \
-        --max-turns 200 \
-        --output-format stream-json \
-        --verbose \
-        -p "$(cat "$CONTEXT_FILE")" \
-        2>&1 | tee "$LOG_FILE" | python3 -u "$ENGINE_DIR/format-stream.py"
-    EXIT_CODE=${PIPESTATUS[0]}
+    if [ "$AGENT" = "codex" ]; then
+        BRAIN_MODEL="${RECURSIVE_CODEX_MODEL:-gpt-5.4}"
+        echo "  Running brain agent ($BRAIN_MODEL via Codex)..."
+        # Codex discovers agents from .codex/agents/*.toml automatically.
+        # brain.toml sets model + model_reasoning_effort. We pass the context as prompt.
+        codex exec \
+            --dangerously-bypass-approvals-and-sandbox \
+            --json \
+            --model "$BRAIN_MODEL" \
+            -c "model_reasoning_effort=\"${RECURSIVE_CODEX_THINKING:-xhigh}\"" \
+            "$(cat "$CONTEXT_FILE")" \
+            2>&1 | tee "$LOG_FILE" | python3 -u "$ENGINE_DIR/format-stream.py"
+        EXIT_CODE=${PIPESTATUS[0]}
+    else
+        echo "  Running brain agent ($BRAIN_MODEL via Claude)..."
+        claude --agent brain \
+            --model "$BRAIN_MODEL" \
+            --max-turns 200 \
+            --output-format stream-json \
+            --verbose \
+            -p "$(cat "$CONTEXT_FILE")" \
+            2>&1 | tee "$LOG_FILE" | python3 -u "$ENGINE_DIR/format-stream.py"
+        EXIT_CODE=${PIPESTATUS[0]}
+    fi
     set -e
 
     rm -f "$CONTEXT_FILE"
@@ -266,13 +309,14 @@ json.dump(meta, open(os.environ['_NS_META'], 'w'), indent=2)
     COST_MSG_TMP=$(mktemp)
     SESSION_COST_USD=$(_NS_LIB="$RECURSIVE_DIR/lib" _LOG_FILE="$LOG_FILE" \
     _COST_FILE="$COST_FILE" _SESSION_ID="$SESSION_ID" \
-    _BRAIN_MODEL="$BRAIN_MODEL" python3 -c "
+    _BRAIN_MODEL="$BRAIN_MODEL" _AGENT_TYPE="$AGENT" python3 -c "
 import sys, os
 sys.path.insert(0, os.environ['_NS_LIB'])
 from costs import record_multi_model_session, total_cost
 entry = record_multi_model_session(
     [(os.environ['_LOG_FILE'], os.environ['_BRAIN_MODEL'])],
-    os.environ['_COST_FILE'], os.environ['_SESSION_ID'])
+    os.environ['_COST_FILE'], os.environ['_SESSION_ID'],
+    agent_type=os.environ['_AGENT_TYPE'])
 cumulative = total_cost(os.environ['_COST_FILE'])
 print(entry['cost_usd'])
 import sys as _sys

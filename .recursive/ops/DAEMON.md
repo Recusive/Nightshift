@@ -91,7 +91,10 @@ Valid values are `build`, `review`, `oversee`, `strategize`, `achieve`, `securit
 |----------|---------|
 | `RECURSIVE_FORCE_ROLE` | Skip scoring and force one role |
 | `RECURSIVE_BUDGET_USD` | Stop after cumulative spend reaches this USD amount (default: 50) |
-| `RECURSIVE_CLAUDE_MODEL` | Brain model override (default: claude-opus-4-6) |
+| `RECURSIVE_CLAUDE_MODEL` | Claude brain model override (default: claude-opus-4-6) |
+| `RECURSIVE_CODEX_MODEL` | Codex brain model override (default: gpt-5.4) |
+| `RECURSIVE_CODEX_THINKING` | Codex reasoning effort (default: xhigh; valid: minimal, low, medium, high, xhigh) |
+| `CODEX_API_KEY` | API key for Codex in CI/non-interactive mode (use `codex login` for interactive) |
 
 ---
 

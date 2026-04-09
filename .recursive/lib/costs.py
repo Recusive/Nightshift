@@ -21,17 +21,18 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     "claude-sonnet-4-5-20250514": (3.0, 15.0),
     "haiku": (1.0, 5.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
-    # OpenAI / Codex
+    # OpenAI / Codex (pricing from developers.openai.com/api/docs/models)
     "o3": (2.0, 8.0),
     "o4-mini": (1.10, 4.40),
-    "gpt-5.4": (2.0, 8.0),
-    "codex-mini": (1.50, 6.0),
+    "gpt-5.4": (2.50, 15.0),
+    "gpt-5.4-mini": (0.75, 4.50),
+    "gpt-5.4-nano": (0.20, 1.25),
 }
 
 # Agents and their default models
 AGENT_DEFAULT_MODELS: dict[str, str] = {
     "claude": "sonnet",
-    "codex": "o3",
+    "codex": "gpt-5.4",
 }
 
 
@@ -166,11 +167,13 @@ def record_multi_model_session(
     entries: list[tuple[str, str]],
     cost_file: str,
     session_id: str = "",
+    agent_type: str = "claude",
 ) -> dict[str, Any]:
     """Record costs for a multi-model session (brain + sub-agents).
 
     Each entry in ``entries`` is a (log_path, model) tuple.
     The first entry is the brain; subsequent entries are sub-agents.
+    ``agent_type`` is "claude" or "codex".
     Returns the combined ledger entry with sub_costs breakdown.
     """
     sub_costs: list[dict[str, Any]] = []
@@ -199,7 +202,7 @@ def record_multi_model_session(
     brain_model = entries[0][1] if entries else "opus"
     entry: dict[str, Any] = {
         "session": session_id,
-        "agent": "claude",
+        "agent": agent_type,
         "model": brain_model,
         "input_tokens": total_inp,
         "output_tokens": total_out,

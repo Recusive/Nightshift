@@ -646,9 +646,10 @@ cleanup_worktrees() {
         [ "$wt_path" = "$REPO_DIR" ] && continue
         # Skip the worktree we are currently executing inside (safety guard)
         [ "$wt_path" = "$current_wt" ] && continue
-        # Only target agent worktrees in .claude/worktrees/
+        # Target agent worktrees from Claude (.claude/worktrees/agent-*) and
+        # daemon-managed Codex worktrees (/tmp/recursive-worktree-*)
         case "$wt_path" in
-            */.claude/worktrees/agent-*)
+            */.claude/worktrees/agent-*|/tmp/recursive-worktree-*)
                 git -C "$REPO_DIR" worktree remove "$wt_path" --force 2>/dev/null || true
                 count=$((count + 1))
                 ;;
@@ -978,11 +979,11 @@ PY
 # Configurable models -- override via environment
 CLAUDE_MODEL="${RECURSIVE_CLAUDE_MODEL:-claude-opus-4-6}"
 CODEX_MODEL="${RECURSIVE_CODEX_MODEL:-gpt-5.4}"
-CODEX_THINKING="${RECURSIVE_CODEX_THINKING:-extra_high}"
+CODEX_THINKING="${RECURSIVE_CODEX_THINKING:-xhigh}"
 # Validate CODEX_THINKING to prevent shell injection via double-quoted CLI arg.
-# Valid values are lowercase letters and underscores (e.g. extra_high, high, medium, low).
-if ! printf '%s' "$CODEX_THINKING" | grep -qE '^[a-z_]+$'; then
-    echo "ERROR: RECURSIVE_CODEX_THINKING must match ^[a-z_]+$ (got: '$CODEX_THINKING')" >&2
+# Valid values per Codex docs: minimal, low, medium, high, xhigh
+if ! printf '%s' "$CODEX_THINKING" | grep -qE '^[a-z]+$'; then
+    echo "ERROR: RECURSIVE_CODEX_THINKING must match ^[a-z]+$ (got: '$CODEX_THINKING')" >&2
     exit 1
 fi
 
@@ -1123,12 +1124,12 @@ run_agent() {
             #   in worktrees. We need true full access for git commit/push inside worktrees.
             # --json: JSONL stream to stdout
             # --model: configurable (default gpt-5.4)
-            # -c reasoning_effort: thinking level
+            # -c model_reasoning_effort: thinking level (valid: minimal|low|medium|high|xhigh)
             codex exec \
                 --dangerously-bypass-approvals-and-sandbox \
                 --json \
                 --model "$CODEX_MODEL" \
-                -c "reasoning_effort=\"$CODEX_THINKING\"" \
+                -c "model_reasoning_effort=\"$CODEX_THINKING\"" \
                 "$prompt" \
                 2>&1 | tee "$log_file" | python3 -u "$ENGINE_DIR/format-stream.py"
             EXIT_CODE=${PIPESTATUS[0]}

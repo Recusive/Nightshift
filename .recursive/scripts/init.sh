@@ -55,6 +55,51 @@ for f in "$RECURSIVE_DIR/agents/"*.md; do
 done
 echo "  Symlinked $(ls "$RECURSIVE_DIR/agents/"*.md | wc -l | tr -d ' ') agent definitions"
 
+# --- Generate .codex/agents/ TOML files ---
+echo "Setting up .codex/agents/ definitions..."
+mkdir -p "$REPO_DIR/.codex/agents"
+CODEX_COUNT=0
+for f in "$RECURSIVE_DIR/agents/"*.md; do
+    name=$(basename "$f" .md)
+    [ "$name" = "TEMPLATE" ] && continue
+    toml="$REPO_DIR/.codex/agents/${name}.toml"
+    if [ -f "$toml" ]; then
+        CODEX_COUNT=$((CODEX_COUNT + 1))
+        continue
+    fi
+    # Extract description from frontmatter
+    desc=$(grep '^description:' "$f" 2>/dev/null | head -1 | sed 's/^description: *//' || echo "")
+    # Extract body (everything after the closing ---)
+    body=$(awk '/^---$/{n++; next} n>=2' "$f")
+    # Model: brain=gpt-5.4 xhigh, all others=gpt-5.4-mini high
+    if [ "$name" = "brain" ]; then
+        model="gpt-5.4"
+        effort="xhigh"
+    else
+        model="gpt-5.4-mini"
+        effort="high"
+    fi
+    # Sandbox: write agents vs read-only
+    case "$name" in
+        build|evolve|oversee|achieve|review|audit-agent|brain) sandbox="workspace-write" ;;
+        *) sandbox="read-only" ;;
+    esac
+    cat > "$toml" << TOMLEOF
+# Codex agent definition -- generated from ${name}.md
+name = "${name}"
+description = "${desc}"
+model = "${model}"
+model_reasoning_effort = "${effort}"
+sandbox_mode = "${sandbox}"
+
+developer_instructions = """
+${body}
+"""
+TOMLEOF
+    CODEX_COUNT=$((CODEX_COUNT + 1))
+done
+echo "  Created/verified $CODEX_COUNT Codex agent definitions"
+
 # --- Project config ---
 CONFIG="$REPO_DIR/.recursive.json"
 if [ -f "$CONFIG" ]; then

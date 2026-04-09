@@ -1,0 +1,13 @@
+# Codex project configuration for Recursive/Nightshift
+# See: https://developers.openai.com/codex/config-reference
+
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+sandbox_mode = "workspace-write"
+
+[agents]
+max_threads = 6
+max_depth = 1
+
+[features]
+multi_agent = true
