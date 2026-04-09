@@ -8216,6 +8216,20 @@ class TestFormatFeatureStatusReadiness:
         output = nightshift.format_feature_status(state)
         assert "Production Readiness" not in output
 
+    def test_empty_details_does_not_raise(self) -> None:
+        """ReadinessCheck with details='' must not raise IndexError."""
+        state = _make_readiness_state()
+        state["readiness"] = nightshift.ReadinessReport(
+            checks=[
+                nightshift.ReadinessCheck(name="secrets", passed=True, details=""),
+            ],
+            verdict="ready",
+            passed_count=1,
+            failed_count=0,
+        )
+        output = nightshift.format_feature_status(state)
+        assert "[PASS] secrets" in output
+
 
 class TestReadinessConstants:
     def test_default_config_has_readiness_checks(self) -> None:
