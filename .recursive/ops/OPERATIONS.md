@@ -15,7 +15,7 @@ Nightshift/
 │   ├── settings/                ← Config + eval targets
 │   ├── owl/                     ← Cycle logic (cycle, readiness, scoring)
 │   ├── raven/                   ← Loop 2 modules (planner, decomposer, subagent, integrator, etc.)
-│   ├── infra/                   ← Infrastructure (module_map, multi, worktree)
+│   ├── infra/                   ← Infrastructure (module_map, multi, release, worktree)
 │   ├── scripts/                 ← Shell wrappers (check.sh, install.sh, run.sh, test.sh, smoke-test.sh)
 │   ├── tests/                   ← Product test suite
 │   ├── schemas/                 ← JSON schemas
@@ -432,6 +432,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 |--------|---------------|---------------|
 | `module_map.py` | Module map generation | |
 | `multi.py` | Multi-repo orchestration | `run_multi_shift()`, `validate_repos()`, `format_multi_summary()` |
+| `release.py` | Auto-release version tagging | `check_and_release()`, `find_releasable_version()` |
 | `worktree.py` | Git worktree lifecycle | `ensure_worktree()`, `ensure_shift_log()`, `sync_shift_log()`, `revert_cycle()`, `cleanup_safe_artifacts()` |
 
 **`nightshift/`** -- Top-level

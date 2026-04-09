@@ -185,7 +185,7 @@ nightshift/
 ├── settings/           Configuration (config, eval_targets)
 ├── owl/                Hardening loop (cycle, scoring, readiness)
 ├── raven/              Feature builder (planner, decomposer, subagent, integrator, etc.)
-├── infra/              Infrastructure (worktree, module_map, multi)
+├── infra/              Infrastructure (worktree, module_map, multi, release)
 ├── schemas/            JSON schemas (feature, nightshift, task)
 ├── scripts/            check.sh, install.sh, run.sh, test.sh, smoke-test.sh
 ├── assets/             icon.png
