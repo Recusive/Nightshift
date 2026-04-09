@@ -4256,6 +4256,44 @@ class TestProfileRepo:
         assert profile["total_files"] > 0
 
 
+# --- _infer_test_runner (uses DEFAULT_CONFIG copy) ----------------------------
+
+
+class TestInferTestRunner:
+    """Tests for _infer_test_runner, which must use a DEFAULT_CONFIG copy
+    so adding new config keys does not break it."""
+
+    def test_returns_none_for_empty_dir(self, tmp_path: Path) -> None:
+        from nightshift.raven.profiler import _infer_test_runner
+
+        assert _infer_test_runner(tmp_path) is None
+
+    def test_infers_pytest_from_pyproject(self, tmp_path: Path) -> None:
+        from nightshift.raven.profiler import _infer_test_runner
+
+        (tmp_path / "pyproject.toml").write_text("[tool.pytest.ini_options]\n")
+        result = _infer_test_runner(tmp_path)
+        assert result == "python3 -m pytest"
+
+    def test_infers_go_test(self, tmp_path: Path) -> None:
+        from nightshift.raven.profiler import _infer_test_runner
+
+        (tmp_path / "go.mod").write_text("module example.com/foo\n")
+        result = _infer_test_runner(tmp_path)
+        assert result == "go test ./..."
+
+    def test_config_copy_does_not_mutate_default(self, tmp_path: Path) -> None:
+        """Calling _infer_test_runner must not mutate DEFAULT_CONFIG."""
+        import copy
+
+        from nightshift.core.constants import DEFAULT_CONFIG
+        from nightshift.raven.profiler import _infer_test_runner
+
+        before = copy.deepcopy(DEFAULT_CONFIG)
+        _infer_test_runner(tmp_path)
+        assert before == DEFAULT_CONFIG
+
+
 # --- Feature Planner ---------------------------------------------------------
 
 

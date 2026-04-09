@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import importlib
 import json
 from pathlib import Path
@@ -515,33 +516,10 @@ def _detect_conventions(repo_dir: Path, primary_language: str) -> list[str]:
 
 def _infer_test_runner(repo_dir: Path) -> str | None:
     """Infer the test runner command for the repo."""
-    # Build a minimal config just for verify command inference
-    config = NightshiftConfig(
-        agent=None,
-        hours=DEFAULT_CONFIG["hours"],
-        cycle_minutes=DEFAULT_CONFIG["cycle_minutes"],
-        verify_command=None,
-        blocked_paths=list(DEFAULT_CONFIG["blocked_paths"]),
-        blocked_globs=list(DEFAULT_CONFIG["blocked_globs"]),
-        max_fixes_per_cycle=DEFAULT_CONFIG["max_fixes_per_cycle"],
-        max_files_per_fix=DEFAULT_CONFIG["max_files_per_fix"],
-        max_files_per_cycle=DEFAULT_CONFIG["max_files_per_cycle"],
-        max_low_impact_fixes_per_shift=DEFAULT_CONFIG["max_low_impact_fixes_per_shift"],
-        stop_after_failed_verifications=DEFAULT_CONFIG["stop_after_failed_verifications"],
-        stop_after_empty_cycles=DEFAULT_CONFIG["stop_after_empty_cycles"],
-        score_threshold=DEFAULT_CONFIG["score_threshold"],
-        test_incentive_cycle=DEFAULT_CONFIG["test_incentive_cycle"],
-        backend_forcing_cycle=DEFAULT_CONFIG["backend_forcing_cycle"],
-        category_balancing_cycle=DEFAULT_CONFIG["category_balancing_cycle"],
-        claude_model=DEFAULT_CONFIG["claude_model"],
-        claude_effort=DEFAULT_CONFIG["claude_effort"],
-        codex_model=DEFAULT_CONFIG["codex_model"],
-        codex_thinking=DEFAULT_CONFIG["codex_thinking"],
-        notification_webhook=DEFAULT_CONFIG["notification_webhook"],
-        readiness_checks=list(DEFAULT_CONFIG["readiness_checks"]),
-        eval_frequency=DEFAULT_CONFIG["eval_frequency"],
-        eval_target_repo=DEFAULT_CONFIG["eval_target_repo"],
-    )
+    # Build a minimal config just for verify command inference.
+    # Deep-copy DEFAULT_CONFIG so new keys added in the future don't require
+    # updating this function.
+    config: NightshiftConfig = copy.deepcopy(DEFAULT_CONFIG)
     return infer_verify_command(repo_dir, config)
 
 
