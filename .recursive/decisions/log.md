@@ -64,3 +64,9 @@
 **Decision**: Followed advisory -- BUILD #0219 (rename RELEASE_TASK_STATUS_RE constant) + EVOLVE #0229 (CLAUDE.md dep flow chain + alphabetical ordering). Both non-overlapping zones (project nightshift/core+infra vs framework CLAUDE.md). Advisory alternatives were security-check (75) and audit (75), both showing 78 sessions since last (known tracker gap).
 **Delegations**: build (#0219 constant rename), evolve (#0229 CLAUDE.md dep flow)
 **Outcome**: PR #221 merged (CLAUDE.md dep flow + alphabetical, all 3 reviewers PASS). PR #222 merged (constant rename in constants.py + release.py, both reviewers PASS). 0 follow-up tasks created. 997 tests pass. Make check + dry-runs green. No fix cycles needed.
+
+## 2026-04-08 -- Session #0117
+**Advisory**: build (score 105, reason: eval=86, urgent=False, since_build=5)
+**Decision**: Followed advisory -- BUILD #0090 (detect_file_conflicts failed-task scan) + EVOLVE #0222 (sessions-since counters parse delegation history). #0222 is a user-filed GitHub issue (#215) and the ROOT CAUSE of the perpetual "78 sessions since evolve/audit/security" tracker gap noted in every handoff for 10+ sessions. Non-overlapping zones (project nightshift/raven/ vs framework .recursive/engine/).
+**Delegations**: build (#0090 detect_file_conflicts), evolve (#0222 sessions-since delegation parsing)
+**Outcome**: PR #229 merged (coordination.py scans failed tasks, 3 new tests, both reviewers PASS). PR #230 merged (signals.py + pick-role.py delegation parsing, 13 new tests, meta-reviewer + safety-reviewer PASS). 1 follow-up task created (#0230 -- keep delegation role map in sync). 1025 tests pass. Make check + dry-runs green. No fix cycles needed.

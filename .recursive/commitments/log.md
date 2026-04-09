@@ -49,3 +49,8 @@
 **Prediction**: #0219 will rename RELEASE_TASK_STATUS_RE to RELEASE_TASK_FRONTMATTER_RE in constants.py, release.py, and test_release.py. #0229 will add infra.release to CLAUDE.md dependency flow chain and normalize infra/ listing. Both PRs delivered and merged. 997+ tests pass.
 **Actual**: Both delivered. #0219 renamed in constants.py and release.py (test_release.py confirmed not needing updates -- doesn't reference the constant). #0229 updated both CLAUDE.md lines. Both PRs passed first try. 997 tests pass. All checks green. Both dry-runs pass.
 **Result**: MET
+
+## 2026-04-08 -- Session #0117
+**Prediction**: #0090 will extend detect_file_conflicts() to scan failed tasks with 3 new tests. #0222 will update signals.py to parse decisions/log.md for delegation history and pick-role.py to use the new function. Both PRs delivered and merged. 997+ tests pass. Dashboard shows accurate sessions-since counts.
+**Actual**: Both delivered exactly as predicted. #0090 added combined completed+failed scan with 3 new tests. #0222 added parse_delegations_from_decisions_log() + count_sessions_since_delegation() with 13 new tests, pick-role.py wired up. Both PRs passed all reviewers first try (no fix cycles). 1025 tests pass. All checks green. Both dry-runs pass.
+**Result**: MET
