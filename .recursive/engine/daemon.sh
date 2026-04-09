@@ -259,7 +259,7 @@ json.dump(meta, open(os.environ['_NS_META'], 'w'), indent=2)
         PROMPT_TAMPERED="${PROMPT_TAMPERED} [ORIGIN MODIFIED]"
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
     fi
-    rm -rf "$SNAP_DIR"
+    rm -rf "${SNAP_DIR:-}"
 
     # --- Cost tracking ---
     echo "  Recording costs..."
