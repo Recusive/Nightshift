@@ -165,7 +165,6 @@ VERIFY_COMMAND_ALLOWLIST_PREFIXES: list[str] = [
     "go\t",
     "make ",
     "make\t",
-    "make",  # bare "make" with no arguments
     "bash nightshift/scripts/",
     "sh nightshift/scripts/",
 ]

@@ -18,7 +18,9 @@ from nightshift.core.errors import NightshiftError
 # passed verbatim to "bash -lc".  Any verify_command from an external config
 # file that contains these characters AND does not start with an allowlisted
 # prefix is rejected.
-_SHELL_METACHAR_RE: re.Pattern[str] = re.compile(r"[;&|`$]")
+# Includes newlines (\n, \r) which bash treats as command separators, and
+# redirections (>, <) which can read/write arbitrary files.
+_SHELL_METACHAR_RE: re.Pattern[str] = re.compile(r"[;&|`$\n\r><]")
 
 
 def _reader_thread(
@@ -165,13 +167,21 @@ def validate_verify_command(command: str) -> None:
         raise NightshiftError("verify_command must not be empty")
 
     # Always reject shell metacharacters -- no exceptions.
+    # Blocked: ; & | backtick $ (command substitution/chaining),
+    # \n \r (bash treats as command separators), > < (redirections).
     if _SHELL_METACHAR_RE.search(stripped):
         raise NightshiftError(
-            f"verify_command rejected: contains shell metacharacters that could "
-            f"enable injection. Command: {stripped!r}. "
+            f"verify_command rejected: contains shell metacharacters "
+            f"(semicolons, pipes, redirections, newlines, or substitutions) "
+            f"that could enable injection. Command: {stripped!r}. "
             f"Safe prefixes: npm, pnpm, yarn, bun, python3, cargo, go, make, "
             f"bash nightshift/scripts/, sh nightshift/scripts/"
         )
+
+    # Exact match for bare "make" (no arguments).
+    # Must be checked before the prefix loop to avoid matching "maker", etc.
+    if stripped == "make":
+        return
 
     # Require the command to start with a known-safe binary prefix.
     for prefix in VERIFY_COMMAND_ALLOWLIST_PREFIXES:

