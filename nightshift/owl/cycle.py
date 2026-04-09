@@ -85,6 +85,14 @@ def _instruction_section(name: str, body: str) -> str:
     return f"--- {name} ---\n{body}\n--- end {name} ---"
 
 
+def _sanitize_instruction_content(name: str, content: str) -> str:
+    sanitized = content.replace(f"--- end {name} ---", f"[--- end {name} ---]")
+    return sanitized.replace(
+        UNTRUSTED_INSTRUCTIONS_SUFFIX,
+        f"[{UNTRUSTED_INSTRUCTIONS_SUFFIX}]",
+    )
+
+
 def _fit_instruction_to_total_budget(*, name: str, content: str, remaining_bytes: int) -> tuple[str, int]:
     warning_body = (
         f"[WARNING: {name} truncated -- total instruction size cap ({MAX_INSTRUCTION_TOTAL_BYTES:,} bytes) reached]"
@@ -129,6 +137,7 @@ def read_repo_instructions(repo_dir: Path) -> str:
                 continue
             if not content:
                 continue
+            content = _sanitize_instruction_content(name, content)
             content_bytes = len(content.encode("utf-8"))
             if content_bytes > MAX_INSTRUCTION_FILE_BYTES:
                 content = _truncate_utf8_bytes(content, MAX_INSTRUCTION_FILE_BYTES)

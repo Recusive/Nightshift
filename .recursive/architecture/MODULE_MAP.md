@@ -29,7 +29,7 @@ Read it before opening modules one by one when you need fast orientation.
 | `owl/eval_runner.py` | 698 | Evaluation runner: score nightshift against a target repo (or dry-run with synthetic data). | `score_artifacts`, `format_eval_table`, `run_eval_dry_run`, `run_eval_full` | PR #269 (2e91d5f) |
 | `raven/e2e.py` | 113 | End-to-end test runner for Loop 2 feature builds. | `infer_test_command`, `detect_smoke_test`, `run_e2e_tests`, `_MAKEFILE_TEST_TARGET` | 1636b72 |
 | `raven/profiler.py` | 547 | Repo profiling for Loop 2 -- detects language, framework, dependencies, structure. | `profile_repo` | PR #220 (d9e4320) |
-| `owl/cycle.py` | 974 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | PR #267 (65f423d) |
+| `owl/cycle.py` | 983 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | session #0092 |
 | `raven/planner.py` | 483 | Feature planner for Loop 2 -- builds structured plans from repo profiles. | `build_plan_prompt`, `validate_plan`, `parse_plan`, `execution_order` | 1636b72 |
 | `raven/subagent.py` | 281 | Sub-agent spawner for Loop 2 -- executes work orders via codex or claude CLI. | `spawn_task`, `spawn_wave`, `format_wave_result`, `_TASK_COMPLETION_REQUIRED_KEYS` | 1636b72 |
 | `raven/decomposer.py` | 175 | Task decomposer for Loop 2 -- converts FeaturePlans into sub-agent work orders. | `build_work_order_prompt`, `decompose_plan`, `format_work_orders` | 1636b72 |
