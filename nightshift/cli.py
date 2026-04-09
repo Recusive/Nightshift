@@ -182,7 +182,8 @@ def _write_rejected_cycle_artifact(
 
 def run_nightshift(args: argparse.Namespace, *, test_mode: bool) -> int:
     repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
-    _ensure_repo_dir(repo_dir)
+    if test_mode and not repo_dir.exists():
+        _ensure_repo_dir(repo_dir)
     config = merge_config(repo_dir)
     agent = resolve_agent(config, args.agent)
     config["agent"] = agent

@@ -1201,6 +1201,19 @@ class TestRunNightshiftMissingRepoDir:
         assert bad_url in msg
         assert str(missing) in msg
 
+    def test_missing_repo_dir_does_not_clone_in_run_mode(self, tmp_path: Path) -> None:
+        """run_nightshift with test_mode=False must NOT auto-clone a missing repo_dir."""
+        missing = tmp_path / "missing"
+        assert not missing.exists()
+
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["run", "--agent", "codex", "--dry-run", "--repo-dir", str(missing)])
+
+        with pytest.raises((nightshift.NightshiftError, FileNotFoundError, SystemExit)):
+            nightshift.run_nightshift(args, test_mode=False)
+
+        assert not missing.exists(), "run mode must not auto-clone a missing repo_dir"
+
 
 class TestEnsureWorktree:
     def test_recreates_broken_existing_worktree(self, tmp_path: Path) -> None:
