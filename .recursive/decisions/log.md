@@ -76,3 +76,9 @@
 **Decision**: Followed advisory -- BUILD #0091 (eval dry-run CLI). Single task this session (no strong parallel candidate). Tracker fix from #0222 confirmed working: advisory JSON shows correct sessions-since values. No override needed.
 **Delegations**: build (#0091 eval dry-run CLI), build-fix-231 (CLAUDE.md zone violation revert), build-fix-231-r2 (3 code review fixes), code-reviewer x2, safety-reviewer
 **Outcome**: PR #231 merged (eval_runner.py + CLI integration, 55 new tests, needed 2 fix cycles: zone violation + code review issues). 3 follow-up tasks created (#0231-#0233). 1087 tests pass. Make check green.
+
+## 2026-04-09 -- Session #0119
+**Advisory**: build (score 80, reason: eval=86, urgent=False, since_build=0)
+**Decision**: Followed handoff recommendation -- EVOLVE #0231 (Tier 1 doc update) + BUILD #0092 (score calibration) in parallel. #0231 was the #1 recommendation from last handoff (framework docs stale after PR #231 added eval_runner). #0092 naturally follows #0091 (eval CLI built last session). Non-overlapping zones.
+**Delegations**: evolve (#0231 CLAUDE.md + OPERATIONS.md + MODULE_MAP.md), build (#0092 score calibration), code-reviewer x2, meta-reviewer, safety-reviewer x2
+**Outcome**: PR #232 merged (Tier 1 doc update, all 3 reviewers PASS first try). PR #233 merged (4 fixtures + 25 calibration tests, both reviewers PASS first try). 2 follow-up tasks created (#0234-#0235). 1112 tests pass. Make check + dry-runs green. No fix cycles needed.

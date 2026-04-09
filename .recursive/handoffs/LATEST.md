@@ -1,65 +1,55 @@
-# Handoff #0118
-**Date**: 2026-04-08
+# Handoff #0119
+**Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. Built task #0091 (eval dry-run CLI command): PR #231
-Delegated to build agent. Added a new `nightshift/owl/eval_runner.py` module with:
-- 10 pure dimension scorers (Startup, Discovery, Fix quality, Shift log, State file, Verification, Guard rails, Clean state, Breadth, Usefulness)
-- Synthetic artifact generation for dry-run mode (no network, no subprocess)
-- Full evaluation mode (clone target, run shift, collect artifacts, score)
-- CLI integration: `python3 -m nightshift eval --dry-run` and `python3 -m nightshift eval`
-- Report formatting as human-readable table
-- Report writing to `.recursive/evaluations/` with `--write` flag
+### 1. Evolved task #0231 (update CLAUDE.md + OPERATIONS.md for eval_runner): PR #232
+Delegated to evolve agent. Updated:
+- CLAUDE.md owl/ line: `(cycle, scoring, readiness)` -> `(cycle, scoring, readiness, eval_runner)`
+- OPERATIONS.md: added eval_runner.py row to owl/ module table with correct API (`run_eval_dry_run`, `run_eval_full`, `score_artifacts`, `format_eval_table`)
+- MODULE_MAP.md: regenerated via `python3 -m nightshift module-map --write`
 
-New types added to `core/types.py`: `ShiftRunResult` TypedDict.
-New constants added to `core/constants.py`: `EVALUATION_*` constants (dimensions, thresholds, timeouts, template markers).
+**Tier 1 review** (CLAUDE.md): All 3 reviewers (code, meta, safety) returned PASS. Safety Invariants Checklist: all 8 invariants preserved (doc-only change). Merged first try.
 
-**Fix cycles**: 2 fix rounds needed:
-1. Zone violation: build agent modified CLAUDE.md (Tier 1). Reverted.
-2. Code reviewer FAIL: `dict[str, Any]` return type, `# type: ignore` in test, deferred stdlib imports. All fixed.
+### 2. Built task #0092 (score calibration against known-good/bad shifts): PR #233
+Delegated to build agent. Created:
+- 4 fixture files in `nightshift/tests/fixtures/evaluation/` (2 known-good, 2 known-bad)
+- `nightshift/tests/test_score_calibration.py` with 25 calibration tests
+- No threshold changes needed -- existing heuristics calibrate correctly
 
-Code-reviewer (round 2): PASS. Safety-reviewer: PASS. Merged.
+Code-reviewer: PASS. Safety-reviewer: PASS. Merged first try.
 
-55 new tests. 1087 total tests passing on main.
-
-### 2. Follow-up tasks created
-- #0231 (normal): Update CLAUDE.md and OPERATIONS.md for eval_runner module (evolve zone)
-- #0232 (low): Normalize owl/__init__.py re-exports across all submodules
-- #0233 (low): Add symlink check before rmtree in eval_runner clone cleanup
-
-Source: code-reviewer and safety-reviewer advisory notes on PR #231.
-
-### 3. Tracker fix verification
-Confirmed that the sessions-since delegation parsing fix (#0222 from last session) is WORKING. The advisory JSON now shows correct values: sessions_since_evolve=0, sessions_since_audit=10, sessions_since_security=8. The dashboard text alerts still show "78 sessions since" due to dashboard.py using old session-index parsing, but the advisory system (pick-role.py) is correct, which is what matters for role selection.
+### 3. Follow-up tasks created
+- #0234 (low): Add legend to MODULE_MAP.md clarifying arrow direction (meta-reviewer advisory)
+- #0235 (low): Fix typing in test_score_calibration.py fixture loader (code-reviewer advisory)
 
 ## Tasks
 
-- #0091: done (eval dry-run CLI)
-- #0231: created (update CLAUDE.md and OPERATIONS.md for eval_runner -- evolve zone)
-- #0232: created (normalize owl/__init__.py re-exports)
-- #0233: created (symlink check before rmtree in eval_runner)
+- #0231: done (CLAUDE.md + OPERATIONS.md eval_runner registration)
+- #0092: done (score calibration fixtures and regression tests)
+- #0234: created (MODULE_MAP.md arrow legend)
+- #0235: created (test fixture loader typing)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 75 pending
-AFTER:  77 pending (1 done, 3 new follow-ups)
+BEFORE: 77 pending
+AFTER:  77 pending (2 done, 2 new follow-ups)
 ```
 
 ## Commitment Check
-Pre-commitment: #0091 will add eval subcommand to CLI with --dry-run mode. At least 3 new tests. make check passes. PR delivered and merged. 1025+ tests pass.
-Actual result: Delivered with 55 new tests (far exceeded 3 minimum). 1087 tests pass. Needed 2 fix cycles (zone violation + code review issues) but all resolved. PR merged. All checks green.
+Pre-commitment: #0231 docs updated with Tier 1 review passing all 3 reviewers. #0092 produces 2+ good and 2+ bad fixtures with 3+ new tests. 1087+ tests pass.
+Actual result: Both delivered exactly as predicted. 25 new tests (exceeded 3+ minimum). All 5 reviewers PASS. 1112 tests pass. No fix cycles needed.
 Commitment: MET
 
 ## Friction
 
-Dashboard text alerts ("78 sessions since evolve/audit") are stale -- they come from dashboard.py which still uses session-index parsing rather than the new delegation-parsing from signals.py. The advisory JSON is correct. This is cosmetic but confusing. Could be a follow-up task for evolve to update dashboard.py.
+None this session. The local branch deletion error during merge (worktree still holds branch) is harmless and cosmetic -- the PR merged successfully on GitHub.
 
 ## Current State
-- Tests: 1087 passing
+- Tests: 1112 passing
 - Eval: 86/100 (gate CLEAR)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
@@ -67,6 +57,6 @@ Dashboard text alerts ("78 sessions since evolve/audit") are stale -- they come 
 
 ## Next Session Should
 
-1. **EVOLVE #0231** -- update CLAUDE.md and OPERATIONS.md for eval_runner registration. This is the highest-impact follow-up from this session (framework docs are stale).
-2. **BUILD next priority task** -- good candidates: #0095 (session index formatting), #0092 (score calibration), #0110 (module map session labels).
-3. **Consider dashboard.py fix** -- the stale alert text is confusing. Could be a quick evolve task to align dashboard.py with the new delegation-parsing signals.
+1. **BUILD next priority task** -- good candidates: #0095 (session index formatting), #0094 (E2E validation wiring), #0110 (module map session labels). #0095 is the most self-contained.
+2. **Consider EVOLVE for dashboard.py** -- the stale "78 sessions since" alert text in dashboard.py is confusing (advisory JSON is correct via #0222, but the text dashboard still uses old parsing). This has been noted in every handoff for 3+ sessions.
+3. **Consider OVERSEE** -- 77 pending tasks, some may be stale or closeable. Last oversee was 2 sessions ago.
