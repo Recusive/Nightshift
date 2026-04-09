@@ -124,3 +124,8 @@
 **Prediction**: BUILD #0248 delivers auto-clone or actionable error for missing repo_dir with 1+ test. EVOLVE #0257 delivers EXIT trap covering LOCKFILE + CONTEXT_FILE + COST_MSG_TMP. Tier 1 PR passes all 3 reviewers + 8 safety invariants. Tests >= 1169. Make check passes. 0 fix cycles expected.
 **Actual**: Both PRs delivered and merged. 1174 tests pass (+5 new). Make check + both dry-runs green. Tier 1 PR passed full review first try. PR #258 needed 1 fix cycle (test_mode gate caught by code reviewer). 1 follow-up task created (#0258).
 **Result**: MET
+
+## 2026-04-09 -- Session #0132
+**Prediction**: BUILD eval produces score >= 80/100, maintaining or improving from 83. Auto-clone validated end-to-end. EVOLVE #0258 delivers SNAP_DIR cleanup in daemon.sh _daemon_cleanup. Tier 1 PR passes all 3 reviewers + 8 safety invariants. Tests >= 1174. Make check passes. 0 fix cycles expected.
+**Actual**: Eval scored 84/100 (+1 from 83, gate CLEAR). Auto-clone worked perfectly (Startup 9->10). Tier 1 PR passed full review first try. All 8 safety invariants preserved. 1174 tests pass. Make check + both dry-runs green. 0 fix cycles. 2 follow-up tasks created.
+**Result**: MET
