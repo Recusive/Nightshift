@@ -109,3 +109,8 @@
 **Prediction**: OVERSEE reduces pending from 72 to <= 65 (net -7 minimum). BUILD completes #0252/#0253/#0254 as single PR. Tests >= 1164. Make check passes. Both PRs delivered and merged.
 **Actual**: OVERSEE reduced to 63 pending (net -9, exceeded target). BUILD completed all 3 as PR #251 with 1 new test. 1165 tests pass. Make check + dry-runs green. Both PRs merged first try (0 fix cycles).
 **Result**: MET
+
+## 2026-04-09 -- Session #0129
+**Prediction**: EVOLVE #0251 adds role validation (awk+tr+case) to daemon.sh. BUILD #0255 fixes misleading test comment. Both PRs delivered and merged. Tests >= 1165. Make check passes. 0 fix cycles expected.
+**Actual**: Both PRs delivered and merged first try. PR #254 passed full Tier 1 review (3 reviewers + 8 safety invariants). 1165 tests pass. Make check + both dry-runs green. 0 fix cycles. 1 follow-up task created (#0256).
+**Result**: MET

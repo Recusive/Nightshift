@@ -136,3 +136,9 @@
 **Decision**: Overrode to OVERSEE + BUILD in parallel. Rationale: (1) Human filed #0225 (queue growing) and #0226 (brain never uses oversee) -- these are direct human priorities that override the advisory. (2) This is the first OVERSEE delegation in the v2 brain era. (3) BUILD on #0252/#0253/#0254 is a clean project-zone batch that pairs well with OVERSEE (no file overlap). (4) Queue at 72 and growing +4 net recently -- needs trimming.
 **Delegations**: oversee (first v2 triage, queue 72->63), build (#0252+#0253+#0254 module_map followups), code-reviewer (PR #251), safety-reviewer (PR #251), docs-reviewer (PR #252)
 **Outcome**: PR #251 merged (module_map docstring + ParseError + comment, 1 new test). PR #252 merged (7 pending closed, 9 wontfix->done). 0 fix cycles. 1 follow-up task created (#0255). Queue: 72->63 (-9 net). 1165 tests pass.
+
+## 2026-04-09 -- Session #0129
+**Advisory**: build (score 80, reason: eval=83, urgent=False, since_build=0)
+**Decision**: Followed handoff recommendation -- EVOLVE #0251 + BUILD #0255 in parallel. Rationale: (1) #0251 is the handoff's #1 recommendation: hardening daemon.sh role extractor to prevent corrupted SESSION_ROLE values visible in dashboard recent_roles. (2) #0255 is a quick project-zone follow-up from last session's PR #251 review advisory. (3) Non-overlapping zones (framework daemon.sh vs project tests/), safe to parallel. Advisory BUILD aligned (build via evolve for framework zone).
+**Delegations**: evolve (#0251 daemon.sh role hardening), build (#0255 test comment fix), code-reviewer (PR #254 + PR #253), meta-reviewer (PR #254), safety-reviewer (PR #254)
+**Outcome**: PR #254 merged (daemon.sh role extractor hardened with awk+tr+case validation, Tier 1 full review, all 3 reviewers PASS, all 8 safety invariants preserved). PR #253 merged (test comment fix). 0 fix cycles. 1 follow-up task created (#0256). Queue: 63->62 (-1 net). 1165 tests pass.

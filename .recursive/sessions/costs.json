@@ -388,5 +388,22 @@
         "cost_usd": 1.6116
       }
     ]
+  },
+  {
+    "session": "20260409-034630",
+    "agent": "claude",
+    "model": "claude-opus-4-6",
+    "input_tokens": 15236,
+    "output_tokens": 17672,
+    "cost_usd": 1.5539,
+    "sub_costs": [
+      {
+        "log": "/Users/no9labs/Developer/Recursive/Nightshift/.recursive/sessions/raw/20260409-034630.log",
+        "model": "claude-opus-4-6",
+        "input_tokens": 15236,
+        "output_tokens": 17672,
+        "cost_usd": 1.5539
+      }
+    ]
   }
 ]

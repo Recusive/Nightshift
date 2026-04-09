@@ -1,74 +1,64 @@
-# Handoff #0128
+# Handoff #0129
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. OVERSEE: Triage task queue (PR #252)
+### 1. EVOLVE #0251: Harden daemon.sh role extractor (PR #254)
 
-First OVERSEE delegation in the v2 brain era, directly addressing human-filed concerns #0225 (queue growing) and #0226 (brain never uses oversee). The oversee agent:
+Fixed the security-adjacent bug where agent-controlled log content could inject sed metacharacters into the `SESSION_ROLE` variable (evidence: sessions with garbled roles like `.*'"$LOG_FILE"2>/d` in the session index).
 
-- Closed 7 pending tasks: 5 merged into primary tasks (deduplication), 1 obsolete (#0078), 1 low-value (#0230)
-- Converted 9 wontfix tasks to done status (wontfix is not a valid status per task guide; done enables daemon archiving)
-- Absorbed acceptance criteria from secondary tasks into primary tasks so no work is lost
-- Human-filed tasks treated carefully -- only 2 were affected, both had pre-existing documented rationale
+The fix replaces the vulnerable `sed` pipeline with:
+1. `awk -F'ROLE DECISION:'` for literal field splitting (no regex metacharacter exposure)
+2. `tr -cd 'a-z-'` to strip all characters except lowercase letters and hyphens
+3. `case` statement validating against the full known role list, defaulting to `unknown`
 
-**Review:** docs-reviewer raised FAIL on "missing handoff" which is inapplicable (brain writes session handoff, not sub-agents). All content checks PASS. Merged.
+**Tier 1 review:** All 3 reviewers (code-reviewer, meta-reviewer, safety-reviewer) returned PASS. All 8 safety invariants verified preserved. Merged first try.
 
-### 2. BUILD #0252+#0253+#0254: Module map follow-ups (PR #251)
+### 2. BUILD #0255: Fix misleading test comment (PR #253)
 
-Three small follow-ups from last session's PR #250 code review, all in `nightshift/infra/module_map.py`:
+Fixed the contradictory inline comment in `test_parse_error_includes_subpackage_context` that referenced a `package_dir=None` code path while saying it's never reached. New comment accurately explains that `path.relative_to(package_dir)` for top-level files yields a bare filename.
 
-- #0252: Fixed stale `_dependency_order` docstring (now describes slash-key behavior)
-- #0253: Fixed `ParseError.module` to use relative path for subpackage files (prevents ambiguity)
-- #0254: Added explanatory comment to `_SUBPACKAGE_DIRS` (kept in module_map.py, single consumer)
-- 1 new test: `test_parse_error_includes_subpackage_context`
-
-**Review:** code-reviewer PASS (1 advisory note about misleading test comment), safety-reviewer PASS. Merged first try.
+**Review:** code-reviewer PASS. Merged first try.
 
 ### Follow-up Tasks Created
 
-- #0255: Fix misleading comment in test_parse_error_includes_subpackage_context (advisory from PR #251 review)
+- #0256: Add regression test for daemon.sh role extractor (advisory from PR #254 code review)
 
 ## Tasks
 
-- #0252: done (docstring fix)
-- #0253: done (ParseError context fix)
-- #0254: done (constant comment)
-- #0078: done (closed as obsolete by OVERSEE)
-- #0230: done (closed as low-value by OVERSEE)
-- #0124, #0163, #0175, #0180, #0196: done (merged into primary tasks by OVERSEE)
-- #0077, #0080, #0107, #0111, #0115, #0119, #0127, #0129, #0134: done (wontfix->done for archiving)
-- #0255: created (test comment follow-up)
+- #0251: done (daemon.sh role hardening)
+- #0255: done (test comment fix)
+- #0256: created (regression test follow-up)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 72 pending
-AFTER:  63 pending (7 closed from pending, 3 done from build, +1 new follow-up)
+BEFORE: 63 pending
+AFTER:  62 pending (2 done, +1 new follow-up)
 ```
 
-Net -9. First queue reduction session. Addresses human concerns #0225 and #0226.
+Net -1. Both tasks completed cleanly with 0 fix cycles.
 
 ## Commitment Check
-Pre-commitment: OVERSEE reduces pending from 72 to <= 65 (net -7). BUILD completes #0252/#0253/#0254 as single PR. Tests >= 1164. Make check passes.
-Actual result: OVERSEE reduced to 63 pending (net -9, beat target). BUILD completed all 3 as PR #251. 1165 tests pass (+1 new). Make check green. Both dry-runs pass. Both PRs merged first try (0 fix cycles).
+Pre-commitment: EVOLVE #0251 adds role validation to daemon.sh. BUILD #0255 fixes the test comment. Both PRs delivered and merged. Tests >= 1165. Make check passes. 0 fix cycles.
+Actual result: Both PRs delivered and merged first try. 1165 tests pass. Make check + both dry-runs green. 0 fix cycles. 1 follow-up task created.
 Commitment: MET
 
 ## Friction
 
-None. Both agents executed cleanly. No fix cycles needed.
+None. Both agents executed cleanly. Tier 1 review process ran smoothly with all 3 reviewers in parallel.
 
 ## Current State
-- Tests: 1165 passing (+1 from PR #251)
-- Eval: 83/100 (3 sessions old, 0 nightshift files changed since)
+- Tests: 1165 passing (unchanged)
+- Eval: 83/100 (5 sessions old, 0 nightshift files changed since)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: 63
+- Pending tasks: 62
 
 ## Next Session Should
 
-1. **EVOLVE #0251** (framework zone) -- Harden daemon.sh role extractor against sed metacharacters. Quick win, prevents the corrupted role field seen in recent sessions. The corrupted roles are still visible in the session index.
-2. **BUILD a human-filed task** -- Check #0094 (wire E2E into daemon), #0224 (run nightshift against Phractal), #0228 (re-run eval periodically). These represent direct human priorities.
-3. **Consider BUILD on small follow-ups** -- #0252 pattern worked well (batch related tasks). #0233 (symlink check in eval_runner), #0237 (mktemp in daemon.sh), #0244 (zero-padding test fix) are all quick wins.
+1. **BUILD a human-filed task** -- #0094 (wire E2E into daemon) or #0224 (run nightshift against Phractal) are the highest-impact human priorities. These address the broken build-measure-build feedback loop. #0094 is larger and touches both zones; consider #0224 as a simpler first step.
+2. **Consider eval rerun** -- Eval is now 5 sessions stale. While 0 nightshift files changed since last eval, the dashboard may start showing eval_staleness alert next session. A periodic eval keeps the feedback loop honest.
+3. **BUILD small follow-ups** -- #0256 (role extractor regression test), #0233 (symlink check in eval_runner), #0237 (mktemp in daemon.sh), #0244 (zero-padding test fix) are all quick wins that pair well with a larger task.
