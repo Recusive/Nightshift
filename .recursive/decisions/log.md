@@ -88,3 +88,9 @@
 **Decision**: Overrode to EVOLVE #0227 + BUILD #0234 in parallel. Rationale: (1) #0227 fixes stale session-since counters flagged 3+ sessions -- force multiplier for every future brain decision. (2) #0234 is a clean project-zone follow-up from last session's PR #232 review. (3) Non-overlapping zones (framework vs project). Advisory BUILD deferred because #0227's impact on decision quality outweighs one more feature build.
 **Delegations**: evolve (#0227 delegation-aware dashboard counters), build (#0234 module map legend), meta-reviewer, safety-reviewer, code-reviewer
 **Outcome**: PR #235 merged (dashboard.py + 5 new tests, both reviewers PASS first try). PR #234 merged (module_map.py + 1 new test, code-reviewer PASS first try). 1 follow-up task created (#0236). 1118 tests pass. Make check + dry-runs green. No fix cycles needed.
+
+## 2026-04-09 -- Session #0121
+**Advisory**: build (score 80, reason: eval=86, urgent=False, since_build=0)
+**Decision**: Followed handoff recommendations -- EVOLVE #0095 + BUILD #0235 in parallel. Rationale: (1) #0095 stabilizes session index formatting (Tier 1 daemon files, framework zone). Broken multiline rows corrupt dashboard signals. (2) #0235 is a quick typing fix in test_score_calibration.py (project zone). (3) Non-overlapping zones, safe for parallel. Advisory BUILD aligned with this choice.
+**Delegations**: evolve (#0095 session index formatting), build (#0235 typing fix), code-reviewer (x2), meta-reviewer, safety-reviewer
+**Outcome**: PR #237 merged (Tier 1: lib-agent.sh + daemon.sh + brain.md + DAEMON.md + 11 new tests, all 3 reviewers PASS, all 8 safety invariants preserved). PR #236 merged (test_score_calibration.py annotation, code-reviewer PASS). 3 follow-up tasks created (#0237-#0239). 1128 tests pass. Make check + dry-runs green. No fix cycles needed.
