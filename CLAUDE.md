@@ -183,7 +183,7 @@ nightshift/
 ├── cli.py              CLI entry point
 ├── core/               Foundations (errors, types, constants, shell, state)
 ├── settings/           Configuration (config, eval_targets)
-├── owl/                Hardening loop (cycle, scoring, readiness, eval_runner)
+├── owl/                Hardening loop (cycle, scoring, readiness)
 ├── raven/              Feature builder (planner, decomposer, subagent, integrator, etc.)
 ├── infra/              Infrastructure (module_map, multi, release, worktree)
 ├── schemas/            JSON schemas (feature, nightshift, task)
