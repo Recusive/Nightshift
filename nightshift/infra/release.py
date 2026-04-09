@@ -89,7 +89,12 @@ def _all_tasks_done(task_files: list[Path]) -> tuple[bool, list[str]]:
     """Return (all_done, list_of_pending_task_ids).
 
     A task is pending when its frontmatter status is anything other than "done".
+
+    Raises ValueError when task_files is empty to prevent vacuous truth: an
+    empty task list cannot confirm that all work for a version is done.
     """
+    if not task_files:
+        raise ValueError("_all_tasks_done requires at least one task file")
     pending = []
     for path in task_files:
         text = path.read_text(encoding="utf-8")
