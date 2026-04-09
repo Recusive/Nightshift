@@ -112,3 +112,69 @@ class TestModuleMap:
         modules = {entry["module"] for entry in snapshot["modules"]}
         assert "escape.py" not in modules
         assert snapshot["module_count"] == 4
+
+    def test_generate_module_map_survives_per_file_syntax_error(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+        _write_module(repo, "broken.py", "def bad_syntax(\n")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        module_names = {entry["module"] for entry in snapshot["modules"]}
+        assert "broken.py" not in module_names
+        assert snapshot["module_count"] == 5
+        assert len(snapshot["parse_errors"]) == 1
+        assert snapshot["parse_errors"][0]["module"] == "broken.py"
+        assert snapshot["parse_errors"][0]["error"] != ""
+
+    def test_generate_module_map_no_parse_errors_when_all_valid(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        assert snapshot["parse_errors"] == []
+
+    def test_render_module_map_includes_parse_errors_section(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+        _write_module(repo, "broken.py", "def bad_syntax(\n")
+
+        snapshot = nightshift.generate_module_map(repo)
+        rendered = nightshift.render_module_map(snapshot)
+
+        assert "## Parse Errors" in rendered
+        assert "`broken.py`" in rendered
+
+    def test_render_module_map_omits_parse_errors_section_when_clean(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+
+        snapshot = nightshift.generate_module_map(repo)
+        rendered = nightshift.render_module_map(snapshot)
+
+        assert "## Parse Errors" not in rendered
+
+    def test_generate_module_map_survives_invalid_utf8(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+        bad_path = repo / "nightshift" / "corrupt.py"
+        bad_path.write_bytes(b"\xff\xfe\x00")
+
+        snapshot = nightshift.generate_module_map(repo)
+
+        module_names = {entry["module"] for entry in snapshot["modules"]}
+        assert "corrupt.py" not in module_names
+        assert snapshot["module_count"] == 5
+        assert len(snapshot["parse_errors"]) == 1
+        assert snapshot["parse_errors"][0]["module"] == "corrupt.py"
+        assert snapshot["parse_errors"][0]["error"] != ""
+
+    def test_module_map_cli_write_succeeds_with_syntax_error(self, tmp_path: Path) -> None:
+        repo = _init_module_repo(tmp_path)
+        _write_module(repo, "broken.py", "class Bad(\n")
+
+        parser = nightshift.build_parser()
+        args = parser.parse_args(["module-map", "--repo-dir", str(repo), "--write"])
+        result = args.func(args)
+
+        assert result == 0
+        output_path = repo / ".recursive" / "architecture" / "MODULE_MAP.md"
+        content = output_path.read_text(encoding="utf-8")
+        assert "## Parse Errors" in content
+        assert "`broken.py`" in content

@@ -474,6 +474,13 @@ class RecentSessionChange(TypedDict):
     summary: str
 
 
+class ParseError(TypedDict):
+    """A per-file syntax error recorded during module map generation."""
+
+    module: str
+    error: str
+
+
 class ModuleMapSnapshot(TypedDict):
     """Structured data used to render .recursive/architecture/MODULE_MAP.md."""
 
@@ -484,6 +491,7 @@ class ModuleMapSnapshot(TypedDict):
     modules: list[ModuleMapEntry]
     dependency_order: list[str]
     recent_changes: list[RecentSessionChange]
+    parse_errors: list[ParseError]
 
 
 # --- Cleanup types ----------------------------------------------------------

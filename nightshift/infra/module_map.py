@@ -9,7 +9,7 @@ from pathlib import Path
 
 from nightshift.core.constants import MODULE_MAP_PATH, MODULE_MAP_STALE_AFTER_SESSIONS
 from nightshift.core.shell import git
-from nightshift.core.types import ModuleMapEntry, ModuleMapSnapshot, RecentSessionChange
+from nightshift.core.types import ModuleMapEntry, ModuleMapSnapshot, ParseError, RecentSessionChange
 
 
 def module_map_path(repo_dir: Path) -> Path:
@@ -17,11 +17,27 @@ def module_map_path(repo_dir: Path) -> Path:
     return repo_dir / MODULE_MAP_PATH
 
 
+def _parse_modules(
+    module_paths: list[Path],
+) -> tuple[dict[str, ast.Module], list[ParseError]]:
+    """Attempt to parse each module file, recording per-file syntax errors."""
+    parsed: dict[str, ast.Module] = {}
+    errors: list[ParseError] = []
+    for path in module_paths:
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (SyntaxError, UnicodeDecodeError) as exc:
+            errors.append(ParseError(module=path.name, error=str(exc)))
+            continue
+        parsed[path.stem] = tree
+    return parsed, errors
+
+
 def generate_module_map(repo_dir: Path) -> ModuleMapSnapshot:
     """Collect module metadata, dependency order, and recent-session summaries."""
     package_dir = repo_dir / "nightshift"
     module_paths = _module_paths(package_dir)
-    parsed = {path.stem: ast.parse(path.read_text(encoding="utf-8")) for path in module_paths}
+    parsed, parse_errors = _parse_modules(module_paths)
     dependency_order = _dependency_order(parsed)
 
     ordered_names = [*dependency_order]
@@ -44,6 +60,7 @@ def generate_module_map(repo_dir: Path) -> ModuleMapSnapshot:
         modules=modules,
         dependency_order=dependency_order,
         recent_changes=_recent_session_changes(repo_dir),
+        parse_errors=parse_errors,
     )
 
 
@@ -90,6 +107,14 @@ def render_module_map(snapshot: ModuleMapSnapshot) -> str:
             lines.append(f"- {change['reference']}: {change['summary']}")
     else:
         lines.append("- No merged sessions recorded yet.")
+
+    if snapshot["parse_errors"]:
+        lines.extend(["", "## Parse Errors", ""])
+        lines.append("The following modules could not be parsed due to syntax errors:")
+        lines.append("")
+        for err in snapshot["parse_errors"]:
+            lines.append(f"- `{err['module']}`: {err['error']}")
+
     return "\n".join(lines) + "\n"
 
 
