@@ -1,67 +1,67 @@
-# Handoff #0132
+# Handoff #0133
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. BUILD: Phractal Eval Rerun (PR #260)
+### 1. BUILD #0260: Count-Only Payload Regression Fix (PR #262)
 
-Ran `nightshift test --agent claude --cycles 2 --cycle-minutes 5 --repo-dir /tmp/nightshift-eval-0091` against Phractal to refresh the stale eval score (7 sessions since last eval). Score: **84/100** (+1 from eval #0017's 83).
+Fixed the root cause of the count-only payload regression that was the primary obstacle to Loop 1 reaching 100%. Three-pronged fix:
 
-Key findings:
-- **Auto-clone validated**: PR #258's auto-clone feature worked perfectly. `--repo-dir /tmp/nightshift-eval-0091` didn't exist; nightshift cloned Phractal automatically. Startup score improved 9->10.
-- **Cycle 1**: Fixed open-redirect vulnerability in OAuth callback (Security)
-- **Cycle 2**: Fixed missing ARIA attributes on mobile nav hamburger (A11y)
-- **Count-only payload regression persists**: `cycles[*].fixes=[]` empty, `category_counts={}` empty. State file scored 6/10. Task #0247 was archived as done but the fix didn't fully resolve the regression. Created new task #0260 to investigate.
+1. **state.py**: When `fixes=[]` and `fixes_count_only > 0`, extract categories from `cycle_result["categories"]` to populate `category_counts`. Also infer `status="completed"` when count_only > 0 and commits exist (was stuck as `"unknown"`).
+2. **cycle.py**: Embedded full JSON schema in the prompt with explicit `fixes[]` structure and required fields. Added explicit instruction against `fixes_committed`/`fixes_applied` count fields.
+3. **eval_runner.py**: Upgraded `_score_state_file()` with a 5-tier scoring ladder (0/6/8/9/10): detects count-only regression (6), rewards structured fixes (9), rewards structured + category_counts (10).
 
-Human task #0224 ("Brain never runs nightshift against Phractal") marked done.
+12 new regression tests. 1186 total tests pass.
 
-### 2. EVOLVE #0258: Add SNAP_DIR to daemon.sh EXIT trap (PR #259)
+### 2. EVOLVE #0259: SNAP_DIR Inline Quoting (PR #261)
 
-Added `rm -rf "${SNAP_DIR:-}"` to `_daemon_cleanup` function in daemon.sh. This ensures the prompt-guard snapshot directory (created via `mktemp -d`) is cleaned up on daemon exit, even for abnormal exits.
+Changed `rm -rf "$SNAP_DIR"` to `rm -rf "${SNAP_DIR:-}"` at daemon.sh line 262, matching the `_daemon_cleanup` pattern. Defense-in-depth for `set -u`.
 
 **Tier 1 review:** All 3 reviewers (code-reviewer, meta-reviewer, safety-reviewer) returned PASS. All 8 safety invariants verified preserved. Merged first try.
 
 ### Follow-up Tasks Created
 
-- #0259: Fix inconsistent SNAP_DIR quoting at daemon.sh inline cleanup (advisory from safety reviewer on PR #259)
-- #0260: Investigate count-only payload regression (eval #0091 confirmed #0247's fix was incomplete)
+- #0261: Add test for partially-structured fixes scoring in eval_runner (code-review advisory)
+- #0262: Decide on category_counts accuracy for multi-fix count-only cycles (code-review advisory)
+- #0263: Add category string allowlist validation in state.py (safety-review advisory)
 
 ## Tasks
 
-- #0258: done (SNAP_DIR EXIT trap cleanup)
-- #0224: done (ran nightshift against Phractal, eval 84/100)
-- #0259: created (SNAP_DIR inline quoting follow-up)
-- #0260: created (count-only payload regression investigation)
+- #0260: done (count-only payload regression fix)
+- #0259: done (SNAP_DIR inline quoting)
+- #0261: created (partial structuredness test)
+- #0262: created (category_counts accuracy decision)
+- #0263: created (category allowlist validation)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 61 pending (actually 63 by file count)
-AFTER:  61 pending (2 done, +2 new follow-ups)
+BEFORE: 61 pending
+AFTER:  62 pending (2 done, +3 new follow-ups)
 ```
 
-Net 0. Both tasks completed. Both PRs merged first try (0 fix cycles).
+Net +1. Both tasks completed. Both PRs merged first try (0 fix cycles).
 
 ## Commitment Check
-Pre-commitment: BUILD eval produces score >= 80/100. Auto-clone validated. EVOLVE #0258 delivers SNAP_DIR cleanup in daemon.sh. Tier 1 PR passes all 3 reviewers + 8 safety invariants. Tests >= 1174. Make check passes. 0 fix cycles expected.
-Actual result: Eval scored 84/100 (above 80 gate, +1 from 83). Auto-clone validated end-to-end. Tier 1 PR passed full review first try. 1174 tests pass. Make check + both dry-runs green. 0 fix cycles. 2 follow-up tasks created.
+Pre-commitment: BUILD #0260 identifies root cause and fixes count-only payload regression. PR passes review. EVOLVE #0259 fixes SNAP_DIR inline quoting. Tier 1 PR passes all 3 reviewers + 8 safety invariants. Tests >= 1174. Make check passes. <=1 fix cycle for #0260, 0 for #0259.
+Actual result: Both delivered and merged first try (0 fix cycles). 1186 tests pass (+12 new). Tier 1 PR passed full review. All 8 safety invariants preserved. Make check + both dry-runs green.
 Commitment: MET
 
 ## Friction
 
-None. Both agents executed cleanly. Tier 1 review process ran smoothly. Eval run completed successfully with auto-clone.
+None. Both agents executed cleanly.
 
 ## Current State
-- Tests: 1174 passing
-- Eval: 84/100 (FRESH -- just ran this session)
+- Tests: 1186 passing
+- Eval: 84/100 (1 session stale, but 12 nightshift files changed this session -- eval rerun soon)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: ~61
+- Pending tasks: ~62
 
 ## Next Session Should
 
-1. **BUILD #0260** -- Count-only payload regression is the primary obstacle to Loop 1 reaching 100%. The fix for #0247 was incomplete. State file scored 6/10 in eval #0091.
-2. **EVOLVE #0259** -- SNAP_DIR inline quoting is a quick Tier 1 consistency fix from this session's safety review advisory.
-3. **BUILD a human-filed task** -- #0225 (task queue growing), #0226 (brain always picks build+evolve), #0228 (eval cadence) are still open. The queue is stable now (-4 net recent trend) but these process improvements matter.
+1. **BUILD eval rerun against Phractal** -- This session changed 4 nightshift files (state.py, cycle.py, eval_runner.py, tests). The count-only regression fix should improve State file dimension from 6/10 to 9-10/10. Eval should break 85+.
+2. **EVOLVE #0261** -- Quick follow-up: add test for partially-structured fixes edge case in eval_runner.
+3. **BUILD a human-filed task** -- #0225 (queue growing), #0226 (brain diversity), #0228 (eval cadence) are still open. Queue is now +1 net this session, so growth concern is still valid.
