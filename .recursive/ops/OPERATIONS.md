@@ -454,7 +454,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 
 ### Dependency flow (nightshift package)
 ```
-core/errors → settings/eval_targets → core/types → core/constants → core/shell → raven/summary → raven/coordination → infra/module_map → owl/readiness → owl/scoring → core/state → settings/config → infra/multi → raven/e2e → raven/profiler → infra/worktree → owl/cycle → raven/planner → raven/subagent → raven/decomposer → raven/integrator → raven/feature → cli
+core/errors → core/types → core/constants → core/shell → raven/summary → raven/coordination → infra/module_map → owl/readiness → owl/scoring → owl/eval_runner → core/state → settings/config → settings/eval_targets → infra/multi → raven/e2e → raven/profiler → infra/worktree → owl/cycle → raven/planner → raven/subagent → raven/decomposer → raven/integrator → raven/feature → infra/release → cli
 ```
 No circular imports. Each module only imports from modules to its left. `multi.py` receives the `run_nightshift` callable from `cli.py` via dependency injection to avoid circular deps.
 
@@ -472,7 +472,7 @@ Note: `cleanup.py`, `compact.py`, `costs.py`, `evaluation.py`, and `config.py` (
 ## System 7: Tests (`nightshift/tests/`)
 
 ### What it is
-915 pytest tests covering every pure function, config, state, CLI, and integration.
+1156 pytest tests covering every pure function, config, state, CLI, and integration.
 
 ### Files
 | File | Purpose |
@@ -796,6 +796,24 @@ What defines each version. Use this to know when a release is ready.
 - [x] Sub-agent spawner module (`nightshift/subagent.py`)
 - [x] Wave integrator module (`nightshift/integrator.py`)
 - [x] `nightshift build` CLI command (`nightshift/feature.py` -- build/status/resume)
+
+### v0.0.7 — Security Hardening (released 2026-04-05)
+- [x] Prompt injection protection for target repos
+- [x] Prompt self-modification guard across all daemon scripts
+- [x] Cost tracking and budget ceiling for daemon sessions
+- [x] Daemon log rotation and orphan branch pruning
+- [x] Automated handoff compaction in daemon
+- [x] Configurable model/effort/thinking per agent
+
+### v0.0.8 — Self-Maintaining (in progress)
+- [x] Auth-error circuit breaker bypass with notify_human
+- [x] Auto-release module (`nightshift/infra/release.py`)
+- [x] Eval runner CLI (`nightshift/owl/eval_runner.py`)
+- [x] Session index writer rewrite (single-line rows, delegation-aware counters)
+- [x] Worktree cleanup rewrite with self-removal guard
+- [x] Eval staleness signal in dashboard
+- [x] Delegation-aware sessions-since counters (signals.py + pick-role.py)
+- [ ] Wire E2E eval into daemon loop automatically
 
 ### v1.0.0 — Production
 - [ ] Loop 1 runs reliably overnight on real repos

@@ -55,8 +55,8 @@ bash .recursive/engine/daemon.sh claude 60 10
 Arguments are:
 
 1. agent name
-2. pause between sessions in seconds
-3. max sessions (`0` means loop forever)
+2. duration in hours (default: 8)
+3. max sessions (`0` means unlimited, use duration limit)
 
 ### tmux
 
@@ -98,7 +98,7 @@ Valid values are `build`, `review`, `oversee`, `strategize`, `achieve`, `securit
 ## How Role Selection Works
 
 At the start of every cycle, `.recursive/engine/daemon.sh` calls
-[.recursive/engine/pick-role.py](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/engine/pick-role.py).
+`.recursive/engine/pick-role.py`.
 That scorer reads the live system state and prints one winner.
 
 Primary inputs:
@@ -111,8 +111,7 @@ Primary inputs:
 - the latest report in `.recursive/autonomy/`
 - open GitHub issues labeled `needs-human`
 
-The exact math belongs in
-[.recursive/ops/ROLE-SCORING.md](/Users/no9labs/Developer/.recursive/Nightshift/.recursive/ops/ROLE-SCORING.md),
+The exact math belongs in `.recursive/ops/ROLE-SCORING.md`,
 not in this file. Read that file when debugging "why did the daemon pick this
 role?" behavior.
 
@@ -205,8 +204,7 @@ These are the authoritative runtime artifacts:
 | Path | Purpose |
 |------|---------|
 | `.recursive/sessions/index.md` | Unified session history across all roles |
-| `.recursive/sessions/*.log` | Stream-json session logs |
-| `.recursive/sessions/*-pentest.log` | Pentest preflight logs |
+| `.recursive/sessions/raw/*.log` | Stream-json session logs |
 | `.recursive/sessions/costs.json` | Cost ledger used by budget checks |
 | `.recursive/handoffs/LATEST.md` | Short-term memory for the next cycle |
 | `.recursive/evaluations/*.md` | Real-repo evaluation reports |
@@ -321,8 +319,7 @@ resets the repo, and injects that alert into the next cycle.
 The circuit breaker stops the daemon after three failed cycles. Inspect:
 
 - `.recursive/sessions/index.md`
-- the latest session log
-- the latest pentest log
+- the latest session log in `.recursive/sessions/raw/`
 - `.recursive/handoffs/LATEST.md`
 
 ### Budget stop
