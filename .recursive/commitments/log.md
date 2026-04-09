@@ -89,3 +89,8 @@
 **Prediction**: Both PRs (#0241 worktree cleanup + #0242 eval signal) delivered, reviewed, and merged. Tests >= 1142. make check green. Dashboard shows sessions_since_eval signal. Worktree cleanup code in lib-agent.sh.
 **Actual**: Both tasks completed via single PR #244 (PR #243 closed as duplicate). Code-reviewer caught self-removal guard bug; fixed in 1 cycle. 1156 tests pass (+14 new). Dashboard shows eval staleness. cleanup_worktrees rewritten with correct guard. All 3 Tier 1 reviewers PASS. All 8 safety invariants preserved.
 **Result**: MET
+
+## 2026-04-09 -- Session #0125
+**Prediction**: Eval #0017 will score >= 80/100 (same or better than #0016's 86). #0245 dead code removed from signals.py/test_signals.py. Both PRs delivered and merged. Tests >= 1156. Make check passes.
+**Actual**: Eval scored 83/100 (above 80 gate, 3 points below #0016 due to count-only payload regression in state file). Dead code cleaned up (3 issues fixed). Both PRs merged first try (0 fix cycles). 1156 tests pass. All 5 reviewers PASS. Make check + dry-runs green.
+**Result**: MET
