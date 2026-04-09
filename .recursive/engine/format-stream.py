@@ -697,6 +697,24 @@ def format_codex_pretty(event: dict) -> str | None:
                 short = _short_path(path)
                 return f"  [{_elapsed()}] {kind} {short}"
 
+        if itype == "collab_tool_call":
+            tool = item.get("tool", "")
+            prompt = item.get("prompt", "")
+            if tool == "spawn_agent":
+                return f"  [{_elapsed()}] spawning sub-agent: {_truncate(prompt or '', 80)}"
+            if tool == "wait":
+                # Check if any agent reported back
+                for _tid, state in item.get("agents_states", {}).items():
+                    msg = state.get("message", "")
+                    status = state.get("status", "")
+                    if msg:
+                        verdict = "PASS" if "PASS" in msg[:50] else "FAIL" if "FAIL" in msg[:50] else status
+                        return f"  [{_elapsed()}] sub-agent returned: {verdict} -- {_truncate(msg, 70)}"
+                return f"  [{_elapsed()}] waiting on sub-agent(s)..."
+            if tool == "close_agent":
+                return None  # silent cleanup
+            return f"  [{_elapsed()}] sub-agent: {tool}"
+
     if etype == "turn.completed":
         usage = event.get("usage", {})
         out = usage.get("output_tokens", 0)

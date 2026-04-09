@@ -48,7 +48,8 @@ def _extract_tokens_claude(log_path: Path) -> tuple[int, int]:
                 event = json.loads(line)
             except (json.JSONDecodeError, ValueError):
                 continue
-            usage = event.get("usage") or event.get("message", {}).get("usage")
+            msg = event.get("message")
+            usage = event.get("usage") or (msg.get("usage") if isinstance(msg, dict) else None)
             if isinstance(usage, dict):
                 input_tok += usage.get("input_tokens", 0)
                 output_tok += usage.get("output_tokens", 0)
