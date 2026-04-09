@@ -228,9 +228,9 @@ def count_pending_pentest_framework_tasks(tasks_dir: Path) -> int:
             continue
         if not re.search(r"^status:\s*pending", fm, re.MULTILINE):
             continue
-        if "source: pentest" not in fm:
+        if not re.search(r"^source:\s*pentest\s*$", fm, re.MULTILINE):
             continue
-        if "target: recursive" not in fm:
+        if not re.search(r"^target:\s*recursive\s*$", fm, re.MULTILINE):
             continue
         count += 1
     return count
@@ -251,7 +251,7 @@ def count_recent_pentest_tasks(tasks_dir: Path, days: int = 3) -> int:
     count = 0
     for f in archive.glob("[0-9]*.md"):
         fm = _read_frontmatter(f)
-        if not fm or "source: pentest" not in fm:
+        if not fm or not re.search(r"^source:\s*pentest\s*$", fm, re.MULTILINE):
             continue
         m = re.search(r"^completed:\s*(\d{4}-\d{2}-\d{2})", fm, re.MULTILINE)
         if m and m.group(1) >= cutoff:
