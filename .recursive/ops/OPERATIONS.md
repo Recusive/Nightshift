@@ -13,7 +13,7 @@ Nightshift/
 ├── nightshift/                  ← THE PRODUCT (Python package)
 │   ├── core/                    ← Core modules (constants, errors, shell, state, types)
 │   ├── settings/                ← Config + eval targets
-│   ├── owl/                     ← Cycle logic (cycle, readiness, scoring)
+│   ├── owl/                     ← Cycle logic (cycle, readiness, scoring, eval_runner)
 │   ├── raven/                   ← Loop 2 modules (planner, decomposer, subagent, integrator, etc.)
 │   ├── infra/                   ← Infrastructure (module_map, multi, release, worktree)
 │   ├── scripts/                 ← Shell wrappers (check.sh, install.sh, run.sh, test.sh, smoke-test.sh)
@@ -411,6 +411,7 @@ The Python package that IS Nightshift. The overnight hardening runner.
 | Module | Responsibility | Key functions |
 |--------|---------------|---------------|
 | `cycle.py` | Per-cycle logic | `build_prompt()`, `command_for_agent()`, `verify_cycle()`, `evaluate_baseline()`, `extract_json()`, `blocked_file()` |
+| `eval_runner.py` | Evaluation runner (dry-run + full) | `run_eval_dry_run()`, `run_eval_full()`, `score_artifacts()`, `format_eval_table()` |
 | `readiness.py` | Readiness checks | |
 | `scoring.py` | Post-cycle diff scoring | `score_diff()`, `diff_line_score()`, `has_test_files()` |
 
