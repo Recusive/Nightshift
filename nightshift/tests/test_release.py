@@ -215,10 +215,9 @@ class TestAllTasksDone:
         assert all_done is False
         assert "0001" in pending
 
-    def test_empty_file_list_returns_true(self) -> None:
-        all_done, pending = _all_tasks_done([])
-        assert all_done is True
-        assert pending == []
+    def test_empty_file_list_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="requires at least one task file"):
+            _all_tasks_done([])
 
 
 # --- _version_ready ---------------------------------------------------------
