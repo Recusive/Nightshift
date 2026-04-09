@@ -298,7 +298,8 @@ print(f'  Session: \${entry[\"cost_usd\"]:.4f} | Cumulative: \${cumulative:.2f}'
     echo "  Committing runtime state..."
     for dir in handoffs tasks sessions learnings evaluations autonomy \
                strategy healer reviews friction decisions commitments \
-               incidents vision vision-tracker changelog architecture plans; do
+               incidents vision vision-tracker changelog architecture plans \
+               security; do
         git -C "$REPO_DIR" add ".recursive/$dir/" 2>/dev/null || true
     done
     git -C "$REPO_DIR" commit -m "session: brain #$CYCLE ($SESSION_ID)" --quiet 2>/dev/null || true

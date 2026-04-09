@@ -39,8 +39,8 @@ echo ""
 
 # --- Create all runtime directories ---
 echo "Creating .recursive/ directories..."
-mkdir -p "$REPO_DIR/.recursive"/{handoffs,tasks,sessions/raw,sessions/structured,evaluations,learnings,strategy,autonomy,healer,reviews,plans,architecture,changelog,vision,vision-tracker,friction}
-echo "  Created 15 subdirectories (sessions has raw/ + structured/)"
+mkdir -p "$REPO_DIR/.recursive"/{handoffs,tasks,sessions/raw,sessions/structured,evaluations,learnings,strategy,autonomy,healer,reviews,plans,architecture,changelog,vision,vision-tracker,friction,security}
+echo "  Created 16 subdirectories (sessions has raw/ + structured/)"
 
 # --- Symlink agents for Claude Code ---
 echo "Setting up .claude/agents/ symlinks..."
