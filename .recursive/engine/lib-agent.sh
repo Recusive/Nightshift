@@ -1318,6 +1318,93 @@ PY
 }
 
 # ----------------------------------------------
+# Session Index Writer
+#
+# Appends exactly one markdown table row to the
+# session index. Sanitizes all values so they fit
+# on a single line (no pipe chars, no newlines).
+# Creates the file with header if it does not exist.
+#
+# Usage:
+#   append_session_index_row INDEX_FILE LOG_FILE \
+#       SESSION_ID ROLE EXIT_CODE DURATION_MIN \
+#       COST_USD PROMPT_TAMPERED
+#
+# COST_USD: numeric string e.g. "1.2345" or "0.0000"
+# PROMPT_TAMPERED: flag string e.g. " [PROMPT MODIFIED]" or ""
+#
+# Feature and PR are extracted from the log file.
+# Both fall back to "-" if not found.
+# ----------------------------------------------
+
+append_session_index_row() {
+    local index_file="$1"
+    local log_file="$2"
+    local session_id="$3"
+    local role="$4"
+    local exit_code="$5"
+    local duration_min="$6"
+    local cost_usd="$7"
+    local prompt_tampered="${8:-}"
+
+    # Create index file with header if missing
+    if [ ! -f "$index_file" ]; then
+        mkdir -p "$(dirname "$index_file")"
+        {
+            echo "# Session Index"
+            echo ""
+            echo "| Timestamp        | Session         | Role       | Exit | Duration | Cost     | Status                                       | Feature                               | PR                                    |"
+            echo "| ---------------- | --------------- | ---------- | ---- | -------- | -------- | -------------------------------------------- | ------------------------------------- | ------------------------------------- |"
+        } > "$index_file"
+    fi
+
+    # Determine status string
+    local status
+    if [ "$exit_code" -eq 0 ]; then
+        status="success"
+    else
+        status="failed (exit $exit_code)"
+    fi
+
+    # Append prompt-tampered flag if present (already formatted with leading space)
+    if [ -n "$prompt_tampered" ]; then
+        status="${status}${prompt_tampered}"
+    fi
+
+    # Extract feature and PR from log file using existing functions
+    local feature="-"
+    local pr_url="-"
+    if [ -f "$log_file" ]; then
+        feature=$(extract_feature_from_log "$log_file" 2>/dev/null || echo "-")
+        pr_url=$(extract_pr_url_from_log "$log_file" 2>/dev/null || echo "-")
+    fi
+
+    # Sanitize: strip pipe chars and newlines from every field.
+    # A single stray pipe or newline breaks the markdown table.
+    session_id=$(printf '%s' "$session_id" | tr -d '|\n\r' | head -c 20)
+    role=$(printf '%s' "$role"            | tr -d '|\n\r' | head -c 20)
+    status=$(printf '%s' "$status"        | tr -d '|\n\r' | head -c 80)
+    feature=$(printf '%s' "$feature"      | tr -d '|\n\r' | head -c 50)
+    pr_url=$(printf '%s' "$pr_url"        | tr -d '|\n\r' | head -c 80)
+    cost_usd=$(printf '%s' "$cost_usd"    | tr -d '|\n\r' | head -c 12)
+
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M')
+
+    printf '| %s | %s | %s | %s | %sm | $%s | %s | %s | %s |\n' \
+        "$timestamp" \
+        "$session_id" \
+        "$role" \
+        "$exit_code" \
+        "$duration_min" \
+        "$cost_usd" \
+        "$status" \
+        "$feature" \
+        "$pr_url" \
+        >> "$index_file"
+}
+
+# ----------------------------------------------
 # Human Escalation
 #
 # Creates a GitHub issue (and optionally fires a

@@ -222,20 +222,24 @@ json.dump(meta, open(os.environ['_NS_META'], 'w'), indent=2)
 
     # --- Prompt guard check ---
     echo "  Checking prompt integrity..."
+    PROMPT_TAMPERED=""
     if ! check_prompt_integrity "$REPO_DIR" "$SNAP_DIR"; then
         echo "  WARNING: Prompt files modified during session!"
+        PROMPT_TAMPERED=" [PROMPT MODIFIED]"
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
     fi
     if ! check_origin_integrity "$REPO_DIR" "$SNAP_DIR"; then
         echo "  WARNING: origin/main prompt tampering detected!"
+        PROMPT_TAMPERED="${PROMPT_TAMPERED} [ORIGIN MODIFIED]"
         CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
     fi
     rm -rf "$SNAP_DIR"
 
     # --- Cost tracking ---
     echo "  Recording costs..."
-    _NS_LIB="$RECURSIVE_DIR/lib" _LOG_FILE="$LOG_FILE" _COST_FILE="$COST_FILE" \
-    _SESSION_ID="$SESSION_ID" _BRAIN_MODEL="$BRAIN_MODEL" python3 -c "
+    SESSION_COST_USD=$(_NS_LIB="$RECURSIVE_DIR/lib" _LOG_FILE="$LOG_FILE" \
+    _COST_FILE="$COST_FILE" _SESSION_ID="$SESSION_ID" \
+    _BRAIN_MODEL="$BRAIN_MODEL" python3 -c "
 import sys, os
 sys.path.insert(0, os.environ['_NS_LIB'])
 from costs import record_multi_model_session, total_cost
@@ -243,8 +247,24 @@ entry = record_multi_model_session(
     [(os.environ['_LOG_FILE'], os.environ['_BRAIN_MODEL'])],
     os.environ['_COST_FILE'], os.environ['_SESSION_ID'])
 cumulative = total_cost(os.environ['_COST_FILE'])
-print(f'  Session: \${entry[\"cost_usd\"]:.4f} | Cumulative: \${cumulative:.2f}')
-" 2>/dev/null || echo "  Cost tracking failed"
+print(entry['cost_usd'])
+import sys as _sys
+print(f'  Session: \${entry[\"cost_usd\"]:.4f} | Cumulative: \${cumulative:.2f}', file=_sys.stderr)
+" 2>/tmp/recursive_cost_msg || echo "0.0000")
+    cat /tmp/recursive_cost_msg 2>/dev/null || true
+
+    # --- Session index row ---
+    echo "  Appending session index row..."
+    append_session_index_row \
+        "$INDEX_FILE" \
+        "$LOG_FILE" \
+        "$SESSION_ID" \
+        "$SESSION_ROLE" \
+        "$EXIT_CODE" \
+        "$DURATION_MIN" \
+        "${SESSION_COST_USD:-0.0000}" \
+        "${PROMPT_TAMPERED:-}" \
+        2>/dev/null || true
 
     # --- Selective git add (runtime state only, not framework) ---
     echo "  Committing runtime state..."

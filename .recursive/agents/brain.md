@@ -202,6 +202,11 @@ Run these checks against the PR diff before merging ANY PR that touches Tier 1 f
 
 ## Session Report
 
+**Do NOT write to `.recursive/sessions/index.md` manually.** The daemon
+automatically appends a single well-formed table row to the session index
+after every cycle via `append_session_index_row` in `lib-agent.sh`. Manual
+writes create malformed multiline rows that break dashboard signals.
+
 At the end of every session, write a handoff to `.recursive/handoffs/LATEST.md`:
 
 ```markdown
