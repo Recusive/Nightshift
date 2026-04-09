@@ -44,3 +44,8 @@
 **Prediction**: #0082 will replace manual NightshiftConfig construction with DEFAULT_CONFIG copy. #0218 will update CLAUDE.md infra/ line and OPERATIONS.md module table. Both PRs delivered and merged. 993+ tests pass.
 **Actual**: Both delivered exactly as predicted. #0082 used copy.deepcopy with 4 new tests. #0218 updated both files. Both PRs passed review first try (no fix cycles needed). 997 tests pass. All checks green. Both dry-runs pass.
 **Result**: MET
+
+## 2026-04-08 -- Session #0116
+**Prediction**: #0219 will rename RELEASE_TASK_STATUS_RE to RELEASE_TASK_FRONTMATTER_RE in constants.py, release.py, and test_release.py. #0229 will add infra.release to CLAUDE.md dependency flow chain and normalize infra/ listing. Both PRs delivered and merged. 997+ tests pass.
+**Actual**: Both delivered. #0219 renamed in constants.py and release.py (test_release.py confirmed not needing updates -- doesn't reference the constant). #0229 updated both CLAUDE.md lines. Both PRs passed first try. 997 tests pass. All checks green. Both dry-runs pass.
+**Result**: MET
