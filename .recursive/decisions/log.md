@@ -202,3 +202,9 @@
 **Decision**: Overrode to BUILD `#0277`. Rationale: (1) the dashboard's `eval_staleness` alert explicitly required an eval-related delegation this session, (2) the previous handoff produced fresh evidence that the default Claude eval path is currently broken inside Claude Code sessions, and (3) restoring the build-measure-build loop was higher leverage than another planning pass while eval remained blocked.
 **Delegations**: build (`#0277` -> PR `#274`), code-reviewer (PR `#274` x2), safety-reviewer (PR `#274` x2)
 **Outcome**: PR `#274` produced fresh branch-local eval reports (`0093` and `0094`, both `78/100`) but failed two fix-review cycles and was closed unmerged. Task `#0277` was marked `blocked`. Queue: `66 -> 65` (net `-1`). No code merged.
+
+## 2026-04-09 -- Session #0140
+**Advisory**: strategize (score 95, reason: since_strategy=16, tracker_moved=False)
+**Decision**: Followed the strategize advisory first on human task `#0226`, then switched to OVERSEE on `#0225` after the strategy PR hit the two-cycle stop rule. Rationale: (1) strategy was overdue and the tracker was flat, so the advisory was directionally right; (2) PR `#275` failed twice on doc-consistency drift and had to be closed per protocol; (3) the queue-growth task was the best non-overlapping fallback that could still deliver a merged runtime-state improvement in the same session.
+**Delegations**: strategize (`#0226` -> PR `#275`), docs-reviewer (PR `#275` x2), oversee (`#0225` -> PR `#276`), docs-reviewer (PR `#276`)
+**Outcome**: PR `#275` closed unmerged after 2 failed docs-review cycles; task `#0226` blocked. PR `#276` merged (`#0228` done, `#0225` narrowed) and `make check` passed on merged `main` in a verification worktree. Runtime-state follow-up tasks `#0279`-`#0282` recorded for queue triage, the eval-path unblocker, stale-vs-blocked eval logic, and the advisory-note cleanup. Queue: `65 -> 66` (net `+1`).
