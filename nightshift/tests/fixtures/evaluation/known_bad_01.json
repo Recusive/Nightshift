@@ -1,0 +1,9 @@
+{
+  "state": null,
+  "shift_log": "",
+  "runner_exit_code": 1,
+  "state_file_valid": false,
+  "shift_log_exists": false,
+  "git_status_output": "?? tmp/debug.log\n?? tmp/crash.log\n?? .env.backup\n M src/auth.py\n M src/api/routes.py",
+  "repo_is_clean": false
+}
