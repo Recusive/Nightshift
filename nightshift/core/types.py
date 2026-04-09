@@ -562,3 +562,16 @@ class ShiftArtifacts(TypedDict):
     shift_log_exists: bool
     git_status_output: str
     repo_is_clean: bool
+
+
+# --- Release types ----------------------------------------------------------
+
+
+class ReleaseResult(TypedDict):
+    """Outcome of check_and_release() -- whether a version was released."""
+
+    released: bool
+    version: str
+    tag: str
+    release_url: str
+    reason: str

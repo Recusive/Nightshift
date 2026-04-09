@@ -47,6 +47,7 @@ PACKAGE_FILES=(
   "nightshift/raven/e2e.py"
   "nightshift/raven/profiler.py"
   "nightshift/infra/__init__.py"
+  "nightshift/infra/release.py"
   "nightshift/infra/worktree.py"
   "nightshift/infra/module_map.py"
   "nightshift/infra/multi.py"
