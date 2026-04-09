@@ -138,3 +138,158 @@ class TestDidTrackerMove:
     def test_not_moved(self) -> None:
         rows = [{"status": "ok"}, {"status": "ok"}]
         assert signals.did_tracker_move(rows) is False
+
+
+def _make_task(tmp_path: Path, name: str, frontmatter: str, body: str = "") -> Path:
+    """Write a numbered task file with YAML frontmatter to tmp_path."""
+    f = tmp_path / name
+    f.write_text(f"---\n{frontmatter}\n---\n{body}")
+    return f
+
+
+class TestCountPendingPentestFrameworkTasks:
+    def test_exact_match_counted(self, tmp_path: Path) -> None:
+        _make_task(
+            tmp_path,
+            "0001.md",
+            "status: pending\nsource: pentest\ntarget: recursive\n",
+        )
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 1
+
+    def test_suffixed_source_not_counted(self, tmp_path: Path) -> None:
+        # "source: pentest-runner" must NOT match the anchored pattern
+        _make_task(
+            tmp_path,
+            "0001.md",
+            "status: pending\nsource: pentest-runner\ntarget: recursive\n",
+        )
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 0
+
+    def test_prefixed_source_not_counted(self, tmp_path: Path) -> None:
+        _make_task(
+            tmp_path,
+            "0001.md",
+            "status: pending\nsource: manual-pentest\ntarget: recursive\n",
+        )
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 0
+
+    def test_crlf_line_endings_counted(self, tmp_path: Path) -> None:
+        f = tmp_path / "0001.md"
+        f.write_bytes(b"---\r\nstatus: pending\r\nsource: pentest\r\ntarget: recursive\r\n---\r\n")
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 1
+
+    def test_wrong_target_excluded(self, tmp_path: Path) -> None:
+        # target: v0.0.8 is a product task, not a framework task
+        _make_task(
+            tmp_path,
+            "0001.md",
+            "status: pending\nsource: pentest\ntarget: v0.0.8\n",
+        )
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 0
+
+    def test_done_task_excluded(self, tmp_path: Path) -> None:
+        _make_task(
+            tmp_path,
+            "0001.md",
+            "status: done\nsource: pentest\ntarget: recursive\n",
+        )
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 0
+
+    def test_multiple_tasks_counted(self, tmp_path: Path) -> None:
+        _make_task(
+            tmp_path,
+            "0001.md",
+            "status: pending\nsource: pentest\ntarget: recursive\n",
+        )
+        _make_task(
+            tmp_path,
+            "0002.md",
+            "status: pending\nsource: pentest\ntarget: recursive\n",
+        )
+        _make_task(
+            tmp_path,
+            "0003.md",
+            "status: pending\nsource: code-review\ntarget: recursive\n",
+        )
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 2
+
+    def test_empty_dir_returns_zero(self, tmp_path: Path) -> None:
+        assert signals.count_pending_pentest_framework_tasks(tmp_path) == 0
+
+
+class TestCountRecentPentestTasks:
+    def _make_archive_task(self, archive_dir: Path, name: str, frontmatter: str) -> Path:
+        return _make_task(archive_dir, name, frontmatter)
+
+    def test_recent_task_counted(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        # completed today -- within any positive day window
+        from datetime import datetime
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        self._make_archive_task(
+            archive,
+            "0001.md",
+            f"status: done\nsource: pentest\ncompleted: {today}\n",
+        )
+        assert signals.count_recent_pentest_tasks(tmp_path, days=3) >= 1
+
+    def test_old_task_excluded(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        # completed 30 days ago -- beyond the 3-day window
+        self._make_archive_task(
+            archive,
+            "0001.md",
+            "status: done\nsource: pentest\ncompleted: 2020-01-01\n",
+        )
+        assert signals.count_recent_pentest_tasks(tmp_path, days=3) == 0
+
+    def test_suffixed_source_not_counted(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        from datetime import datetime
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        self._make_archive_task(
+            archive,
+            "0001.md",
+            f"status: done\nsource: pentest-runner\ncompleted: {today}\n",
+        )
+        assert signals.count_recent_pentest_tasks(tmp_path, days=3) == 0
+
+    def test_crlf_line_endings_counted(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        from datetime import datetime
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        content = f"---\r\nstatus: done\r\nsource: pentest\r\ncompleted: {today}\r\n---\r\n"
+        (archive / "0001.md").write_bytes(content.encode("utf-8"))
+        assert signals.count_recent_pentest_tasks(tmp_path, days=3) >= 1
+
+    def test_no_archive_dir_returns_zero(self, tmp_path: Path) -> None:
+        # archive subdir does not exist
+        assert signals.count_recent_pentest_tasks(tmp_path, days=3) == 0
+
+    def test_date_cutoff_boundary(self, tmp_path: Path) -> None:
+        archive = tmp_path / "archive"
+        archive.mkdir()
+        from datetime import datetime, timedelta
+
+        # exactly on the boundary date (same as cutoff) -- should be counted
+        boundary = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
+        self._make_archive_task(
+            archive,
+            "0001.md",
+            f"status: done\nsource: pentest\ncompleted: {boundary}\n",
+        )
+        # one day before the boundary -- should NOT be counted
+        before = (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d")
+        self._make_archive_task(
+            archive,
+            "0002.md",
+            f"status: done\nsource: pentest\ncompleted: {before}\n",
+        )
+        assert signals.count_recent_pentest_tasks(tmp_path, days=3) == 1
