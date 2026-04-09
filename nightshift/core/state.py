@@ -152,8 +152,14 @@ def append_cycle_state(
     logged_issues = cycle_result.get("logged_issues", []) if cycle_result else []
     low_impact = sum(1 for fix in fixes if fix.get("impact") == "low")
     inferred_fix_count = len(fixes)
-    if not fixes and not logged_issues and verification["commits"] and not state["log_only_mode"]:
-        inferred_fix_count = len(verification["commits"])
+    if not fixes:
+        count_only = cycle_result.get("fixes_count_only", 0) if cycle_result is not None else 0
+        if count_only:
+            # Agent used count-only payload (fixes_committed/fixes_applied): honour it directly.
+            inferred_fix_count = count_only
+        elif not logged_issues and verification["commits"] and not state["log_only_mode"]:
+            # No structured or count-only data: fall back to commit count as a last resort.
+            inferred_fix_count = len(verification["commits"])
 
     for fix in fixes:
         category = fix.get("category")

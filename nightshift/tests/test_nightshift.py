@@ -772,6 +772,82 @@ class TestAppendCycleState:
         # Infers fix count from commits when no structured result
         assert state["counters"]["fixes"] == 1
 
+    def test_count_only_payload_uses_fixes_count_not_commit_count(self):
+        """Regression for eval #0017: fixes_count_only must be used, not len(commits).
+
+        When the agent returns a count-only payload (fixes_committed: 1) instead of
+        a structured fixes[] list, the state counter must reflect the fix count, not
+        the total commit count (which can include shift-log commits).
+        """
+        state = self._base_state()
+        # Agent returned count-only: fixes_committed=1, but 2 commits (fix + shift-log)
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 1,
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234", "def5678"],
+            "files_touched": ["apps/api/app/api/v1/auth.py"],
+            "dominant_path": "apps",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        # Must use fixes_count_only=1, NOT len(commits)=2
+        assert state["counters"]["fixes"] == 1
+        # cycles entry carries the (empty) fixes list since no structured data exists
+        assert state["cycles"][0]["fixes"] == []
+
+    def test_count_only_payload_does_not_trigger_empty_cycle(self):
+        """A count-only cycle with commits must not increment empty_cycles."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 1,
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["src/auth.py"],
+            "dominant_path": "src",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        assert state["counters"]["empty_cycles"] == 0
+
+    def test_count_only_payload_with_zero_count_falls_back_to_commits(self):
+        """fixes_count_only=0 means the field is absent/zero; fall back to commits."""
+        state = self._base_state()
+        cycle_result = {
+            "fixes": [],
+            "logged_issues": [],
+            "fixes_count_only": 0,
+            "status": "completed",
+        }
+        verification = {
+            "commits": ["abc1234"],
+            "files_touched": ["src/auth.py"],
+            "dominant_path": "src",
+        }
+        nightshift.append_cycle_state(
+            state=state,
+            cycle_number=1,
+            cycle_result=cycle_result,
+            verification=verification,
+        )
+        # count_only=0 is falsy; fall back to commit count
+        assert state["counters"]["fixes"] == 1
+
 
 # --- Blocked File Detection --------------------------------------------------
 
