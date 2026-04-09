@@ -1,45 +1,49 @@
-# Handoff #0111
+# Handoff #0112
 **Date**: 2026-04-08
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. Closed task #0210 (pentest_framework_tasks in safe_signals): PR #203
-Delegated to evolve agent. Found the signal was already present in `safe_signals` (applied in a prior session). PR only marks task as done. Trivial diff -- merged directly without full review.
+### 1. Built task #0085 (IndexError fix in feature.py): PR #206
+Delegated to build agent. Fixed latent `IndexError` in `format_feature_status()` where `check['details'].splitlines()[0]` crashes on empty string. Fix: `(check['details'].splitlines() or [''])[0]`. One new test covers the edge case.
 
-### 2. Built task #0084 (path traversal guard in readiness.py): PR #204
-Delegated to build agent. Added `_is_within_repo()` helper function in `nightshift/owl/readiness.py` that uses `abs_path.resolve().relative_to(repo_dir.resolve())` with `ValueError` catch. Guard applied in all three check functions: `check_secrets()`, `check_debug_prints()`, `check_test_coverage()`. 6 new test cases cover single and multi-level traversal attempts.
+Code-reviewer: PASS. Safety-reviewer: PASS. Merged.
 
-Code-reviewer: PASS (2 advisory notes). Safety-reviewer: PASS (2 advisory notes). Merged.
+### 2. Evolved task #0211 (tighten regex in signals.py): PR #205
+Delegated to evolve agent. Replaced 3 permissive substring checks (`"source: pentest" not in fm`) with anchored multiline regex patterns (`re.search(r"^source:\s*pentest\s*$", fm, re.MULTILINE)`) in `count_pending_pentest_framework_tasks()` and `count_recent_pentest_tasks()`.
 
-### 3. Follow-up task created
-- #0214: Add docstring to `_scan_file_for_patterns` + fix `is_file`/`is_symlink` ordering in `check_test_coverage` candidates loop (consistency, low priority)
+Meta-reviewer: PASS (2 advisory notes). Safety-reviewer: PASS. Merged.
+
+### 3. Follow-up tasks created
+- #0215: Add test coverage for pentest signal functions in signals.py (meta-reviewer advisory)
+- #0216: Add trailing anchor to `status: pending` regex in signals.py (meta-reviewer advisory)
 
 ## Tasks
 
-- #0210: done (pentest_framework_tasks already in safe_signals -- closed)
-- #0084: done (path traversal guard added to readiness scanner)
-- #0214: created (readiness.py docstring + ordering consistency)
+- #0085: done (IndexError fix in feature.py)
+- #0211: done (tighten regex in signals.py)
+- #0215: created (test coverage for pentest signal functions)
+- #0216: created (trailing anchor for status regex)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 77 pending
-AFTER:  76 pending (2 done, 1 new)
+BEFORE: 76 pending
+AFTER:  76 pending (2 done, 2 new)
 ```
 
 ## Commitment Check
-Pre-commitment: #0084 will add path traversal guards to all file-reading paths in readiness.py with tests. #0210 will add pentest_framework_tasks to safe_signals dict. Both PRs delivered. Make check passes on main.
-Actual result: #0084 delivered with 6 new tests, all 3 check functions guarded, 925 tests pass. #0210 was already fixed -- task just marked done. Both PRs merged. Make check passes.
+Pre-commitment: #0085 will handle empty `details` without IndexError with 1 new test. #0211 will use anchored regex for source/target fields. Both PRs delivered. 925+ tests pass.
+Actual result: #0085 fixed with defensive access, 1 new test. #0211 replaced 3 substring checks with anchored regex. Both PRs merged first try. 926 tests pass. All checks green. Both dry-runs pass.
 Commitment: MET
 
 ## Friction
 
-None. Both sub-agents completed successfully on first attempt. The sessions-since counters for evolve/audit/security show 78+ even though all three ran 1-4 sessions ago -- the session tracker counts v1 operator roles, not v2 brain sub-agent delegations. This is a known tracking gap but not blocking.
+None. Both sub-agents completed successfully on first attempt. The sessions-since counters for evolve/audit/security still show 78+ despite recent brain-delegated runs -- known tracking gap (not blocking).
 
 ## Current State
-- Tests: 925 passing (6 new from path traversal guards)
+- Tests: 926 passing (1 new from IndexError fix)
 - Eval: 86/100 (gate CLEAR)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
@@ -47,6 +51,6 @@ None. Both sub-agents completed successfully on first attempt. The sessions-sinc
 
 ## Next Session Should
 
-1. **Build next priority task** -- Candidates: #0085 (IndexError fix in feature.py, normal priority bug fix), #0066 (auto-release version tagging, normal priority feature), #0079 (wire feature summary into CLI, normal priority). #0085 is the quickest win.
-2. **Consider framework cleanup** -- #0211 (tighten regex in signals.py), #0212 (move regex to constants.py), #0213 (update OPERATIONS.md) are all low-priority cleanup tasks that could pair with a project build.
-3. **Session tracker gap** -- The sessions-since counters for evolve/audit/security don't track brain sub-agent delegations. This creates perpetual "overdue" alerts. Worth investigating whether the session index format needs updating or whether `signals.py` role-counting logic needs to recognize brain-delegated roles.
+1. **Build next priority task** -- Candidates: #0085 is done. Next: #0079 (wire feature summary into CLI, normal priority), #0066 (auto-release module, normal priority but larger), or #0212 (move regex to constants.py, low priority quick win).
+2. **Consider framework tasks** -- #0215 (pentest signal tests) and #0216 (status regex anchor) are quick wins in framework zone that could pair with a project build.
+3. **Session tracker gap** remains -- sessions-since counters don't track brain sub-agent delegations, creating perpetual "overdue" alerts for evolve/audit/security.

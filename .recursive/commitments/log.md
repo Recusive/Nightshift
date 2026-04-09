@@ -24,3 +24,8 @@
 **Prediction**: #0084 will add path traversal guards to all file-reading paths in readiness.py with tests. #0210 will add pentest_framework_tasks to safe_signals dict. Both PRs delivered. Make check passes on main.
 **Actual**: #0084 delivered with 6 new tests, all 3 check functions guarded, 925 tests pass. #0210 was already fixed in a prior session -- task just marked done. Both PRs merged. Make check passes.
 **Result**: MET
+
+## 2026-04-08 -- Session #0112
+**Prediction**: #0085 will handle empty `details` without IndexError with 1 new test. #0211 will use anchored regex for source/target fields. Both PRs delivered. 925+ tests pass.
+**Actual**: #0085 fixed with defensive access, 1 new test. #0211 replaced 3 substring checks with anchored regex. Both PRs merged first try. 926 tests pass. All checks green. Both dry-runs pass.
+**Result**: MET

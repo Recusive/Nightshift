@@ -34,3 +34,9 @@
 **Decision**: Followed advisory -- BUILD #0084 (path traversal guard in readiness.py) + EVOLVE #0210 (pentest signal in safe_signals). Both are non-overlapping tasks in different zones.
 **Delegations**: build (#0084 path traversal guard), evolve (#0210 safe_signals consistency)
 **Outcome**: PR #203 merged (#0210 was already fixed -- task closed). PR #204 merged (path traversal guard with 6 new tests, both reviewers PASS). 1 follow-up task created (#0214). 925 tests pass. Make check passes.
+
+## 2026-04-08 -- Session #0112
+**Advisory**: build (score 105, reason: eval=86, urgent=False, since_build=5)
+**Decision**: Followed advisory -- BUILD #0085 (IndexError fix in feature.py) + EVOLVE #0211 (tighten pentest regex in signals.py). Both non-overlapping (project vs framework zone). Advisory alternatives were security-check (75) and audit (75), but both ran in recent sessions (known tracker gap).
+**Delegations**: build (#0085 IndexError fix), evolve (#0211 regex tightening)
+**Outcome**: PR #206 merged (feature.py defensive fix, 1 new test). PR #205 merged (3 substring→regex replacements in signals.py). 4 reviewers all PASS. 2 follow-up tasks created (#0215, #0216). 926 tests pass. Make check + dry-runs green.
