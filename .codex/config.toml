@@ -4,7 +4,7 @@
 model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
 sandbox_mode = "workspace-write"
-model_instructions_file = ".recursive/prompts/brain-codex.md"
+model_instructions_file = "../.recursive/prompts/brain-codex.md"
 
 [agents]
 max_threads = 6
