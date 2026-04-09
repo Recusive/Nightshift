@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from datetime import datetime as _dt
+from datetime import timedelta, timezone
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -302,11 +304,9 @@ def count_stale_tasks(tasks_dir: Path, threshold: int = 20) -> int:
             continue
         match = re.search(r"^created:\s*(\d{4}-\d{2}-\d{2})", frontmatter, re.MULTILINE)
         if match:
-            from datetime import datetime, timezone
-
             try:
-                created = datetime.strptime(match.group(1), "%Y-%m-%d").replace(tzinfo=timezone.utc)
-                age_days = (datetime.now(tz=timezone.utc) - created).days
+                created = _dt.strptime(match.group(1), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                age_days = (_dt.now(tz=timezone.utc) - created).days
                 if age_days >= threshold:
                     count += 1
             except ValueError:
@@ -342,9 +342,7 @@ def count_recent_pentest_tasks(tasks_dir: Path, days: int = 3) -> int:
     Uses the ``completed:`` frontmatter date (durable through git reset)
     rather than file mtime (reset by ``git checkout``).
     """
-    from datetime import datetime, timedelta
-
-    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    cutoff = (_dt.now() - timedelta(days=days)).strftime("%Y-%m-%d")
     archive = tasks_dir / "archive"
     if not archive.is_dir():
         return 0
@@ -531,18 +529,14 @@ def sessions_since_eval(evaluations_dir: Path, sessions_index: list[dict[str, st
     latest = evals[-1]
     try:
         text = latest.read_text(encoding="utf-8")
-        dm = re.search(r"\*?\*?[Dd]ate\*?\*?:\s*(\d{4}-\d{2}-\d{2})", text)
-        if not dm:
+        if not re.search(r"\*?\*?[Dd]ate\*?\*?:\s*(\d{4}-\d{2}-\d{2})", text):
             return len(sessions_index)
-        eval_date = dm.group(1)
         # Use file mtime for more precise timestamp (YYYY-MM-DD HH:MM)
-        from datetime import datetime as _dt
-
         eval_ts = _dt.fromtimestamp(latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
     except OSError:
         return len(sessions_index)
     # Count sessions after the eval
-    compare_ts = eval_ts if eval_ts else eval_date
+    compare_ts = eval_ts
     count = 0
     for row in reversed(sessions_index):
         ts = row.get("timestamp", "")
@@ -574,8 +568,6 @@ def compute_eval_staleness(evaluations_dir: Path, sessions_index: list[dict[str,
                     eval_date = dm.group(1)
                 # Use file mtime for precise timestamp (YYYY-MM-DD HH:MM)
                 mt = latest.stat().st_mtime
-                from datetime import datetime as _dt
-
                 eval_mtime = _dt.fromtimestamp(mt).strftime("%Y-%m-%d %H:%M")
             except OSError:
                 pass
