@@ -237,13 +237,16 @@ CTXEOF
     if [ "$AGENT" = "codex" ]; then
         BRAIN_MODEL="${RECURSIVE_CODEX_MODEL:-gpt-5.4}"
         echo "  Running brain agent ($BRAIN_MODEL via Codex)..."
-        # Sub-agents discovered from .codex/agents/*.toml when brain spawns them.
-        # Brain instructions prepended above; dashboard/context follows.
+        # Brain model + reasoning set in .codex/config.toml, NOT CLI flags.
+        # Per Codex docs: "Codex reapplies the parent turn's live runtime
+        # overrides when it spawns a child... even if the selected custom
+        # agent file sets different defaults." CLI --model/-c flags count
+        # as runtime overrides and cascade to sub-agents, forcing them onto
+        # gpt-5.4/xhigh instead of gpt-5.4-mini/high from their TOML.
+        # Config.toml sets the brain model; sub-agent TOMLs override it.
         codex exec \
             --dangerously-bypass-approvals-and-sandbox \
             --json \
-            --model "$BRAIN_MODEL" \
-            -c "model_reasoning_effort=\"${RECURSIVE_CODEX_THINKING:-xhigh}\"" \
             "$(cat "$CONTEXT_FILE")" \
             2>&1 | tee "$LOG_FILE" | python3 -u "$ENGINE_DIR/format-stream.py"
         EXIT_CODE=${PIPESTATUS[0]}
