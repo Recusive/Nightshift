@@ -7,7 +7,7 @@ import datetime as dt
 import re
 from pathlib import Path
 
-from nightshift.core.constants import MODULE_MAP_PATH, MODULE_MAP_STALE_AFTER_SESSIONS
+from nightshift.core.constants import MODULE_MAP_CYCLE_WARNING, MODULE_MAP_PATH, MODULE_MAP_STALE_AFTER_SESSIONS
 from nightshift.core.shell import git
 from nightshift.core.types import ModuleMapEntry, ModuleMapSnapshot, ParseError, RecentSessionChange
 
@@ -38,7 +38,7 @@ def generate_module_map(repo_dir: Path) -> ModuleMapSnapshot:
     package_dir = repo_dir / "nightshift"
     module_paths = _module_paths(package_dir)
     parsed, parse_errors = _parse_modules(module_paths)
-    dependency_order = _dependency_order(parsed)
+    dependency_order, dependency_cycles = _dependency_order(parsed)
 
     ordered_names = [*dependency_order]
     if "__init__" in parsed:
@@ -59,6 +59,7 @@ def generate_module_map(repo_dir: Path) -> ModuleMapSnapshot:
         module_count=len(module_paths),
         modules=modules,
         dependency_order=dependency_order,
+        dependency_cycles=dependency_cycles,
         recent_changes=_recent_session_changes(repo_dir),
         parse_errors=parse_errors,
     )
@@ -88,20 +89,32 @@ def render_module_map(snapshot: ModuleMapSnapshot) -> str:
             f"| `{module['module']}` | {module['lines']} | {purpose} | {key_symbols} | {module['last_changed']} |"
         )
 
-    lines.extend(
+    dep_section: list[str] = [
+        "",
+        "## Dependency Order",
+        "",
+        "Topological order derived from internal `nightshift.*` imports.",
+        "`__init__.py` is excluded because it re-exports the package surface.",
+        "",
+        f"`{' -> '.join(snapshot['dependency_order'])}`",
+    ]
+    if snapshot["dependency_cycles"]:
+        dep_section.extend(
+            [
+                "",
+                f"**{MODULE_MAP_CYCLE_WARNING}**",
+                "",
+                f"`{', '.join(snapshot['dependency_cycles'])}`",
+            ]
+        )
+    dep_section.extend(
         [
-            "",
-            "## Dependency Order",
-            "",
-            "Topological order derived from internal `nightshift.*` imports.",
-            "`__init__.py` is excluded because it re-exports the package surface.",
-            "",
-            f"`{' -> '.join(snapshot['dependency_order'])}`",
             "",
             "## Recent Shipped Sessions",
             "",
         ]
     )
+    lines.extend(dep_section)
     if snapshot["recent_changes"]:
         for change in snapshot["recent_changes"]:
             lines.append(f"- {change['reference']}: {change['summary']}")
@@ -216,26 +229,39 @@ def _string_literals(node: ast.AST) -> list[str]:
     return []
 
 
-def _dependency_order(parsed_modules: dict[str, ast.Module]) -> list[str]:
-    """Topologically sort internal module dependencies, leaving __init__ out."""
+def _dependency_order(parsed_modules: dict[str, ast.Module]) -> tuple[list[str], list[str]]:
+    """Topologically sort internal module dependencies, leaving __init__ out.
+
+    Returns a tuple of (ordered_names, cycle_members).  When a dependency cycle
+    is detected the unresolved nodes are appended in deterministic alphabetical
+    order and reported in cycle_members so callers can surface the unhealthy state.
+
+    Only dependencies that correspond to other top-level modules in
+    parsed_modules are tracked; imports from subpackages (e.g. nightshift.core.*)
+    that do not appear as standalone entries are ignored so they do not
+    spuriously trigger cycle detection.
+    """
+    known_modules: set[str] = {n for n in parsed_modules if n != "__init__"}
     pending: dict[str, set[str]] = {}
     for name, tree in parsed_modules.items():
         if name == "__init__":
             continue
-        pending[name] = set(_internal_dependencies(tree)) - {name, "__init__"}
+        raw_deps = set(_internal_dependencies(tree)) - {name, "__init__"}
+        pending[name] = raw_deps & known_modules
 
     order: list[str] = []
     while pending:
         ready = sorted(name for name, deps in pending.items() if not deps)
         if not ready:
-            order.extend(sorted(pending))
-            break
+            cycles = sorted(pending)
+            order.extend(cycles)
+            return order, cycles
         order.extend(ready)
         for name in ready:
             pending.pop(name)
         for deps in pending.values():
             deps.difference_update(ready)
-    return order
+    return order, []
 
 
 def _internal_dependencies(tree: ast.Module) -> list[str]:
