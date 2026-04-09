@@ -37,6 +37,13 @@ def write_json(path: Path, payload: dict[str, Any] | ShiftState | FeatureState) 
 _REQUIRED_STATE_KEYS = {"version", "date", "branch", "agent", "baseline", "counters", "cycles"}
 
 
+def _safe_int(value: object, default: int = 0) -> int:
+    """Convert numeric values to int and fall back for corrupt data."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return int(value)
+    return default
+
+
 def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
     """Construct a ShiftState from a validated raw dict, field by field."""
     baseline_raw = raw.get("baseline", {})
@@ -52,14 +59,14 @@ def _build_state(raw: dict[str, Any], state_path: Path) -> ShiftState:
         message=str(baseline_raw.get("message", "")),
     )
     counters = Counters(
-        fixes=int(counters_raw.get("fixes", 0)),
-        issues_logged=int(counters_raw.get("issues_logged", 0)),
-        files_touched=int(counters_raw.get("files_touched", 0)),
-        low_impact_fixes=int(counters_raw.get("low_impact_fixes", 0)),
-        failed_verifications=int(counters_raw.get("failed_verifications", 0)),
-        empty_cycles=int(counters_raw.get("empty_cycles", 0)),
-        agent_failures=int(counters_raw.get("agent_failures", 0)),
-        tests_written=int(counters_raw.get("tests_written", 0)),
+        fixes=_safe_int(counters_raw.get("fixes", 0)),
+        issues_logged=_safe_int(counters_raw.get("issues_logged", 0)),
+        files_touched=_safe_int(counters_raw.get("files_touched", 0)),
+        low_impact_fixes=_safe_int(counters_raw.get("low_impact_fixes", 0)),
+        failed_verifications=_safe_int(counters_raw.get("failed_verifications", 0)),
+        empty_cycles=_safe_int(counters_raw.get("empty_cycles", 0)),
+        agent_failures=_safe_int(counters_raw.get("agent_failures", 0)),
+        tests_written=_safe_int(counters_raw.get("tests_written", 0)),
     )
     cycles_raw = raw.get("cycles", [])
     if not isinstance(cycles_raw, list):

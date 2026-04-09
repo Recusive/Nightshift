@@ -1,6 +1,6 @@
 # Module Map
 
-Last updated: 2026-04-09 by session #0089
+Last updated: 2026-04-09 by session #0092
 Generated via: `python3 -m nightshift module-map --write`
 Stale after: 5 newer sessions without a refresh
 
@@ -17,7 +17,7 @@ Read it before opening modules one by one when you need fast orientation.
 | `core/constants.py` | 847 | Module-level constants and tiny utilities used across the package. | `now_local`, `print_status`, `DATA_VERSION`, `SUPPORTED_AGENTS` | PR #269 (2e91d5f) |
 | `raven/summary.py` | 141 | Feature summary generation for Loop 2 build output. | `generate_feature_summary`, `_API_DIR_SEGMENTS`, `_CLI_DIR_SEGMENTS`, `_CONFIG_DIR_SEGMENTS` | 1636b72 |
 | `core/shell.py` | 256 | Subprocess execution: streaming runner, git helper, shell utilities. | `run_command`, `run_capture`, `git`, `command_exists` | PR #269 (2e91d5f) |
-| `core/state.py` | 229 | Shift state: read, write, mutate counters, JSON I/O. | `load_json`, `write_json`, `read_state`, `top_path` | PR #267 (65f423d) |
+| `core/state.py` | 236 | Shift state: read, write, mutate counters, JSON I/O. | `load_json`, `write_json`, `read_state`, `top_path` | session #0092 |
 | `owl/readiness.py` | 234 | Production-readiness checks for Loop 2 feature builds. | `collect_changed_files`, `check_secrets`, `check_debug_prints`, `check_test_coverage` | PR #204 (df36eff) |
 | `raven/coordination.py` | 196 | Sub-agent coordination for Loop 2 -- detects file overlaps and generates hints. | `extract_file_references`, `detect_overlaps`, `generate_coordination_hints`, `inject_hints` | PR #229 (c2acba2) |
 | `infra/module_map.py` | 473 | Generate a persistent module map for fast cross-session orientation. | `module_map_path`, `generate_module_map`, `render_module_map`, `write_module_map` | PR #251 (c32e527) |
@@ -29,7 +29,7 @@ Read it before opening modules one by one when you need fast orientation.
 | `owl/eval_runner.py` | 698 | Evaluation runner: score nightshift against a target repo (or dry-run with synthetic data). | `score_artifacts`, `format_eval_table`, `run_eval_dry_run`, `run_eval_full` | PR #269 (2e91d5f) |
 | `raven/e2e.py` | 113 | End-to-end test runner for Loop 2 feature builds. | `infer_test_command`, `detect_smoke_test`, `run_e2e_tests`, `_MAKEFILE_TEST_TARGET` | 1636b72 |
 | `raven/profiler.py` | 547 | Repo profiling for Loop 2 -- detects language, framework, dependencies, structure. | `profile_repo` | PR #220 (d9e4320) |
-| `owl/cycle.py` | 987 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | session #0089 |
+| `owl/cycle.py` | 974 | Per-cycle logic: prompt building, agent dispatch, verification, evaluation. | `extract_json`, `read_repo_instructions`, `wrap_repo_instructions`, `command_for_agent` | PR #267 (65f423d) |
 | `raven/planner.py` | 483 | Feature planner for Loop 2 -- builds structured plans from repo profiles. | `build_plan_prompt`, `validate_plan`, `parse_plan`, `execution_order` | 1636b72 |
 | `raven/subagent.py` | 281 | Sub-agent spawner for Loop 2 -- executes work orders via codex or claude CLI. | `spawn_task`, `spawn_wave`, `format_wave_result`, `_TASK_COMPLETION_REQUIRED_KEYS` | 1636b72 |
 | `raven/decomposer.py` | 175 | Task decomposer for Loop 2 -- converts FeaturePlans into sub-agent work orders. | `build_work_order_prompt`, `decompose_plan`, `format_work_orders` | 1636b72 |
