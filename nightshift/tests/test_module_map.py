@@ -29,7 +29,7 @@ def _make_session_index(repo: Path, row_count: int) -> None:
         "| ---------------- | --------------- | ------- | ---- | -------- | ------- | ------- | ------- | -- |\n"
     )
     rows = "".join(
-        f"| 2026-04-0{i + 1} 00:00 | 2026040{i + 1}-000000 | build   | 0    | 10m      | $1.00   | success | -       | - |\n"
+        f"| 2026-04-{i + 1:02d} 00:00 | 2026040{i + 1}-000000 | build   | 0    | 10m      | $1.00   | success | -       | - |\n"
         for i in range(row_count)
     )
     (index_dir / "index.md").write_text(header + rows, encoding="utf-8")

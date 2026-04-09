@@ -361,9 +361,9 @@ def _session_count_from_index(repo_dir: Path) -> int | None:
             continue
         if stripped.startswith("| Timestamp") or stripped.startswith("|---") or stripped.startswith("| ---"):
             continue
-        # Skip circuit-breaker pseudo-rows (second column is CIRCUIT-BREAK).
+        # Split on "|"; cols[0] is empty (before first |), cols[1] is timestamp,
+        # cols[2] holds the session-id column -- skip CIRCUIT-BREAK pseudo-rows.
         cols = [c.strip() for c in stripped.split("|")]
-        # cols[0] is empty (before first |), cols[1] is timestamp, cols[2] is session id
         if len(cols) > 2 and "CIRCUIT-BREAK" in cols[2]:
             continue
         count += 1
