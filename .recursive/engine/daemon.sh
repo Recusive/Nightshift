@@ -69,7 +69,18 @@ if [ -f "$LOCKFILE" ]; then
     rm -f "$LOCKFILE"
 fi
 echo $$ > "$LOCKFILE"
-trap 'rm -f "$LOCKFILE"' EXIT
+
+# ---------------------------------------------------------------------------
+# Cleanup trap -- covers lock file and any mktemp files created during session.
+# Uses ${VAR:-} so the function is safe even if a variable was never set
+# (e.g. the script aborts before a mktemp assignment).
+# ---------------------------------------------------------------------------
+_daemon_cleanup() {
+    rm -f "${LOCKFILE:-}"
+    rm -f "${CONTEXT_FILE:-}"
+    rm -f "${COST_MSG_TMP:-}"
+}
+trap '_daemon_cleanup' EXIT
 
 echo "=== Recursive Daemon v2 ==="
 echo "Agent: $AGENT | Brain: $BRAIN_MODEL | Budget: \$$BUDGET_LIMIT"
