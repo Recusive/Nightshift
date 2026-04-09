@@ -97,6 +97,21 @@ The task queue can drift — all tasks end up targeting the same vision section 
 
 **Exception:** If a section genuinely has urgent work (bugs, blockers), alignment can be overridden — but you must explain why in the task description.
 
+## Vision-alignment tiebreaker in task selection
+
+The vision-alignment rule above governs task *creation*. This rule governs task *selection*.
+
+When two or more tasks have equal priority AND equal expected tracker impact, prefer the task whose `vision_section` field targets the lowest-percentage section in `.recursive/vision-tracker/TRACKER.md`.
+
+**How to apply it:**
+1. At the start of Step 1 (Situational Awareness), note the current section percentages from `TRACKER.md`
+2. When choosing between tied tasks, check their `vision_section` fields
+3. Prefer the task targeting the section with the lowest percentage
+
+**This rule is advisory.** Use judgment -- do not apply it mechanically. If the lower-percentage section has no tasks ready to ship (all blocked, integration-only, or missing), pick the best available task and note the alignment gap in the handoff under "Vision alignment".
+
+**Example:** The tracker shows Self-Maintaining at 68% and Meta-Prompt at 79%. Two normal-priority tasks are tied: task #0080 (`vision_section: self-maintaining`) and task #0081 (`vision_section: meta-prompt`). Both have the same queue impact. Pick #0080 -- it targets the lower-percentage section. If #0080 is blocked, pick #0081 and write "Vision alignment: Self-Maintaining (68%) is starved; no ready tasks available this session" in the handoff.
+
 ## When the agent finishes a task
 
 The agent does THREE things:
