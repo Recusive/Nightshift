@@ -299,14 +299,6 @@ class TestCountRecentPentestTasks:
 # sessions_since_eval tests (task #0242)
 # ---------------------------------------------------------------------------
 
-_VALID_EVAL_CONTENT = (
-    "**Date**: 2026-04-08\n"
-    "| Startup | 9/10 | OK |\n"
-    "| Discovery | 8/10 | OK |\n"
-    "| Fix quality | 8/10 | OK |\n"
-    "| **Total** | **86/100** | |\n"
-)
-
 
 class TestSessionsSinceEval:
     """Unit tests for the sessions_since_eval signal."""
