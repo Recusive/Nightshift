@@ -60,6 +60,8 @@ used when the source file is missing or unreadable.
 | `tracker_moved` | Session index -- any `%` in recent status cells | false |
 | `recent_security_sessions` | Session index + archived pentest tasks (dual-signal) | 0 |
 | `friction_entries` | `.recursive/friction/log.md` -- count `## YYYY-MM-DD` headers | 0 |
+| `pentest_framework_tasks` | `.recursive/tasks/` -- pending tasks with `source: pentest` AND `target: recursive` | 0 |
+| `sessions_since_eval` | `.recursive/evaluations/` vs session index -- sessions since latest eval file was written (dashboard-only, not used in scoring) | 0 |
 
 **Eval file validation**: `read_latest_eval_score()` validates the file before reading the score.
 A file must have a `**Date**:` line and at least 3 scored dimension rows (`N/10` format) outside
@@ -160,9 +162,12 @@ friction_entries >= 5:                +50   (lots of friction accumulated)
 friction_entries >= 3
   AND sessions_since_evolve >= 5:     +30   (moderate friction, hasn't evolved recently)
 sessions_since_evolve >= 20:          +20   (overdue regardless of friction count)
+pentest_framework_tasks >= 1:         +40   (confirmed security vuln in .recursive/ -- security urgency)
 
-Hard cap: capped at 5 if sessions_since_evolve < 5 (don't re-run too frequently)
-Hard cap: capped at 5 if friction_entries == 0 (no friction = nothing to evolve)
+Hard cap: capped at 5 if sessions_since_evolve < 5 AND pentest_framework_tasks == 0
+           (don't re-run too frequently unless pentest tasks pending)
+Hard cap: capped at 5 if friction_entries == 0 AND pentest_framework_tasks == 0
+           (no friction and no pentest tasks = nothing to evolve)
 ```
 
 ### AUDIT -- framework quality review
