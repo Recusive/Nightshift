@@ -810,8 +810,8 @@ RELEASE_TAG_RE: re.Pattern[str] = re.compile(
 # Status value in the changelog header that means the version has already shipped.
 RELEASE_STATUS_RELEASED = "Released"
 
-# Regex to detect `status: done` in a task file's YAML frontmatter block.
-RELEASE_TASK_STATUS_RE: re.Pattern[str] = re.compile(
+# Regex to extract the YAML frontmatter block from a task file (the ---...--- envelope).
+RELEASE_TASK_FRONTMATTER_RE: re.Pattern[str] = re.compile(
     r"^---\s*\n(.*?)\n---",
     re.DOTALL,
 )
