@@ -1,67 +1,71 @@
-# Handoff #0133
+# Handoff #0134
 **Date**: 2026-04-09
 **Version**: v0.0.8 in progress
 **Role**: BRAIN
 
 ## What I Did
 
-### 1. BUILD #0260: Count-Only Payload Regression Fix (PR #262)
+### 1. BUILD: Eval Rerun Against Phractal (PR #264)
 
-Fixed the root cause of the count-only payload regression that was the primary obstacle to Loop 1 reaching 100%. Three-pronged fix:
+Ran E2E evaluation #0019 to measure impact of the count-only payload regression fix from last session (#0260). Results:
 
-1. **state.py**: When `fixes=[]` and `fixes_count_only > 0`, extract categories from `cycle_result["categories"]` to populate `category_counts`. Also infer `status="completed"` when count_only > 0 and commits exist (was stuck as `"unknown"`).
-2. **cycle.py**: Embedded full JSON schema in the prompt with explicit `fixes[]` structure and required fields. Added explicit instruction against `fixes_committed`/`fixes_applied` count fields.
-3. **eval_runner.py**: Upgraded `_score_state_file()` with a 5-tier scoring ladder (0/6/8/9/10): detects count-only regression (6), rewards structured fixes (9), rewards structured + category_counts (10).
+- **Score: 89/100** (up from 84/100 in eval #0018, new all-time high)
+- **State file: 6/10 -> 10/10** (+4) -- confirms the count-only fix fully works
+- Guard rails: 8/10 -> 9/10 (+1)
+- Usefulness: 8/10 -> 9/10 (+1)
+- Breadth: 8/10 -> 7/10 (-1, both cycles in apps/ subtree)
+- Net delta: +5 points
 
-12 new regression tests. 1186 total tests pass.
+The build-measure-build feedback loop is working. The count-only payload regression is fully resolved.
 
-### 2. EVOLVE #0259: SNAP_DIR Inline Quoting (PR #261)
+### 2. BUILD #0263: Category Allowlist Validation (PR #263)
 
-Changed `rm -rf "$SNAP_DIR"` to `rm -rf "${SNAP_DIR:-}"` at daemon.sh line 262, matching the `_daemon_cleanup` pattern. Defense-in-depth for `set -u`.
+Added defense-in-depth: category strings from agent output are now validated against `CATEGORY_ORDER` before writing to `category_counts` in state.py. Unknown categories are silently skipped. 4 new tests.
 
-**Tier 1 review:** All 3 reviewers (code-reviewer, meta-reviewer, safety-reviewer) returned PASS. All 8 safety invariants verified preserved. Merged first try.
+### 3. FIX: Cycle.py Bypass (PR #265)
+
+Safety reviewer found a bypass path in cycle.py's dominance guard check where a local `category_counts` copy was built without the allowlist. Fixed by adding the same `_VALID_CATEGORIES` frozenset check in cycle.py. 1 comprehensive test proving the bypass is closed.
 
 ### Follow-up Tasks Created
 
-- #0261: Add test for partially-structured fixes scoring in eval_runner (code-review advisory)
-- #0262: Decide on category_counts accuracy for multi-fix count-only cycles (code-review advisory)
-- #0263: Add category string allowlist validation in state.py (safety-review advisory)
+- #0264: Sanitize category_counts on state file load (pre-existing gap from code-review advisory)
+- #0265: Add positive-path dominance test (code-review advisory)
 
 ## Tasks
 
-- #0260: done (count-only payload regression fix)
-- #0259: done (SNAP_DIR inline quoting)
-- #0261: created (partial structuredness test)
-- #0262: created (category_counts accuracy decision)
-- #0263: created (category allowlist validation)
+- Eval #0019: done (89/100, new all-time high)
+- #0263: done (category allowlist in state.py)
+- Cycle.py bypass: done (companion fix in PR #265)
+- #0264: created (state load sanitization)
+- #0265: created (positive-path dominance test)
 
 ## Queue Snapshot
 
 ```
-BEFORE: 61 pending
-AFTER:  62 pending (2 done, +3 new follow-ups)
+BEFORE: 62 pending
+AFTER:  63 pending (1 done, +2 new follow-ups)
 ```
 
-Net +1. Both tasks completed. Both PRs merged first try (0 fix cycles).
+Net +1. One task completed (#0263). Eval report added (no task consumed -- measurement task).
 
 ## Commitment Check
-Pre-commitment: BUILD #0260 identifies root cause and fixes count-only payload regression. PR passes review. EVOLVE #0259 fixes SNAP_DIR inline quoting. Tier 1 PR passes all 3 reviewers + 8 safety invariants. Tests >= 1174. Make check passes. <=1 fix cycle for #0260, 0 for #0259.
-Actual result: Both delivered and merged first try (0 fix cycles). 1186 tests pass (+12 new). Tier 1 PR passed full review. All 8 safety invariants preserved. Make check + both dry-runs green.
-Commitment: MET
+Pre-commitment: Eval rerun scores >= 85/100. BUILD #0263 adds category validation with 1+ test. Both PRs delivered and merged. Tests >= 1186. Make check passes. 0 fix cycles expected.
+Actual result: Eval scored 89/100 (exceeded >= 85 target by 4). #0263 delivered with 4 tests. Companion fix PR #265 also delivered after safety review found bypass (1 fix cycle for #0263 scope). 1191 tests pass (+5 new). Make check + dry-runs green.
+Commitment: MET (partial -- 1 fix cycle needed for the bypass, but prediction was 0)
 
 ## Friction
 
-None. Both agents executed cleanly.
+None. All agents executed cleanly. Worktree branch deletion warnings are cosmetic (daemon cleanup handles them).
 
 ## Current State
-- Tests: 1186 passing
-- Eval: 84/100 (1 session stale, but 12 nightshift files changed this session -- eval rerun soon)
+- Tests: 1191 passing
+- Eval: 89/100 (new all-time high, 0 sessions stale)
 - Autonomy: 85/100
 - Version: v0.0.8 in progress
-- Pending tasks: ~62
+- Pending tasks: ~63
 
 ## Next Session Should
 
-1. **BUILD eval rerun against Phractal** -- This session changed 4 nightshift files (state.py, cycle.py, eval_runner.py, tests). The count-only regression fix should improve State file dimension from 6/10 to 9-10/10. Eval should break 85+.
-2. **EVOLVE #0261** -- Quick follow-up: add test for partially-structured fixes edge case in eval_runner.
-3. **BUILD a human-filed task** -- #0225 (queue growing), #0226 (brain diversity), #0228 (eval cadence) are still open. Queue is now +1 net this session, so growth concern is still valid.
+1. **BUILD #0261** -- Quick follow-up: add test for partially-structured fixes edge case in eval_runner.py. Low-hanging fruit.
+2. **BUILD a human-filed task** -- #0225 (queue growth tracking), #0226 (brain diversity), #0228 (eval cadence) are still open, though most concerns are now partially addressed by recent sessions. Consider closing #0228 since eval cadence is working.
+3. **EVOLVE #0264** -- Wait, this is a project task (state.py), so BUILD #0264 to sanitize category_counts on load.
