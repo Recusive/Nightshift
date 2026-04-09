@@ -189,11 +189,25 @@ CTXEOF
     echo "  Brain exited with code $EXIT_CODE (${DURATION_MIN}m)"
 
     # --- Extract SESSION_ROLE from brain output ---
+    # Safety: use awk (not sed) to avoid metacharacter injection from agent-controlled log content.
+    # Then restrict to [a-z-] only and validate against the known role list.
     SESSION_ROLE="brain"
     if [ -f "$LOG_FILE" ]; then
         _role_line=$(grep -o 'ROLE DECISION:.*' "$LOG_FILE" 2>/dev/null | tail -1 || true)
         if [ -n "$_role_line" ]; then
-            SESSION_ROLE=$(echo "$_role_line" | sed 's/ROLE DECISION: *//' | tr -d '[:space:]' | head -c 20)
+            # awk splits on 'ROLE DECISION:' literal -- no metacharacter exposure
+            _role_raw=$(echo "$_role_line" | awk -F'ROLE DECISION:' '{print $2}')
+            # Strip to [a-z-] only (no spaces, digits, symbols, or shell metacharacters)
+            _role_clean=$(echo "$_role_raw" | tr -cd 'a-z-' | head -c 20)
+            # Validate against known role list; default to 'unknown' if unrecognised
+            case "$_role_clean" in
+                build|review|oversee|strategize|achieve|security-check|evolve|audit|brain)
+                    SESSION_ROLE="$_role_clean"
+                    ;;
+                *)
+                    SESSION_ROLE="unknown"
+                    ;;
+            esac
         fi
     fi
 
