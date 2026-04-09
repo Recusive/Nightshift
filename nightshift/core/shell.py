@@ -146,6 +146,41 @@ def command_exists(name: str) -> bool:
     )
 
 
+def validate_repo_url(url: str) -> None:
+    """Validate a repo URL before passing it to git clone.
+
+    Raises NightshiftError if the URL:
+    - Is empty or whitespace-only
+    - Starts with '--' (flag injection via git --upload-pack or similar)
+    - Starts with 'file://' or '/' (local path clone -- reads host filesystem)
+    - Does not start with 'https://' or 'git@' (only safe remote schemes)
+
+    This is called at config-load time (belt) and immediately before the
+    subprocess.run call in run_eval_full() (suspenders).
+    """
+    stripped = url.strip()
+    if not stripped:
+        raise NightshiftError("eval_target_repo must not be empty")
+
+    if stripped.startswith("--"):
+        raise NightshiftError(
+            f"eval_target_repo rejected: value starts with '--', which would be "
+            f"interpreted as a git flag and could enable arbitrary command execution. "
+            f"Value: {stripped!r}"
+        )
+
+    if stripped.startswith("file://") or stripped.startswith("/"):
+        raise NightshiftError(
+            f"eval_target_repo rejected: local path or file:// URL would cause git "
+            f"to clone from the local filesystem. Value: {stripped!r}"
+        )
+
+    if not (stripped.startswith("https://") or stripped.startswith("git@")):
+        raise NightshiftError(
+            f"eval_target_repo rejected: only 'https://' and 'git@' schemes are accepted. Value: {stripped!r}"
+        )
+
+
 def validate_verify_command(command: str) -> None:
     """Validate a verify_command value sourced from an external config file.
 

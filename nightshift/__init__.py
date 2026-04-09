@@ -77,6 +77,7 @@ from nightshift.core.shell import (
     run_command,
     run_shell_string,
     run_test_command,
+    validate_repo_url,
     validate_verify_command,
 )
 from nightshift.core.state import (
@@ -487,6 +488,7 @@ __all__ = [
     "top_path",
     "validate_plan",
     "validate_repo_checkout",
+    "validate_repo_url",
     "validate_repos",
     "validate_verify_command",
     "validate_worktree",
