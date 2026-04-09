@@ -25,10 +25,11 @@ from signals import (
     count_needs_human_issues,
     count_pending_tasks,
     count_recent_security_sessions,
-    count_sessions_since_role,
+    count_sessions_since_delegation,
     count_stale_tasks,
     did_tracker_move,
     has_urgent_tasks,
+    parse_delegations_from_decisions_log,
     parse_session_index,
     read_healer_status,
     read_latest_autonomy_score,
@@ -76,6 +77,11 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
     tracker_moved = did_tracker_move(index_rows)
     recent_security = count_recent_security_sessions(index_rows, tasks_dir)
 
+    # Parse decisions log once -- used for both delegation-aware counters and
+    # active experiment counting.
+    decisions_path = recursive_dir / "decisions" / "log.md"
+    delegations = parse_delegations_from_decisions_log(decisions_path)
+
     signals: dict[str, object] = {
         "eval_score": eval_score if eval_score is not None else DEFAULTS["eval_score"],
         "autonomy_score": autonomy_score if autonomy_score is not None else DEFAULTS["autonomy_score"],
@@ -92,17 +98,22 @@ def collect_signals(recursive_dir: Path) -> dict[str, object]:
         "recent_roles": [r.get("role", "unknown").strip() for r in index_rows[-5:]],
     }
 
-    # Add sessions_since for each role
+    # Add sessions_since for each role using delegation-aware counting.
+    # In v2 brain sessions every session is recorded as role=brain in the
+    # index.  The decisions log records which sub-agents were actually
+    # delegated.  count_sessions_since_delegation() takes the minimum of
+    # the raw index count and the delegation-log count so that sessions
+    # appear up-to-date regardless of whether they ran v1 standalone or
+    # v2 sub-agent style.
     for role in _ROLES:
         key = f"sessions_since_{role.replace('-', '_')}"
-        signals[key] = count_sessions_since_role(index_rows, role)
+        signals[key] = count_sessions_since_delegation(index_rows, role, delegations)
 
     # Mark which signals are using defaults (for dashboard display)
     signals["_eval_is_default"] = eval_score is None
     signals["_autonomy_is_default"] = autonomy_score is None
 
-    # Count active experiments from decisions log
-    decisions_path = recursive_dir / "decisions" / "log.md"
+    # Count active experiments from decisions log (reuse the already-read file)
     active_experiments = 0
     if decisions_path.is_file():
         try:
