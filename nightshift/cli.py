@@ -42,6 +42,7 @@ from nightshift.owl.cycle import (
     recent_hot_files,
     verify_cycle,
 )
+from nightshift.owl.eval_runner import format_eval_table, run_eval_dry_run, run_eval_full
 from nightshift.owl.scoring import score_diff
 from nightshift.raven.feature import build_feature
 from nightshift.raven.planner import build_plan_prompt, format_plan, parse_plan, run_plan_agent, scope_check
@@ -589,6 +590,21 @@ def module_map_cli(args: argparse.Namespace) -> int:
     return 0
 
 
+def eval_cli(args: argparse.Namespace) -> int:
+    """Run the evaluation pipeline and print a dimension scorecard."""
+    repo_dir = Path(args.repo_dir or os.getcwd()).resolve()
+    write_report: bool = getattr(args, "write", False)
+
+    if args.dry_run:
+        result = run_eval_dry_run(repo_dir, write_report=write_report)
+    else:
+        agent = getattr(args, "agent", None) or "claude"
+        result = run_eval_full(repo_dir, agent=agent, write_report=write_report)
+
+    print(format_eval_table(result))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Nightshift orchestrator")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -641,6 +657,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     module_map_parser.add_argument("--write", action="store_true", help="Write the module map file instead of printing")
     module_map_parser.set_defaults(func=module_map_cli)
+
+    eval_parser = subparsers.add_parser(
+        "eval",
+        parents=[common],
+        help="Run the evaluation pipeline and print a dimension scorecard",
+    )
+    eval_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Score synthetic artifacts without cloning or running a shift",
+    )
+    eval_parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Write the evaluation report to .recursive/evaluations/",
+    )
+    eval_parser.set_defaults(func=eval_cli)
 
     multi_parser = subparsers.add_parser("multi", parents=[common], help="Run shifts on multiple repos")
     multi_parser.add_argument("repos", nargs="+", help="Repository paths to process")

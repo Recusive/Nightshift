@@ -49,6 +49,7 @@ ignore = [
 "nightshift/cli.py" = ["T201"]
 "nightshift/core/shell.py" = ["S603", "S607"]
 "nightshift/owl/cycle.py" = ["S603", "S607"]
+"nightshift/owl/eval_runner.py" = ["S603", "S607"]
 "nightshift/infra/worktree.py" = ["S603", "S607"]
 # Framework files: pre-existing patterns, not nightshift product code
 ".recursive/engine/format-stream.py" = ["S108", "SIM105", "SIM110", "BLE001", "T201"]

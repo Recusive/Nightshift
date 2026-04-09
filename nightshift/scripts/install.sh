@@ -34,6 +34,7 @@ PACKAGE_FILES=(
   "nightshift/settings/eval_targets.py"
   "nightshift/owl/__init__.py"
   "nightshift/owl/cycle.py"
+  "nightshift/owl/eval_runner.py"
   "nightshift/owl/scoring.py"
   "nightshift/owl/readiness.py"
   "nightshift/raven/__init__.py"

@@ -573,6 +573,14 @@ class ShiftArtifacts(TypedDict):
     repo_is_clean: bool
 
 
+class ShiftRunResult(TypedDict):
+    """Outcome of running a test shift subprocess."""
+
+    exit_code: int
+    stdout: str
+    stderr: str
+
+
 # --- Release types ----------------------------------------------------------
 
 
