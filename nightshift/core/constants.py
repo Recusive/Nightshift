@@ -629,6 +629,14 @@ FEATURE_VERIFY_TIMEOUT = 600
 MODULE_MAP_PATH = ".recursive/architecture/MODULE_MAP.md"
 MODULE_MAP_STALE_AFTER_SESSIONS = 5
 
+# Path to the append-only session index used as a monotonic session counter.
+# This file is never compacted, making it a stable source for session labels
+# even after handoff compaction removes older numbered handoff files.
+SESSION_INDEX_PATH = ".recursive/sessions/index.md"
+
+# Path to the numbered handoff directory (fallback source for session labels).
+HANDOFF_DIR_PATH = ".recursive/handoffs"
+
 # Header text used in the module map when a dependency cycle is detected.
 MODULE_MAP_CYCLE_WARNING = (
     "WARNING: dependency cycle detected. The following modules form a cycle and were appended in alphabetical order:"
