@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -56,11 +57,11 @@ def _load_fixture(name: str) -> ShiftArtifacts:
     """Load a JSON fixture file and return it as a ShiftArtifacts TypedDict.
 
     The JSON object must contain the keys defined in ShiftArtifacts.  Loading is
-    done at JSON deserialization boundary so the raw dict is typed as Any before
-    being coerced to the TypedDict.
+    done at the JSON deserialization boundary, so the raw dict is annotated as
+    dict[str, Any] per project policy (Any only at deserialization boundaries).
     """
     path = _FIXTURE_DIR / name
-    raw: dict[str, object] = json.loads(path.read_text(encoding="utf-8"))
+    raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     exit_code_raw = raw.get("runner_exit_code", 0)
     exit_code = exit_code_raw if isinstance(exit_code_raw, int) else 0
     return ShiftArtifacts(
