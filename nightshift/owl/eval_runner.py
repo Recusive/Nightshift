@@ -22,7 +22,6 @@ from datetime import datetime
 from pathlib import Path
 
 from nightshift.core.constants import (
-    EVALUATION_CLONE_DEST,
     EVALUATION_DEFAULT_CYCLE_MINUTES,
     EVALUATION_DEFAULT_CYCLES,
     EVALUATION_DIMENSIONS,
@@ -32,6 +31,7 @@ from nightshift.core.constants import (
     EVALUATION_TEMPLATE_MARKERS,
 )
 from nightshift.core.errors import NightshiftError
+from nightshift.core.shell import validate_repo_url
 from nightshift.core.types import DimensionScore, EvaluationResult, ShiftArtifacts, ShiftRunResult
 from nightshift.settings.config import merge_config
 
@@ -569,13 +569,16 @@ def run_eval_full(
     if not target:
         raise NightshiftError("eval_target_repo is not set in config. Add it to .nightshift.json or .recursive.json.")
 
+    # Belt-and-suspenders: validate_repo_url is also called at config-load time
+    # in _build_config(), but we re-validate here immediately before the
+    # subprocess call to defend against any future bypass of the config layer.
+    validate_repo_url(target)
+
     eval_dir = repo_dir / ".recursive" / "evaluations"
     eval_id = _next_eval_id(eval_dir)
     date = datetime.now().strftime("%Y-%m-%d")
 
-    clone_dest = Path(EVALUATION_CLONE_DEST)
-    _safe_rmtree(clone_dest)
-
+    clone_dest = Path(tempfile.mkdtemp(prefix="nightshift-eval-clone-"))
     try:
         subprocess.run(
             ["git", "clone", "--depth", "1", target, str(clone_dest)],
@@ -584,11 +587,13 @@ def run_eval_full(
             timeout=120,
         )
     except subprocess.CalledProcessError as exc:
+        _safe_rmtree(clone_dest, ignore_errors=True)
         raise NightshiftError(f"Failed to clone {target}: {exc}") from exc
     except subprocess.TimeoutExpired as exc:
+        _safe_rmtree(clone_dest, ignore_errors=True)
         raise NightshiftError(f"Clone of {target} timed out") from exc
 
-    runtime_dir = Path(tempfile.mkdtemp(prefix="nightshift-eval-"))
+    runtime_dir = Path(tempfile.mkdtemp(prefix="nightshift-eval-run-"))
     try:
         result_data = _run_test_shift_subprocess(
             repo_dir=repo_dir,

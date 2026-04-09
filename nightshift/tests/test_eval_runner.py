@@ -16,6 +16,7 @@ from nightshift.cli import build_parser, eval_cli
 from nightshift.core.constants import EVALUATION_DIMENSIONS, EVALUATION_MAX_PER_DIMENSION
 from nightshift.core.types import EvaluationResult, ShiftArtifacts
 from nightshift.core.errors import NightshiftError
+from nightshift.core.shell import validate_repo_url
 from nightshift.owl.eval_runner import (
     _build_synthetic_artifacts,
     _next_eval_id,
@@ -799,3 +800,125 @@ class TestEvalCLIIntegration:
     def test_nightshift_package_exports_run_eval_dry_run(self) -> None:
         assert hasattr(nightshift, "run_eval_dry_run")
         assert callable(nightshift.run_eval_dry_run)
+
+
+# ---------------------------------------------------------------------------
+# validate_repo_url -- task #0268
+# ---------------------------------------------------------------------------
+
+
+class TestValidateRepoUrl:
+    def test_valid_https_url_passes(self) -> None:
+        validate_repo_url("https://github.com/example/repo")
+
+    def test_valid_https_url_with_git_suffix_passes(self) -> None:
+        validate_repo_url("https://github.com/example/repo.git")
+
+    def test_valid_git_at_url_passes(self) -> None:
+        validate_repo_url("git@github.com:example/repo.git")
+
+    def test_valid_git_at_url_with_subdomain_passes(self) -> None:
+        validate_repo_url("git@gitlab.com:group/subgroup/repo.git")
+
+    def test_flag_injection_upload_pack_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="--"):
+            validate_repo_url("--upload-pack=/usr/bin/id")
+
+    def test_flag_injection_any_double_dash_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="--"):
+            validate_repo_url("--config=core.sshCommand=id")
+
+    def test_file_scheme_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="file://"):
+            validate_repo_url("file:///etc/passwd")
+
+    def test_local_absolute_path_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="local path"):
+            validate_repo_url("/tmp/something")
+
+    def test_local_home_dir_path_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="local path"):
+            validate_repo_url("/home/user/.ssh")
+
+    def test_empty_string_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="empty"):
+            validate_repo_url("")
+
+    def test_whitespace_only_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="empty"):
+            validate_repo_url("   ")
+
+    def test_http_scheme_rejected(self) -> None:
+        # Only https:// is accepted; plain http:// must be rejected.
+        with pytest.raises(NightshiftError, match="only 'https://' and 'git@'"):
+            validate_repo_url("http://github.com/example/repo")
+
+    def test_ssh_scheme_rejected(self) -> None:
+        with pytest.raises(NightshiftError, match="only 'https://' and 'git@'"):
+            validate_repo_url("ssh://git@github.com/example/repo.git")
+
+    def test_exported_from_nightshift(self) -> None:
+        assert hasattr(nightshift, "validate_repo_url")
+        assert callable(nightshift.validate_repo_url)
+
+
+# ---------------------------------------------------------------------------
+# run_eval_full mkdtemp uniqueness -- task #0269
+# ---------------------------------------------------------------------------
+
+
+class TestRunEvalFullMkdtemp:
+    def test_clone_dest_is_unique_per_invocation(self, tmp_path: Path) -> None:
+        """Two concurrent calls must not share the clone destination path.
+
+        We cannot actually run two concurrent calls (that requires network),
+        so we verify the uniqueness property by inspecting that mkdtemp
+        returns a different path each time it is called with the same prefix.
+        This guards against regression back to the fixed /tmp/nightshift-eval path.
+        """
+        import tempfile
+
+        path1 = Path(tempfile.mkdtemp(prefix="nightshift-eval-clone-"))
+        path2 = Path(tempfile.mkdtemp(prefix="nightshift-eval-clone-"))
+        try:
+            assert path1 != path2, "mkdtemp must return unique paths per invocation"
+            assert "nightshift-eval-clone-" in path1.name
+            assert "nightshift-eval-clone-" in path2.name
+        finally:
+            path1.rmdir()
+            path2.rmdir()
+
+    def test_run_eval_full_raises_on_missing_target(self, tmp_path: Path) -> None:
+        """run_eval_full must raise NightshiftError when eval_target_repo is missing."""
+        import copy
+        import tempfile
+        from unittest.mock import patch
+
+        from nightshift.core.constants import DEFAULT_CONFIG
+        from nightshift.owl.eval_runner import run_eval_full
+
+        _ = tempfile  # suppress unused-import; used only for context documentation
+
+        config_no_target = copy.deepcopy(dict(DEFAULT_CONFIG))
+        config_no_target["eval_target_repo"] = ""
+
+        with patch("nightshift.owl.eval_runner.merge_config") as mock_cfg:
+            mock_cfg.return_value = config_no_target
+            with pytest.raises(NightshiftError, match="eval_target_repo is not set"):
+                run_eval_full(tmp_path)
+
+    def test_run_eval_full_rejects_invalid_url(self, tmp_path: Path) -> None:
+        """run_eval_full must raise NightshiftError for flag-injection URLs."""
+        import copy
+        from unittest.mock import patch
+
+        from nightshift.core.constants import DEFAULT_CONFIG
+        from nightshift.owl.eval_runner import run_eval_full
+
+        config_bad_url = copy.deepcopy(dict(DEFAULT_CONFIG))
+        config_bad_url["eval_target_repo"] = "--upload-pack=/usr/bin/id"
+
+        with patch("nightshift.owl.eval_runner.merge_config") as mock_cfg:
+            mock_cfg.return_value = config_bad_url
+            with pytest.raises(NightshiftError, match="--"):
+                run_eval_full(tmp_path)

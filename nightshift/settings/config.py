@@ -10,7 +10,7 @@ from typing import Any
 
 from nightshift.core.constants import DEFAULT_CONFIG, SUPPORTED_AGENTS, print_status
 from nightshift.core.errors import NightshiftError
-from nightshift.core.shell import validate_verify_command
+from nightshift.core.shell import validate_repo_url, validate_verify_command
 from nightshift.core.state import load_json
 from nightshift.core.types import NightshiftConfig
 from nightshift.settings.eval_targets import infer_target_verify_command
@@ -48,6 +48,9 @@ def _build_config(raw: dict[str, Any]) -> NightshiftConfig:
         )
     if isinstance(verify_command, str):
         validate_verify_command(verify_command)
+    eval_target_repo_raw = raw.get("eval_target_repo", "")
+    if isinstance(eval_target_repo_raw, str):
+        validate_repo_url(eval_target_repo_raw)
     notification_webhook = raw.get("notification_webhook")
     if notification_webhook is not None and not isinstance(notification_webhook, str):
         raise NightshiftError(

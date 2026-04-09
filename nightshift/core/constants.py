@@ -794,7 +794,11 @@ EVALUATION_TEMPLATE_MARKERS: list[str] = [
     "Issues too large to fix autonomously",
 ]
 
-# Destination path (under /tmp) used when cloning the target repo for evaluation.
+# DEPRECATED: EVALUATION_CLONE_DEST is no longer used by production code.
+# run_eval_full() now creates a per-invocation temp directory via tempfile.mkdtemp()
+# to eliminate the TOCTOU symlink race and concurrent-job collision described in
+# task #0269. This constant is retained only for backwards-compatibility with any
+# external callers that may import it; it will be removed in a future version.
 EVALUATION_CLONE_DEST = "/tmp/nightshift-eval"
 
 # Directory name under the system temp root used for isolated test/evaluation
