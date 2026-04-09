@@ -175,6 +175,106 @@ def count_sessions_since_role(rows: list[dict[str, str]], role: str) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Delegation history signals (v2 brain architecture)
+# ---------------------------------------------------------------------------
+
+# Maps delegation tokens in decisions log to canonical role names.
+# "build-fix" and "evolve-fix" are fix-cycle sub-agents still counted toward
+# their parent role so that the sessions-since counter resets correctly.
+_DELEGATION_ROLE_MAP: dict[str, str] = {
+    "build": "build",
+    "build-fix": "build",
+    "review": "review",
+    "oversee": "oversee",
+    "strategize": "strategize",
+    "achieve": "achieve",
+    "security": "security-check",
+    "security-check": "security-check",
+    "evolve": "evolve",
+    "evolve-fix": "evolve",
+    "audit": "audit",
+    "audit-agent": "audit",
+}
+
+
+def parse_delegations_from_decisions_log(log_path: Path) -> list[set[str]]:
+    """Parse the decisions log and return delegation sets in chronological order.
+
+    Each entry in the returned list represents one brain session (one
+    ``## YYYY-MM-DD -- Session #NNNN`` block) and contains the canonical
+    role names that were delegated in that session.
+
+    If a session entry has no ``**Delegations**:`` line it is included as an
+    empty set so that the list length reflects the total number of logged brain
+    sessions.
+
+    Returns an empty list if the file cannot be read or has no session headers.
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+
+    # Split on session headers -- each block starts with "## " followed by a date
+    # and optional session identifier (e.g. "## 2026-04-08 -- Session #0107").
+    blocks = re.split(r"(?=^## \d{4}-\d{2}-\d{2})", text, flags=re.MULTILINE)
+    result: list[set[str]] = []
+    for block in blocks:
+        if not re.match(r"^## \d{4}-\d{2}-\d{2}", block):
+            continue
+        delegations: set[str] = set()
+        # Match "**Delegations**: token1 (desc), token2 (desc), ..."
+        deleg_match = re.search(r"^\*\*Delegations\*\*:\s*(.+)$", block, re.MULTILINE)
+        if deleg_match:
+            raw = deleg_match.group(1)
+            # The delegation list is comma-separated.  Each item is a role token
+            # optionally followed by a parenthesised description, e.g.:
+            #   "build (#0208 fix), evolve (#0209 IFS), build-fix (PR review)"
+            # We split on commas, then extract only the *first* word of each
+            # segment (before any space or parenthesis) to avoid picking up
+            # words from inside the description text.
+            for segment in raw.split(","):
+                token_match = re.match(r"\s*([A-Za-z][\w-]*)", segment)
+                if token_match:
+                    canonical = _DELEGATION_ROLE_MAP.get(token_match.group(1).lower())
+                    if canonical:
+                        delegations.add(canonical)
+        result.append(delegations)
+    return result
+
+
+def count_sessions_since_delegation(
+    index_rows: list[dict[str, str]],
+    role: str,
+    delegations: list[set[str]],
+) -> int:
+    """Count sessions since the last occurrence of a role, including delegations.
+
+    In the v2 brain architecture every session appears in the session index as
+    role=brain.  The actual sub-agents dispatched are recorded in the decisions
+    log.  This function returns the minimum of:
+
+    - ``count_sessions_since_role(index_rows, role)`` -- the raw index count
+      (correct for v1/standalone sessions)
+    - the number of brain sessions since the role was last delegated
+      (correct for v2 brain sessions)
+
+    Taking the minimum means that if *either* source knows the role ran
+    recently, the counter reflects that fact.
+    """
+    index_count = count_sessions_since_role(index_rows, role)
+    if not delegations:
+        return index_count
+    # Count brain sessions since the last delegation of this role.
+    delegation_count = len(delegations)
+    for i, deleg_set in enumerate(reversed(delegations)):
+        if role in deleg_set:
+            delegation_count = i
+            break
+    return min(index_count, delegation_count)
+
+
+# ---------------------------------------------------------------------------
 # Task signals
 # ---------------------------------------------------------------------------
 

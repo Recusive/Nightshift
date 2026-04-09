@@ -768,3 +768,188 @@ class TestHasUrgentTasksCRLF:
         # Frontmatter says priority: normal; body has 'priority: urgent'
         (tmp_path / "0001.md").write_text("---\nstatus: pending\npriority: normal\n---\n\npriority: urgent\n")
         assert has_urgent_tasks(tmp_path) is False
+
+
+# ---------------------------------------------------------------------------
+# Delegation history tests (v2 brain architecture, task #0222)
+# ---------------------------------------------------------------------------
+
+parse_delegations_from_decisions_log = signals_mod.parse_delegations_from_decisions_log
+count_sessions_since_delegation = signals_mod.count_sessions_since_delegation
+
+
+class TestParseDelegationsFromDecisionsLog:
+    """Unit tests for parsing the decisions log delegation history."""
+
+    _LOG_SINGLE = (
+        "# Decision Journal\n\n"
+        "## 2026-04-08 -- Session #0107\n"
+        "**Advisory**: security-check (score 75)\n"
+        "**Decision**: Overrode to AUDIT + EVOLVE.\n"
+        "**Delegations**: evolve (fix #0201), audit-agent (audit)\n"
+        "**Outcome**: Merged.\n"
+    )
+
+    _LOG_MULTI = (
+        "# Decision Journal\n\n"
+        "## 2026-04-08 -- Session #0107\n"
+        "**Delegations**: evolve (fix #0201), audit-agent (audit)\n"
+        "## 2026-04-08 -- Session #0108\n"
+        "**Delegations**: build (eval rerun), evolve (ROLE-SCORING)\n"
+        "## 2026-04-08 -- Session #0109\n"
+        "**Delegations**: evolve (security-evolve path), security (pentest)\n"
+        "## 2026-04-08 -- Session #0110\n"
+        "**Delegations**: build (#0208 fix), evolve (#0209 IFS), build-fix (PR review)\n"
+    )
+
+    _LOG_NO_DELEGATIONS = (
+        "# Decision Journal\n\n## 2026-04-07 -- Phase 0\n**Test**: Launched spike.\n**Result**: SPIKE-PASS.\n"
+    )
+
+    def test_single_entry_parsed(self) -> None:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(self._LOG_SINGLE)
+            p = Path(f.name)
+        try:
+            result = parse_delegations_from_decisions_log(p)
+        finally:
+            p.unlink()
+        assert len(result) == 1
+        assert "evolve" in result[0]
+        assert "audit" in result[0]
+
+    def test_audit_agent_maps_to_audit(self) -> None:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(self._LOG_SINGLE)
+            p = Path(f.name)
+        try:
+            result = parse_delegations_from_decisions_log(p)
+        finally:
+            p.unlink()
+        assert "audit" in result[0]
+        assert "audit-agent" not in result[0]
+
+    def test_multiple_entries_in_order(self) -> None:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(self._LOG_MULTI)
+            p = Path(f.name)
+        try:
+            result = parse_delegations_from_decisions_log(p)
+        finally:
+            p.unlink()
+        assert len(result) == 4
+        assert result[0] == {"evolve", "audit"}
+        assert result[1] == {"build", "evolve"}
+        assert result[2] == {"evolve", "security-check"}
+        assert result[3] == {"build", "evolve"}
+
+    def test_build_fix_maps_to_build(self) -> None:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(self._LOG_MULTI)
+            p = Path(f.name)
+        try:
+            result = parse_delegations_from_decisions_log(p)
+        finally:
+            p.unlink()
+        # Session #0110 has build-fix which maps to build
+        assert "build" in result[3]
+
+    def test_entry_without_delegations_is_empty_set(self) -> None:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(self._LOG_NO_DELEGATIONS)
+            p = Path(f.name)
+        try:
+            result = parse_delegations_from_decisions_log(p)
+        finally:
+            p.unlink()
+        assert len(result) == 1
+        assert result[0] == set()
+
+    def test_missing_file_returns_empty(self, tmp_path: Path) -> None:
+        result = parse_delegations_from_decisions_log(tmp_path / "nonexistent.md")
+        assert result == []
+
+    def test_empty_file_returns_empty(self, tmp_path: Path) -> None:
+        f = tmp_path / "log.md"
+        f.write_text("")
+        assert parse_delegations_from_decisions_log(f) == []
+
+
+class TestCountSessionsSinceDelegation:
+    """Unit tests for delegation-aware sessions-since counter."""
+
+    def test_uses_delegation_count_when_smaller(self) -> None:
+        # Index shows all brain sessions (role=brain), delegation log shows evolve ran 2 sessions ago.
+        rows = [
+            {"role": "brain"},
+            {"role": "brain"},
+            {"role": "brain"},
+            {"role": "brain"},
+        ]
+        delegations = [
+            {"build"},  # session 0: only build
+            {"build"},  # session 1: only build
+            {"evolve"},  # session 2: evolve ran
+            {"build"},  # session 3: only build
+        ]
+        # index count: 4 (evolve never appears in index)
+        # delegation count: 1 (evolve ran in session 2, session 3 is after = 1 session ago)
+        result = count_sessions_since_delegation(rows, "evolve", delegations)
+        assert result == 1
+
+    def test_uses_index_count_when_smaller(self) -> None:
+        # Index shows standalone evolve ran last session; no delegation log entries.
+        rows = [
+            {"role": "build"},
+            {"role": "evolve"},
+        ]
+        delegations: list[set[str]] = []
+        # index count: 0 (evolve is the last row)
+        # delegation count: not applicable (empty list -> falls back to index)
+        result = count_sessions_since_delegation(rows, "evolve", delegations)
+        assert result == 0
+
+    def test_role_never_run_returns_full_count(self) -> None:
+        rows = [{"role": "brain"}, {"role": "brain"}, {"role": "brain"}]
+        delegations = [{"build"}, {"build"}, {"build"}]
+        result = count_sessions_since_delegation(rows, "audit", delegations)
+        # index: 3 (never in index), delegation: 3 (never delegated)
+        assert result == 3
+
+    def test_empty_rows_and_delegations(self) -> None:
+        result = count_sessions_since_delegation([], "evolve", [])
+        assert result == 0
+
+    def test_delegation_last_session_returns_zero(self) -> None:
+        rows = [{"role": "brain"}, {"role": "brain"}]
+        delegations = [{"build"}, {"evolve"}]
+        result = count_sessions_since_delegation(rows, "evolve", delegations)
+        assert result == 0
+
+    def test_mixed_standalone_and_delegation(self) -> None:
+        # Standalone evolve in index + delegation log both contribute;
+        # the more recent one (delegation) wins.
+        rows = [
+            {"role": "evolve"},  # old standalone session
+            {"role": "brain"},
+            {"role": "brain"},
+            {"role": "brain"},
+        ]
+        delegations = [
+            {"evolve"},  # brain session 0 delegated evolve (1 session ago in delegation list)
+            {"build"},  # brain session 1
+        ]
+        # index count: 3 (last evolve was 3 rows ago)
+        # delegation count: 1 (evolve delegated in first delegation entry, one more after it)
+        result = count_sessions_since_delegation(rows, "evolve", delegations)
+        assert result == 1
