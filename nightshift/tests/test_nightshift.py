@@ -683,6 +683,103 @@ class TestReadState:
         assert "Injection Attack" not in state["category_counts"]
         assert "Unknown Category" not in state["category_counts"]
 
+    def test_corrupt_category_counts_values_dropped_silently(self, tmp_path):
+        """Non-numeric values in category_counts must be dropped without crashing.
+
+        Task #0266: int(v) in the category_counts comprehension has no guard.
+        A state file with {"Security": "not-a-number"} or {"Security": null}
+        would previously raise ValueError/TypeError. The isinstance check
+        ensures corrupt values are silently skipped, consistent with how
+        unknown keys are already silently dropped.
+        """
+        state_path = tmp_path / "state.json"
+        existing = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "baseline": {"status": "passed", "command": None, "message": ""},
+            "counters": {
+                "fixes": 3,
+                "issues_logged": 0,
+                "files_touched": 3,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {
+                "Security": 2,
+                "Tests": "corrupted",
+                "Error Handling": None,
+                "A11y": [],
+                "Performance": "not-a-number",
+            },
+            "recent_cycle_paths": [],
+            "cycles": [],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        state_path.write_text(json.dumps(existing))
+        # Must not raise ValueError or TypeError
+        state = nightshift.read_state(
+            state_path,
+            today="2026-04-09",
+            branch="nightshift/2026-04-09",
+            agent="claude",
+            verify_command=None,
+        )
+        # Only the numeric "Security" entry survives; all corrupt values are dropped.
+        assert state["category_counts"] == {"Security": 2}
+        assert "Tests" not in state["category_counts"]
+        assert "Error Handling" not in state["category_counts"]
+        assert "A11y" not in state["category_counts"]
+        assert "Performance" not in state["category_counts"]
+
+    def test_valid_category_counts_load_correctly(self, tmp_path):
+        """Valid numeric category_counts survive the sanitization pass intact.
+
+        Task #0266: regression guard -- ensure the isinstance check does not
+        accidentally drop legitimate integer or float values.
+        """
+        state_path = tmp_path / "state.json"
+        existing = {
+            "version": 1,
+            "date": "2026-04-09",
+            "branch": "nightshift/2026-04-09",
+            "agent": "claude",
+            "baseline": {"status": "passed", "command": None, "message": ""},
+            "counters": {
+                "fixes": 5,
+                "issues_logged": 0,
+                "files_touched": 5,
+                "low_impact_fixes": 0,
+                "failed_verifications": 0,
+                "empty_cycles": 0,
+                "agent_failures": 0,
+                "tests_written": 0,
+            },
+            "category_counts": {
+                "Security": 3,
+                "Tests": 2,
+                "Code Quality": 1,
+            },
+            "recent_cycle_paths": [],
+            "cycles": [],
+            "halt_reason": None,
+            "log_only_mode": False,
+        }
+        state_path.write_text(json.dumps(existing))
+        state = nightshift.read_state(
+            state_path,
+            today="2026-04-09",
+            branch="nightshift/2026-04-09",
+            agent="claude",
+            verify_command=None,
+        )
+        assert state["category_counts"] == {"Security": 3, "Tests": 2, "Code Quality": 1}
+
 
 class TestTopPath:
     def test_basic(self):

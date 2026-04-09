@@ -21,6 +21,10 @@ CATEGORY_ORDER = [
     "Polish",
 ]
 
+# Frozenset for O(1) allowlist checks against agent-supplied category strings.
+# Derived from CATEGORY_ORDER so both are always in sync.
+VALID_CATEGORIES: frozenset[str] = frozenset(CATEGORY_ORDER)
+
 DEFAULT_CONFIG: NightshiftConfig = {
     "agent": None,
     "hours": 8,

@@ -23,6 +23,7 @@ from nightshift.core.constants import (
     MAX_INSTRUCTION_TOTAL_BYTES,
     UNTRUSTED_INSTRUCTIONS_PREAMBLE,
     UNTRUSTED_INSTRUCTIONS_SUFFIX,
+    VALID_CATEGORIES,
     print_status,
 )
 from nightshift.core.errors import NightshiftError
@@ -43,7 +44,8 @@ from nightshift.infra.worktree import (
 
 # Allowlist for category strings supplied by agent output.  Only strings that
 # appear in CATEGORY_ORDER are accepted; unknown strings are silently ignored.
-_VALID_CATEGORIES: frozenset[str] = frozenset(CATEGORY_ORDER)
+# Defined once in constants.py; imported here to avoid duplication.
+_VALID_CATEGORIES = VALID_CATEGORIES
 
 
 def extract_json(text: str) -> dict[str, Any] | None:
